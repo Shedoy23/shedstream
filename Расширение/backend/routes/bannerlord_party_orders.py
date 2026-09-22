@@ -28,7 +28,21 @@ router = APIRouter()
 
 _AUTH_FAIL = {"success": False, "message": "auth required"}
 
-VALID_ORDER_TYPES = {"siege", "defend", "patrol", "raid", "garrison"}
+VALID_ORDER_TYPES = {"siege", "defend", "patrol", "raid", "garrison", "recruit"}
+
+
+async def expire_stale_party_orders(conn, channel_id: int,
+                                    owner: str | None = None) -> int:
+    """Expire active rows after their already-authoritative wall-clock deadline."""
+    sql = ("UPDATE bannerlord_party_orders SET status='expired' "
+           "WHERE channel_id=? AND status='active' "
+           "AND datetime(expires_at)<=datetime('now')")
+    params: list = [channel_id]
+    if owner is not None:
+        sql += " AND owner_username=?"
+        params.append(owner)
+    cur = await conn.execute(sql, params)
+    return cur.rowcount or 0
 
 
 @router.get("/api/bannerlord/party-orders")
@@ -40,6 +54,8 @@ async def my_party_order(request: Request):
     username, channel_id = auth
 
     async with get_db()._connect() as conn:
+        if await expire_stale_party_orders(conn, channel_id, username):
+            await conn.commit()
         cur = await conn.execute(
             "SELECT id, order_type, target_settlement_id, target_settlement_name, "
             "       issued_at, expires_at "
@@ -84,13 +100,15 @@ async def handle_set_party_order(conn, channel_id: int, owner: str, data: dict) 
     log.info("[SIEGE-SET ENTRY] ch=%s @%s order=%s target='%s' (id=%s)",
              channel_id, owner, order_type, target_name, target_id)
 
+    await expire_stale_party_orders(conn, channel_id, owner)
+
     if order_type not in VALID_ORDER_TYPES:
         log.info("[SIEGE-SET REFUSE] invalid order_type ch=%s @%s raw=%r",
                  channel_id, owner, order_type)
         return {"success": False,
                 "message": f"order_type должен быть {'/'.join(VALID_ORDER_TYPES)}"}
     # patrol не требует strict target (area scan), но для UI consistency требуем.
-    if not target_id:
+    if not target_id and order_type != "recruit":
         log.info("[SIEGE-SET REFUSE] missing target_settlement_id ch=%s @%s",
                  channel_id, owner)
         return {"success": False, "message": "target_settlement_id required"}
@@ -126,7 +144,8 @@ async def handle_set_party_order(conn, channel_id: int, owner: str, data: dict) 
              channel_id, owner, order_type, target_name, target_id)
     return {
         "success": True,
-        "message": f"⚔ Приказ: {order_type} → '{target_name}'",
+        "message": ("🪖 Приказ: собирать отряд" if order_type == "recruit"
+                    else f"⚔ Приказ: {order_type} → '{target_name}'"),
     }
 
 

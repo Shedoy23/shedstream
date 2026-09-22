@@ -1,5 +1,6 @@
 """Real SQLite regression: save-owned identities must reconcile atomically."""
 import asyncio
+import sqlite3
 import tempfile
 from pathlib import Path
 from test_bannerlord_buy_action import _build_db, _make_anon_request, CHANNEL_ID
@@ -47,6 +48,17 @@ async def main():
             else:
                 raise AssertionError('Ambiguous snapshot must be rejected')
             assert await sql('SELECT * FROM bannerlord_heroes WHERE channel_id=? ORDER BY username', (CHANNEL_ID,)) == before, 'Invalid snapshot must leave the entire roster untouched'
+            # A storage failure after temporary ids were installed must also roll
+            # back, not leave invisible placeholders in a pooled connection.
+            await sql("CREATE TRIGGER fail_reconcile_all BEFORE INSERT ON bannerlord_heroes WHEN NEW.username='carol' BEGIN SELECT RAISE(ABORT,'injected failure'); END")
+            try:
+                await reconcile(heroes)
+            except sqlite3.IntegrityError:
+                pass
+            else:
+                raise AssertionError('Injected storage failure did not run')
+            assert await sql('SELECT * FROM bannerlord_heroes WHERE channel_id=? ORDER BY username', (CHANNEL_ID,)) == before, 'Storage failure must roll back identity reassignment'
+            await sql('DROP TRIGGER fail_reconcile_all')
             assert await sql('SELECT hero_id FROM bannerlord_heroes WHERE channel_id=?', (CHANNEL_ID+1,)) == [('occupied',)]
             route.require_jwt_user = lambda req: ('alice', CHANNEL_ID)
             async def inventory(seq, **extra):

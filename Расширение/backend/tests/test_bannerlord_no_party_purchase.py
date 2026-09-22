@@ -39,7 +39,8 @@ async def main():
                 seq += 1
                 await store_inventory(db, CHANNEL_ID, env(dict(username='alice', hero_id='test_hero_alice', inventory_seq=seq, items=[item], inventory_state=state)))
             async def buy(**extra):
-                data = dict(item_id='sword', equip_now=True, slot='weapon0', replace_owned_id='old-id', expected_trade_in_gold=600)
+                data = dict(item_id='sword', equip_now=True, slot='weapon0', replace_owned_id='old-id', expected_trade_in_gold=600,
+                            replace_item_id='old-sword', replace_modifier_id='fine', expected_price_gold=1000)
                 data.update(extra)
                 return await route._bannerlord_buy_action_locked(request, 'alice', CHANNEL_ID, 'hero.buy_equipment', data)
             await publish()
@@ -52,6 +53,9 @@ async def main():
             assert options[1]['reason'] == 'insufficient_gold', options
             assert (await buy(slot='head'))['reason'] == 'invalid_slot'
             assert (await buy(replace_owned_id='stale'))['reason'] == 'equipment_changed'
+            assert (await buy(replace_item_id='other'))['reason'] == 'equipment_changed'
+            assert (await buy(replace_modifier_id='other'))['reason'] == 'equipment_changed'
+            assert (await buy(expected_price_gold=1))['reason'] == 'equipment_price_changed'
             assert (await buy(expected_trade_in_gold=99999))['reason'] == 'equipment_price_changed'
             assert (await buy(equip_now=False))['reason'] == 'purchase_slot_required'
             result = await buy(price_gold=1, trade_in_gold=99999, target='victim', expected_item_id='forged')

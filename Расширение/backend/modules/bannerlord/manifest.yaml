@@ -101,6 +101,7 @@ extensions:
     - hero.restore_profile       # 2026-06-15: на загрузке сейва мод ре-пушит per-save backend-only стейт (class/stance/gear_tier из SyncData). БЕЗ этой строки бэк реджектит event_not_in_manifest → класс не восстанавливается (тот же грабль, что properties_snapshot выше).
     - hero.policy_result       # 2026-07-22 (багрепорт #23): мод сообщает ИТОГ заявки на закон (принят/снят). ACK от ActionPoller приходит ДО реальной работы и ничего не доказывает — без этого события заявка вечно висела 'pending': закон в игре действовал, а расширение показывало «на голосовании» и больше не давало нажать (уникальный индекс по pending).
     - hero.restore_clan_upgrades # 2026-06-15: на загрузке сейва мод ре-пушит owned clan-upgrades ЭТОГО сейва (per-save, SyncData) → backend merge'ит после вайпа.
+    - hero.clan_upgrades_purchased # engine Hero.Gold debit succeeded; commit ownership
     # world.settlements_catalog объявлен в base events (наверху, поэтому без префикса hero.)
   actions:
     - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
@@ -125,6 +126,7 @@ extensions:
     - hero.join_clan         # Sprint 5.12: join existing clan (Hero.Gold 50K)
     - hero.join_kingdom      # Sprint 5.12: clan joins kingdom (Hero.Gold 100K)
     - hero.create_party      # Sprint 5.13: clan-leader creates MobileParty on world map (Hero.Gold 200K)
+    - hero.buy_clan_upgrades # engine-authoritative Hero.Gold purchase
     - hero.smith_item        # Sprint 5.29 BLT-parity #6: trophy crafting (backend-only generation)
     - hero.buy_equipment
     - hero.equip_owned

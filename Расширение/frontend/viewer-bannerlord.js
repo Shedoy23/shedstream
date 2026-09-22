@@ -1899,24 +1899,47 @@ async function loadBannerlordVassals() {
         html += `</div>`;
         // 2026-06-07 FLICKER — пока форма создания вассала раскрыта, НЕ перерисовываем
         // секцию (иначе repaint стирает выбор наследника / ввод имени).
-        if (slot.querySelector('[data-bnr-details="vas-create"]')?.open) return;
+        if (slot.querySelector('[data-bnr-details="vas-create"]')?.open
+                || slot.querySelector('[data-bnr-vassal-rename-form]')) return;
         // FLICKER-FIX: skip rebind при identical HTML.
         if (!_smartInnerHTML(slot, html)) return;
 
         // Bind rename buttons
         slot.querySelectorAll('.bnr-vas-rename').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
+            btn.addEventListener('click', (e) => {
                 const parent = e.target.closest('[data-vassal-id]');
                 if (!parent) return;
                 const id = parseInt(parent.dataset.vassalId, 10);
                 const oldName = parent.dataset.vassalName || '';
-                const newName = window.prompt(`Новое имя для «${oldName}»:`, oldName);
-                if (!newName || newName === oldName) return;
-                await _bannerlordBuyAction('hero.rename_vassal', {
-                    vassal_id: id,
-                    new_name: newName,
+                parent.innerHTML = `<form data-bnr-vassal-rename-form style="width:100%;display:grid;gap:5px;">
+                    <label style="font-size:10px;color:#bfdbfe;">Новое имя клана</label>
+                    <input name="name" value="${escapeHtml(oldName)}" maxlength="50" required
+                           style="box-sizing:border-box;width:100%;padding:6px;background:#080d1e;color:#fff;border:1px solid #3b82f6;border-radius:3px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+                        <button type="submit" class="small-btn" style="background:#1e3a8a;color:#fff;">Сохранить · ${_bnrPrice('hero.rename_vassal', 100)}💎</button>
+                        <button type="button" data-bnr-vassal-rename-cancel class="small-btn">Отмена</button>
+                    </div><div data-bnr-vassal-rename-error style="display:none;color:#fca5a5;font-size:10px;"></div></form>`;
+                const form = parent.querySelector('[data-bnr-vassal-rename-form]');
+                const input = form.querySelector('input[name="name"]');
+                input.focus(); input.select();
+                form.querySelector('[data-bnr-vassal-rename-cancel]').addEventListener('click', loadBannerlordVassals);
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    const newName = input.value.trim();
+                    const error = form.querySelector('[data-bnr-vassal-rename-error]');
+                    if (!newName || newName.length > 50) {
+                        error.textContent = 'Имя должно содержать от 1 до 50 символов.'; error.style.display = 'block'; return;
+                    }
+                    if (newName === oldName) { loadBannerlordVassals(); return; }
+                    form.querySelectorAll('button,input').forEach(control => { control.disabled = true; });
+                    try {
+                        await _bannerlordBuyAction('hero.rename_vassal', {vassal_id:id,new_name:newName});
+                        setTimeout(loadBannerlordVassals, 1500);
+                    } catch (renameError) {
+                        form.querySelectorAll('button,input').forEach(control => { control.disabled = false; });
+                        error.textContent = renameError?.message || 'Не удалось отправить переименование.'; error.style.display = 'block';
+                    }
                 });
-                setTimeout(loadBannerlordVassals, 1500);
             });
         });
 
@@ -2074,11 +2097,11 @@ async function loadBannerlordPartyOrders() {
 
         const orderEmoji = {
             siege: '🏰', defend: '🛡', raid: '🔥',
-            garrison: '🏛', patrol: '🐎',
+            garrison: '🏛', patrol: '🐎', recruit: '🪖',
         };
         const orderLabel = {
             siege: 'Осада', defend: 'Защита', raid: 'Грабёж',
-            garrison: 'Гарнизон', patrol: 'Патруль',
+            garrison: 'Гарнизон', patrol: 'Патруль', recruit: 'Собирать отряд',
         };
 
         let body = ``;
@@ -2120,9 +2143,8 @@ async function loadBannerlordPartyOrders() {
                             align-items:center;">
                     <span style="color:#fed7aa;font-size:11px;">
                         ${emoji} <strong>${lbl}</strong>
-                        <span style="color:var(--muted);"> →
-                            ${escapeHtml(active.target_settlement_name || active.target_settlement_id)}
-                        </span>
+                        ${active.order_type === 'recruit' ? '' : `<span style="color:var(--muted);"> →
+                            ${escapeHtml(active.target_settlement_name || active.target_settlement_id)}</span>`}
                     </span>
                     <button id="bnr-order-cancel" class="extra-btn"
                             title="Отменить приказ (бесплатно)"
@@ -2187,6 +2209,7 @@ function _renderPartyOrderInline(currentActive) {
         { v: 'raid',     e: '🔥', l: 'Грабёж',    desc: 'Налёт на деревню (требуется война)' },
         { v: 'garrison', e: '🏛', l: 'Гарнизон',  desc: 'Войти в поселение и стоять' },
         { v: 'patrol',   e: '🐎', l: 'Патруль',   desc: 'Патрулировать вокруг поселения' },
+        { v: 'recruit',  e: '🪖', l: 'Собирать отряд', desc: 'Ездить по мирным землям и нанимать добровольцев' },
     ];
 
     // 2026-06-14 — цель приказа из СПИСКА городов (мод шлёт own/enemy в kingdom_info):
@@ -2201,6 +2224,7 @@ function _renderPartyOrderInline(currentActive) {
         if (ot === 'siege')         l = (_enemySet || []).filter(s => s && s.type !== 'village');
         else if (ot === 'raid')     l = (_enemySet || []).filter(s => s && s.type === 'village');
         else if (ot === 'garrison') l = (_ownSet || []).filter(s => s && s.type !== 'village');
+        else if (ot === 'recruit') l = [];
         else                        l = (_ownSet || []);   // defend / patrol → свои (все)
         // ближайшие сверху — по примерным дням пути (мод шлёт s.days).
         return l.slice().sort((a, b) => (a.days ?? 9999) - (b.days ?? 9999));
@@ -2266,6 +2290,8 @@ function _renderPartyOrderInline(currentActive) {
         const sel = document.getElementById('bnr-order-target-select');
         if (!sel) return;
         const ot = slot.querySelector('input[name="bnr-order-type"]:checked')?.value || 'siege';
+        const targetControls = slot.querySelectorAll('[data-bnr-order-target]');
+        targetControls.forEach(el => { el.style.display = ot === 'recruit' ? 'none' : ''; });
         const kindEl = document.getElementById('bnr-order-target-kind');
         if (kindEl) kindEl.textContent = (ot === 'siege' || ot === 'raid') ? 'город врага' : 'свой город';
         const list = _targetsFor(ot);
@@ -2291,17 +2317,17 @@ function _renderPartyOrderInline(currentActive) {
             const sel = document.getElementById('bnr-order-target-select');
             tgtId = (sel?.value || '').trim();
             tgtName = (sel?.selectedOptions?.[0]?.textContent || tgtId).trim();
-            if (!orderType || !tgtId) {
+            if (!orderType || (orderType !== 'recruit' && !tgtId)) {
                 showNotification('Выбери приказ и цель из списка', 'warning');
                 return;
             }
         } else {
             const tgtRaw = (document.getElementById('bnr-order-target-name')?.value || '').trim();
-            if (!orderType || !tgtRaw || tgtRaw.length < 3) {
+            if (!orderType || (orderType !== 'recruit' && (!tgtRaw || tgtRaw.length < 3))) {
                 showNotification('Выбери приказ и укажи цель (≥3 символа)', 'warning');
                 return;
             }
-            tgtId = tgtRaw; tgtName = tgtRaw;
+            tgtId = orderType === 'recruit' ? '' : tgtRaw; tgtName = tgtId;
         }
         // 2026-06-07 FLICKER — закрыть форму ДО refresh (иначе freeze-guard
         // заблокирует перерисовку) + мгновенный фидбек на клик.
@@ -4147,10 +4173,10 @@ function _clanUpgradesTreeHtml(upgrades, heroGold) {
             retinue_size_bonus: '🛡️ +%v к свите',
             party_speed_bonus:  '🐎 +%v скорости отряда',
             party_amount_bonus: '🪖 +%v к лимиту отрядов',
-            max_vassals_bonus:  '🏰 +%v вассалов',
             army_speed_bonus:   '⚡ +%v скорости армии',
         };
         return Object.entries(effects || {})
+            .filter(([key]) => key !== 'max_vassals_bonus')
             .map(([k, v]) => (labels[k] || `${k}: ${v}`).replace('%v', v))
             .join(' · ');
     };

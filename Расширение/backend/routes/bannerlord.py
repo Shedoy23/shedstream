@@ -22,6 +22,7 @@ import uuid
 from fastapi import APIRouter, Request
 
 from dependencies import get_db, require_jwt_user
+from routes._mod_queue import enqueue_mod_action
 
 router = APIRouter()
 
@@ -571,15 +572,15 @@ async def bannerlord_daily_claim(request: Request):
                                f"Возвращайся завтра!",
                 }
 
+            action_id = uuid.uuid4().hex
             # INSERT claim record.
             await conn.execute(
                 "INSERT INTO bannerlord_daily_claims "
-                "(channel_id, username, claim_date, reward_type) "
-                "VALUES (?, ?, DATE('now'), ?)",
-                (channel_id, username, reward_type))
+                "(channel_id, username, claim_date, reward_type, action_id) "
+                "VALUES (?, ?, DATE('now'), ?, ?)",
+                (channel_id, username, reward_type, action_id))
 
             # Enqueue mod action.
-            action_id = uuid.uuid4().hex
             if reward_type == "gold":
                 payload = {
                     "initiated_by": username,
@@ -1477,6 +1478,23 @@ async def bannerlord_my_hero(request: Request):
                 "quality":    quality,        # M77: poor..legendary | None (без модификатора)
             }
 
+        # Both tabs use the same ordered, current-session inventory snapshot.
+        # The legacy hero response remains zero-based for frozen Twitch clients.
+        cur = await conn.execute(
+            "SELECT i.items_json FROM bannerlord_inventory_snapshots i "
+            "JOIN bannerlord_equipment_sessions e ON e.channel_id=i.channel_id AND e.session_id=i.session_id "
+            "JOIN bannerlord_channel_state s ON s.channel_id=i.channel_id AND s.current_save_id=i.save_id "
+            "WHERE i.channel_id=? AND i.username=? AND i.hero_id=?",
+            (channel_id, username, hero['hero_id']))
+        inventory_row = await cur.fetchone()
+        if inventory_row:
+            equipment = {item['slot']: {
+                'item_id':item.get('item_id'), 'item_name':item.get('name'),
+                'tier':max(0, int(item.get('tier') or 1)-1),
+                'item_value':item.get('item_value',0), 'weight':item.get('weight'),
+                'stats':item.get('stats'), 'quality':item.get('quality')
+            } for item in json.loads(inventory_row[0]) if item.get('slot') and item.get('source') in (None, 'equipped')}
+
         # Retinue (M23) — BLT-style свита, sorted by slot_index
         # M28 (5.14): include is_elite flag для UI badge "★ Элит"
         cur = await conn.execute(
@@ -1568,23 +1586,31 @@ async def bannerlord_equipment_shop(request: Request):
     if not auth:
         return _AUTH_FAIL
     username, channel_id = auth
-    from modules.bannerlord.equipment_shop import context, catalog, buy_reason, refusal, TIER_LEVELS
+    from modules.bannerlord.equipment_shop import context, catalog, buy_reason, purchase_options, refusal, TIER_LEVELS
     db = get_db()
     async with db._connect() as conn:
         await conn.execute("BEGIN")
-        ctx = await context(conn, channel_id, username)
+        ctx = await context(conn, channel_id, username, require_party=True, for_shop=True)
         items = await catalog(conn, channel_id)
         await conn.rollback()
     import module_liveness
     live = await module_liveness.is_on_air(db, channel_id, "bannerlord")
     if not live:
-        ctx["reason"] = ctx["reason"] or "offline"
+        if ctx["reason"] not in ("no_hero", "hero_dead", "hero_prisoner"):
+            ctx["reason"] = "offline"
     for item in items:
-        reason = buy_reason(item, ctx)
+        item['purchase_mode'] = 'equip' if ctx['direct_purchase'] else 'inventory'
+        if ctx['direct_purchase']:
+            item['purchase_options'] = purchase_options(item, ctx)
+            reason = (None if any(x['can_buy'] for x in item['purchase_options']) else
+                      ctx['reason'] or next((x['reason'] for x in item['purchase_options']), 'invalid_slot'))
+        else:
+            reason = buy_reason(item, ctx)
         item.update(can_buy=reason is None, reason=reason,
                     message=refusal(reason)["message"] if reason else "")
     hero = ctx["hero"]
     return {"success": True, "items": items, "inventory": ctx["inventory"],
+            "party_inventory": ctx["party_inventory"],
             "tiers": [{"tier": t, "required_level": lv} for t, lv in TIER_LEVELS.items()],
             "hero_level": hero[1] if hero else 0, "gold": hero[2] if hero else 0,
             "has_hero": bool(hero), "ready": ctx["ready"], "pending": ctx["pending"],
@@ -2842,7 +2868,7 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                     prev_action_id, prev_type, prev_status, prev_owner = idem_row
                     from modules.bannerlord.equipment_shop import ACTION_TYPES
                     from modules.bannerlord.builds import ACTION_TYPES as BUILD_ACTIONS
-                    if action_type in ACTION_TYPES | BUILD_ACTIONS | {'power.activate'} and (prev_owner != username or prev_type != action_type):
+                    if action_type in ACTION_TYPES | BUILD_ACTIONS | {'power.activate', 'hero.reforge_quality'} and (prev_owner != username or prev_type != action_type):
                         await conn.rollback()
                         return {"success": False, "reason": "client_action_conflict", "message": "Идентификатор действия уже использован"}
                     await conn.execute("ROLLBACK")
@@ -2866,6 +2892,13 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                     await conn.rollback()
                     return {"success": False, "reason": "equipment_shop_enabled",
                             "message": "Выбирай снаряжение в магазине во вкладке Инвентарь"}
+
+            if action_type == 'hero.reforge_quality':
+                from modules.bannerlord.reforge import validate_tx as validate_reforge_tx
+                reforge_refusal = await validate_reforge_tx(conn, channel_id, username, data)
+                if reforge_refusal:
+                    await conn.rollback()
+                    return reforge_refusal
 
             from modules.bannerlord.equipment_shop import ACTION_TYPES, validate_tx
             if action_type in ACTION_TYPES:
@@ -3001,6 +3034,10 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                 """, (channel_id, action_id, action_type,
                       json.dumps(payload, ensure_ascii=False),
                       client_action_id))
+
+            if action_type == 'hero.reforge_quality':
+                from modules.bannerlord.reforge import reserve_tx
+                await reserve_tx(conn, channel_id, username, action_id, data)
 
             # Sprint 5.3: tournament.predict — записываем в predictions table
             # (легаси-имя таблицы bannerlord_tournament_bets — DB-internals, не wire).
@@ -3503,6 +3540,11 @@ async def bannerlord_clan_upgrades_buy(request: Request):
         return _AUTH_FAIL
     username, channel_id = auth
 
+    db = get_db()
+    if not await _require_live_mod(db, channel_id):
+        return {"success": False,
+                "message": "Bannerlord сейчас не подключён — покупка не списана"}
+
     data = await request.json()
     # Normalize input — either bulk list или single id (backward-compat).
     bulk_ids = data.get("upgrade_ids")
@@ -3519,7 +3561,6 @@ async def bannerlord_clan_upgrades_buy(request: Request):
     # Dedup в payload (защита если фронт прислал дубликаты)
     upgrade_ids = list(dict.fromkeys(upgrade_ids))
 
-    db = get_db()
     async with db._connect() as conn:
         try:
             await conn.execute("BEGIN IMMEDIATE")
@@ -3583,24 +3624,36 @@ async def bannerlord_clan_upgrades_buy(request: Request):
                     "message": f"Нужно {total_cost:,}💰 (у тебя {current_gold:,}💰) для {len(validated)} апгрейдов",
                 }
 
-            # Phase 3 — debit + INSERT × N owned records. Эффекты апгрейдов мод
-            # применяет сам (ClanUpgradesBehavior опрашивает clan_upgrades_all_owners
-            # на daily tick) — отдельный enqueue в module_actions НЕ нужен.
-            await conn.execute(
-                "UPDATE bannerlord_heroes SET gold = gold - ? "
-                "WHERE channel_id = ? AND username = ?",
-                (total_cost, channel_id, username))
-
-            purchased_names = []
-            for uid, name, cost in validated:
-                await conn.execute(
-                    "INSERT INTO bannerlord_clan_upgrades_owned "
-                    "(channel_id, username, upgrade_id, gold_paid) VALUES (?, ?, ?, ?)",
-                    (channel_id, username, uid, cost))
-                # 2026-06-05 (AUTOTEST fix) — убран мёртвый INSERT INTO module_actions
-                # 'clan.upgrade_purchased': у мода нет хендлера → плодил вечные failed
-                # в очереди (поймано автотестом). Owned-запись выше — источник правды.
-                purchased_names.append(name)
+            # The mod debits real Hero.Gold. Ownership is committed only after
+            # its durable confirmation event, preventing cached-gold cashback.
+            cur = await conn.execute(
+                "SELECT data FROM module_actions WHERE channel_id=? "
+                "AND type='hero.buy_clan_upgrades' "
+                "AND status IN ('queued','dispatched','acked') "
+                "AND datetime(created_at)>=datetime('now','-1 day')", (channel_id,))
+            requested = set(upgrade_ids)
+            for pending_row in await cur.fetchall():
+                try:
+                    pending_data = json.loads(pending_row[0] or "{}")
+                except Exception:
+                    continue
+                if (pending_data.get("initiated_by") or "").lower() == username \
+                        and requested.intersection(pending_data.get("upgrade_ids") or []):
+                    await conn.execute("ROLLBACK")
+                    return {"success": False,
+                            "message": "Покупка этого апгрейда уже обрабатывается"}
+            action_id = uuid.uuid4().hex
+            payload = {
+                "initiated_by": username, "target": username,
+                "upgrade_ids": [v[0] for v in validated],
+                "upgrades": [{"upgrade_id": uid, "name": name, "gold_cost": cost}
+                             for uid, name, cost in validated],
+                "hero_gold_cost": total_cost,
+            }
+            await enqueue_mod_action(conn, channel_id, action_id,
+                                     "hero.buy_clan_upgrades", payload,
+                                     {"price": 0})
+            purchased_names = [v[1] for v in validated]
 
             await conn.commit()
         except Exception:
@@ -3612,14 +3665,16 @@ async def bannerlord_clan_upgrades_buy(request: Request):
         uid, name, cost = validated[0]
         return {
             "success":    True,
+            "pending":    True,
             "upgrade_id": uid,
-            "message":    f"✨ {name} куплено (-{cost:,}💰)",
+            "message":    f"✨ Покупка {name} отправлена в игру (-{cost:,}💰)",
         }
     else:
         log.info("[BNR-BULK] ch=%s user=@%s bought %d upgrades total=%d💰",
                  channel_id, username, len(validated), total_cost)
         return {
             "success":   True,
+            "pending":   True,
             "bulk":      True,
             "count":     len(validated),
             "upgrade_ids": [v[0] for v in validated],
@@ -3666,3 +3721,18 @@ async def bannerlord_inheritance_log(request: Request, limit: int = 20):
         "inherited_at":    r[7],
     } for r in rows]
     return {"success": True, "items": items}
+
+
+@router.get("/api/bannerlord/reforge-rights")
+async def bannerlord_reforge_rights(request: Request):
+    from routes.streamer import verify_module_token
+    auth = request.headers.get('Authorization', '')
+    claims = verify_module_token(auth[7:].strip()) if auth.startswith('Bearer ') else None
+    if not claims or claims.get('module_id') != 'bannerlord':
+        return _AUTH_FAIL
+    channel_id = int(claims['channel_id'])
+    save_id = request.query_params.get('save_id') or ''
+    from modules.bannerlord.reforge import rights_tx
+    async with get_db()._connect() as conn:
+        rights = await rights_tx(conn, channel_id, save_id)
+    return {'success': True, 'save_id': save_id, 'rights': rights}

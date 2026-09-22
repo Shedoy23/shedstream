@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BannerlordLink.Util;
+using Helpers;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.MapEvents;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Core;
 using TaleWorlds.ObjectSystem;
 
 namespace BannerlordLink.Behaviors
@@ -54,6 +56,7 @@ namespace BannerlordLink.Behaviors
             public string TargetSettlementId;
             public double ExpiresAtHours;     // CampaignTime.Now.ToHours at expiry
             public double LastReissuedHours;  // for dampening re-issue spam
+            public string VisitedSettlementIds;
         }
 
         // username-lowercased → OrderState
@@ -81,6 +84,7 @@ namespace BannerlordLink.Behaviors
         {
             CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
             CampaignEvents.MapEventEnded.AddNonSerializedListener(this, OnMapEventEnded);
+            CampaignEvents.RaidCompletedEvent.AddNonSerializedListener(this, OnRaidCompleted);
             CampaignEvents.OnSettlementOwnerChangedEvent.AddNonSerializedListener(
                 this, OnSettlementOwnerChanged);
             CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(
@@ -98,7 +102,7 @@ namespace BannerlordLink.Behaviors
                 foreach (var k in keys)
                 {
                     var o = _orders[k];
-                    vals.Add($"{o.OrderType}|{o.TargetSettlementId}|{o.ExpiresAtHours:R}|{o.LastReissuedHours:R}");
+                    vals.Add($"{o.OrderType}|{o.TargetSettlementId}|{o.ExpiresAtHours:R}|{o.LastReissuedHours:R}|{o.VisitedSettlementIds ?? ""}");
                 }
                 dataStore.SyncData("blink_porder_keys", ref keys);
                 dataStore.SyncData("blink_porder_vals", ref vals);
@@ -123,6 +127,7 @@ namespace BannerlordLink.Behaviors
                             TargetSettlementId = parts[1],
                             ExpiresAtHours = expiry,
                             LastReissuedHours = lastReissued,
+                            VisitedSettlementIds = parts.Length >= 5 ? parts[4] : "",
                         };
                     }
                     BannerlordLinkModule.Log(
@@ -162,7 +167,7 @@ namespace BannerlordLink.Behaviors
         {
             var inst = Instance;
             if (inst == null) return false;
-            if (string.IsNullOrEmpty(username) || target == null) return false;
+            if (string.IsNullOrEmpty(username) || (target == null && orderType != "recruit")) return false;
             string key = username.ToLowerInvariant();
             float hours = customHours ?? DEFAULT_DURATION_HOURS;
             try
@@ -171,12 +176,13 @@ namespace BannerlordLink.Behaviors
                 inst._orders[key] = new OrderState
                 {
                     OrderType = orderType,
-                    TargetSettlementId = target.StringId,
+                    TargetSettlementId = target?.StringId ?? "",
                     ExpiresAtHours = nowH + hours,
                     LastReissuedHours = nowH,
+                    VisitedSettlementIds = "",
                 };
                 BannerlordLinkModule.Log(
-                    $"[party_order] SET @{key} order={orderType} target={target.StringId} " +
+                    $"[party_order] SET @{key} order={orderType} target={target?.StringId ?? "auto"} " +
                     $"expires_hours={hours:F1}");
                 PushStatusEvent(key, orderType, target, hours);
                 return true;
@@ -234,8 +240,15 @@ namespace BannerlordLink.Behaviors
                 var hero = BannerlordLink.Actions.HeroLookup.FindByUsername(key);
                 var mp = hero?.PartyBelongedTo;
                 if (mp == null) return false;
-                var target = Settlement.Find(o.TargetSettlementId);
+                var target = o.OrderType == "recruit"
+                    ? SelectRecruitTarget(mp, hero, o.VisitedSettlementIds)
+                    : Settlement.Find(o.TargetSettlementId);
                 if (target == null) return false;
+                if (o.OrderType == "recruit")
+                {
+                    o.TargetSettlementId = target.StringId;
+                    inst._orders[key] = o;
+                }
                 Reissue(o.OrderType, mp, target);      // сам ставит и SetDoNotMakeNewDecisions(true)
                 o.LastReissuedHours = CampaignTime.Now.ToHours;
                 inst._orders[key] = o;
@@ -298,7 +311,35 @@ namespace BannerlordLink.Behaviors
                     Settlement target = null;
                     try { target = MBObjectManager.Instance.GetObject<Settlement>(o.TargetSettlementId); }
                     catch { }
-                    if (target == null)
+                    if (o.OrderType == "recruit")
+                    {
+                        if (mp.Party.NumberOfAllMembers >= mp.Party.PartySizeLimit)
+                        {
+                            _orders.Remove(key);
+                            BannerlordLinkModule.Log($"[party_order] @{key} COMPLETED recruit — party full");
+                            PushStatusEvent(key, null, null, 0);
+                            completed++;
+                            continue;
+                        }
+                        if (target != null && mp.CurrentSettlement == target)
+                        {
+                            RecruitAtSettlement(hero, mp, target, key);
+                            o.VisitedSettlementIds = AddVisited(o.VisitedSettlementIds, target.StringId);
+                            target = null;
+                        }
+                        target = SelectRecruitTarget(mp, hero, o.VisitedSettlementIds);
+                        if (target == null)
+                        {
+                            _orders.Remove(key);
+                            BannerlordLinkModule.Log($"[party_order] @{key} COMPLETED recruit — route exhausted");
+                            PushStatusEvent(key, null, null, 0);
+                            completed++;
+                            continue;
+                        }
+                        o.TargetSettlementId = target.StringId;
+                        _orders[key] = o;
+                    }
+                    else if (target == null)
                     {
                         _orders.Remove(key);
                         BannerlordLinkModule.Log(
@@ -418,13 +459,14 @@ namespace BannerlordLink.Behaviors
                             && !hero.MapFaction.IsAtWarWith(target.MapFaction)) return true;
                         return false;
                     case "raid":
-                        // Village raided this cycle? Engine clears IsRaided after recovery —
-                        // безопасно считать complete если хотя бы один цикл прошёл.
+                        // Успешный нативный рейд переводит деревню в Looted ДО
+                        // RaidCompletedEvent. Не считаем завершением просто окончание
+                        // MapEvent: это также бывает при перехвате, отступлении или
+                        // проигрыше, и раньше такой бой преждевременно снимал приказ.
                         if (target.IsVillage && target.Village != null)
                         {
-                            // Hearth dropped значительно VS pre-raid — упрощённый proxy.
-                            // Здесь просто smell-test: если settlement не at war or hero
-                            // не near target — auto-release.
+                            if (target.Village.VillageState == Village.VillageStates.Looted)
+                                return true;
                             if (hero.MapFaction != null && target.MapFaction != null
                                 && !hero.MapFaction.IsAtWarWith(target.MapFaction)) return true;
                         }
@@ -463,6 +505,7 @@ namespace BannerlordLink.Behaviors
                     break;
                 case "garrison": mp.SetMoveGoToSettlement(target, navType, false); break;
                 case "patrol":   mp.SetMovePatrolAroundSettlement(target, navType, false); break;
+                case "recruit":  mp.SetMoveGoToSettlement(target, navType, false); break;
             }
             // 2026-06-10 FIX — держим AI замороженным на каждом reissue (флаг могут
             // сбросить движковые события: вступление в армию, бой, плен).
@@ -487,6 +530,66 @@ namespace BannerlordLink.Behaviors
             catch (Exception aEx)
             {
                 BannerlordLinkModule.Log($"[party_order] army target sync warn: {aEx.Message}");
+            }
+        }
+
+        private static string AddVisited(string value, string id)
+        {
+            var ids = new HashSet<string>((value ?? "").Split(
+                new[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
+            ids.Add(id);
+            return string.Join(";", ids);
+        }
+
+        private static Settlement SelectRecruitTarget(MobileParty party, Hero hero, string visited)
+        {
+            var excluded = new HashSet<string>((visited ?? "").Split(
+                new[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
+            return Settlement.All
+                .Where(s => s != null && (s.IsTown || s.IsVillage)
+                    && !excluded.Contains(s.StringId)
+                    && (!s.IsVillage || s.Village.VillageState != Village.VillageStates.Looted)
+                    && (hero.MapFaction == null || s.MapFaction == null
+                        || !hero.MapFaction.IsAtWarWith(s.MapFaction)))
+                .OrderBy(s => s.Position.DistanceSquared(party.Position))
+                .FirstOrDefault();
+        }
+
+        private static void RecruitAtSettlement(Hero hero, MobileParty party,
+            Settlement settlement, string username)
+        {
+            try
+            {
+                int free = party.Party.PartySizeLimit - party.Party.NumberOfAllMembers;
+                int hired = 0, spent = 0;
+                if (free <= 0 || hero.Gold <= 0) return;
+                foreach (var notable in settlement.Notables)
+                {
+                    if (notable == null || !notable.CanHaveRecruits) continue;
+                    var troops = HeroHelper.GetVolunteerTroopsOfHeroForRecruitment(notable);
+                    for (int i = 0; i < troops.Count && hired < free; i++)
+                    {
+                        var troop = troops[i];
+                        if (troop == null || !HeroHelper.HeroCanRecruitFromHero(hero, notable, i)) continue;
+                        int cost = Campaign.Current.Models.PartyWageModel
+                            .GetTroopRecruitmentCost(troop, hero).RoundedResultNumber;
+                        if (cost < 0 || spent + cost > hero.Gold) continue;
+                        if (notable.VolunteerTypes[i] != troop) continue;
+                        notable.VolunteerTypes[i] = null;
+                        party.MemberRoster.AddToCounts(troop, 1);
+                        hired++;
+                        spent += cost;
+                        CampaignEventDispatcher.Instance.OnUnitRecruited(troop, 1);
+                    }
+                }
+                if (spent > 0)
+                    GiveGoldAction.ApplyBetweenCharacters(hero, null, spent, true);
+                BannerlordLinkModule.Log(
+                    $"[party_order] @{username} recruit at {settlement.Name}: +{hired}, -{spent} gold");
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[party_order] recruit warn @{username}: {ex.Message}");
             }
         }
 
@@ -569,6 +672,47 @@ namespace BannerlordLink.Behaviors
 
         // ─── Event-driven auto-release ─────────────────────────────────────
 
+        private void OnRaidCompleted(BattleSideEnum winnerSide, RaidEventComponent raidEvent)
+        {
+            try
+            {
+                var target = raidEvent?.MapEventSettlement;
+                if (target == null || !target.IsVillage || target.Village == null) return;
+
+                // Ваниль считает рейд успешным только когда атакующие победили И
+                // деревня действительно перешла в Looted. Дополнительно проверяем,
+                // что именно партия владельца приказа участвовала за атакующих —
+                // чужой рейд той же деревни не должен закрывать его приказ.
+                bool successful = winnerSide == BattleSideEnum.Attacker
+                    && target.Village.VillageState == Village.VillageStates.Looted;
+                if (!successful) return;
+
+                var keys = new List<string>(_orders.Keys);
+                foreach (var k in keys)
+                {
+                    if (!_orders.TryGetValue(k, out var o)
+                        || o.OrderType != "raid"
+                        || o.TargetSettlementId != target.StringId)
+                        continue;
+
+                    var hero = BannerlordLink.Actions.HeroLookup.FindByUsername(k);
+                    var mp = hero?.PartyBelongedTo;
+                    bool participated = mp != null && raidEvent.AttackerSide.Parties
+                        .Any(p => p?.Party == mp.Party);
+                    if (!participated) continue;
+
+                    _orders.Remove(k);
+                    BannerlordLinkModule.Log(
+                        $"[party_order] @{k} COMPLETED raid — {target.Name} looted by ordered party");
+                    PushStatusEvent(k, null, null, 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[party_order] OnRaidCompleted crash: {ex.Message}");
+            }
+        }
+
         private void OnMapEventEnded(MapEvent ev)
         {
             try
@@ -583,10 +727,14 @@ namespace BannerlordLink.Behaviors
                     if (o.TargetSettlementId != s.StringId) continue;
                     if (o.OrderType == "raid")
                     {
-                        _orders.Remove(k);
+                        // MapEventEnded не означает успешный грабёж: событие также
+                        // заканчивается после боя с перехватившим лордом, отступления
+                        // или поражения. Успех обрабатывает OnRaidCompleted, а здесь
+                        // удерживаем intent — следующий часовой тик снова направит
+                        // уцелевший отряд к деревне.
                         BannerlordLinkModule.Log(
-                            $"[party_order] @{k} auto-release — raid MapEvent ended at {s.Name}");
-                        PushStatusEvent(k, null, null, 0);
+                            $"[party_order] @{k} raid MapEvent ended at {s.Name}; "
+                            + "order kept until village is looted");
                     }
                     else if (o.OrderType == "siege")
                     {

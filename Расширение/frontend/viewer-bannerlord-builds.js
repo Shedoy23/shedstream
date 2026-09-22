@@ -32,7 +32,7 @@ const BnrBuilds = (() => {
     function renderHero(slot=document.getElementById('hero-class-picker-slot')) {
         if(!slot || !isNew()) return false;
         if(!state?.ready || !state?.build) {
-            draw(slot,'<div class="bnr-eq-empty">Сборка героя пока недоступна. Обнови данные после подключения игры.</div>');
+            draw(slot,`<div class="bnr-eq-empty">${text(state?.message || 'Данные сборки героя ещё синхронизируются с игрой.')}</div>`);
             return true;
         }
         const build=state.build;
@@ -68,7 +68,7 @@ const BnrBuilds = (() => {
         if(!slot || !isNew()) return false;
         const choiceSlot=document.getElementById('bnr-build-choice-slot');
         if(!state?.ready || !state?.build) {
-            draw(slot,'<div class="bnr-eq-empty">Ждём актуальные способности героя из игры.</div>');
+            draw(slot,`<div class="bnr-eq-empty">${text(state?.message || 'Ждём актуальные способности героя из игры.')}</div>`);
             if(choiceSlot) draw(choiceSlot,'');
             return true;
         }

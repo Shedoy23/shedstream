@@ -21,6 +21,7 @@ class Program
     {
         var hero = HeroLookup.Hero = new Hero();
         var behavior = EquipmentShopBehavior.Instance = new EquipmentShopBehavior();
+        EquipmentShopBehavior.Inventory = new TaleWorlds.CampaignSystem.Roster.ItemRoster();
         var item = new ItemObject { StringId = "armor", Value = 400, Tier = 3 };
         MBObjectManager.Instance.Objects["armor"] = item;
         var request = new JObject { ["target"] = "alice", ["save_id"] = "save1", ["hero_id"] = "hero1", ["item_id"] = "armor", ["price_gold"] = 400 };
@@ -51,69 +52,63 @@ class Program
         Check(ActionFeedback.Error == "stale_equipment_session", "Missing equipment session fails closed");
         request["equipment_session_id"] = behavior.SessionId; Mission.Current = new Mission();
         Act("hero.buy_equipment", request);
-        Check(ActionFeedback.Applied && hero.Gold == 500 && behavior.Saved.Items.Count == 1
-            && behavior.Saved.Items[0].Slot == null, "Purchase in mission charges gold and stores item without equipping");
-        var missionOwned = behavior.Saved.Items[0];
-        request["owned_id"] = missionOwned.OwnedId; request["slot"] = "body";
+        Check(ActionFeedback.Applied && hero.Gold == 500 && EquipmentShopBehavior.Inventory.CountOf(item) == 1
+            && behavior.Saved.Items.Count == 0, "Purchase in mission enters the real party inventory without equipping");
+        request["owned_id"] = "party|armor|"; request["source"] = "party";
+        request["modifier_id"] = null; request["slot"] = "body";
         Act("hero.equip_owned", request);
         Check(ActionFeedback.Error == "in_mission" && hero.BattleEquipment[EquipmentIndex.Body].IsEmpty,
             "Equipping in mission remains blocked");
         Act("hero.discard_owned", request);
-        Check(ActionFeedback.Applied && behavior.Saved.Items.Count == 0 && hero.Gold == 500,
-            "Stored item can be discarded in mission without changing battle gear or refunding gold");
-        Mission.Current = null; request.Remove("owned_id"); request.Remove("slot"); hero.Gold = 4500;
+        Check(ActionFeedback.Applied && EquipmentShopBehavior.Inventory.CountOf(item) == 0 && hero.Gold == 500,
+            "Real inventory item can be discarded in mission without changing battle gear or refunding gold");
+        Mission.Current = null; request.Remove("owned_id"); request.Remove("source"); request.Remove("modifier_id"); request.Remove("slot"); hero.Gold = 4500;
         behavior.StoreFails = true;
         Act("hero.buy_equipment", request);
-        Check(!ActionFeedback.Applied && hero.Gold == 4500 && behavior.Saved.Items.Count == 0, "Persistence failure must compensate actual gold charge");
+        Check(!ActionFeedback.Applied && hero.Gold == 4500 && EquipmentShopBehavior.Inventory.CountOf(item) == 0, "Persistence failure rolls back real inventory and actual gold charge");
         behavior.StoreFails = false; behavior.PushFails = true;
         Act("hero.buy_equipment", request);
-        Check(ActionFeedback.Applied && hero.Gold == 500 && behavior.Saved.Items.Count == 1, "Successful purchase charges ten times native value and survives mirror network failure");
-        var owned = behavior.Saved.Items[0];
-        Check(owned.Slot == null && hero.BattleEquipment[EquipmentIndex.Body].IsEmpty, "Purchase enters storage without equipping");
-        request["owned_id"] = owned.OwnedId; request["slot"] = "head";
+        Check(ActionFeedback.Applied && hero.Gold == 500 && EquipmentShopBehavior.Inventory.CountOf(item) == 1, "Successful purchase charges ten times native value and survives mirror network failure");
+        Check(hero.BattleEquipment[EquipmentIndex.Body].IsEmpty, "Purchase remains in real inventory until equipped");
+        request["owned_id"] = "party|armor|"; request["source"] = "party"; request["modifier_id"] = null; request["slot"] = "head";
         Act("hero.equip_owned", request);
         Check(ActionFeedback.Error == "incompatible_equipment_slot", "Armor cannot be put in wrong slot");
-        request["slot"] = "body"; request["owned_id"] = "another_viewer_owned_id";
+        request["slot"] = "body"; request["item_id"] = "missing";
         Act("hero.equip_owned", request);
-        Check(ActionFeedback.Error == "equipment_not_owned", "Owned ID is scoped to hero ledger");
-        request["owned_id"] = owned.OwnedId;
+        Check(ActionFeedback.Error == "equipment_not_owned", "Missing real roster item cannot be equipped");
+        request["item_id"] = "armor";
         var old = new ItemObject { StringId = "old_armor" }; var mod = new ItemModifier { StringId = "lordly" };
         hero.BattleEquipment[EquipmentIndex.Body] = new EquipmentElement(old, mod);
         behavior.StoreFails = true;
         Act("hero.equip_owned", request);
-        Check(!ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item == old && hero.BattleEquipment[EquipmentIndex.Body].ItemModifier == mod, "Failed inventory commit rolls back exact native equipment");
+        Check(!ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item == old && hero.BattleEquipment[EquipmentIndex.Body].ItemModifier == mod
+            && EquipmentShopBehavior.Inventory.CountOf(item) == 1 && EquipmentShopBehavior.Inventory.CountOf(old) == 0,
+            "Failed inventory commit rolls back exact roster counts and native equipment");
         behavior.StoreFails = false;
         Act("hero.equip_owned", request);
-        Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item == item && hero.Gold == 500, "Owned equip is free and applies selected object");
-        Check(behavior.Saved.Items.Exists(x => x.ItemId == "old_armor" && x.ModifierId == "lordly" && x.Slot == null), "Native modifier gear retained in storage");
+        Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item == item && hero.Gold == 500
+            && EquipmentShopBehavior.Inventory.CountOf(item) == 0 && EquipmentShopBehavior.Inventory.CountOf(old) == 1,
+            "Real inventory equip consumes one item and returns displaced gear");
+        var equipped = behavior.Saved.Items.Find(x => x.Slot == "body");
+        request["source"] = null; request["owned_id"] = equipped.OwnedId;
         Mission.Current = new Mission();
         Act("hero.discard_owned", request);
         Check(ActionFeedback.Error == "in_mission" && hero.BattleEquipment[EquipmentIndex.Body].Item == item
-            && behavior.Saved.Items.Exists(x => x.OwnedId == owned.OwnedId),
+            && behavior.Saved.Items.Exists(x => x.OwnedId == equipped.OwnedId),
             "Equipped item cannot be discarded during a mission");
         Act("hero.unequip_owned", request);
         Check(ActionFeedback.Error == "in_mission" && hero.BattleEquipment[EquipmentIndex.Body].Item == item,
             "Unequipping during a mission remains blocked");
         Mission.Current = null;
         Act("hero.unequip_owned", request);
-        Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].IsEmpty && behavior.Saved.Items.TrueForAll(x => x.Slot == null), "Unequip preserves ownership");
-        request["owned_id"] = owned.OwnedId;
+        Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].IsEmpty
+            && EquipmentShopBehavior.Inventory.CountOf(item) == 1 && behavior.Saved.Items.TrueForAll(x => x.Slot == null),
+            "Unequip returns the exact item to real inventory");
+        request["source"] = "party"; request["item_id"] = "armor"; request["modifier_id"] = null; request["owned_id"] = "party|armor|";
         Act("hero.discard_owned", request);
-        Check(ActionFeedback.Applied && !behavior.Saved.Items.Exists(x => x.OwnedId == owned.OwnedId) && hero.Gold == 500, "Discard removes the exact stored instance without a refund");
+        Check(ActionFeedback.Applied && EquipmentShopBehavior.Inventory.CountOf(item) == 0 && hero.Gold == 500, "Discard removes one exact real inventory instance without a refund");
         Act("hero.discard_owned", request);
         Check(ActionFeedback.Error == "equipment_not_owned", "Discard cannot remove the same instance twice");
-        var imported = behavior.Saved.Items.Find(x => x.ItemId == "old_armor");
-        MBObjectManager.Instance.Objects["old_armor"] = old;
-        MBObjectManager.Instance.Objects["lordly"] = mod;
-        request["owned_id"] = imported.OwnedId;
-        Act("hero.equip_owned", request);
-        Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item == old, "Stored native item can be equipped before discard");
-        behavior.StoreFails = true;
-        Act("hero.discard_owned", request);
-        Check(!ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item == old && behavior.Saved.Items.Exists(x => x.OwnedId == imported.OwnedId), "Failed equipped discard restores game gear and ownership");
-        behavior.StoreFails = false;
-        Act("hero.discard_owned", request);
-        Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].IsEmpty && !behavior.Saved.Items.Exists(x => x.OwnedId == imported.OwnedId), "Equipped discard removes the matching game item and owned instance");
     }
     static void TestSessionRetry()
     {

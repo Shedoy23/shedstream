@@ -23,7 +23,6 @@ _asyncio = asyncio
 # Default text format (dev-friendly). Production: set LOG_FORMAT=json для
 # Loki/ELK/Datadog ingestion. Level via LOG_LEVEL.
 from logging_setup import setup_logging
-setup_logging()
 logger = logging.getLogger('rimlink')
 
 import aiohttp
@@ -56,6 +55,7 @@ from database import Database
 from rimworld import router as rimworld_router
 
 load_dotenv(override=True)
+setup_logging()
 
 # ===== RATE LIMITING =====
 from dependencies import check_rate_limit, rate_cleanup_loop as _rate_cleanup_loop  # noqa: E402
@@ -1541,8 +1541,20 @@ async def run_migrations():
         from migrations import m126_bannerlord_build
         await m126_bannerlord_build.apply(conn)
 
+        from migrations import m127_bannerlord_inventory_state
+        await m127_bannerlord_inventory_state.apply(conn)
+
         from migrations import m128_bannerlord_tournament_queue_sync
         await m128_bannerlord_tournament_queue_sync.apply(conn)
+
+        from migrations import m129_reforge_rights
+        await m129_reforge_rights.apply(conn)
+
+        from migrations import m130_clan_catalog_truth
+        await m130_clan_catalog_truth.apply(conn)
+
+        from migrations import m131_daily_claim_action
+        await m131_daily_claim_action.apply(conn)
 
         print("✅ Migrations complete")
 
@@ -2558,4 +2570,7 @@ if __name__ == "__main__":
         workers=workers if workers > 1 else None,   # None = single async worker
         limit_concurrency=limit_concurrency,
         timeout_keep_alive=keep_alive,
+        # Successful inventory/long-poll HTTP lines used to evict the whole
+        # stream's audit from Supervisor logs. Application errors still log.
+        access_log=False,
     )

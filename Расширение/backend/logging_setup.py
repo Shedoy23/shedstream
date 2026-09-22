@@ -27,6 +27,32 @@ import logging
 import os
 import sys
 import traceback
+import gzip
+import shutil
+from pathlib import Path
+from logging.handlers import TimedRotatingFileHandler
+
+
+def create_archive_handler(directory: str, days: int = 14):
+    """Keep daily application logs independently of Supervisor's volume rotation.
+
+    Opt-in via LOG_ARCHIVE_DIR. One backend worker owns the file. Closed days
+    are gzip-compressed; retention is bounded by days (default 14).
+    This does not recover old stdout logs or capture legacy print() calls.
+    """
+    Path(directory).mkdir(parents=True, exist_ok=True)
+    handler = TimedRotatingFileHandler(
+        str(Path(directory) / 'application.log'), when='midnight',
+        backupCount=max(1, days), encoding='utf-8', utc=True,
+    )
+    handler.namer = lambda name: name + '.gz'
+    def compress(source, destination):
+        with open(source, 'rb') as src, gzip.open(destination, 'wb') as dst:
+            shutil.copyfileobj(src, dst)
+        os.remove(source)
+    handler.rotator = compress
+    handler.setFormatter(JsonFormatter())
+    return handler
 
 
 class JsonFormatter(logging.Formatter):
@@ -83,6 +109,7 @@ def setup_logging(force_format: str | None = None) -> None:
     # Clear existing handlers если повторный вызов
     for h in root.handlers[:]:
         root.removeHandler(h)
+        h.close()
 
     handler = logging.StreamHandler(stream=sys.stdout)
     if fmt == "json":
@@ -94,6 +121,9 @@ def setup_logging(force_format: str | None = None) -> None:
         ))
 
     root.addHandler(handler)
+    archive_dir = os.getenv('LOG_ARCHIVE_DIR', '').strip()
+    if archive_dir:
+        root.addHandler(create_archive_handler(archive_dir))
     root.setLevel(getattr(logging, level, logging.INFO))
 
     # Quiet noisy libraries

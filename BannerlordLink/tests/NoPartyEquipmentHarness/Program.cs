@@ -62,6 +62,21 @@ class Program
             Check(ActionFeedback.Error == "no_inventory", "Ordinary baggage purchase still requires baggage");
             data["equip_now"] = true; EquipmentShopBehavior.Inventory = new TaleWorlds.CampaignSystem.Roster.ItemRoster(); Buy(data);
             Check(ActionFeedback.Error == "inventory_state_changed", "Party transition cannot change confirmed delivery mode");
+            EquipmentShopBehavior.Inventory = null; old.Value = 500;
+            var fine = new ItemModifier { StringId = "fine", ValueMultiplier = 2 };
+            hero.BattleEquipment[EquipmentIndex.Body] = new EquipmentElement(old, fine); hero.Gold = 3000;
+            data["expected_modifier_id"] = "fine"; data["trade_in_gold"] = 1000;
+            behavior.StoreFails = true; Buy(data);
+            Check(!ActionFeedback.Applied && hero.Gold == 3000 && hero.BattleEquipment[EquipmentIndex.Body].ItemModifier == fine, "Rollback preserves exact quality");
+            behavior.StoreFails = false; Buy(data);
+            Check(ActionFeedback.Applied && hero.Gold == 0, "Quality-adjusted native value funds replacement");
+            old.Value = 5000; hero.Gold = int.MaxValue; hero.BattleEquipment[EquipmentIndex.Body] = new EquipmentElement(old);
+            data["expected_modifier_id"] = ""; data["trade_in_gold"] = 5000; Buy(data);
+            Check(ActionFeedback.Error == "gold_limit_reached" && hero.Gold == int.MaxValue && hero.BattleEquipment[EquipmentIndex.Body].Item == old, "Trade-in surplus cannot overflow balance");
+            data["save_id"] = "old-save"; Buy(data);
+            Check(ActionFeedback.Error == "stale_hero_session", "Direct delivery cannot cross saves"); data["save_id"] = "save1";
+            data["equipment_session_id"] = "old-session"; Buy(data);
+            Check(ActionFeedback.Error == "stale_equipment_session", "Direct delivery cannot cross reloads");
             Console.WriteLine($"PASS no-party equipment: {count} checks"); return 0;
         } catch (Exception e) { Console.Error.WriteLine(e); return 1; }
     }

@@ -85,15 +85,16 @@ namespace BannerlordLink.Actions
                 }
 
                 Settlement target = null;
+                bool automaticTarget = orderType == "recruit";
                 // 1) Try direct StringId lookup (preferred, deterministic)
-                if (!string.IsNullOrEmpty(targetId))
+                if (!automaticTarget && !string.IsNullOrEmpty(targetId))
                 {
                     try { target = MBObjectManager.Instance.GetObject<Settlement>(targetId); }
                     catch { }
                 }
                 // 2) Fuzzy-name fallback — user typed a settlement name like "Lycaron"
                 //    instead of StringId. BLT-style: case-insensitive contains match.
-                if (target == null)
+                if (!automaticTarget && target == null)
                 {
                     string needle = (targetName ?? targetId ?? "").Trim().ToLowerInvariant();
                     if (needle.Length >= 3)
@@ -114,7 +115,7 @@ namespace BannerlordLink.Actions
                         catch { }
                     }
                 }
-                if (target == null)
+                if (!automaticTarget && target == null)
                 {
                     BannerlordLinkModule.Log(
                         $"[party_order] REFUSE @{username}: settlement '{targetId}'/'{targetName}' not found");
@@ -151,6 +152,10 @@ namespace BannerlordLink.Actions
                 var navType = MobileParty.NavigationType.Default;
                 switch (orderType)
                 {
+                    case "recruit":
+                        BannerlordLinkModule.Log(
+                            $"[party_order] @{username} → RECRUIT (automatic route)");
+                        break;
                     case "siege":
                         // Engine API: MobileParty.SetMoveBesiegeSettlement (1.3.x).
                         // Если не leader — engine REFUSE'нет на native side.
@@ -217,10 +222,12 @@ namespace BannerlordLink.Actions
                 // при completion (siege won / raid done / settlement captured).
                 // Без этого goal сваливался через 1-2 game-hour'а.
                 PartyOrderBehavior.SetOrder(username, orderType, target);
+                if (orderType == "recruit") PartyOrderBehavior.ReissueNow(username);
 
                 BannerlordLinkModule.Log(
-                    $"[party_order EXIT-OK] @{username} order={orderType} → '{targetName}' applied " +
-                    $"(party leader={mp.LeaderHero?.Name}, target faction={target.MapFaction?.Name})");
+                    $"[party_order EXIT-OK] @{username} order={orderType} → " +
+                    $"'{(automaticTarget ? "auto" : targetName)}' applied " +
+                    $"(party leader={mp.LeaderHero?.Name}, target faction={target?.MapFaction?.Name})");
                 ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)

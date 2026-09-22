@@ -276,7 +276,7 @@ namespace BannerlordLink.Util
             try
             {
                 var kingdom = hero?.Clan?.Kingdom;
-                if (kingdom == null) return null;
+                if (kingdom == null || kingdom.IsEliminated || hero.Clan.IsEliminated) return null;
                 int atWarCount = 0;
                 System.Collections.Generic.List<string> atWarNames = null;
                 System.Collections.Generic.List<object> ownSettlements = null;

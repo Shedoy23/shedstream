@@ -538,6 +538,10 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_restore_clan_upgrades(channel_id, env)
             return
 
+        if et == "hero.clan_upgrades_purchased":
+            await self._on_clan_upgrades_purchased(channel_id, env)
+            return
+
         if et == "module.heroes_snapshot":
             await self._on_heroes_snapshot(channel_id, env)
             return
@@ -838,6 +842,14 @@ class BannerlordAdapter(ModuleAdapter):
                 # Parse data → price + initiated_by was done before the
                 # refund fence so duplicate failure delivery also clears CD.
                 price = int(parsed.get("price") or 0)
+                if action_type == 'hero.reforge_quality':
+                    from .reforge import settle_tx
+                    await settle_tx(conn, channel_id, action_id, False)
+
+                if parsed.get("_daily") is True and username:
+                    await conn.execute(
+                        "DELETE FROM bannerlord_daily_claims WHERE channel_id=? AND username=? AND action_id=?",
+                        (channel_id, username, action_id))
 
                 if price <= 0 or not username:
                     # Не было payment'а (free action) — лог + mark.
@@ -972,8 +984,11 @@ class BannerlordAdapter(ModuleAdapter):
                     VALUES(?,?,CURRENT_TIMESTAMP)
                     ON CONFLICT(channel_id) DO UPDATE SET current_save_id=excluded.current_save_id,last_session_at=CURRENT_TIMESTAMP
                 """, (channel_id, save_id))
+            from routes.bannerlord_party_orders import expire_stale_party_orders
+            expired_orders = await expire_stale_party_orders(conn, channel_id)
             await conn.commit()
-        logger.info("[bannerlord:%s] session_start save_id=%s equipment_session=%s", channel_id, save_id, session_id)
+        logger.info("[bannerlord:%s] session_start save_id=%s equipment_session=%s expired_orders=%s",
+                    channel_id, save_id, session_id, expired_orders)
 
     async def _on_catalog_update(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Generic catalog write. Catalog types declared в manifest.yaml."""
@@ -1192,7 +1207,7 @@ class BannerlordAdapter(ModuleAdapter):
         if _stance in ("defensive", "balanced", "aggressive"):
             fields.append("combat_stance = ?")
             params.append(_stance)
-        if not fields:
+        if not fields and not any(k in data for k in ("clan_info", "kingdom_info", "family_info", "party_info")):
             return
         fields.append("last_sync = CURRENT_TIMESTAMP")
         if incoming_ts > 0:
@@ -1258,7 +1273,7 @@ class BannerlordAdapter(ModuleAdapter):
                                ("family_info", "family_info_json"),
                                ("party_info", "party_info_json")]:
                     info = data.get(k)
-                    if info is not None:
+                    if k in data:
                         try:
                             json_str = json.dumps(info, ensure_ascii=False) if info else None
                         except Exception:
@@ -1267,6 +1282,16 @@ class BannerlordAdapter(ModuleAdapter):
                             f"UPDATE bannerlord_heroes SET {col}=? "
                             f"WHERE channel_id=? AND username=?",
                             (json_str, channel_id, username))
+
+                if "kingdom_info" in data:
+                    kingdom = data.get("kingdom_info") or {}
+                    await conn.execute(
+                        "UPDATE bannerlord_heroes SET kingdom_id=?, kingdom_name=?, is_king=? WHERE channel_id=? AND username=?",
+                        (kingdom.get("id"), kingdom.get("name"), int(bool(kingdom.get("is_ruler"))), channel_id, username))
+                if "clan_info" in data and data["clan_info"] is None:
+                    await conn.execute(
+                        "UPDATE bannerlord_heroes SET clan_name=NULL,is_clan_leader=0 WHERE channel_id=? AND username=?",
+                        (channel_id, username))
 
                 # Save is authoritative for personal vassal clans. Creation
                 # events can be lost while the backend/game is disconnected;
@@ -1633,16 +1658,20 @@ class BannerlordAdapter(ModuleAdapter):
         rich: dict = {}
         heroes_payload = data.get("heroes")
         if isinstance(heroes_payload, list):
+            hero_ids = set()
             for h in heroes_payload:
                 if not isinstance(h, dict):
-                    continue
-                u = str(h.get("username") or "").lower()
-                if u:
-                    rich[u] = h
-        if rich:
+                    raise ValueError("invalid_heroes_snapshot")
+                u = str(h.get("username") or "").strip().lower()
+                hero_id = str(h.get("hero_id") or "")
+                if not u or not hero_id or u in rich or hero_id in hero_ids:
+                    raise ValueError("ambiguous_heroes_snapshot")
+                rich[u] = h
+                hero_ids.add(hero_id)
+        if isinstance(heroes_payload, list):
             snapshot = set(rich.keys())
         else:
-            usernames = data.get("usernames") or []
+            usernames = data.get("usernames")
             if not isinstance(usernames, list):
                 return
             snapshot = {str(u).lower() for u in usernames if u}
@@ -1650,6 +1679,24 @@ class BannerlordAdapter(ModuleAdapter):
         from dependencies import get_db
         upserted = 0
         async with get_db()._connect() as conn:
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "SELECT current_save_id FROM bannerlord_channel_state WHERE channel_id=?",
+                (channel_id,))
+            current = await cur.fetchone()
+            if current and data.get("save_id") != current[0]:
+                await conn.rollback()
+                return
+            if rich:
+                # Engine ids may be reassigned after loading a save. Release all
+                # old claims first: UPSERT by username alone collides with stale
+                # owners and even cycles (A->B, B->A). Keep viewer progress intact.
+                # Temporary ids are never visible outside this transaction.
+                import uuid
+                prefix = "reconcile:" + uuid.uuid4().hex + ":"
+                await conn.execute(
+                    "UPDATE bannerlord_heroes SET hero_id=? || username WHERE channel_id=?",
+                    (prefix, channel_id))
             # 1. UPSERT присутствующих — пересоздаёт пропавшие hero-строки.
             #    is_alive=1 на create; на conflict трогаем ТОЛЬКО identity-поля
             #    (gold/level/clan/is_wounded оставляем _on_player_state_update).
@@ -1664,7 +1711,8 @@ class BannerlordAdapter(ModuleAdapter):
                     ON CONFLICT(channel_id, username) DO UPDATE SET
                         hero_id      = excluded.hero_id,
                         display_name = excluded.display_name,
-                        culture      = COALESCE(excluded.culture, culture)
+                        culture      = COALESCE(excluded.culture, culture),
+                        is_alive     = 1
                 """, (channel_id, u, hero_id,
                       h.get("display_name") or u, h.get("culture")))
                 upserted += 1
@@ -1945,6 +1993,66 @@ class BannerlordAdapter(ModuleAdapter):
             await conn.commit()
         print(f"[bannerlord:{channel_id}] clan_upgrades restored: {n} row(s), {len(owned)} owner(s)")
 
+    async def _on_clan_upgrades_purchased(self, channel_id: int,
+                                          env: ModuleEnvelope) -> None:
+        """Commit ownership only after real Hero.Gold was debited in game."""
+        data = env.data or {}
+        action_id = (data.get("action_id") or "").strip()
+        if not action_id:
+            logger.warning("[bannerlord:%s] clan purchase event without action_id", channel_id)
+            return
+        from dependencies import get_db
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT data FROM module_actions WHERE channel_id=? AND action_id=? "
+                "AND type='hero.buy_clan_upgrades'", (channel_id, action_id))
+            row = await cur.fetchone()
+            if not row:
+                logger.warning("[bannerlord:%s] clan purchase action not found: %s", channel_id, action_id)
+                return
+            try:
+                action_data = json.loads(row[0] or "{}")
+            except Exception:
+                logger.exception("[bannerlord:%s] bad clan purchase payload: %s", channel_id, action_id)
+                return
+            username = (action_data.get("initiated_by") or "").strip().lower()
+            upgrades = action_data.get("upgrades") or []
+            if not username or not isinstance(upgrades, list) or not upgrades:
+                logger.warning("[bannerlord:%s] incomplete clan purchase payload: %s", channel_id, action_id)
+                return
+            inserted = 0
+            for upgrade in upgrades:
+                if not isinstance(upgrade, dict):
+                    continue
+                uid = (upgrade.get("upgrade_id") or "").strip()
+                if not uid:
+                    continue
+                try:
+                    cost = max(0, int(upgrade.get("gold_cost") or 0))
+                except (TypeError, ValueError):
+                    cost = 0
+                cur = await conn.execute(
+                    "INSERT OR IGNORE INTO bannerlord_clan_upgrades_owned "
+                    "(channel_id,username,upgrade_id,gold_paid) VALUES (?,?,?,?)",
+                    (channel_id, username, uid, cost))
+                inserted += cur.rowcount or 0
+            try:
+                gold_after = max(0, int(data.get("gold_after")))
+            except (TypeError, ValueError):
+                gold_after = None
+            if gold_after is not None:
+                await conn.execute(
+                    "UPDATE bannerlord_heroes SET gold=?,last_sync=CURRENT_TIMESTAMP "
+                    "WHERE channel_id=? AND username=?",
+                    (gold_after, channel_id, username))
+            if inserted:
+                await add_notice_tx(conn, channel_id, username, "applied",
+                    "Улучшение клана куплено и сохранено. Слава и влияние начисляются каждый игровой день; лимиты отрядов пересчитает игра.", 0)
+            await conn.commit()
+        await self._log_event(channel_id, "hero.clan_upgrades_purchased", username, data)
+        logger.info("[bannerlord:%s] clan purchase committed action=%s @%s rows=%s gold=%s",
+                    channel_id, action_id, username, inserted, gold_after)
+
     # ── Sprint 5.8: Focus / Attribute changes ─────────────────────────────────
 
     async def _on_focus_changed(self, channel_id: int, env: ModuleEnvelope) -> None:
@@ -2043,7 +2151,8 @@ class BannerlordAdapter(ModuleAdapter):
         from dependencies import get_db
         async with get_db()._connect() as conn:
             await conn.execute(
-                "UPDATE bannerlord_heroes SET clan_name=NULL, kingdom_name=NULL, "
+                "UPDATE bannerlord_heroes SET clan_name=NULL, clan_info_json=NULL, is_clan_leader=0, "
+                "kingdom_name=NULL, kingdom_id=NULL, kingdom_info_json=NULL, is_king=0, "
                 "last_sync=CURRENT_TIMESTAMP "
                 "WHERE channel_id=? AND username=?",
                 (channel_id, username))
@@ -2104,7 +2213,7 @@ class BannerlordAdapter(ModuleAdapter):
         from dependencies import get_db
         async with get_db()._connect() as conn:
             await conn.execute(
-                "UPDATE bannerlord_heroes SET kingdom_name=NULL, "
+                "UPDATE bannerlord_heroes SET kingdom_name=NULL, kingdom_id=NULL, kingdom_info_json=NULL, is_king=0, "
                 "last_sync=CURRENT_TIMESTAMP "
                 "WHERE channel_id=? AND username=?",
                 (channel_id, username))

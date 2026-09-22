@@ -25,14 +25,14 @@ namespace BannerlordLink.Util
             retinue = Math.Max(0, retinue) * 0.5;
             double contribution = personal + retinue;
             if (contribution <= 0) return default;
-            double scale = enemies < 50 ? 0.24 : enemies < 200 ? 1.0 : siege ? 1.6 : 1.2;
+            double scale = enemies < 50 ? 0.8 : enemies < 200 ? 1.0 : siege ? 1.6 : 1.2;
             double result = scale * (won ? 1.2 : 1.0);
             return new Payout {
-                // Scores are useful damage, not kill counts. Preserve original ceilings;
+                // 22.09: extend participation to 16000 at the same per-point rate.
                 // Calibrated to observed 28-65 human-kill efforts: ~2750-6725 personal points.
                 // Multiplier is applied AFTER rounding, so every part and the total are
                 // exactly Multiplier times the previous payout for the same inputs.
-                Participation = Multiplier * (int)(50000 * Math.Min(1, contribution / 8000) * result),
+                Participation = Multiplier * (int)(100000 * Math.Min(1, contribution / 16000) * result),
                 Personal = Multiplier * (int)(100000 * personal / (personal + 4000) * result),
                 Retinue = Multiplier * (int)(58000 * retinue / (retinue + 2000) * result),
             };

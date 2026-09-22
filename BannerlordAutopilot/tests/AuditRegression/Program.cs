@@ -343,6 +343,7 @@ internal static partial class Program
             SetClock(DateTime.UtcNow);
         });
         LootTests();
+        PostBattleRestTests();
         DonationTests();
 
         Console.WriteLine("\n[находка 2] наблюдение ничего не меняет");

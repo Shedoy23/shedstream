@@ -1296,6 +1296,9 @@ class BannerlordAdapter(ModuleAdapter):
                 # Save is authoritative for personal vassal clans. Creation
                 # events can be lost while the backend/game is disconnected;
                 # every full hero snapshot repairs both missing and stale rows.
+                from .heir_snapshot import reconcile_heir_snapshot
+                await reconcile_heir_snapshot(conn, channel_id, username, data.get("heirs"))
+
                 vassals_payload = data.get("vassals")
                 if isinstance(vassals_payload, list):
                     from routes.bannerlord_vassals import reconcile_vassal_snapshot

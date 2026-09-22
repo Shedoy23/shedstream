@@ -2,11 +2,15 @@ import asyncio, sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import aiosqlite
+import test_vassal_placeholder_lifecycle  # test environment
+from routes.bannerlord_vassals import list_eligible_heirs, handle_create_vassal
 from modules.bannerlord.heir_snapshot import reconcile_heir_snapshot
 
 async def main():
  async with aiosqlite.connect(':memory:') as c:
   await c.execute("CREATE TABLE bannerlord_heirs(channel_id INTEGER,parent_username TEXT,heir_hero_id TEXT,heir_name TEXT,alive INTEGER DEFAULT 1,activated INTEGER DEFAULT 0,came_of_age_at TEXT DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(channel_id,heir_hero_id))")
+  await c.execute("CREATE TABLE bannerlord_heroes(channel_id INTEGER,username TEXT,clan_info_json TEXT)")
+  await c.execute("CREATE TABLE bannerlord_vassals(channel_id INTEGER,vassal_leader_hero_id TEXT,vassal_clan_id TEXT,created_at TEXT)")
   await reconcile_heir_snapshot(c,1,'alice',[{'hero_id':'a','name':'Adult'}])
   assert (await (await c.execute('SELECT heir_name,alive,activated FROM bannerlord_heirs')).fetchone())==('Adult',1,0)
   await reconcile_heir_snapshot(c,2,'alice',[{'hero_id':'a','name':'Other tenant'}])
@@ -20,5 +24,18 @@ async def main():
   assert (await (await c.execute('SELECT alive FROM bannerlord_heirs WHERE channel_id=2')).fetchone())[0]==1
   await reconcile_heir_snapshot(c,1,'alice',[{'hero_id':'a','name':'Restored'}])
   assert (await (await c.execute('SELECT alive,heir_name FROM bannerlord_heirs WHERE channel_id=1')).fetchone())==(1,'Restored')
- print('heir snapshot: PASS')
+  await c.execute("INSERT INTO bannerlord_heroes VALUES(1,'alice',?)", ('{"vassal_heirs":[{"hero_id":"a","name":"Restored"}]}',))
+  assert len(await list_eligible_heirs(c,1,'alice'))==1
+  await c.execute("INSERT INTO bannerlord_vassals VALUES(1,'a','pending_busy',CURRENT_TIMESTAMP)")
+  assert await list_eligible_heirs(c,1,'alice')==[]
+  blocked=await handle_create_vassal(c,1,'alice',{'heir_hero_id':'a','vassal_name':'Test'})
+  assert not blocked['success']
+  await c.execute("DELETE FROM bannerlord_vassals")
+  await c.execute("UPDATE bannerlord_heroes SET clan_info_json=?", ('{"vassal_heirs":[]}',))
+  assert await list_eligible_heirs(c,1,'alice')==[]
+  await c.execute("UPDATE bannerlord_heroes SET clan_info_json='{}'")
+  assert len(await list_eligible_heirs(c,1,'alice'))==1
+  await reconcile_heir_snapshot(c,1,'alice',[{'hero_id':'a','name':'Dead','alive':False}])
+  assert await list_eligible_heirs(c,1,'alice')==[]
+ print('heir snapshot and native eligibility: PASS')
 asyncio.run(main())

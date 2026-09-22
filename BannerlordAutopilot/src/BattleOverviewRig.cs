@@ -14,7 +14,7 @@ namespace BannerlordAutopilot
         }
         internal bool Ready { get; private set; }
         internal float Height { get; private set; } = 80f;
-        internal float Pitch { get; private set; } = 60f;
+        internal float Pitch { get; private set; } = 40f;
         private float _yaw = 0.6f, _targetX, _targetY, _targetZ;
         internal float X, Y, Z;
         private float Distance => Height / (float)Math.Tan(Pitch * Math.PI / 180);
@@ -24,7 +24,7 @@ namespace BannerlordAutopilot
         internal void ResetPosition() { Ready=false; }
         internal void Zoom(float steps) { Height=Clamp(Height-steps*10f,45f,180f); }
         internal void Rotate(float dx,float dy)
-        { _yaw += dx*0.006f; Pitch=Clamp(Pitch+dy*0.15f,40f,80f); }
+        { _yaw += dx*0.006f; Pitch=Clamp(Pitch+dy*0.15f,25f,80f); }
         private static float Clamp(float x,float min,float max) => Math.Max(min,Math.Min(max,x));
 
         internal void Focus(IList<Point> points)

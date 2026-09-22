@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-namespace TaleWorlds.ScreenSystem { public static class Screen { public static float AspectRatio=16f/9f; } }
+namespace TaleWorlds.Engine { public static class Screen { public static float AspectRatio=16f/9f; } }
 namespace TaleWorlds.Core { public enum MissionMode { Battle,Deployment,Conversation } }
 namespace TaleWorlds.Library {
  public struct Vec3 { public float x,y,z; public Vec3(float a,float b,float c){x=a;y=b;z=c;} public static Vec3 Up=>new Vec3(0,0,1); }

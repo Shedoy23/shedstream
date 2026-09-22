@@ -73,7 +73,13 @@ namespace BannerlordAutopilot
                 var location = new Vec3(_rig.CameraX, _rig.CameraY, _rig.CameraZ);
                 // A hillside behind the fight must not swallow the camera.
                 location.z = Math.Max(location.z, Mission.Scene.GetGroundHeightAtPosition(location) + 12f);
+                // Returning true skips MissionScreen.UpdateCamera completely, including
+                // projection and the native mission camera used for visual updates.
+                MissionScreen.CombatCamera.SetFovVertical(65f * (float)Math.PI / 180f,
+                    TaleWorlds.Engine.Screen.AspectRatio, 0.1f, 12500f);
                 MissionScreen.CombatCamera.LookAt(location, target, Vec3.Up);
+                var frame = MissionScreen.CombatCamera.Frame;
+                Mission.SetCameraFrame(ref frame, 1f, ref location);
                 MissionScreen.SceneView.SetCamera(MissionScreen.CombatCamera);
                 SoundManager.SetListenerFrame(MissionScreen.CombatCamera.Frame);
                 return true;

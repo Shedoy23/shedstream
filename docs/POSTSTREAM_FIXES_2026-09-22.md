@@ -1,5 +1,39 @@
 # Исправления после эфира 21.09 — 22.09.2026
 
+## Production установлено 22.09
+
+Владелец после подготовки дал команды «установи на прод», затем «и длл выкати».
+Второе уточнение разрешает общую проверенную DLL, включая явно обсуждённые
+ранее отложенные боевые приказы. Это актуальное решение; ограничения ниже
+описывают этап подготовки до разрешения.
+
+- Backend из `0777842` установлен через `scripts/deploy.ps1 -Backend`;
+  перед поставкой снова107/107 critical, pip exit0, скрипт exit0.
+- Резерв кода/.env/SQLite: `/root/shedlink-deploy-backups/poststream-20260922-042941`;
+  SQLite backup проверен integrity_check=ok.
+- Production RUNNING PID2582894. localhost и https://shedoy23.ru/health:
+  HTTP200 `status=ok,db=ok`; страницы /, extension, overlay, privacy, terms200.
+- В настоящей БД проверены integrity, daily.action_id, таблица paid rights,
+  отсутствие ложного max_vassals_bonus. Публичный endpoint прав принимает
+  Bannerlord-token и отклоняет token другого модуля; проверка без покупки.
+- `LOG_ARCHIVE_DIR=/var/log/shedlink-archive` включён; application.log непустой.
+- SHA256 production routes/bannerlord.py совпал с локальным:
+  `6f6d41c7d46a990b1be5e3ec9aec7cb75124409180a5bc5d0d1cd0d49c4ad78f`.
+  main.py: `915ec818241482ab1555a787b133206c3088e0562361010764c401c1476f73da`.
+- В09:30:54 +05 DLL/PDB скопированы в
+  `X:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/Shedoy23.BannerlordLink/bin/Win64_Shipping_Client`.
+  Процессов игры/launcher из game path не было. Оба прежних файла сохранены в
+  подпапке `rollback-poststream-20260922-093054`, резервные хеши проверены.
+- Новая DLL SHA256 `271a25c749a7c09564c5fc1b40bb181523e691ce4d11d0fbfa800a726e8a6bb6`;
+  PDB `341c0878929505a263f0053456e3cb800da20e10f5f6c499083ae72b5cd93529`.
+  Оба установленых файла совпадают с проверенной сборкой.
+- Twitch frontend/CDN и Autopilot этой поставкой не обновлялись. Удаление
+  ложного эффекта на сервере действует и для прежнего клиента.
+- Игра не запускалась: живой rollback/restore не доказан. Исторические деньги
+  зрителей не начислялись/не списывались этой установкой.
+
+Лог поставки: `D:/shedlink-build/poststream-prod-deploy.log`.
+
 ## Состояние поставки
 
 Работа в `D:/shedlink-build/poststream-fixes-20260922`, ветка

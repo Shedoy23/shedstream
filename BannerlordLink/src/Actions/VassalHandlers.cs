@@ -97,6 +97,12 @@ namespace BannerlordLink.Actions
                     ActionFeedback.PostFailed(actionId, "parent_not_found");
                     return;
                 }
+                // Snapshot can become stale between the click and game execution.
+                if (!HeirEligibility.CanCreateVassal(parentHero, heir))
+                {
+                    ActionFeedback.PostFailed(actionId, "heir_not_eligible");
+                    return;
+                }
                 if (parentHero.Gold < VASSAL_GOLD_COST)
                 {
                     BannerlordLinkModule.Log(

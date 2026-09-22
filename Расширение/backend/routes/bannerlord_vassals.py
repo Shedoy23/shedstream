@@ -154,6 +154,24 @@ async def list_eligible_heirs(conn, channel_id: int, username: str) -> list:
 
     Общая точка для эндпоинта и теста.
     """
+    # New clients send native eligibility (own adult child, alive, not captive).
+    import json
+    cur = await conn.execute(
+        "SELECT clan_info_json FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+        (channel_id, username))
+    hero = await cur.fetchone()
+    try:
+        snapshot = json.loads(hero[0] or "{}") if hero else {}
+    except (ValueError, TypeError):
+        snapshot = {}
+    if isinstance(snapshot, dict) and isinstance(snapshot.get("vassal_heirs"), list):
+        cur = await conn.execute(
+            f"SELECT vassal_leader_hero_id FROM bannerlord_vassals WHERE channel_id=? AND {_REAL_OR_FRESH}",
+            (channel_id,))
+        occupied = {r[0] for r in await cur.fetchall()}
+        return [r for r in snapshot["vassal_heirs"]
+                if isinstance(r, dict) and r.get("hero_id") and r.get("hero_id") not in occupied]
+
     # Exclude heir_hero_ids которые уже vassal-leaders.
     cur = await conn.execute(
         "SELECT h.heir_hero_id, h.heir_name, h.came_of_age_at "
@@ -194,6 +212,10 @@ async def handle_create_vassal(conn, channel_id: int, parent_user: str, data: di
         return {"success": False, "message": "Нужен heir_hero_id"}
     if not vassal_name or len(vassal_name) > 50:
         return {"success": False, "message": "Имя клана 1-50 символов"}
+
+    candidates = await list_eligible_heirs(conn, channel_id, parent_user)
+    if not any(r["hero_id"] == heir_hero_id for r in candidates):
+        return {"success": False, "message": "Наследник сейчас недоступен для создания вассала"}
 
     # Validate heir belongs to parent.
     cur = await conn.execute(

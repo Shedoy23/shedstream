@@ -194,6 +194,8 @@ namespace BannerlordLink.Util
                     clan_info     = clanInfo,
                     kingdom_info  = kingdomInfo,
                     family_info   = familyInfo,
+                    heirs         = hero.Children.Where(child => !child.IsChild)
+                                        .Select(child => new { hero_id = child.StringId, name = child.Name.ToString(), alive = child.IsAlive }).ToArray(),
                     party_info    = BuildPartyInfo(hero),
                     vassals       = BannerlordLink.Behaviors.VassalAutoFollowBehavior.Current?
                                         .BuildSnapshotForMaster(hero.Clan),
@@ -254,6 +256,8 @@ namespace BannerlordLink.Util
                     name            = clan.Name?.ToString(),
                     leader_name     = clan.Leader?.Name?.ToString(),
                     is_leader       = clan.Leader == hero,
+                    vassal_heirs     = hero.Children.Where(child => HeirEligibility.CanCreateVassal(hero, child))
+                                        .Select(child => new { hero_id = child.StringId, name = child.Name.ToString() }).ToArray(),
                     members_count   = clan.Heroes?.Count ?? 0,
                     tier            = clan.Tier,
                     renown          = (int)clan.Renown,

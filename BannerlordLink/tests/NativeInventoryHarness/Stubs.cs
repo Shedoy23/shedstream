@@ -63,7 +63,7 @@ namespace TaleWorlds.ObjectSystem {
  }
 }
 namespace BannerlordLink {
- public class BackendStub { public Task<bool> PostEventAsync(string module,string type,string json,long timestamp=0)=>Task.FromResult(true); }
+ public class BackendStub { public int Events; public Task<bool> PostEventAsync(string module,string type,string json,long timestamp=0) { System.Threading.Interlocked.Increment(ref Events); return Task.FromResult(true); } }
  public static class BannerlordLinkModule { public static BackendStub Backend; public static void Log(string message) {} }
  public static class MainThreadDispatcher { public static void Enqueue(Action action)=>action(); }
 }

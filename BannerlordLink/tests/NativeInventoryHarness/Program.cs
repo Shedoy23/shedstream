@@ -72,6 +72,25 @@ class Program {
   HeroIdentityBehavior.Instance.Users[hero.StringId]="alice"; hero.Name="Renamed Lord";
   try { data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero))); Check((string)data["username"]=="alice","persistent identity survives game rename"); }
   catch(Exception) { Check(false,"persistent identity survives game rename"); }
+  var wire=new BannerlordLink.BackendStub(); BannerlordLink.BannerlordLinkModule.Backend=wire;
+  behavior.Push(hero,behavior.Read(hero)); System.Threading.Thread.Sleep(100);
+  behavior.Push(hero,behavior.Read(hero)); System.Threading.Thread.Sleep(100);
+  Check(wire.Events==1,"identical inventory does not publish again just because sequence advanced");
+  var right=new JObject { ["hero_id"]=hero.StringId,["username"]="alice",["slot"]="head",["item_id"]="forge",["modifier_id"]="fine",["rank"]=1 };
+  hero.BattleEquipment[EquipmentIndex.Head]=new EquipmentElement(forgeItem);
+  Check(ReforgeQuality.Restore(hero,right,"save1","alice"),"paid quality restored after rollback");
+  Check(!ReforgeQuality.Restore(hero,right,"save1","alice"),"restoration is idempotent");
+  hero.BattleEquipment[EquipmentIndex.Head]=new EquipmentElement(forgeItem);
+  Check(!ReforgeQuality.Restore(hero,right,"other-save","alice"),"paid quality does not cross campaigns");
+  Check(!ReforgeQuality.Restore(hero,right,"save1","other-user"),"paid quality does not cross owners");
+  right["hero_id"]="other-hero";
+  Check(!ReforgeQuality.Restore(hero,right,"save1","alice"),"paid quality does not cross heirs");
+  right["hero_id"]=hero.StringId;
+  TaleWorlds.MountAndBlade.Mission.Current=new TaleWorlds.MountAndBlade.Mission();
+  Check(!ReforgeQuality.Restore(hero,right,"save1","alice"),"restoration waits outside mission");
+  TaleWorlds.MountAndBlade.Mission.Current=null;
+  hero.BattleEquipment[EquipmentIndex.Head]=new EquipmentElement(armor);
+  Check(!ReforgeQuality.Restore(hero,right,"save1","alice"),"restoration does not replace a different item");
   Console.WriteLine($"{checks} checks, {failures} failures"); return failures==0?0:1;
  }
 }

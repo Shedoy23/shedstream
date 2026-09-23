@@ -101,6 +101,10 @@ namespace BannerlordAutopilot
                     }
                     else behavior.PollState();
                 }
+                else if (behavior.TryAutoResume())
+                {
+                    Announce("Автопилот включился сам после сбоя (подробности в логе).");
+                }
             }
 
             if (Input.IsKeyPressed(KeyObserve))

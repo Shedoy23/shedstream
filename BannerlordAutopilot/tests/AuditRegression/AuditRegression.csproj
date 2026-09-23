@@ -17,6 +17,7 @@
     <Compile Include="../../src/AutopilotDefense.cs" Link="AutopilotDefense.cs" Condition="Exists('../../src/AutopilotDefense.cs')" />
     <Compile Include="../../src/AutopilotHunt.cs" Link="AutopilotHunt.cs" />
     <Compile Include="../../src/AutopilotFlee.cs" Link="AutopilotFlee.cs" />
+    <Compile Include="../../src/AutopilotResume.cs" Link="AutopilotResume.cs" />
     <Compile Include="../../src/AutopilotBehavior.cs" Link="AutopilotBehavior.cs" />
     <Compile Include="../../src/AutopilotOperations.cs" Link="AutopilotOperations.cs" />
     <Compile Include="../../src/AutopilotBanditGathering.cs" Link="AutopilotBanditGathering.cs" Condition="Exists('../../src/AutopilotBanditGathering.cs')" />

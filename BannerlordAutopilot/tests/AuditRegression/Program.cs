@@ -349,6 +349,7 @@ internal static partial class Program
         SiegePriorityTests();
         FleeTests();
         FleeDefenseTests();
+        ResumeTests();
         SiegeReliabilityTests();
         DonationTests();
 

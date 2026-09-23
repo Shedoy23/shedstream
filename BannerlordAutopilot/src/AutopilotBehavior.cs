@@ -450,6 +450,7 @@ namespace BannerlordAutopilot
             bool wasApply = _mode == Mode.Apply;
             _mode = Mode.Off;
             AutopilotLog.Write("ВЫКЛЮЧЕНИЕ: " + reason);
+            ArmAutoResume(reason, wasApply);
 
             MobileParty party = MobileParty.MainParty;
             if (wasApply && party != null && IsOnFreeMap(party))

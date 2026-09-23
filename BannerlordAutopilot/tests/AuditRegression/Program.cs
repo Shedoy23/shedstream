@@ -44,7 +44,7 @@ internal static partial class Program
         MobileParty.All.Clear();
         Settlement.All.Clear();
         Hideout.All.Clear();
-        MobileParty.MainParty = new MobileParty(); Hero.MainHero = new Hero(); Campaign.Current = new Campaign();
+        MobileParty.TestIsActiveThrows = false; MobileParty.MainParty = new MobileParty(); Hero.MainHero = new Hero(); Campaign.Current = new Campaign();
         TaleWorlds.Core.Game.Current = new TaleWorlds.Core.Game(); CampaignTime.TestHours = 0; MenuContext.Invoked.Clear();
         PlayerEncounter.Current = null; PlayerEncounter.EncounterSettlement = null;
         PlayerEncounter.EncounteredMobileParty = null; PlayerEncounter.Battle = null; PlayerEncounter.EncounteredBattle = null;
@@ -344,6 +344,7 @@ internal static partial class Program
         });
         LootTests();
         PostBattleRestTests();
+        PollGuardTests();
         SiegeReliabilityTests();
         DonationTests();
 

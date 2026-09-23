@@ -46,6 +46,27 @@ namespace BannerlordAutopilot
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
+            if (_faulted) return;
+            try { TickCore(dt); }
+            catch (Exception ex) { Fault("тик боя", ex); }
+        }
+
+        // 23.09: тик боя шёл без перехвата — исключение движка здесь роняло
+        // игру и повторялось бы каждый кадр. После сбоя бой больше не трогаем:
+        // автопилот выключен, управление возвращается один раз, если выйдет.
+        private bool _faulted;
+
+        private void Fault(string what, Exception ex)
+        {
+            _faulted = true;
+            Exception cause = ex is System.Reflection.TargetInvocationException && ex.InnerException != null ? ex.InnerException : ex;
+            AutopilotBehavior.Instance?.Disable(what + " упал: " + cause.GetType().Name + ": " + cause.Message);
+            try { RestorePlayerControl(); }
+            catch (Exception restore) { AutopilotLog.Write("БОЙ: вернуть управление после сбоя не вышло: " + restore.GetType().Name + ": " + restore.Message); }
+        }
+
+        private void TickCore(float dt)
+        {
             if (AutopilotBehavior.Instance?.CurrentMode != AutopilotBehavior.Mode.Apply)
             {
                 RestorePlayerControl();

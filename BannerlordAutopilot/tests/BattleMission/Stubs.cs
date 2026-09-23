@@ -27,7 +27,7 @@ namespace TaleWorlds.MountAndBlade {
   public bool IsUsingGameObject = true; public AIStateFlag AIStateFlags = AIStateFlag.None;
   public CommonAIComponent CommonAIComponent = new(); public HumanAIComponent HumanAIComponent = new();
   public Formation Formation; public Agent MountAgent; public bool IsRangedCached; public RidingOrder.RidingOrderEnum LastRidingOrder; public bool IsActive() => Active;
-  public void SetAlarmState(AIStateFlag value) { AlarmCalls++; } public void SetIsAIPaused(bool value) { if (!value) UnpauseCalls++; }
+  public bool ThrowOnAlarm; public void SetAlarmState(AIStateFlag value) { AlarmCalls++; if (ThrowOnAlarm) throw new NullReferenceException("тест: движок бросил в бою"); } public void SetIsAIPaused(bool value) { if (!value) UnpauseCalls++; }
   public void ResetEnemyCaches() { ResetCalls++; } public void HandleStopUsingAction() { StopUsingCalls++; IsUsingGameObject = false; }
   public void DisableScriptedMovement() { DisableScriptedCalls++; } public void SetRidingOrder(RidingOrder.RidingOrderEnum value) { RidingOrderCalls++; LastRidingOrder=value; }
   public void SetMaximumSpeedLimit(float value, bool isMultiplier) { SpeedResetCalls++; }

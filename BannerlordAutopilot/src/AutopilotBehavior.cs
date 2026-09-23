@@ -501,7 +501,25 @@ namespace BannerlordAutopilot
         /// <summary>Меню поселения и встреча держат время на паузе, часовых
         /// тиков в этот момент нет — поэтому реакция идёт по кадрам.
         /// Возвращает true, если партия на свободной карте и цикл может идти.</summary>
-        internal bool PollState()
+        internal bool PollState() => Guarded("опрос", PollStateCore);
+
+        /// <summary>Общая страховка кадрового опроса (23.09). Опрос идёт из
+        /// OnApplicationTick, и исключение отсюда роняет игру. Части опроса
+        /// ловят свои ошибки сами, но не все — поэтому последний рубеж здесь:
+        /// выключиться с причиной в логе, как при любом другом отказе.</summary>
+        internal bool Guarded(string what, Func<bool> poll)
+        {
+            if (_mode == Mode.Off) return false;
+            try { return poll(); }
+            catch (Exception ex)
+            {
+                Exception cause = ex is TargetInvocationException && ex.InnerException != null ? ex.InnerException : ex;
+                Disable(what + " упал: " + cause.GetType().Name + ": " + cause.Message);
+                return false;
+            }
+        }
+
+        private bool PollStateCore()
         {
             if (_mode == Mode.Off || Campaign.Current == null)
             {

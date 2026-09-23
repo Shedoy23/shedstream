@@ -44,8 +44,11 @@ namespace BannerlordAutopilot
             Kingdom ours = clan?.Kingdom;
             if (ours == null || ours.IsEliminated || clan.IsUnderMercenaryService || clan.Influence < 100f) return;
             var diplomacy = Campaign.Current.Models.DiplomacyModel;
-            var decisions = new Dictionary<PoliticsCandidate, KingdomDecision[]>();
+            var trade = Campaign.Current.Models.TradeAgreementModel;
+            var decisions = new Dictionary<PoliticsCandidate, Dictionary<PoliticsMove, KingdomDecision>>();
             var all = new List<PoliticsCandidate>();
+            var enemies = Kingdom.All.Where(k => k != null && k != ours && !k.IsEliminated
+                && ours.IsAtWarWith(k) && !ours.IsAtConstantWarWith(k)).ToList();
             foreach (Kingdom other in Kingdom.All)
             {
                 if (other == null || other == ours || other.IsEliminated) continue;
@@ -56,7 +59,7 @@ namespace BannerlordAutopilot
                     ConstantWar = ours.IsAtConstantWarWith(other),
                     DaysSincePeace = ours.GetStanceWith(other).PeaceDeclarationDate.ElapsedDaysUntilNow,
                 };
-                KingdomDecision war = null, peace = null, alliance = null;
+                var own = new Dictionary<PoliticsMove, KingdomDecision>();
                 if (c.AtWar)
                 {
                     c.PeaceScore = diplomacy.GetScoreOfDeclaringPeace(ours, other);
@@ -67,7 +70,7 @@ namespace BannerlordAutopilot
                         var decision = new MakePeaceKingdomDecision(clan, other, tribute, days);
                         if (decision.CanMakeDecision(out _) && !decision.ShouldBeCancelled())
                         {
-                            c.PeacePossible = true; peace = decision;
+                            c.PeacePossible = true; own[PoliticsMove.Peace] = decision;
                         }
                     }
                 }
@@ -76,31 +79,63 @@ namespace BannerlordAutopilot
                     var decision = new DeclareWarDecision(clan, other);
                     if (decision.CanMakeDecision(out _) && !decision.ShouldBeCancelled())
                     {
-                        c.WarPossible = true; c.WarSupport = decision.CalculateSupport(clan); war = decision;
+                        c.WarPossible = true; c.WarSupport = decision.CalculateSupport(clan); own[PoliticsMove.War] = decision;
                     }
                     var ally = new StartAllianceDecision(clan, other);
                     if (ally.CanMakeDecision(out _) && !ally.ShouldBeCancelled())
                     {
-                        c.AlliancePossible = true; c.AllianceSupport = ally.CalculateSupport(clan, out _); alliance = ally;
+                        c.AlliancePossible = true; c.AllianceSupport = ally.CalculateSupport(clan, out _); own[PoliticsMove.Alliance] = ally;
+                    }
+                    // Союзник, ещё не воюющий с нашим врагом: позвать его в войну.
+                    if (ours.IsAllyWith(other))
+                        foreach (Kingdom enemy in enemies)
+                        {
+                            if (other.IsAtWarWith(enemy)) continue;
+                            var call = new ProposeCallToWarAgreementDecision(clan, other, enemy);
+                            if (!call.CanMakeDecision(out _) || call.ShouldBeCancelled()) continue;
+                            float support = call.CalculateSupport(clan);
+                            if (c.CallToWarPossible && support <= c.CallToWarSupport) continue;
+                            c.CallToWarPossible = true; c.CallToWarSupport = support;
+                            c.CallToWarAgainst = enemy.Name?.ToString(); own[PoliticsMove.CallToWar] = call;
+                        }
+                    if (trade.CanMakeTradeAgreement(ours, other, true, out _))
+                    {
+                        var deal = new TradeAgreementDecision(clan, other);
+                        if (deal.CanMakeDecision(out _) && !deal.ShouldBeCancelled())
+                        {
+                            c.TradePossible = true; c.TradeSupport = deal.CalculateSupport(clan, out _); own[PoliticsMove.Trade] = deal;
+                        }
                     }
                 }
                 all.Add(c);
-                decisions[c] = new[] { war, peace, alliance };
+                decisions[c] = own;
             }
 
             var pending = ours.UnresolvedDecisions;
+            var alliances = Campaign.Current.Models.AllianceModel;
             var (move, target, why) = PoliticsPolicy.Decide(all,
-                pending.Any(d => d is DeclareWarDecision),
-                pending.Any(d => d is MakePeaceKingdomDecision),
-                pending.Any(d => d is StartAllianceDecision),
-                clan.Influence >= diplomacy.GetInfluenceCostOfProposingWar(clan),
-                clan.Influence >= diplomacy.GetInfluenceCostOfProposingPeace(clan),
-                clan.Influence >= Campaign.Current.Models.AllianceModel.GetInfluenceCostOfProposingStartingAlliance(clan));
+                new PoliticsFlags
+                {
+                    War = pending.Any(d => d is DeclareWarDecision),
+                    Peace = pending.Any(d => d is MakePeaceKingdomDecision),
+                    Alliance = pending.Any(d => d is StartAllianceDecision),
+                    CallToWar = pending.Any(d => d is ProposeCallToWarAgreementDecision),
+                    Trade = pending.Any(d => d is TradeAgreementDecision),
+                },
+                new PoliticsFlags
+                {
+                    War = clan.Influence >= diplomacy.GetInfluenceCostOfProposingWar(clan),
+                    Peace = clan.Influence >= diplomacy.GetInfluenceCostOfProposingPeace(clan),
+                    Alliance = clan.Influence >= alliances.GetInfluenceCostOfProposingStartingAlliance(clan),
+                    CallToWar = clan.Influence >= alliances.GetInfluenceCostOfCallingToWar(clan),
+                    Trade = clan.Influence >= trade.GetInfluenceCostOfProposingTradeAgreement(clan),
+                });
             if (move == PoliticsMove.None) return;
-            KingdomDecision chosen = decisions[target][move == PoliticsMove.War ? 0 : move == PoliticsMove.Peace ? 1 : 2];
+            KingdomDecision chosen = decisions[target][move];
             ours.AddDecision(chosen);
             AutopilotLog.Write("ПОЛИТИКА: предлагаем королевству "
-                + (move == PoliticsMove.War ? "войну" : move == PoliticsMove.Peace ? "мир" : "союз")
+                + (move == PoliticsMove.War ? "войну" : move == PoliticsMove.Peace ? "мир"
+                    : move == PoliticsMove.CallToWar ? "призвать в войну союзника" : move == PoliticsMove.Trade ? "торговое соглашение" : "союз")
                 + " с «" + target.Name + "»: " + why + "; решают голоса кланов");
         }
     }

@@ -3670,7 +3670,7 @@ async def bannerlord_clan_upgrades_buy(request: Request):
             "message":    f"✨ Покупка {name} отправлена в игру (-{cost:,}💰)",
         }
     else:
-        log.info("[BNR-BULK] ch=%s user=@%s bought %d upgrades total=%d💰",
+        log.info("[BNR-BULK] ch=%s user=@%s queued %d upgrades total=%d💰",
                  channel_id, username, len(validated), total_cost)
         return {
             "success":   True,
@@ -3679,7 +3679,7 @@ async def bannerlord_clan_upgrades_buy(request: Request):
             "count":     len(validated),
             "upgrade_ids": [v[0] for v in validated],
             "total_cost": total_cost,
-            "message":   f"✨ Куплено {len(validated)} апгрейдов: " +
+            "message":   f"✨ Покупка {len(validated)} апгрейдов отправлена в игру: " +
                          ", ".join(purchased_names[:3]) +
                          (f" и ещё {len(purchased_names)-3}" if len(purchased_names) > 3 else "") +
                          f" (-{total_cost:,}💰)",

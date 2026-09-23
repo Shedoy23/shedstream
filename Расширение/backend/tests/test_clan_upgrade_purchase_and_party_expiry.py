@@ -32,6 +32,11 @@ class Request:
         return {"upgrade_id": "foundation_test"}
 
 
+class BulkRequest:
+    async def json(self):
+        return {"upgrade_ids": ["bulk_a", "bulk_b"]}
+
+
 async def main():
     import dependencies
     import main as app_main
@@ -121,8 +126,28 @@ async def main():
                 "WHERE channel_id=? AND owner_username=?", (CH, USER))).fetchone())[0]
             assert status == "expired"
 
+            # Bulk purchase is only queued too: its toast must not claim success.
+            for uid in ("bulk_a", "bulk_b"):
+                await conn.execute(
+                    "INSERT INTO bannerlord_clan_upgrades_catalog "
+                    "(channel_id,upgrade_id,name,tier,gold_cost,effects_json,deprecated) "
+                    "VALUES (?,?,?,?,?,?,0)", (CH, uid, uid, 1, 1000, "{}"))
+            await conn.commit()
+
+        bannerlord.require_jwt_user = lambda _request: (USER, CH)
+        bannerlord._require_live_mod = live_mod
+        try:
+            bulk = await bannerlord.bannerlord_clan_upgrades_buy(BulkRequest())
+        finally:
+            bannerlord.require_jwt_user = old_auth
+            bannerlord._require_live_mod = old_live
+        assert bulk["success"] and bulk["pending"] and bulk["bulk"], bulk
+        assert "Куплено" not in bulk["message"], \
+            f"queued bulk purchase must not say it is bought: {bulk['message']}"
+        assert "отправлена в игру" in bulk["message"], bulk["message"]
+
         await db._pool.close()
-    print("OK: engine-confirmed clan purchase + stale party-order expiry")
+    print("OK: engine-confirmed clan purchase + stale party-order expiry + bulk pending text")
 
 
 if __name__ == "__main__":

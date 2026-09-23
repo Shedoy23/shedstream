@@ -87,7 +87,7 @@ namespace BannerlordAutopilot
                                    + ", стало " + roster.GetElementCopyAtIndex(actualNext).Number;
                     else if (current.Number > 1 && remainingIndex < 0)
                         mismatch = "остаток «" + source.Name + "» пропал, а было " + current.Number;
-                    else if (current.Number > 1 && roster.GetElementXp(remainingIndex) != current.Xp - xpCost)
+                    else if (current.Number > 1 && !RemainderXpMatches(party, source, current, xpCost, roster.GetElementXp(remainingIndex)))
                         mismatch = "опыт остатка был " + current.Xp + ", ждали " + (current.Xp - xpCost)
                                    + ", стал " + roster.GetElementXp(remainingIndex);
                     else if (current.Number > 1 && roster.GetElementCopyAtIndex(remainingIndex).Number != current.Number - 1)
@@ -117,6 +117,21 @@ namespace BannerlordAutopilot
                 }
                 if (upgraded > 0) AutopilotLog.Write("ПРОКАЧКА: улучшено бойцов из «" + source.Name + "»: " + upgraded);
             }
+        }
+
+        /// <summary>Игра держит опыт стопки не выше «бойцов x самая дорогая цена
+        /// повышения» (PartyBase.OnXpChanged) и после уменьшения стопки срезает
+        /// излишек — ручное повышение делает то же. 22.09 10:56:57 это приняли за
+        /// ошибку учёта: «был 1798, ждали 1248, стал 1100» (2 x 550).</summary>
+        private static bool RemainderXpMatches(MobileParty party, CharacterObject source,
+            TroopRosterElement before, int xpCost, int actual)
+        {
+            int expected = before.Xp - xpCost;
+            if (actual == expected) return true;
+            int maxCost = 0;
+            for (int i = 0; i < source.UpgradeTargets.Length; i++)
+                maxCost = Math.Max(maxCost, source.GetUpgradeXpCost(party.Party, i));
+            return actual == Math.Min(expected, (before.Number - 1) * maxCost);
         }
 
         private static int ItemCount(MobileParty party, EquipmentElement item)

@@ -212,6 +212,28 @@ namespace BannerlordAutopilot
             return strength;
         }
 
+        // Geographic frontier approximation: one of the three closest forts to a
+        // clan holding, at most 100 map units away. No route/path claim is made.
+        private static string SiegeBorderRejection(MobileParty party, Settlement target)
+        {
+            if (target == null || party == null) return "нет цели";
+            var homes = Clan.PlayerClan?.Fiefs.Select(f => f.Settlement)
+                .Where(s => s != null && (s.IsTown || s.IsCastle) && s.MapFaction == party.MapFaction).Distinct().ToList()
+                ?? new List<Settlement>();
+            if (homes.Count == 0)
+                return party.Position.DistanceSquared(target.Position) <= 100f * 100f
+                    ? null : "первый феод слишком далеко от отряда (более 100 единиц карты)";
+            foreach (var home in homes)
+            {
+                float distance = home.Position.DistanceSquared(target.Position);
+                if (distance > 100f * 100f) continue;
+                int closer = Settlement.All.Count(s => s != home && s != target && (s.IsTown || s.IsCastle)
+                    && home.Position.DistanceSquared(s.Position) < distance);
+                if (closer < 3) return null;
+            }
+            return "не приграничный феод: вне трёх ближайших крепостей в радиусе 100 от своих владений";
+        }
+
         private bool TryFindSiegeTarget(MobileParty party, out AIBehaviorData target, out float score)
         {
             target = AIBehaviorData.Invalid;
@@ -226,6 +248,7 @@ namespace BannerlordAutopilot
             foreach (var place in Settlement.All)
             {
                 if (!EnemyFortress(place, party) || place.IsUnderSiege || place.IsUnderRaid) continue;
+                if (SiegeBorderRejection(party, place) != null) continue;
                 float defenders = SiegeDefenderStrength(place, party);
                 bool needsArmy = defenders > own * 1.5f;
                 if (needsArmy && (allies.Count == 0 || defenders > assembled * 1.5f)) continue;
@@ -246,6 +269,8 @@ namespace BannerlordAutopilot
         private string SiegeTargetRejection(MobileParty party, Settlement place)
         {
             if (!EnemyFortress(place, party)) return "крепость больше не принадлежит врагу";
+            string border = SiegeBorderRejection(party, place);
+            if (border != null) return border;
             if (place.IsUnderSiege) return "крепость уже осаждают";
             if (place.IsUnderRaid) return "поселение под налётом";
             string preparation = PreparationNeeded(party);

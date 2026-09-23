@@ -11,8 +11,8 @@ namespace BannerlordAutopilot
     public partial class AutopilotBehavior
     {
         // Owner policy, 16.09: comparable fight, up to 120% of OUR PARTY's native power.
-        // Radius matches the owner's former Bandit Black Hole configuration (30 map units).
-        private const float BanditGatherRadius = 30f;
+        // Owner request, 22.09: gather existing parties within 120 map units.
+        private const float BanditGatherRadius = 120f;
         private const float BanditGatherMaxRatio = 1.2f;
         private object _banditGatheredBattle;
         private bool _banditGatherPreviewFault;
@@ -173,7 +173,7 @@ namespace BannerlordAutopilot
                 }
                 AutopilotLog.Write("СБОР БАНДИТОВ: отрядов добавлено " + gathered + "; сила врагов "
                     + before.ToString("F1", CultureInfo.InvariantCulture) + " → " + after.ToString("F1", CultureInfo.InvariantCulture)
-                    + "; наша " + ours.ToString("F1", CultureInfo.InvariantCulture) + "; предел добора 120%; радиус 30");
+                    + "; наша " + ours.ToString("F1", CultureInfo.InvariantCulture) + "; предел добора 120%; радиус " + BanditGatherRadius);
                 return true;
             }
             catch (Exception ex)

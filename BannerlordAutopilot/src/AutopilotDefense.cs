@@ -12,6 +12,8 @@ namespace BannerlordAutopilot
     {
         private Settlement _defenseTarget;
         private string _lastDefenseStatus;
+        private readonly System.Collections.Generic.Dictionary<Settlement, double> _reliefRetryAfter = new System.Collections.Generic.Dictionary<Settlement, double>();
+        private bool ReliefUnavailable(Settlement place) => place != null && _reliefRetryAfter.TryGetValue(place, out double until) && CampaignTime.Now.ToHours < until;
 
         private static bool OwnFort(Settlement place) => place != null && (place.IsTown || place.IsCastle)
             && Clan.PlayerClan != null && Clan.PlayerClan.Fiefs.Any(f => f.Settlement == place);
@@ -31,7 +33,7 @@ namespace BannerlordAutopilot
             if (!ControlsParty(party) || party.IsCurrentlyAtSea || party.Ai == null || party.Ai.IsDisabled
                 || Hero.MainHero == null || Hero.MainHero.IsPrisoner || DefenseReadiness(party) != null) return null;
             var candidates = Clan.PlayerClan?.Fiefs.Select(f => f.Settlement)
-                .Where(s => OwnFort(s) && FriendlySiege(s, party)
+                .Where(s => OwnFort(s) && FriendlySiege(s, party) && !ReliefUnavailable(s)
                     && !(s == _stuckTarget && CampaignTime.Now.ToHours < _stuckTargetUntil)).ToList();
             if (candidates == null || candidates.Count == 0) return null;
             return candidates.Contains(_defenseTarget) ? _defenseTarget
@@ -67,6 +69,9 @@ namespace BannerlordAutopilot
             var target = FindEmergencyDefense(party);
             if (target == null) return false;
             _defenseTarget = target;
+            _postBattleRestPending = false;
+            _postBattleRestSettlement = null;
+            _postBattleRestUntil = -1;
             _preparingCampaign = false;
             _offensiveSiege = null; _configuredSiege = null;
             _raidSettlement = null; _hideoutRoute = null;

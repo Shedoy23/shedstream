@@ -261,6 +261,9 @@ namespace BannerlordAutopilot
 
         private void ResetSession()
         {
+            _postBattleRestPending = false;
+            _postBattleRestSettlement = null;
+            _postBattleRestUntil = -1;
             ResetPrisonerScreen();
             _lootEncounter = null;
             ResetOperations();
@@ -498,7 +501,25 @@ namespace BannerlordAutopilot
         /// <summary>Меню поселения и встреча держат время на паузе, часовых
         /// тиков в этот момент нет — поэтому реакция идёт по кадрам.
         /// Возвращает true, если партия на свободной карте и цикл может идти.</summary>
-        internal bool PollState()
+        internal bool PollState() => Guarded("опрос", PollStateCore);
+
+        /// <summary>Общая страховка кадрового опроса (23.09). Опрос идёт из
+        /// OnApplicationTick, и исключение отсюда роняет игру. Части опроса
+        /// ловят свои ошибки сами, но не все — поэтому последний рубеж здесь:
+        /// выключиться с причиной в логе, как при любом другом отказе.</summary>
+        internal bool Guarded(string what, Func<bool> poll)
+        {
+            if (_mode == Mode.Off) return false;
+            try { return poll(); }
+            catch (Exception ex)
+            {
+                Exception cause = ex is TargetInvocationException && ex.InnerException != null ? ex.InnerException : ex;
+                Disable(what + " упал: " + cause.GetType().Name + ": " + cause.Message);
+                return false;
+            }
+        }
+
+        private bool PollStateCore()
         {
             if (_mode == Mode.Off || Campaign.Current == null)
             {
@@ -608,6 +629,8 @@ namespace BannerlordAutopilot
             Settlement peaceful = PeacefulSettlement(party);
             if (peaceful == null)
             {
+                _postBattleRestSettlement = null;
+                _postBattleRestUntil = -1;
                 if (PlayerEncounter.Current != null)
                 {
                     Disable("идёт встреча, которую автопилот не поддерживает");
@@ -667,6 +690,12 @@ namespace BannerlordAutopilot
             if (IsWaiting(menuId))
             {
                 NoteWaiting();
+                TryEmergencyDefense(party, peaceful);
+                if (HoldPostBattleRest(party, peaceful, true))
+                {
+                    TryServe(party, peaceful, menuId, "отдых после боя");
+                    return false;
+                }
                 if (_hasPendingDecision)
                 {
                     StopWaitingAndLeave(party, peaceful);
@@ -688,6 +717,7 @@ namespace BannerlordAutopilot
                 case "town":
                 case "castle":
                 case "village":
+                    if (HoldPostBattleRest(party, peaceful, false)) _hasPendingDecision = false;
                     if (_hasPendingDecision || CannotStay(peaceful))
                     {
                         LeaveAndApplyPending(party, peaceful);
@@ -1167,6 +1197,7 @@ namespace BannerlordAutopilot
             {
                 _waitingSinceHours = CampaignTime.Now.ToHours;
                 _longStayWarned = false;
+                HoldPostBattleRest(party, settlement, true);
                 AutopilotLog.Write("  ЖДЁМ в «" + settlement.Name + "»: пункт «Подождать», время "
                                    + Campaign.Current.TimeControlMode
                                    + "; уйдём, когда пересчёт штатного AI выберет другую цель");
@@ -2031,6 +2062,7 @@ namespace BannerlordAutopilot
             }
 
             if (TryEmergencyDefense(party, waitingIn)) return;
+            if (waitingIn != null && HoldPostBattleRest(party, waitingIn, true)) return;
             if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
 
             if (_mode == Mode.Apply && ControlsParty(party) && !party.IsCurrentlyAtSea
@@ -2678,6 +2710,7 @@ namespace BannerlordAutopilot
         /// <summary>Почему решение штатного AI автопилот не выполняет. null — выполняет.</summary>
         private string WhyNotApplicable(AIBehaviorData data)
         {
+            if (ReliefUnavailable(data.Party as Settlement)) return "прорыв недавно запрещён игрой, ждём повторной попытки";
             // Цель, под приказ на которую партия не сдвинулась с места, временно
             // не предлагаем: иначе тот же приказ выдаётся снова и снова.
             if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil
@@ -2699,6 +2732,8 @@ namespace BannerlordAutopilot
                 case AiBehavior.BesiegeSettlement:
                     if (!EnemyFortress(data.Party as Settlement, MobileParty.MainParty)) return "нет вражеской крепости";
                     var siegeParty = MobileParty.MainParty;
+                    string border = SiegeBorderRejection(siegeParty, data.Party as Settlement);
+                    if (border != null) return border;
                     string siegePreparation = PreparationNeeded(siegeParty);
                     if (siegePreparation != null) return siegePreparation;
                     float defenders = SiegeDefenderStrength((Settlement)data.Party, siegeParty);

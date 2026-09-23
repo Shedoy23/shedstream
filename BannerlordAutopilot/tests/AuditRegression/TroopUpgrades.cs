@@ -65,6 +65,25 @@ internal static partial class Program
             Check(p.MemberRoster.GetTroopRoster().Where(e=>e.Character==target).Sum(e=>e.Number)<=1, "после несовпадения прокачка этого захода прекращена");
             Check(AutopilotLog.Lines.Any(l=>l.Contains("ПРОКАЧКА ОСТАНОВЛЕНА") && l.Contains("бойцов было")), "журнал называет числа несовпадения");
         });
+        // 22.09 10:56:57: «опыт остатка был 1798, ждали 1248, стал 1100» — 1100 = 2 бойца
+        // x 550. Игра держит опыт стопки не выше «бойцов x цена повышения»
+        // (PartyBase.OnXpChanged) и после уменьшения стопки срезает излишек. Ручное
+        // повышение делает те же шаги, это не ошибка учёта.
+        Try("troop upgrades accept native xp cap on remainder", () => {
+            var b=Fresh(); MakeWorld(gold:500, prisoners:false); SetLimit("MinGoldReserve",0);
+            var p=MobileParty.MainParty; Campaign.Current.Behaviors.Add(new TestViewTracker());
+            var target=new CharacterObject { Name="trained" };
+            var source=new CharacterObject { Name="recruit", UpgradeTargets=new[] { target } };
+            p.MemberRoster.AddToCounts(source,3,xpChange:380);
+            Campaign.Current.Models.PartyWageModel.TestTotalWage=(party,roster)=>10;
+            Enable(b);
+            // Движковое правило: опыт стопки <= Number x 100 (цена в заглушке — 100).
+            TroopRoster.TestOnSizeChanged = r => { if (r != p.MemberRoster) return; int i=r.FindIndexOfTroop(source); if (i<0) return;
+                var e=r.GetElementCopyAtIndex(i); if (e.Xp > e.Number*100) r.SetElementXp(i, e.Number*100); };
+            try { TroopUpgrades.Run(p); } finally { TroopRoster.TestOnSizeChanged=null; }
+            Check(!AutopilotLog.Lines.Any(l=>l.Contains("ПРОКАЧКА ОСТАНОВЛЕНА")), "срез опыта по правилу игры не считается несовпадением");
+            Check(p.MemberRoster.GetTroopRoster().Where(e=>e.Character==target).Sum(e=>e.Number)==3, "все трое повышены: опыта хватало на каждого");
+        });
     }
 }
 namespace TaleWorlds.Core

@@ -88,10 +88,16 @@ namespace BannerlordAutopilot
                 {
                     if (Mission.Current != null)
                     {
-                        behavior.WatchMission();
-                        behavior.PollDialogs();
-                        Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollDeployment();
-                        Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollCompletedBattle(0.5f);
+                        // Та же страховка, что у PollState: сбой здесь выключает
+                        // автопилот с причиной вместо вылета игры (23.09).
+                        behavior.Guarded("опрос боя", () =>
+                        {
+                            behavior.WatchMission();
+                            behavior.PollDialogs();
+                            Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollDeployment();
+                            Mission.Current?.GetMissionBehavior<BattleAutopilotMission>()?.PollCompletedBattle(0.5f);
+                            return true;
+                        });
                     }
                     else behavior.PollState();
                 }

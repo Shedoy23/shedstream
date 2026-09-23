@@ -193,4 +193,18 @@ foreach (string gate in new[] { "ready", "setup", "hero", "team", "handler", "of
         Check(deploying.DeploymentSteps.Count == 0, "siege deployment waits for readiness: " + gate);
 }
 TaleWorlds.Library.InformationManager.Inquiry = false;
+// 23.09: тик боя шёл без перехвата — исключение движка роняло игру и
+// повторялось каждый кадр. Теперь: выключиться один раз и больше не трогать бой.
+{
+    var faulty = new Mission { Mode = MissionMode.Battle, IsDeploymentFinished = true };
+    faulty.MainAgent.ThrowOnAlarm = true;
+    var guarded = new BattleAutopilotMission { Mission = faulty };
+    AutopilotBehavior.Instance.CurrentMode = AutopilotBehavior.Mode.Apply;
+    bool escaped = false;
+    try { guarded.OnMissionTick(0.1f); guarded.OnMissionTick(0.1f); guarded.OnMissionTick(0.1f); }
+    catch (Exception) { escaped = true; }
+    Check(!escaped, "исключение в тике боя не выходит наружу");
+    Check(AutopilotBehavior.Instance.CurrentMode == AutopilotBehavior.Mode.Off, "автопилот выключен после сбоя в бою");
+    Check(faulty.MainAgent.AlarmCalls == 1, "сбойная передача управления не повторяется каждый кадр: " + faulty.MainAgent.AlarmCalls);
+}
 return failed;

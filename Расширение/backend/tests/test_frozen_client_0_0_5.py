@@ -88,8 +88,17 @@ for _v, _d in (("TWITCH_OAUTH_TOKEN", "oauth:test"), ("TWITCH_CLIENT_ID", "c"),
                ("TWITCH_BROADCASTER_ID", "98319857")):
     os.environ.setdefault(_v, _d)
 
-FIXTURE = HERE / "fixtures" / "frozen_client_0.0.5" / "shedlink-0.0.5.zip"
-ZIP_SHA256 = "6f7e115bfd8bdabbd254a4c1f42cf730961d56f06da0523161d3a54ab43da253"
+# Every 0.0.5 archive Twitch has been given. 6f8e07f5 is the one submitted for
+# review on 23.09; 6f7e115b is the Hosted Test archive of 10.09 it replaced. Until
+# 23.09 only the old one was checked, so the gate guarded a client Twitch no
+# longer had.
+CLIENTS = [
+    (HERE / "fixtures" / "frozen_client_0.0.5" / "shedlink-0.0.5.zip",
+     "6f7e115bfd8bdabbd254a4c1f42cf730961d56f06da0523161d3a54ab43da253"),
+    (HERE / "fixtures" / "frozen_client_0.0.5_review" / "shedlink-0.0.5.zip",
+     "6f8e07f56b7d6a0b4f628a2731d81686a47b77dd8b7cfcc912dd1f8af3f90672"),
+]
+FIXTURE, ZIP_SHA256 = CLIENTS[0]
 HARNESS = HERE / "frozen_client_harness.mjs"
 
 CH = 98319857
@@ -788,8 +797,11 @@ async def run():
 
 
 def main() -> int:
+    global FIXTURE, ZIP_SHA256
     try:
-        asyncio.run(run())
+        for FIXTURE, ZIP_SHA256 in CLIENTS:
+            print(f"== client {ZIP_SHA256[:8]}")
+            asyncio.run(run())
     except Exception:
         traceback.print_exc()
         return 1

@@ -33,4 +33,7 @@ Check(d.Move != PoliticsMove.War, "не хватает влияния на за�
 d = PoliticsPolicy.Decide(new List<PoliticsCandidate> { K("Вландия", war: true), K("Асераи", ally: 70, allyOk: true), K("Батания", ally: 40, allyOk: true) },
     false, false, false, true, true, true);
 Check(d.Move == PoliticsMove.Alliance && d.Target.Name == "Асераи", "союз с тем, кого клан поддерживает выше порога");
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> { K("Вландия", war: true), K("Батания", ally: 40, allyOk: true) },
+    false, false, false, true, true, true);
+Check(d.Move == PoliticsMove.None, "поддержка союза ниже порога — не предлагаем");
 return failed;

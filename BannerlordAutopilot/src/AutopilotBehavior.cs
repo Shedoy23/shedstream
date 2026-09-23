@@ -2033,6 +2033,8 @@ namespace BannerlordAutopilot
 
         // ── Часовой цикл ─────────────────────────────────────────────────────
 
+        partial void DailyPoliticsHook();
+
         private void OnHourlyTick()
         {
             if (_mode == Mode.Off || Campaign.Current == null)
@@ -2048,6 +2050,9 @@ namespace BannerlordAutopilot
                 return; // выключит ближайший опрос по кадрам — с причиной
             }
             WriteWeeklyProgress(party);
+            // Политика раз в игровой день (AutopilotPolitics.cs). Частичный метод:
+            // стенд AuditRegression его не собирает — там это пустышка.
+            DailyPoliticsHook();
             WatchMovement(party);
 
             // Думать можно на свободной карте и во время ожидания в поселении.

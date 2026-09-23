@@ -1,13 +1,13 @@
 # ShedLink — Twitch Extension Review Notes
 
 **Extension name:** ShedLink — interactive viewer engagement platform
-**Version these notes describe:** `0.0.5` (SHA-256 `6f7e115bfd8bdabbd254a4c1f42cf730961d56f06da0523161d3a54ab43da253`, MD5 `059806841c3b84790af97c1056c4c3f5`)
+**Version these notes describe:** `0.0.5` (SHA-256 `6f8e07f56b7d6a0b4f628a2731d81686a47b77dd8b7cfcc912dd1f8af3f90672`, MD5 `40571fe7c7c1b54b792c816be8c37968`, submitted for review 2026-09-23)
 **Type:** Video-overlay + mobile + config view
 **Test/review channel:** https://twitch.tv/shedoy23
 **Contact:** nasulskii6@gmail.com
 **Privacy Policy:** https://shedoy23.ru/privacy.html
 **Terms of Service:** https://shedoy23.ru/terms.html
-**Last updated:** 2026-09-14 — приведено к действующему архиву `0.0.5`
+**Last updated:** 2026-09-23 — приведено к поданному архиву `0.0.5` (`6f8e07f5…`); прежний `6f7e115b…` заменён
 
 This document is the reviewer walkthrough: what ShedLink does, how to test it, where
 the backend lives, and a compliance tour with links to the exact code.
@@ -63,14 +63,15 @@ integration is enabled; this is an intentional anti-abuse gate, not a Twitch Str
 5. Free cases can be opened one by one or with "Open all". A case tier is the only random
    element anywhere in the extension, and its odds are published in the panel (see §4).
 
-To test the game side, the review channel will be **live** with the relevant game running; we
-provide pre-funded test viewer accounts on request (see §6).
+To test the game side, contact us to arrange a live review session with the relevant game
+running; the channel is not live throughout the review period. We provide pre-funded test
+viewer accounts on request (see §6).
 
 ---
 
 ## 3. Hosting & technical
 
-- **Frontend** is the uploaded version `.zip` (served from Twitch CDN). 24 files, no build
+- **Frontend** is the uploaded version `.zip` (served from Twitch CDN). 27 files plus a `VERSION` marker, no build
   step, no minification, no source maps, no bundled binaries.
 - **Backend** (the extension's API + game connectors) is self-hosted at **https://shedoy23.ru**.
   It is the only domain in the version's **URL Fetching / Image / Media** allowlists, and the

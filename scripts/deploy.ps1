@@ -101,7 +101,7 @@ $FrontendReviewOpen = $true                  # 2026-09-11: FROZEN -- candidate 0
                                              # the Hosted Test / Review ZIP. Set back to
                                              # $false the day Twitch answers and note it
                                              # in STATUS.md.
-$FrozenCandidate = '0.0.5 (ZIP sha256 6f7e115b..., tag candidate/0.0.5)'
+$FrozenCandidate = '0.0.5 (ZIP sha256 6f8e07f5..., MD5 40571fe7..., submitted 2026-09-23)'
 # Tests must prove the lock without editing this file. This override can only
 # TIGHTEN it: '1' forces the freeze on; nothing here can switch it off.
 if ($env:SHEDLINK_FORCE_FRONTEND_FREEZE -eq '1') { $FrontendReviewOpen = $true }

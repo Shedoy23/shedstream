@@ -2075,7 +2075,7 @@ namespace BannerlordAutopilot
                     // похода за добровольцами (владелец 23.09: «если есть
                     // возможность рядом дать — дать»). Оборона и отдых — выше.
                     if (waitingIn == null && TryHunt(party)) return;
-                    if (NeedsRecruitment(party))
+                    if (NeedsRecruitment(party) && !SiegeBeforeRecruitment(party))
                     {
                         Settlement recruitAt = FindRecruitmentTarget(party);
                         if (recruitAt != null)

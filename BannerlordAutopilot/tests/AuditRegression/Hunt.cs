@@ -2,6 +2,7 @@ using System.Linq;
 using BannerlordAutopilot;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 
 internal static partial class Program
 {
@@ -85,6 +86,49 @@ internal static partial class Program
             HuntTarget("лорд", 50, 80, enemy);
             HourlyTick(b);
             Check(MobileParty.MainParty.DefaultBehavior != AiBehavior.EngageParty, "дальше радиуса охоты не идём");
+        });
+    }
+
+    // 23.09, владелец: «на войне — осады и защита; рядом можно навалять — навалять».
+    static (AutopilotBehavior Pilot, Settlement Castle, Settlement Village) SiegeVsRecruitWorld(int extraMen)
+    {
+        var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; castle.Name="Замок"; Settlement.All.Add(castle);
+        var party=MobileParty.MainParty; party.Party.PartySizeLimit=100;
+        party.MemberRoster.AddToCounts(new CharacterObject(), extraMen);
+        var village=new Settlement { Name="Деревня", IsVillage=true, MapFaction=party.MapFaction, Position=new CampaignVec2 { X=1 } };
+        var notable=new Hero(); notable.VolunteerTypes[0]=new CharacterObject { TestCost=17 };
+        village.Notables.Add(notable); Settlement.All.Add(village);
+        Enable(b);
+        return (b, castle, village);
+    }
+
+    static void SiegePriorityTests()
+    {
+        Try("на войне при 75% осада важнее набора до 90%", () =>
+        {
+            var (b, castle, _) = SiegeVsRecruitWorld(65);
+            HourlyTick(b);
+            Check(MobileParty.MainParty.TargetSettlement==castle && SiegeTarget(b)==castle,
+                "75/100 и крепость по силам — идём на осаду: " + MobileParty.MainParty.TargetSettlement?.Name);
+            Check(LogCount("осада важнее набора")==1, "причина записана");
+        });
+        Try("при 60% сначала набор, осада подождёт", () =>
+        {
+            var (b, _, village) = SiegeVsRecruitWorld(50);
+            HourlyTick(b);
+            Check(MobileParty.MainParty.TargetSettlement==village, "60/100 — едем за добровольцами");
+        });
+        Try("по дороге на осаду бьём врага рядом, но с маршрута далеко не сворачиваем", () =>
+        {
+            foreach (var (distance, expect) in new[] { (8f, true), (20f, false) })
+            {
+                var (b, enemy) = HuntWorld(men: 100);
+                var castle = new Settlement { Name="Цель осады", IsCastle=true, MapFaction=enemy, Position=new CampaignVec2 { X=90 } };
+                var main = MobileParty.MainParty; main.TargetSettlement = castle; main.DefaultBehavior = AiBehavior.BesiegeSettlement;
+                var lord = HuntTarget("лорд", 60, distance, enemy);
+                HourlyTick(b);
+                Check((main.TargetParty == lord) == expect, "враг в " + distance + " по дороге на осаду: ждали " + expect);
+            }
         });
     }
 }

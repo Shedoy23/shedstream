@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 
 namespace BannerlordAutopilot
 {
@@ -19,6 +20,12 @@ namespace BannerlordAutopilot
         internal const float HuntMinRatio = 0.8f;
         /// <summary>Радиус поиска цели в единицах карты.</summary>
         private const float HuntRadius = 30f;
+        /// <summary>Радиус охоты, пока идём на осаду или снабжаемся перед ней:
+        /// «рядом можно навалять — навалять», но с маршрута далеко не сворачиваем.</summary>
+        private const float HuntRadiusOnCampaign = 10f;
+        /// <summary>С какого заполнения на войне осада важнее набора до 90%.</summary>
+        internal const float SiegeOverRecruitFill = .7f;
+        private string _siegeOverRecruitKey;
         /// <summary>Быстрее нас и дальше этого — не догнать, не гонимся.</summary>
         private const float HuntCatchDistance = 5f;
 
@@ -41,9 +48,9 @@ namespace BannerlordAutopilot
         private bool TryHunt(MobileParty party)
         {
             if (_mode != Mode.Apply || !ControlsParty(party) || party.IsCurrentlyAtSea || HuntBlocked(party) != null
-                || _preparingCampaign || HeadingToSiegeTarget(party)
-                || party.DefaultBehavior == AiBehavior.RaidSettlement
-                || party.DefaultBehavior == AiBehavior.BesiegeSettlement) return false;
+                || party.SiegeEvent != null || party.BesiegedSettlement != null
+                || party.DefaultBehavior == AiBehavior.RaidSettlement) return false;
+            float radius = _preparingCampaign || HeadingToSiegeTarget(party) ? HuntRadiusOnCampaign : HuntRadius;
             float ours = party.Party.EstimatedStrength;
             if (!(ours > 0f)) return false;
 
@@ -58,7 +65,7 @@ namespace BannerlordAutopilot
                     || enemy.MapFaction == null || party.MapFaction == null
                     || !party.MapFaction.IsAtWarWith(enemy.MapFaction)) continue;
                 float distance = (float)Math.Sqrt(party.Position.DistanceSquared(enemy.Position));
-                if (distance > HuntRadius) continue;
+                if (distance > radius) continue;
                 if (enemy.IsMoving && enemy.Speed > party.Speed && distance > HuntCatchDistance) continue;
                 if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil
                     && ReferenceEquals(enemy, _stuckTarget)) continue;
@@ -83,6 +90,26 @@ namespace BannerlordAutopilot
                 + bestDistance.ToString("F1", CultureInfo.InvariantCulture));
             ApplyDecision(party, new AIBehaviorData(best, AiBehavior.EngageParty,
                 MobileParty.NavigationType.Default, false, false, false), 1f);
+            return true;
+        }
+
+        /// <summary>Вопрос 18.09 «осада или набор до 90%» закрыт владельцем 23.09:
+        /// на войне осада. Если отряд заполнен хотя бы на 70%, к походу готов и
+        /// крепость по силам есть (тот же поиск, что в часовом расчёте) — набор до
+        /// 90% не перебивает поход: сразу считаем цель заново.</summary>
+        private bool SiegeBeforeRecruitment(MobileParty party)
+        {
+            int limit = party.Party.PartySizeLimit;
+            if (limit <= 0 || party.Party.NumberOfAllMembers < limit * SiegeOverRecruitFill) return false;
+            if (!TryFindSiegeTarget(party, out AIBehaviorData siege, out _)) return false;
+            _hoursSinceThink = ThinkPeriodHours;
+            string key = (siege.Party as Settlement)?.StringId;
+            if (key != _siegeOverRecruitKey)
+            {
+                _siegeOverRecruitKey = key;
+                AutopilotLog.Write("ПОХОД: на войне осада важнее набора до 90%: заполнение "
+                    + party.Party.NumberOfAllMembers + "/" + limit + ", крепость «" + (siege.Party as Settlement)?.Name + "»");
+            }
             return true;
         }
     }

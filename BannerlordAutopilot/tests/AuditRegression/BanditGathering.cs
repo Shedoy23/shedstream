@@ -100,10 +100,10 @@ internal static partial class Program
             reject(p => p.AttachedParties.Add(new MobileParty()));
             reject(p => p.MapEvent = new MapEvent()); reject(p => p.Party.NumberOfHealthyMembers = 0);
             reject(p => p.Party.TestStrength = float.NaN); reject(p => p.Party.TestStrength = float.PositiveInfinity);
-            reject(p => p.Party.TestStrength = -1); reject(p => p.Position = new CampaignVec2 { X = 31 });
+            reject(p => p.Party.TestStrength = -1); reject(p => p.Position = new CampaignVec2 { X = 120.1f });
             reject(p => { p.MapFaction = new TestFaction(); p.Party.MapFaction = p.MapFaction; });
             reject(p => w.Battle.TestDisallowed.Add(p.Party));
-            var good = GatherCandidate("eligible", 70, 30, w.Bandits);
+            var good = GatherCandidate("eligible", 70, 120, w.Bandits);
             w.Pilot.PollState();
             Check(bad.All(p => p.MapEvent != w.Battle && p.Party.TestJoinCalls == 0), "занятые, нейтральные, далёкие, небоеспособные и запрещённые движком отряды не тронуты");
             Check(good.MapEvent == w.Battle, "доступный отряд на границе радиуса собран, итог 110%");

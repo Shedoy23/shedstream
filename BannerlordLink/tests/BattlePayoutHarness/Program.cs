@@ -23,8 +23,10 @@ foreach(int enemies in new[]{10,49,50,199,200,1000})foreach(bool siege in new[]{
 }
 Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=1605600,"ordinary cap independent of retinue size");
 Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=2568960,"large siege cap");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<=385344,"tiny siege cannot earn large siege prize");
-foreach(var scenario in new[]{(enemies:100,siege:false,cap:1605600),(enemies:500,siege:true,cap:2568960),(enemies:10,siege:true,cap:385344)}) {
+// 22.09 (Codex, решение владельца): малые бои x0.8 вместо x0.24 — потолок
+// малой осады 385344*0.8/0.24 = 1284480; смысл проверки прежний: меньше большой.
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total,"tiny siege cannot earn large siege prize");
+foreach(var scenario in new[]{(enemies:100,siege:false,cap:1605600),(enemies:500,siege:true,cap:2568960),(enemies:10,siege:true,cap:1284480)}) {
  var ceiling=BattlePayoutPolicy.Calculate(1e12,1e12,scenario.enemies,scenario.siege,true);
  Check(ceiling.Total >= scenario.cap-6 && ceiling.Total <= scenario.cap,"потолок после перекалибровки 22.09 достижим " + scenario.cap);
 }
@@ -78,6 +80,8 @@ Check(siegeTop.Personal > siegeMid.Personal * 1.15,
 Check(siegeMid.Personal > siegeLow.Personal * 1.3,
  "вклад 7 900 против 4 600 различим ("+siegeMid.Personal+" против "+siegeLow.Personal+")");
 
+{ var small=BattlePayoutPolicy.Calculate(8000,1000,49,false,true).Total; var mid=BattlePayoutPolicy.Calculate(8000,1000,100,false,true).Total;
+  Check(Math.Abs(small-0.8*mid)<=6,"small battle multiplier is 0.8 ("+small+" vs "+mid+")"); }
 var ledger=new BattleDamageLedger<object>();var target=new object();ledger.Track(target,100);
 Check(ledger.Hit(target,80,20)==80,"first attacker earns actual damage");
 Check(ledger.Hit(target,200,0)==20,"second attacker overkill capped at remainder");

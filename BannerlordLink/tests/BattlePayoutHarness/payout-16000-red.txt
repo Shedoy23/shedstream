@@ -1,0 +1,73 @@
+PASS ordinary example component breakdown
+PASS spawn without contribution earns zero
+PASS retinue-only owner earns reward
+PASS solo hero still viable
+PASS defeat retains contribution
+PASS invalid score rejected
+PASS infinite score rejected
+PASS negative score clamped
+PASS target threat bounded
+PASS monotonic across score sweep 10 False
+PASS monotonic across score sweep 10 True
+PASS monotonic across score sweep 49 False
+PASS monotonic across score sweep 49 True
+PASS monotonic across score sweep 50 False
+PASS monotonic across score sweep 50 True
+PASS monotonic across score sweep 199 False
+PASS monotonic across score sweep 199 True
+PASS monotonic across score sweep 200 False
+PASS monotonic across score sweep 200 True
+PASS monotonic across score sweep 1000 False
+PASS monotonic across score sweep 1000 True
+PASS ordinary cap independent of retinue size
+PASS large siege cap
+PASS tiny siege cannot earn large siege prize
+FAIL updated ceiling remains reachable 619200
+FAIL updated ceiling remains reachable 990720
+FAIL updated ceiling remains reachable 495360
+PASS observed 28-kill effort receives worthwhile intermediate reward
+PASS observed 37-counter effort rewards additional contribution
+PASS observed top effort earns substantial reward below ceiling
+PASS another observed top effort remains worthwhile
+PASS observed top contribution stays distinct from good contribution
+PASS participation does not dominate a good effort
+PASS top observed personal effort still leaves headroom
+PASS observed strong retinue effort remains worthwhile
+PASS a few targets cannot unlock full participation
+PASS continued personal growth around observed range 500
+PASS continued retinue growth 500
+PASS continued personal growth around observed range 1000
+PASS continued retinue growth 1000
+PASS continued personal growth around observed range 2000
+PASS continued retinue growth 2000
+PASS continued personal growth around observed range 3000
+PASS continued retinue growth 3000
+PASS continued personal growth around observed range 5000
+PASS continued retinue growth 5000
+PASS continued personal growth around observed range 7000
+PASS continued retinue growth 7000
+PASS continued personal growth around observed range 10000
+PASS continued retinue growth 10000
+PASS ровно вдвое против фактической выплаты 21.09 (4377/15027/380 -> 8754/30052/760)
+PASS ровно вдвое против фактической выплаты 21.09 (3841/5613/9494 -> 7682/11226/18990)
+PASS ровно вдвое против фактической выплаты 21.09 (10496/29078/3946 -> 20992/58156/7894)
+PASS ровно вдвое против фактической выплаты 21.09 (150/597/0 -> 300/1194/0)
+PASS ровно вдвое против фактической выплаты 21.09 (6724/12069/12766 -> 13448/24138/25532)
+PASS ровно вдвое против фактической выплаты 21.09 (4571/8436/9263 -> 9142/16872/18526)
+PASS 8000 points retain old payout
+FAIL 16000 points extend participation growth
+FAIL small battle multiplier is 0.8
+FAIL participation stops growing after 16000
+PASS first attacker earns actual damage
+PASS second attacker overkill capped at remainder
+PASS duplicate hit gives nothing
+PASS death bonus once per target
+PASS dead target cannot farm
+PASS wounded target actual initial HP
+PASS blocked blow no damage credit
+PASS real blow after block
+PASS healing no payout
+PASS healing loop limited by original life budget
+PASS repeated registration cannot replenish life budget
+PASS unknown target fails closed
+66/72 passed

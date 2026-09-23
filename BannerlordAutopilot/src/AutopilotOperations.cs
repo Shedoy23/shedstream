@@ -86,6 +86,7 @@ namespace BannerlordAutopilot
             _simulationEncounter = null; _finishedSimulation = null;
             _offensiveSiege = null;
             _defenseTarget = null; _lastDefenseStatus = null;
+            _reliefRetryAfter.Clear();
             _raidSettlement = null;
             _preparingCampaign = false;
             _configuredSiege = null;
@@ -225,7 +226,26 @@ namespace BannerlordAutopilot
                 {
                     case "join_siege_event":
                         if (!FriendlySiege(place, party)) return false;
-                        OperationClick("join_siege_event_break_in"); break;
+                        if (MenuDriver.CanInvoke("join_siege_event_break_in", out string breakReason))
+                            OperationClick("join_siege_event_break_in");
+                        else if (MenuDriver.CanInvoke("join_encounter_leave", out _))
+                        {
+                            // Native permissions and casualty checks remain authoritative.
+                            _reliefRetryAfter[place] = CampaignTime.Now.ToHours + 6;
+                            _defenseTarget = null; _lastDefenseStatus = null;
+                            _hasPendingDecision = false; _lastTargetKey = null;
+                            AutopilotLog.Write("ОБОРОНА: прорыв в «" + place.Name + "» недоступен: " + breakReason
+                                + "; не вмешиваемся, повтор не раньше 6 игровых часов");
+                            OperationClick("join_encounter_leave");
+                            if (_mode == Mode.Apply && IsOnFreeMap(party))
+                            {
+                                party.SetMoveModeHold(); _operationSettlement = null;
+                                _hoursSinceThink = ThinkPeriodHours;
+                                KeepTimeRunning(party);
+                            }
+                        }
+                        else Disable("осада: прорыв и выход недоступны: " + MenuDriver.Describe());
+                        break;
                     case "break_in_menu": OperationClick("break_in_menu_accept"); break;
                     case "break_in_debrief_menu": OperationClick("break_in_debrief_continue"); break;
                     case "encounter_interrupted_siege_preparations":

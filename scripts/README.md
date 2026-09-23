@@ -19,6 +19,9 @@ ASCII-only (PowerShell 5.1 читает .ps1 без BOM как ANSI — поэт
   `__pycache__`) — нельзя «забыть файл» и нельзя затереть прод-БД.
 - Mod: `dotnet build -c Release` + копия DLL+pdb в game Modules + md5-verify.
 - После пуша: restart + health-check (RUNNING + греп stderr на Traceback).
+- `-Backend` сначала зовёт `check-prod-drift.py`: если на проде есть backend-код,
+  которого нет в истории текущей ветки (выкатывали из другой), деплой встаёт.
+  Отдельно: `python scripts/check-prod-drift.py [--ref <ветка>]`, exit 0/1/2.
 - **Не забудь закоммитить** изменённый cache-bust в html.
 
 ## lint_consistency.py — консистенси-чеки

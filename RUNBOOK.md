@@ -242,7 +242,10 @@ pwsh scripts/deploy.ps1 -DryRun      # ничего не менять, пока�
 Если `pwsh` не найден: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\deploy.ps1 -Backend`.
 
 **Что делает сам:** прогоняет критические тесты (красный тест = деплой не пойдёт),
-тарит без `*.db`/`.env`, рестартит supervisor, проверяет `RUNNING` + `/health` 200.
+при `-Backend` сверяет прод с историей ветки (`scripts/check-prod-drift.py`: есть
+на проде код, которого ветка не видела, — СТОП; так 23.09 чуть не откатили защиту
+перековки выкатом из отставшего worktree; обход только в аварию:
+`$env:SHEDLINK_ALLOW_PROD_DRIFT='1'`), тарит без `*.db`/`.env`, рестартит supervisor, проверяет `RUNNING` + `/health` 200.
 
 Для миграционного deploy сначала создаётся консистентная SQLite-копия через
 `ops/production/create_predeploy_backup.py`, а после перезапуска база проверяется

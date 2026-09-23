@@ -322,6 +322,22 @@ if ($Frontend) { $paths += 'frontend' }
 # как раз в это время и пользуешься. Свой флаг: -Admin.
 if ($Admin) { $paths += 'admin' }
 
+# 2026-09-23: prod may run code from another branch (a hotfix deployed from a
+# neighbouring worktree). Extracting this tree over it would silently roll that
+# code back -- the audit of 23.09 found exactly this for codex-public-release.
+# check-prod-drift.py stops the deploy when prod has backend code this branch
+# never had. Override only for an emergency: $env:SHEDLINK_ALLOW_PROD_DRIFT='1'.
+if ($Backend) {
+    Info "prod drift check (is all prod backend code known to this branch?)"
+    & python (Join-Path $PSScriptRoot 'check-prod-drift.py')
+    $driftRc = $LASTEXITCODE
+    if ($driftRc -ne 0) {
+        if ($env:SHEDLINK_ALLOW_PROD_DRIFT -eq '1') { Warn "prod drift check exit=$driftRc - OVERRIDDEN by SHEDLINK_ALLOW_PROD_DRIFT" }
+        elseif ($DryRun) { Warn "[dry] a real deploy would STOP here (prod drift check exit=$driftRc)" }
+        else { throw "prod drift check exit=$driftRc (1 = prod has code this branch lacks, 2 = could not check). Merge the branch prod was deployed from first." }
+    }
+}
+
 if ($paths.Count -gt 0) {
     $tar = Join-Path ([IO.Path]::GetTempPath()) 'shedstream_deploy.tar'
     $excl = @('--exclude=*.db','--exclude=*.db-wal','--exclude=*.db-shm','--exclude=*.db-journal','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')

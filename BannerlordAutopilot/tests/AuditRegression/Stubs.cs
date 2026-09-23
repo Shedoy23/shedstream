@@ -224,7 +224,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public bool IsMoving; public bool IsLordParty {get;set;} public float Speed {get;set;} = 4f; public bool IsDisorganized; public bool IsBandit {get;set;} public bool IsCaravan {get;set;} public MapEvent MapEvent; public Army Army;
   public TaleWorlds.CampaignSystem.Siege.SiegeEvent SiegeEvent { get; set; }
   public Settlement CurrentSettlement, BesiegedSettlement, LastVisitedSettlement, TargetSettlement;
-  public MobileParty TargetParty;
+  public MobileParty TargetParty; public MobileParty ShortTermTargetParty;
   public MobilePartyAi Ai=new(); public AiBehavior DefaultBehavior=AiBehavior.GoToSettlement;
   public CampaignVec2 Position; public string Name="Player";
   public float TotalWeightCarried;

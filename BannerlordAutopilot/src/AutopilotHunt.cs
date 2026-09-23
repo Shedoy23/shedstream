@@ -48,6 +48,7 @@ namespace BannerlordAutopilot
         private bool TryHunt(MobileParty party)
         {
             if (_mode != Mode.Apply || !ControlsParty(party) || party.IsCurrentlyAtSea || HuntBlocked(party) != null
+                || _fleeFrom != null
                 || party.SiegeEvent != null || party.BesiegedSettlement != null
                 || party.DefaultBehavior == AiBehavior.RaidSettlement) return false;
             float radius = _preparingCampaign || HeadingToSiegeTarget(party) ? HuntRadiusOnCampaign : HuntRadius;

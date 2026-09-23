@@ -570,6 +570,7 @@ namespace BannerlordAutopilot
             if (PollArmyDispersed(party)) return false;
             if (PollUnavoidableSurrender(party)) return false;
             if (PollRaidWarning()) return false;
+            if (PollFlee(party)) return false;
             if (PollEmergencyDefense(party)) return false;
             if (PollOffensiveSiege(party)) return false;
             if (PollRaid(party)) return false;
@@ -690,6 +691,7 @@ namespace BannerlordAutopilot
             if (IsWaiting(menuId))
             {
                 NoteWaiting();
+                if (HoldShelter(party, peaceful)) return false;
                 TryEmergencyDefense(party, peaceful);
                 if (HoldPostBattleRest(party, peaceful, true))
                 {
@@ -717,7 +719,7 @@ namespace BannerlordAutopilot
                 case "town":
                 case "castle":
                 case "village":
-                    if (HoldPostBattleRest(party, peaceful, false)) _hasPendingDecision = false;
+                    if (HoldPostBattleRest(party, peaceful, false) || HoldShelter(party, peaceful)) _hasPendingDecision = false;
                     if (_hasPendingDecision || CannotStay(peaceful))
                     {
                         LeaveAndApplyPending(party, peaceful);
@@ -2061,6 +2063,9 @@ namespace BannerlordAutopilot
                 NoteWaiting();
             }
 
+            // Отход от армии «в разы» сильнее важнее всего остального (23.09).
+            if (waitingIn == null && _fleeFrom != null) return;
+            if (waitingIn != null && HoldShelter(party, waitingIn)) return;
             if (TryEmergencyDefense(party, waitingIn)) return;
             if (waitingIn != null && HoldPostBattleRest(party, waitingIn, true)) return;
             if (_gatheringArmy != null && _gatheringArmy == party.Army) return;

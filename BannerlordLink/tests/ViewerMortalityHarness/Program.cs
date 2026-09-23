@@ -15,9 +15,9 @@ class Program {
  var type=Assembly.GetExecutingAssembly().GetType("BannerlordLink.Patches.ViewerBattleMortalityPatch");
  int failed=0, passed=0;
  // One flat death chance for every viewer hero, whatever the native risk
- // (party-less heroes get native 100%): 0.1% per knockdown. Guaranteed
+ // (party-less heroes get native 100%): 0.02% per knockdown. Guaranteed
  // survival (blunt, "Very Easy") stays guaranteed; NPCs untouched.
- foreach(var row in new[]{(true,0f,.999f),(true,.5f,.999f),(true,.98f,.999f),(true,.9995f,.999f),(true,1f,1f),(false,.5f,.5f),(false,0f,0f)}){
+ foreach(var row in new[]{(true,0f,.9998f),(true,.5f,.9998f),(true,.98f,.9998f),(true,.9999f,.9998f),(true,1f,1f),(false,.5f,.5f),(false,0f,0f)}){
   var character=new TaleWorlds.CampaignSystem.CharacterObject{HeroObject=new TaleWorlds.CampaignSystem.Hero{Adopted=row.Item1}};
   object[] args={character,row.Item2};
   type?.GetMethod("Postfix",BindingFlags.Static|BindingFlags.Public)?.Invoke(null,args);

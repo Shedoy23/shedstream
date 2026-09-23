@@ -17,8 +17,9 @@ namespace BannerlordLink.Patches
     [HarmonyPatch(typeof(DefaultPartyHealingModel), "GetSurvivalChance")]
     internal static class ViewerBattleMortalityPatch
     {
-        // Owner decision 23.09.2026: ~1% per battle at 10 knockdowns.
-        internal const float ViewerDeathChance = 0.001f;
+        // Owner decision 23.09.2026: 0.02% per knockdown. The busiest viewer
+        // summons ~200 times per 13-14h stream -> ~4% per stream.
+        internal const float ViewerDeathChance = 0.0002f;
 
         [HarmonyPostfix]
         [HarmonyPriority(Priority.Last)]

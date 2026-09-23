@@ -77,4 +77,23 @@ internal static partial class Program
                 "армия ушла — возвращаемся к обычным делам");
         });
     }
+
+    // 23.09, владелец: оборону своего замка бросаем только перед силой в 5x —
+    // «мы со зрителями отбивали даже подобные осады». Лог 22.09: как защитники
+    // отбили 1650 и 1685 врагов при отряде ~320 (~5,2x), проиграли от 6,4x.
+    static void FleeDefenseTests()
+    {
+        foreach (var (force, flee) in new[] { (270, false), (540, true) })
+        Try("оборона своего замка против армии x" + (force / 90), () =>
+        {
+            var (b, enemy) = HuntWorld(men: 90);
+            var besieged = OwnSiege(x: 20);
+            Fort("Запасной замок", -5, MobileParty.MainParty.MapFaction);
+            Chaser(enemy, force, 8);
+            b.PollState(); HourlyTick(b); b.PollState();
+            Check((LogCount("ОТХОД") > 0) == flee, "отход при x" + (force / 90) + ": ждали " + flee);
+            if (!flee) Check(MobileParty.MainParty.TargetSettlement == besieged, "при 3x идём защищать свой замок: "
+                + MobileParty.MainParty.TargetSettlement?.Name);
+        });
+    }
 }

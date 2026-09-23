@@ -21,6 +21,11 @@ namespace BannerlordAutopilot
     public partial class AutopilotBehavior
     {
         internal const float FleeRatio = 2f;
+        /// <summary>Когда свой замок/город в осаде и мы можем его защищать —
+        /// бросаем только перед такой силой. Владелец 23.09: «мы со зрителями
+        /// отбивали даже подобные осады». Лог 22.09: как защитники отбили 1650 и
+        /// 1685 врагов при отряде ~320 (~5,2x), проиграли при 2049 (6,4x) и выше.</summary>
+        internal const float FleeRatioWhenDefending = 5f;
         private const float FleeDetectRadius = 12f;
         private const float FleeCloseDistance = 3f;
         private const float ShelterRadius = 25f;
@@ -44,7 +49,10 @@ namespace BannerlordAutopilot
 
         /// <summary>Самая опасная вражеская сила «в разы» сильнее нас рядом с точке.
         /// chasing — только те, кто идёт на нас (или уже вплотную).</summary>
-        private static MobileParty FindThreat(MobileParty party, CampaignVec2 around, float radius, bool chasing)
+        private float CurrentFleeRatio(MobileParty party) =>
+            _defenseTarget != null || FindEmergencyDefense(party) != null ? FleeRatioWhenDefending : FleeRatio;
+
+        private static MobileParty FindThreat(MobileParty party, CampaignVec2 around, float radius, bool chasing, float ratio)
         {
             float ours = PartyForce(party);
             if (!(ours > 0f) || party.MapFaction == null) return null;
@@ -61,7 +69,7 @@ namespace BannerlordAutopilot
                 if (chasing && enemy.TargetParty != party && enemy.ShortTermTargetParty != party
                     && distance > FleeCloseDistance) continue;
                 float force = PartyForce(enemy);
-                if (force < ours * FleeRatio || force <= worstForce) continue;
+                if (force < ours * ratio || force <= worstForce) continue;
                 worst = enemy; worstForce = force;
             }
             return worst;
@@ -72,7 +80,7 @@ namespace BannerlordAutopilot
             if (_mode != Mode.Apply || !ControlsParty(party) || party.IsCurrentlyAtSea
                 || (party.Army != null && party.Army.LeaderParty != party)
                 || !IsOnFreeMap(party) || !MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return false;
-            MobileParty threat = FindThreat(party, party.Position, FleeDetectRadius, true);
+            MobileParty threat = FindThreat(party, party.Position, FleeDetectRadius, true, CurrentFleeRatio(party));
             if (threat == null)
             {
                 if (_fleeFrom != null)
@@ -107,7 +115,8 @@ namespace BannerlordAutopilot
             _fleeFrom = threat; _shelterIn = shelter;
             if (_fleeTo == target && party.TargetSettlement == target) return false;
             _fleeTo = target;
-            AutopilotLog.Write("ОТХОД: «" + threat.Name + "» идёт на нас (сила "
+            AutopilotLog.Write("ОТХОД: «" + threat.Name + "» идёт на нас (порог x"
+                + CurrentFleeRatio(party).ToString("F0", CultureInfo.InvariantCulture) + ", сила "
                 + PartyForce(threat).ToString("F0", CultureInfo.InvariantCulture) + " против наших "
                 + PartyForce(party).ToString("F0", CultureInfo.InvariantCulture) + ", до него "
                 + threatDistance.ToString("F1", CultureInfo.InvariantCulture) + "); "
@@ -122,7 +131,7 @@ namespace BannerlordAutopilot
         {
             if (_mode != Mode.Apply || _shelterIn == null || settlement != _shelterIn
                 || party.CurrentSettlement != settlement) return false;
-            MobileParty threat = FindThreat(party, settlement.Position, ShelterThreatRadius, false);
+            MobileParty threat = FindThreat(party, settlement.Position, ShelterThreatRadius, false, CurrentFleeRatio(party));
             if (threat != null)
             {
                 if (_fleeFrom != threat)

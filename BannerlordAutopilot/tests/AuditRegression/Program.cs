@@ -345,6 +345,7 @@ internal static partial class Program
         LootTests();
         PostBattleRestTests();
         PollGuardTests();
+        HuntTests();
         SiegeReliabilityTests();
         DonationTests();
 

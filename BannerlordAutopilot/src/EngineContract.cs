@@ -224,6 +224,8 @@ namespace BannerlordAutopilot
             Method(conversations, "ContinueConversation", Inst, typeof(void));
             Method(conversations, "IsConversationEnded", Inst, typeof(bool));
             MemberOf(typeof(MobileParty), "IsBandit", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "IsLordParty", Inst, typeof(bool));
+            MemberOf(typeof(MobileParty), "Speed", Inst, typeof(float));
             Type mission = LoadedType("TaleWorlds.MountAndBlade.Mission", "TaleWorlds.MountAndBlade");
             Type battleEnd = LoadedType("TaleWorlds.MountAndBlade.BattleEndLogic", "TaleWorlds.MountAndBlade");
             Type exitResult = battleEnd?.GetNestedType("ExitResult");

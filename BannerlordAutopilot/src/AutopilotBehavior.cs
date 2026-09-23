@@ -2071,6 +2071,10 @@ namespace BannerlordAutopilot
                 try
                 {
                     TroopUpgrades.Run(party);
+                    // Охота раньше набора и разгрузки: бой рядом по силам важнее
+                    // похода за добровольцами (владелец 23.09: «если есть
+                    // возможность рядом дать — дать»). Оборона и отдых — выше.
+                    if (waitingIn == null && TryHunt(party)) return;
                     if (NeedsRecruitment(party))
                     {
                         Settlement recruitAt = FindRecruitmentTarget(party);

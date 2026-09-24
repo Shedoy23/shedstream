@@ -606,6 +606,7 @@ namespace BannerlordAutopilot
                     return false;
                 }
                 if (TrySendTroopsWhenWounded()) return false;
+                if (TryRetreatIfHopeless()) return false;
                 if (!MenuDriver.CanInvoke("attack", out string attackWhy))
                 {
                     Disable("полноценный бой нельзя начать: " + attackWhy);
@@ -2191,8 +2192,12 @@ namespace BannerlordAutopilot
             if (lines.Count == 0)
             {
                 if (HeadingToSiegeTarget(party))
+                {
+                    string gone = SiegeTargetRejection(party, party.TargetSettlement);
                     AutopilotLog.Write("ПОХОД: цель «" + party.TargetSettlement.Name + "» больше не предложена: "
-                        + (SiegeTargetRejection(party, party.TargetSettlement) ?? "нет оценок от движка и нового кандидата"));
+                        + (gone ?? "нет оценок от движка и нового кандидата"));
+                    if (NoteSiegeRejection(party.TargetSettlement, gone)) StopSiegeMarch(party);
+                }
                 if (_mode == Mode.Apply && waitingIn == null && !HeadingToSiegeTarget(party)
                     && TryApplyNearbyAttack(party)) return;
                 if (waitingIn == null && TryChooseHideout(party)) return;
@@ -2359,14 +2364,19 @@ namespace BannerlordAutopilot
             if (chosen.AiBehavior == AiBehavior.None)
             {
                 if (HeadingToSiegeTarget(party))
+                {
+                    string gone = SiegeTargetRejection(party, party.TargetSettlement);
                     AutopilotLog.Write("ПОХОД: цель «" + party.TargetSettlement.Name + "» больше не предложена: "
-                        + (SiegeTargetRejection(party, party.TargetSettlement) ?? "нет выполнимых решений"));
+                        + (gone ?? "нет выполнимых решений"));
+                    if (NoteSiegeRejection(party.TargetSettlement, gone)) StopSiegeMarch(party);
+                }
                 AutopilotLog.Write("  выполнимых решений нет (" + string.Join("; ", skipped) + ") — партия продолжает текущее");
                 return;
             }
             if (HeadingToSiegeTarget(party) && !IsSameDecision(chosen, party))
             {
                 string rejection = SiegeTargetRejection(party, party.TargetSettlement);
+                NoteSiegeRejection(party.TargetSettlement, rejection);
                 AutopilotLog.Write("ПОХОД: прекращаем цель «" + party.TargetSettlement.Name + "»: "
                     + (rejection ?? "другая цель получила приоритет") + "; далее " + Describe(chosen));
             }
@@ -2728,6 +2738,8 @@ namespace BannerlordAutopilot
         private string WhyNotApplicable(AIBehaviorData data)
         {
             if (ReliefUnavailable(data.Party as Settlement)) return "прорыв недавно запрещён игрой, ждём повторной попытки";
+            if (data.AiBehavior == AiBehavior.BesiegeSettlement && SiegeRecentlyRejected(data.Party as Settlement))
+                return "недавно отказались по силам, ждём 12 игровых часов";
             // Цель, под приказ на которую партия не сдвинулась с места, временно
             // не предлагаем: иначе тот же приказ выдаётся снова и снова.
             if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil

@@ -57,17 +57,41 @@ namespace BannerlordAutopilot
             int ours = (int)PartyBase.MainParty.Side;
             float us = battle.StrengthOfSide[ours], them = battle.StrengthOfSide[1 - ours];
             if (!(them > 0f) || us >= them * WoundedRetreatRatio) return false;
+            return PressRetreat("герой ранен, силы " + us.ToString("F0", CultureInfo.InvariantCulture) + " против "
+                + them.ToString("F0", CultureInfo.InvariantCulture) + " — хуже x" + WoundedRetreatRatio.ToString("F1", CultureInfo.InvariantCulture),
+                "Герой ранен, враг сильнее — отступаем", "остаётся авторасчёт");
+        }
+
+        /// <summary>24.09: 18.09 и 21.09 армия ~270 → 1 в бою у своей осады — бой
+        /// принимался при любом перевесе врага. Порог тот же, что у отхода на карте:
+        /// враг от 2x; бой за свой замок/город — от 5x (владелец: «со зрителями
+        /// отбивали и такое»). Силы — оценка игры до боя, свита зрителей в неё не
+        /// входит: поэтому порог 2x, а не 1x.</summary>
+        private bool TryRetreatIfHopeless()
+        {
+            var battle = PlayerEncounter.Battle ?? MobileParty.MainParty?.MapEvent;
+            if (battle == null) return false;
+            battle.RecalculateStrengthOfSides();
+            int ours = (int)PartyBase.MainParty.Side;
+            float us = battle.StrengthOfSide[ours], them = battle.StrengthOfSide[1 - ours];
+            float ratio = _defenseTarget != null || OwnFort(battle.MapEventSettlement) ? FleeRatioWhenDefending : FleeRatio;
+            if (!(them > 0f) || them < us * ratio) return false;
+            return PressRetreat("силы " + us.ToString("F0", CultureInfo.InvariantCulture) + " против "
+                + them.ToString("F0", CultureInfo.InvariantCulture) + " — враг от x" + ratio.ToString("F0", CultureInfo.InvariantCulture),
+                "Враг в разы сильнее — отступаем", "принимаем бой");
+        }
+
+        private bool PressRetreat(string why, string phrase, string otherwise)
+        {
             foreach (string option in new[] { "leave", "go_back_to_settlement", "leave_soldiers_behind" })
             {
                 if (!MenuDriver.CanInvoke(option, out _)) continue;
-                AutopilotLog.Write("БОЙ: герой ранен, силы " + us.ToString("F0", CultureInfo.InvariantCulture) + " против "
-                    + them.ToString("F0", CultureInfo.InvariantCulture) + " — хуже x" + WoundedRetreatRatio.ToString("F1", CultureInfo.InvariantCulture)
-                    + "; не авторасчёт, а отход штатной кнопкой «" + option + "»");
-                StreamStatus.Note("Герой ранен, враг сильнее — отступаем");
+                AutopilotLog.Write("БОЙ: " + why + "; отход штатной кнопкой «" + option + "»");
+                StreamStatus.Note(phrase);
                 OperationClick(option);
                 return true;
             }
-            AutopilotLog.Write("БОЙ: герой ранен и силы хуже, но отступить нельзя — остаётся авторасчёт");
+            AutopilotLog.Write("БОЙ: " + why + ", но отступить нельзя — " + otherwise);
             return false;
         }
 
@@ -328,7 +352,7 @@ namespace BannerlordAutopilot
 
         private void OperationClick(string option)
         {
-            if (option == "attack" && TrySendTroopsWhenWounded()) return;
+            if (option == "attack" && (TrySendTroopsWhenWounded() || TryRetreatIfHopeless())) return;
             if (MenuDriver.TryInvoke(option, out string why)) AutopilotLog.Write("ОПЕРАЦИЯ: " + option);
             else Disable("операция недоступна: " + why);
         }

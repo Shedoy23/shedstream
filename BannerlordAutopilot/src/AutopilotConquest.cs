@@ -234,6 +234,36 @@ namespace BannerlordAutopilot
             return "не приграничный феод: вне трёх ближайших крепостей в радиусе 100 от своих владений";
         }
 
+        /// <summary>24.09: 18.09 отказались от «Замка Астер» по силам и через 3 с взяли
+        /// его снова — отряд защитников вышел из круга подсчёта (35), цифра опять
+        /// прошла под порог 1,5x, а следом армия 267 → 1. Отказ по силам держим
+        /// 12 игровых часов.</summary>
+        private const double SiegeRejectionHours = 12;
+        private readonly Dictionary<Settlement, double> _siegeRejectedUntil = new Dictionary<Settlement, double>();
+
+        private bool NoteSiegeRejection(Settlement place, string rejection)
+        {
+            if (place == null || rejection == null || !rejection.StartsWith("защитники", StringComparison.Ordinal)) return false;
+            _siegeRejectedUntil[place] = CampaignTime.Now.ToHours + SiegeRejectionHours;
+            AutopilotLog.Write("ПОХОД: «" + place.Name + "» не берём " + SiegeRejectionHours.ToString("F0", CultureInfo.InvariantCulture)
+                + " игровых часов — отказались по силам");
+            return true;
+        }
+
+        /// <summary>Отказались по силам — не идём дальше к этой крепости. Прежде
+        /// «цель больше не предложена» оставляла партию в пути к ней же.</summary>
+        private void StopSiegeMarch(MobileParty party)
+        {
+            if (_mode != Mode.Apply || !IsOnFreeMap(party)) return;
+            party.SetMoveModeHold();
+            _offensiveSiege = null; _lastTargetKey = null;
+            _hoursSinceThink = ThinkPeriodHours;
+            AutopilotLog.Write("ПОХОД: к отвергнутой крепости не идём, партия остановлена до нового решения");
+        }
+
+        private bool SiegeRecentlyRejected(Settlement place) => place != null
+            && _siegeRejectedUntil.TryGetValue(place, out double until) && CampaignTime.Now.ToHours < until;
+
         private bool TryFindSiegeTarget(MobileParty party, out AIBehaviorData target, out float score)
         {
             target = AIBehaviorData.Invalid;
@@ -247,7 +277,7 @@ namespace BannerlordAutopilot
             bool gather = false;
             foreach (var place in Settlement.All)
             {
-                if (!EnemyFortress(place, party) || place.IsUnderSiege || place.IsUnderRaid) continue;
+                if (!EnemyFortress(place, party) || place.IsUnderSiege || place.IsUnderRaid || SiegeRecentlyRejected(place)) continue;
                 if (SiegeBorderRejection(party, place) != null) continue;
                 float defenders = SiegeDefenderStrength(place, party);
                 bool needsArmy = defenders > own * 1.5f;
@@ -403,6 +433,16 @@ namespace BannerlordAutopilot
                     if (needed != null)
                     {
                         AutopilotLog.Write("ПОХОД: снимаем осаду для восстановления: " + needed);
+                        OperationClick("menu_siege_strategies_leave"); return true;
+                    }
+                    // 24.09: к лагерю идёт армия от 2x — снимаем осаду до удара, дальше
+                    // отход на карте (18.09 и 21.09 такой бой стоил армии ~270 → 1).
+                    var relief = FindThreat(party, party.Position, FleeDetectRadius, false, FleeRatio);
+                    if (relief != null)
+                    {
+                        AutopilotLog.Write("ПОХОД: к лагерю идёт «" + relief.Name + "» сильнее нас от x"
+                            + FleeRatio.ToString("F0", CultureInfo.InvariantCulture) + " — снимаем осаду до удара");
+                        StreamStatus.Note("К лагерю идёт армия сильнее — снимаем осаду");
                         OperationClick("menu_siege_strategies_leave"); return true;
                     }
                     if (_configuredSiege != siege || siege.GetSiegeEventSide(BattleSideEnum.Attacker).SiegeStrategy == DefaultSiegeStrategies.Custom)

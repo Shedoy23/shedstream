@@ -246,6 +246,7 @@ namespace TaleWorlds.CampaignSystem.Party {
  }
  // PartyBase (105803): ростеры партии или поселения.
  public partial class PartyBase {
+  public TaleWorlds.Core.BattleSideEnum Side { get; set; } = TaleWorlds.Core.BattleSideEnum.Attacker;
   public float EstimatedStrength => MemberRoster.TotalManCount;
   public IFaction MapFaction { get; set; }
   public static PartyBase MainParty => MobileParty.MainParty?.Party;

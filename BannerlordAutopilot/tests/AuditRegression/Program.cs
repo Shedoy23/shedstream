@@ -354,6 +354,7 @@ internal static partial class Program
         FleeDefenseTests();
         ResumeTests();
         StreamStatusTests();
+        WoundedRetreatTests();
         SiegeReliabilityTests();
         DonationTests();
 

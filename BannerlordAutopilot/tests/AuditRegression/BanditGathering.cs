@@ -200,6 +200,9 @@ namespace TaleWorlds.CampaignSystem
         public bool IsFieldBattle { get; set; } = true;
         public HashSet<PartyBase> TestDisallowed = new();
         public MapEvent() { AttackerSide.MapEvent = DefenderSide.MapEvent = this; }
+        // MapEvent.StrengthOfSide / RecalculateStrengthOfSides (1.4.8): силы сторон считает игра.
+        public float[] StrengthOfSide = new float[2];
+        public void RecalculateStrengthOfSides() { }
         public bool CanPartyJoinBattle(PartyBase party, BattleSideEnum side)
         {
             var friends = side == BattleSideEnum.Attacker ? AttackerSide : DefenderSide;

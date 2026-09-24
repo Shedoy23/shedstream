@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -26,6 +27,7 @@ namespace BannerlordAutopilot
                 || PlayerEncounter.Current == null || MenuDriver.CurrentMenuId != "encounter"
                 || InformationManager.IsAnyInquiryActive() || MenuDriver.CanInvoke("attack", out _)
                 || !MenuDriver.CanInvoke("str_order_attack", out _)) return false;
+            if (TryRetreatWhenWounded()) return true;
             _simulationEncounter = PlayerEncounter.Current;
             _finishedSimulation = null;
             AuthorizePrisonerScreen();
@@ -37,6 +39,36 @@ namespace BannerlordAutopilot
             }
             AutopilotLog.Write("БОЙ: герой ранен; штатное «Послать воинов», ждём завершения авторасчёта");
             return true;
+        }
+
+        /// <summary>Раненый герой и силы хуже этой доли вражеских — не авторасчёт, а отход.</summary>
+        internal const float WoundedRetreatRatio = 0.8f;
+
+        /// <summary>24.09: «Послать воинов» жалось при любом раскладе — 22.09 армии
+        /// 122/312/322 стали одним бойцом в авторасчёте против 5–10x. Силы сторон —
+        /// оценка игры (MapEvent.StrengthOfSide). Проигрываем — уходим штатной кнопкой:
+        /// «Уйти» (без потерь), «Вернуться в крепость» (вылазка), «Попытаться уйти»
+        /// (часть бойцов прикрывает). Ни одной — авторасчёт, как раньше.</summary>
+        private bool TryRetreatWhenWounded()
+        {
+            var battle = PlayerEncounter.Battle ?? MobileParty.MainParty?.MapEvent;
+            if (battle == null) return false;
+            battle.RecalculateStrengthOfSides();
+            int ours = (int)PartyBase.MainParty.Side;
+            float us = battle.StrengthOfSide[ours], them = battle.StrengthOfSide[1 - ours];
+            if (!(them > 0f) || us >= them * WoundedRetreatRatio) return false;
+            foreach (string option in new[] { "leave", "go_back_to_settlement", "leave_soldiers_behind" })
+            {
+                if (!MenuDriver.CanInvoke(option, out _)) continue;
+                AutopilotLog.Write("БОЙ: герой ранен, силы " + us.ToString("F0", CultureInfo.InvariantCulture) + " против "
+                    + them.ToString("F0", CultureInfo.InvariantCulture) + " — хуже x" + WoundedRetreatRatio.ToString("F1", CultureInfo.InvariantCulture)
+                    + "; не авторасчёт, а отход штатной кнопкой «" + option + "»");
+                StreamStatus.Note("Герой ранен, враг сильнее — отступаем");
+                OperationClick(option);
+                return true;
+            }
+            AutopilotLog.Write("БОЙ: герой ранен и силы хуже, но отступить нельзя — остаётся авторасчёт");
+            return false;
         }
 
         private bool PollOwnedSimulation()

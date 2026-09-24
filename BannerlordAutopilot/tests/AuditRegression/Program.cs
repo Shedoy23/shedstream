@@ -283,6 +283,9 @@ internal static partial class Program
 
     static int Main()
     {
+        // Экран стрима — только во временную папку: иначе тесты пишут в настоящий
+        // файл, который читает OBS, и на стриме всплывёт тестовая строка.
+        BannerlordAutopilot.StreamStatus.FilePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "autopilot_stream_test.txt");
         Console.WriteLine("Регрессия автопилота по независимой проверке 12.09 (заменители движка, не кампания)");
         EngineContract.Verify();
         Check(ServiceLimits.MinGoldReserve == 0, "default reserve has no fixed gold floor");
@@ -350,6 +353,7 @@ internal static partial class Program
         FleeTests();
         FleeDefenseTests();
         ResumeTests();
+        StreamStatusTests();
         SiegeReliabilityTests();
         DonationTests();
 

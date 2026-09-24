@@ -89,6 +89,7 @@ namespace BannerlordAutopilot
                 + " (x" + bestRatio.ToString("F2", CultureInfo.InvariantCulture) + ", порог x"
                 + HuntMinRatio.ToString("F1", CultureInfo.InvariantCulture) + "); до цели "
                 + bestDistance.ToString("F1", CultureInfo.InvariantCulture));
+            StreamStatus.Note("Нападаем на «" + best.Name + "» (" + (best.IsLordParty ? "отряд лорда" : "бандиты") + ")");
             ApplyDecision(party, new AIBehaviorData(best, AiBehavior.EngageParty,
                 MobileParty.NavigationType.Default, false, false, false), 1f);
             return true;
@@ -108,6 +109,7 @@ namespace BannerlordAutopilot
             if (key != _siegeOverRecruitKey)
             {
                 _siegeOverRecruitKey = key;
+                StreamStatus.Note("Идём на осаду «" + (siege.Party as Settlement)?.Name + "»");
                 AutopilotLog.Write("ПОХОД: на войне осада важнее набора до 90%: заполнение "
                     + party.Party.NumberOfAllMembers + "/" + limit + ", крепость «" + (siege.Party as Settlement)?.Name + "»");
             }

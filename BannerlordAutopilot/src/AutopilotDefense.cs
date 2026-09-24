@@ -45,6 +45,7 @@ namespace BannerlordAutopilot
             string key = target.StringId + "|" + action;
             if (_lastDefenseStatus == key) return;
             _lastDefenseStatus = key;
+            StreamStatus.Note("Спешим защищать «" + target.Name + "»");
             int total = party.MemberRoster.TotalManCount;
             AutopilotLog.Write("ОБОРОНА: «" + target.Name + "»; боеспособны "
                 + (total - party.MemberRoster.TotalWounded) + "/" + total

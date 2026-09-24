@@ -58,6 +58,7 @@ namespace BannerlordAutopilot
                 return false;
             }
             _resumes.Enqueue(now);
+            StreamStatus.Note("Автопилот снова в строю после сбоя");
             AutopilotLog.Write("АВТОВОЗВРАТ: включился сам после «" + why + "» (" + _resumes.Count + " из "
                 + AutoResumeLimit + " за " + AutoResumeWindow.TotalMinutes + " мин)");
             return true;

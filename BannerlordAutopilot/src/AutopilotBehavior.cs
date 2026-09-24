@@ -425,6 +425,7 @@ namespace BannerlordAutopilot
             }
 
             _mode = mode;
+            StreamStatus.SetActive(mode == Mode.Apply);
             ResetSession();
             _startedIn = peaceful;
             RememberSpeed();
@@ -450,6 +451,7 @@ namespace BannerlordAutopilot
             bool wasApply = _mode == Mode.Apply;
             _mode = Mode.Off;
             AutopilotLog.Write("ВЫКЛЮЧЕНИЕ: " + reason);
+            StreamStatus.SetActive(false);
             ArmAutoResume(reason, wasApply);
 
             MobileParty party = MobileParty.MainParty;

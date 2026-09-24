@@ -394,6 +394,7 @@ namespace BannerlordAutopilot
                         OperationClick("town_outside_leave"); return true;
                     }
                     _operationSettlement = place;
+                    StreamStatus.Note("Начинаем осаду «" + place.Name + "»");
                     OperationClick("town_besiege"); return true;
                 }
                 if (menu == "menu_siege_strategies" && commanded && place == _offensiveSiege)

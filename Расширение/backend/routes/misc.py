@@ -126,12 +126,14 @@ async def get_twitch_app_token() -> str:
 # ── Overlay ───────────────────────────────────────────────────────────────────
 
 @router.get("/api/overlay/latest")
-async def overlay_latest():
-    """OBS-оверлей: последние события (дроп). Публичный.
+async def overlay_latest(channel_id: int = None):
+    """OBS-оверлей: последние события (дроп) СВОЕГО канала. Публичный.
 
+    channel_id — из URL оверлея (?channel_id=NN), как у остальных виджетов;
+    старый оверлей без параметра получает канал по умолчанию (24.09.2026).
     jackpot/donate ключи удалены (Phase 8.A.2 / 8.F lexicon+compliance).
     """
-    return get_overlay_state()
+    return get_overlay_state(channel_id)
 
 
 # ── Twitch user resolver ──────────────────────────────────────────────────────

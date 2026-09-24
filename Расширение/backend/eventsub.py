@@ -610,15 +610,21 @@ async def _greet_enabled(channel_id: int, kind: str) -> bool:
 # логируем и молча скипаем (НЕ копим очередь — это лишь усилит флуд).
 _FOLLOW_GREET_WINDOW_SEC = 60
 _FOLLOW_GREET_MAX_PER_WINDOW = 8
-_follow_greet_times: dict[int, "deque"] = {}
+# Счётчик свой у каждого вида приветствия (24.09.2026): чиры раньше делили его
+# с фолловами, и волна фоллов-ботов глушила «спасибо» за биты.
+_greet_times: dict = {}   # {(kind, channel_id): deque}
 
 
 def _follow_greet_allowed(channel_id: int) -> bool:
+    return _greet_allowed(channel_id, "follow")
+
+
+def _greet_allowed(channel_id: int, kind: str) -> bool:
     now = _time.time()
-    dq = _follow_greet_times.get(channel_id)
+    dq = _greet_times.get((kind, channel_id))
     if dq is None:
         dq = deque()
-        _follow_greet_times[channel_id] = dq
+        _greet_times[(kind, channel_id)] = dq
     cutoff = now - _FOLLOW_GREET_WINDOW_SEC
     while dq and dq[0] < cutoff:
         dq.popleft()
@@ -803,7 +809,7 @@ async def _on_channel_cheer(event: dict, channel_id: int) -> None:
     if bits <= 0:
         return
 
-    if not _follow_greet_allowed(channel_id):
+    if not _greet_allowed(channel_id, "cheer"):
         logger.info("💜 cheer-greet ch=%s SKIPPED (rate-limit)", channel_id)
         return
 

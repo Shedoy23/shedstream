@@ -945,7 +945,9 @@ async function poll() {
     try {
         // 2. Drop notifications через /api/overlay/latest
         // legacy-handlers удалены 2026-05-10/14 (Phase 1.I + Phase 8.F)
-        const jp = await fetch(SERVER + '/api/overlay/latest').then(r => r.json());
+        // Дроп своего канала (24.09.2026): раньше запрос шёл без канала.
+        const jp = await fetch(SERVER + '/api/overlay/latest'
+            + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '')).then(r => r.json());
 
         if (jp.drop && jp.drop.id !== lastDropId) {
             lastDropId = jp.drop.id;

@@ -1302,7 +1302,7 @@ class BotCore:
         # Передаём tier как rarity для overlay-card; item_name больше нет —
         # передаём emoji+label чтобы overlay мог отрисовать что-то осмысленное.
         try:
-            await self.on_drop(recipient, f"{tier_label} кейс", tier)
+            await self.on_drop(recipient, f"{tier_label} кейс", tier, channel_id=cid)
         except Exception as e:
             print(f"⚠️ Ошибка on_drop: {e}")
 
@@ -1503,7 +1503,7 @@ class BotCore:
     # Оповещения об аукционе-ивенте («рулекцион») удалены 2026-07-29
     # вместе с самой механикой: она переписана в голосование за игру.
 
-    async def on_drop(self, username: str, item_name: str, rarity: str):
+    async def on_drop(self, username: str, item_name: str, rarity: str, channel_id: int = None):
         """Вызывается при дропе предмета — переопределяется в main.py"""
         pass
 

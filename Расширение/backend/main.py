@@ -406,9 +406,9 @@ async def health():
     )
 
 # Callback дропа — пишем в overlay state для оверлея
-async def _on_drop_handler(username: str, item_name: str, rarity: str):
+async def _on_drop_handler(username: str, item_name: str, rarity: str, channel_id: int = None):
     import time as _td
-    set_overlay_drop({
+    set_overlay_drop(channel_id=channel_id, data={
         "id": f"{username}-{_td.time():.0f}",
         "username": username,
         "item_name": item_name,

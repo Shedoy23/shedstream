@@ -639,7 +639,9 @@ _RATE_BUCKETS_MAX = 10_000  # максимум уникальных IP в пам
 # ── Overlay state ─────────────────────────────────────────────────────────────
 # _overlay_jackpot удалён 2026-05-12 (Phase 8.A.2 lexicon scrub — dead code,
 # casino вырезан в Phase 1.A; setter не вызывался, getter возвращал None)
-_overlay_drop    = None   # {id, username, item_name, rarity, ts}
+# Дроп для OBS-оверлея — СВОЙ у каждого канала (24.09.2026). Была одна
+# глобальная переменная: второй стример увидел бы на оверлее дроп чужого зрителя.
+_overlay_drops: dict = {}   # {channel_id: {id, username, item_name, rarity, ts}}
 
 
 def set_db(db) -> None:
@@ -695,9 +697,8 @@ async def rate_cleanup_loop():
 # ── Overlay state helpers ─────────────────────────────────────────────────────
 # set_overlay_jackpot удалён 2026-05-12 (Phase 8.A.2 lexicon scrub)
 
-def set_overlay_drop(data: Optional[dict]) -> None:
-    global _overlay_drop
-    _overlay_drop = data
+def set_overlay_drop(data: Optional[dict], channel_id: Optional[int] = None) -> None:
+    _overlay_drops[resolve_channel_id_or_default(channel_id)] = data
 
 # _overlay_donate / set_overlay_donate удалены 2026-05-14 (Phase 8.F donate removal)
 # — direct ₽→крустики конвертация противоречит §5.2/§5.4 Twitch Extension
@@ -705,10 +706,10 @@ def set_overlay_drop(data: Optional[dict]) -> None:
 # revenue share). См. также Phase 1.D в COMPLIANCE_REWORK_PLAN.md где
 # /api/donate endpoint был удалён, но overlay state setter забыли убрать.
 
-def get_overlay_state() -> dict:
+def get_overlay_state(channel_id: Optional[int] = None) -> dict:
     # "jackpot" key удалён 2026-05-12 (Phase 8.A.2 lexicon scrub)
     # "donate" key удалён 2026-05-14 (Phase 8.F donate removal)
-    return {"drop": _overlay_drop}
+    return {"drop": _overlay_drops.get(resolve_channel_id_or_default(channel_id))}
 
 
 # ── Last event winner ─────────────────────────────────────────────────────────

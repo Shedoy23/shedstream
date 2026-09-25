@@ -27,22 +27,46 @@ os.environ.setdefault("MODULE_TOKEN_SECRET", "test-module-secret-32bytes-1234567
 os.environ.setdefault("ADMIN_PASSWORD", "test_admin_password_for_tests_only")
 
 
+SECURITY = {
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "strict-transport-security": "max-age=63072000; includeSubDomains",
+    "content-security-policy": "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv",
+    "permissions-policy": "camera=(), microphone=(), geolocation=()",
+}
+
+
+def assert_security(headers, where):
+    for name, value in SECURITY.items():
+        assert headers.get(name) == value, f"{where}: {name}={headers.get(name)!r}"
+
+
 async def main() -> int:
-    from starlette.responses import Response
-    from main import security_headers
+    # 25.09.2026: заголовки ставит чистый ASGI-мидлварь (быстрее
+    # BaseHTTPMiddleware). Проверяем через всё приложение, как их увидит браузер.
+    import httpx
+    from main import app
 
-    async def next_response(_request):
-        return Response("ok")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        api = await client.get("/api/zz-header-probe")
+        assert_security(api.headers, "api")
+        assert api.headers["cache-control"] == "no-store, max-age=0"
+        assert api.headers["pragma"] == "no-cache"
+        assert api.headers["expires"] == "0"
 
-    api_request = SimpleNamespace(url=SimpleNamespace(path="/api/viewer/stats/alice"))
-    api_response = await security_headers(api_request, next_response)
-    assert api_response.headers["cache-control"] == "no-store, max-age=0"
-    assert api_response.headers["pragma"] == "no-cache"
-    assert api_response.headers["expires"] == "0"
+        static = await client.get("/zz-static-probe.js")
+        assert_security(static.headers, "static")
+        assert "cache-control" not in static.headers, static.headers.get("cache-control")
 
-    static_request = SimpleNamespace(url=SimpleNamespace(path="/viewer.js"))
-    static_response = await security_headers(static_request, next_response)
-    assert "cache-control" not in static_response.headers
+        preflight = await client.options("/api/bannerlord/battle-status", headers={
+            "Origin": "https://abc123.ext-twitch.tv",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "x-twitch-jwt",
+        })
+        assert preflight.status_code == 200, preflight.status_code
+        assert preflight.headers.get("access-control-allow-origin") == "https://abc123.ext-twitch.tv"
+        assert_security(preflight.headers, "preflight")
 
     frontend = (BACKEND.parent / "frontend" / "viewer.js").read_text(encoding="utf-8")
     for endpoint in ("/api/viewer/perks", "/api/viewer/stats/${userLogin}"):

@@ -32,6 +32,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.datastructures import MutableHeaders
 from twitchio.ext import commands as twitch_commands
 
 from bot_core import BotCore
@@ -338,32 +339,57 @@ app.add_middleware(
 
 # Security headers на каждый ответ. Не выставляем X-Frame-Options — Twitch
 # Extension iframe-ит фронт, нам нужен CSP frame-ancestors вместо запрета.
-@app.middleware("http")
-async def security_headers(request, call_next):
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+# 25.09.2026: чистый ASGI вместо @app.middleware("http") (BaseHTTPMiddleware —
+# медленный путь Starlette: лишняя задача и обёртка тела на КАЖДЫЙ запрос, а
+# зрители шлют ~50 запросов/с на стриме, сервер упёрся в ядро). Заголовки те же.
+# Путь берём из scope, а не из request.url — разбор URL падал ValueError
+# «Invalid IPv6 URL» на кривом Host от сканеров.
+_SECURITY_HEADERS = (
+    ("x-content-type-options", "nosniff"),
+    ("referrer-policy", "strict-origin-when-cross-origin"),
     # HSTS включает HTTPS на 2 года. На HTTP браузер игнорирует — безопасно.
-    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    ("strict-transport-security", "max-age=63072000; includeSubDomains"),
     # Кто может iframe-ить наш фронт. Twitch Extension Sandbox = *.ext-twitch.tv,
     # сам Twitch встраивает оверлей в стрим — *.twitch.tv.
-    response.headers["Content-Security-Policy"] = (
-        "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv"
-    )
+    ("content-security-policy", "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv"),
     # Public-gate (2026-07-02): расширению не нужны камера/микрофон/гео —
     # запрещаем явно (defence-in-depth; браузер откажет любому такому вызову).
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    # Viewer API responses depend on a short-lived Twitch JWT and contain
-    # per-user state (balance, role, quests, inventory). Missing stats/perks GETs
-    # in the incident log do not prove a cache hit, but caching these responses
-    # can preserve obsolete state. Never let browsers or shared
-    # intermediaries retain API responses. Static extension assets keep their
-    # normal cache behaviour.
-    if request.url.path.startswith("/api/"):
-        response.headers["Cache-Control"] = "no-store, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-    return response
+    ("permissions-policy", "camera=(), microphone=(), geolocation=()"),
+)
+# Viewer API responses depend on a short-lived Twitch JWT and contain
+# per-user state (balance, role, quests, inventory). Missing stats/perks GETs
+# in the incident log do not prove a cache hit, but caching these responses
+# can preserve obsolete state. Never let browsers or shared
+# intermediaries retain API responses. Static extension assets keep their
+# normal cache behaviour.
+_API_NO_STORE_HEADERS = (
+    ("cache-control", "no-store, max-age=0"),
+    ("pragma", "no-cache"),
+    ("expires", "0"),
+)
+
+
+class SecurityHeadersMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        extra = _SECURITY_HEADERS + (_API_NO_STORE_HEADERS if scope.get("path", "").startswith("/api/") else ())
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                for name, value in extra:
+                    headers[name] = value
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Инициализация
 # DB_PATH — путь к базе. По умолчанию «viewers.db» рядом с кодом, то есть на

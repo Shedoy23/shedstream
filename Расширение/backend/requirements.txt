@@ -1,5 +1,9 @@
 fastapi==0.104.1
 uvicorn==0.24.0
+# 25.09.2026: быстрый цикл событий и разбор HTTP — uvicorn подхватывает их сам
+# (loop/http = auto). На стриме сервер упёрся в 1 ядро на ~50 запросах/с.
+uvloop==0.21.0; sys_platform != "win32"
+httptools==0.6.4
 aiosqlite==0.19.0
 PyJWT>=2.8.0,<3.0
 python-multipart>=0.0.7

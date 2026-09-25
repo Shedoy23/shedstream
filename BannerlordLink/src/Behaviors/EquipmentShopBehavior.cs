@@ -31,8 +31,7 @@ namespace BannerlordLink.Behaviors
         private readonly InventorySnapshotPublisher _snapshots = new InventorySnapshotPublisher();
         internal static readonly string[] AllSlots = { "weapon0", "weapon1", "weapon2", "weapon3", "head", "body", "leg", "gloves", "cape", "horse", "horseharness" };
 
-        internal static ItemRoster PartyInventory(Hero hero)
-            => hero == null || hero.IsPrisoner ? null : hero.PartyBelongedTo?.ItemRoster;
+        internal static ItemRoster PartyInventory(Hero hero) => OwnPartyInventory.Of(hero);
 
         private static string Username(Hero hero)
             => HeroIdentityBehavior.Instance?.GetUsername(hero)

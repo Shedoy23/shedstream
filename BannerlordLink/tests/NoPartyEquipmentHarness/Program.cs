@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using BannerlordLink.Actions;
 using BannerlordLink.Behaviors;
 using BannerlordLink.Util;
@@ -58,8 +59,11 @@ class Program
             behavior.StoreFails = false; Buy(data);
             Check(ActionFeedback.Applied && hero.Gold == 1000, "Trade-in surplus credited once");
             Buy(data); Check(!ActionFeedback.Applied && hero.Gold == 1000, "Replayed old quote cannot sell another item");
-            data["equip_now"] = false; Buy(data);
-            Check(ActionFeedback.Error == "no_inventory", "Ordinary baggage purchase still requires baggage");
+            // 25.09 (владелец): без своего отряда обычная покупка ложится в личный сундук.
+            data["equip_now"] = false; hero.Gold = 5000; Buy(data);
+            Check(ActionFeedback.Applied && hero.Gold == 1000 && behavior.Saved.StashCount() == 1
+                && behavior.Saved.Items.Any(x => x.Slot == null && x.ItemId == "armor"), "Ordinary purchase without baggage goes to personal stash");
+            behavior.Saved.Items.RemoveAll(x => x.Slot == null); hero.Gold = 1000;
             data["equip_now"] = true; EquipmentShopBehavior.Inventory = new TaleWorlds.CampaignSystem.Roster.ItemRoster(); Buy(data);
             Check(ActionFeedback.Error == "inventory_state_changed", "Party transition cannot change confirmed delivery mode");
             EquipmentShopBehavior.Inventory = null; old.Value = 500;

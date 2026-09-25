@@ -183,7 +183,9 @@ namespace BannerlordAutopilot
         /// отряд из 320 бойцов, набранных за полчаса, пошёл на «Замок Ремтойл» при
         /// силе 453 против 382 и вернулся одним бойцом, герой в плену. Прежнее
         /// правило пускало на штурм, пока защитники не сильнее нас в 1,5 раза.</summary>
-        internal const float SiegeStrengthRatio = 2f;
+        /// 26.09 владелец: «измени 2 на 1.5, вдруг пойдёт» — за 1,5 ч войны при x2 не
+        /// нашлось ни одной крепости. Всё ещё перевес (своих в 1,5 раза больше).
+        internal const float SiegeStrengthRatio = 1.5f;
         /// <summary>Средний уровень (тир) бойцов отряда, с которого идём на стены.</summary>
         internal const float SiegeMinAverageTier = 3.5f;
         private string _lastSiegeReadiness;
@@ -346,7 +348,7 @@ namespace BannerlordAutopilot
                     AutopilotLog.Write("ПОХОД: крепостей по силам нет (вражеских " + fortresses + ", вне досягаемости " + borderSkipped + ")"
                         + (closest == null ? "" : "; ближе всех к порогу «" + closest.Name + "»: защитники "
                             + closestDefenders.ToString("F0", CultureInfo.InvariantCulture) + ", надо x"
-                            + SiegeStrengthRatio.ToString("F0", CultureInfo.InvariantCulture) + " = "
+                            + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture) + " = "
                             + (closestDefenders * SiegeStrengthRatio).ToString("F0", CultureInfo.InvariantCulture)
                             + ", у нас " + own.ToString("F0", CultureInfo.InvariantCulture)
                             + (allies.Count > 0 ? ", с армией " + assembled.ToString("F0", CultureInfo.InvariantCulture) : ", армию собрать не из кого")));
@@ -376,7 +378,7 @@ namespace BannerlordAutopilot
             float assembled = own + allies.Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
             if (allies.Count > 0 && assembled >= defenders * SiegeStrengthRatio) return null;
             return "защитники " + defenders.ToString("F1", CultureInfo.InvariantCulture)
-                + " — нужен перевес x" + SiegeStrengthRatio.ToString("F0", CultureInfo.InvariantCulture)
+                + " — нужен перевес x" + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture)
                 + ", надо " + (defenders * SiegeStrengthRatio).ToString("F1", CultureInfo.InvariantCulture)
                 + " (наша сила " + own.ToString("F1", CultureInfo.InvariantCulture)
                 + ", доступная армия " + assembled.ToString("F1", CultureInfo.InvariantCulture) + ")";

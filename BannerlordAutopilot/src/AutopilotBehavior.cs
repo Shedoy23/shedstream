@@ -2813,7 +2813,7 @@ namespace BannerlordAutopilot
                         attackers += AffordableArmyMembers(siegeParty).Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
                     return attackers >= defenders * SiegeStrengthRatio ? null
                         : "защитники " + defenders.ToString("F1", CultureInfo.InvariantCulture) + " — нужен перевес x"
-                          + SiegeStrengthRatio.ToString("F0", CultureInfo.InvariantCulture);
+                          + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture);
                 case AiBehavior.DefendSettlement:
                     if (!FriendlySiege(data.Party as Settlement, MobileParty.MainParty)) return "нет дружественной осады";
                     if (data.Party == _defenseTarget && !OwnFort(data.Party as Settlement)) return "срочная цель обороны больше не принадлежит нашему клану";

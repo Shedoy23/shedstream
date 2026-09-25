@@ -53,8 +53,8 @@ internal static partial class Program
             var b=Fresh(); var castle=ConquestWorld(); castle.Name="Крепкий замок"; castle.Militia=8; Settlement.All.Add(castle);
             Enable(b); CampaignTime.TestHours=0; HourlyTick(b);
             for(int hour=1; hour<=12; hour++) { CampaignTime.TestHours=hour; HourlyTick(b); }
-            Check(SiegeTarget(b)==null, "8 защитников против 10 — без перевеса x2 не идём");
-            Check(AutopilotLog.Lines.Count(l=>l.Contains("крепостей по силам нет") && l.Contains("«Крепкий замок»: защитники 8, надо x2 = 16, у нас 10"))==1,
+            Check(SiegeTarget(b)==null, "8 защитников против 10 — без перевеса x1,5 не идём");
+            Check(AutopilotLog.Lines.Count(l=>l.Contains("крепостей по силам нет") && l.Contains("«Крепкий замок»: защитники 8, надо x1.5 = 12, у нас 10"))==1,
                 "причина записана один раз за игровые сутки");
             CampaignTime.TestHours=30; HourlyTick(b);
             Check(LogCount("крепостей по силам нет")==2, "на следующие сутки запись повторяется");
@@ -98,7 +98,7 @@ internal static partial class Program
                 "на 90/100 приоритет набора закончился и вернулся поход");
         });
         Try("самостоятельно выбираем слабую крепость без предложения движка", () => {
-            var b=Fresh(); var weak=ConquestWorld(); weak.Name="Слабый замок"; weak.Militia=5;
+            var b=Fresh(); var weak=ConquestWorld(); weak.Name="Слабый замок"; weak.Militia=6;
             weak.Town.GarrisonParty=new MobileParty();
             var strong=new Settlement { IsTown=true, Name="Сильный город", MapFaction=weak.MapFaction, Militia=20 };
             Settlement.All.Add(weak); Settlement.All.Add(strong);
@@ -106,7 +106,7 @@ internal static partial class Program
                 MobileParty.NavigationType.Default, false, false, false), 9f));
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==weak && MobileParty.MainParty.TargetSettlement==weak,
-                "цель осады создана модом, город без перевеса x2 отвергнут");
+                "6 защитников при наших 10 — перевес x1,5 есть, идём; город без перевеса отвергнут");
         });
         Try("отказ от осады записывает точный предел сил", () => {
             var b=Fresh(); var castle=ConquestWorld(); castle.Name="Пограничный замок";
@@ -116,19 +116,19 @@ internal static partial class Program
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==castle && MobileParty.MainParty.TargetSettlement==castle,
                 "слабый замок сначала выбран");
-            castle.Militia=6; for(int hour=0; hour<6; hour++) HourlyTick(b);
+            castle.Militia=7; for(int hour=0; hour<6; hour++) HourlyTick(b);
             Check(AutopilotLog.Lines.Any(l => l.Contains("ПОХОД: прекращаем цель «Пограничный замок»")
-                && l.Contains("защитники 6.0 — нужен перевес x2, надо 12.0")
+                && l.Contains("защитники 7.0 — нужен перевес x1.5, надо 10.5")
                 && l.Contains("далее PatrolAroundPoint")),
                 "после роста обороны записаны обе силы и следующий приказ");
         });
         Try("близкий вражеский отряд входит в риск осады", () => {
             var b=Fresh(); var castle=ConquestWorld(); castle.Militia=4; Settlement.All.Add(castle);
             var relief=new MobileParty { MapFaction=castle.MapFaction, Position=castle.Position };
-            relief.MemberRoster.AddToCounts(new CharacterObject(), 2); MobileParty.All.Add(relief);
+            relief.MemberRoster.AddToCounts(new CharacterObject(), 3); MobileParty.All.Add(relief);
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==null && MobileParty.MainParty.TargetSettlement!=castle,
-                "подкрепление лишает перевеса x2");
+                "подкрепление лишает перевеса x1,5");
         });
         Try("для допустимой осады сначала собираем доступную армию", () => {
             var b=Fresh(); var castle=ConquestWorld(); castle.Militia=8; Settlement.All.Add(castle);
@@ -139,7 +139,7 @@ internal static partial class Program
             Enable(b); HourlyTick(b);
             Check(MobileParty.MainParty.Army!=null && ally.Army==MobileParty.MainParty.Army
                 && Clan.PlayerClan.Influence==0,
-                "8 защитников: отряду из 10 нужен перевес x2, армия из 20 его даёт");
+                "8 защитников: отряду из 10 нужен перевес x1,5 (12), армия из 20 его даёт");
         });
         Try("истощённый отряд не начинает самостоятельную осаду", () => {
             var b=Fresh(); var castle=ConquestWorld(food:1); castle.Militia=1; Settlement.All.Add(castle);

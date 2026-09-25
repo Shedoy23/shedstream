@@ -1,4 +1,4 @@
-**25.09, стрим — ждёт закрытия игры:** BannerlordLink `EF086CC5…` — зрители без
+**25.09, стрим — установлено:** BannerlordLink `EF086CC5…` (откат `D:/shedlink-build/dll-rollback/20260925-link-wanderer`) — зрители без
 клана больше не исчезают на дневном тике (kuro_gothic, logistick1 пропали так).
 
 **25.09, стрим — установлено:** автопилот `249BE152…` (откат `D:/shedlink-build/dll-rollback/20260925-autopilot-roam-wounded`) — раненый герой

@@ -600,14 +600,15 @@ namespace BannerlordLink.Behaviors
                     {
                         s.PayoutSettled = true; // Consume before an uncertain engine mutation.
                         int enemies = s.IsPlayerSide ? _enemyTroops : _allyTroops;
-                        var payout = BattlePayoutPolicy.Calculate(s.PersonalPoints, s.RetinuePoints,
+                        var formula = BattlePayoutPolicy.Calculate(s.PersonalPoints, s.RetinuePoints,
                             enemies, _payoutSiege, theirSideWon);
+                        var payout = BattlePayoutPolicy.WithFloor(formula, enemies);
                         s.ParticipationGold = RewardBoostCache.ApplyToInt(s.Username, payout.Participation);
                         s.PersonalGold = RewardBoostCache.ApplyToInt(s.Username, payout.Personal);
                         s.RetinueGold = RewardBoostCache.ApplyToInt(s.Username, payout.Retinue);
                         goldDelta = s.ParticipationGold + s.PersonalGold + s.RetinueGold;
                         if (goldDelta == 0) s.PayoutPaid = true;
-                        BannerlordLinkModule.Log($"[BattlePayout v2] battle={_payoutId} @{s.Username} enemies={enemies} siege={_payoutSiege} won={theirSideWon} personalPoints={s.PersonalPoints:F1} retinuePoints={s.RetinuePoints:F1} participation={s.ParticipationGold} personal={s.PersonalGold} retinue={s.RetinueGold} planned={goldDelta}");
+                        BannerlordLinkModule.Log($"[BattlePayout v2] battle={_payoutId} @{s.Username} enemies={enemies} siege={_payoutSiege} won={theirSideWon} personalPoints={s.PersonalPoints:F1} retinuePoints={s.RetinuePoints:F1} participation={s.ParticipationGold} personal={s.PersonalGold} retinue={s.RetinueGold} floor=+{payout.Total - formula.Total} planned={goldDelta}");
                     }
                     if (goldDelta != 0)
                     {

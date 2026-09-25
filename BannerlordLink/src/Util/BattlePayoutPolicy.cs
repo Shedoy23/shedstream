@@ -28,6 +28,23 @@ namespace BannerlordLink.Util
         /// <summary>До какого вклада растёт участие. Раньше упиралось в 8000.</summary>
         internal const double ParticipationFullAt = 20000;
         internal static double Threat(int level) => Math.Max(0.4, Math.Min(1.5, level / 26.0));
+
+        /// <summary>26.09, владелец: «давай попробуем до 30 тыс добивку» и «просто
+        /// поучаствовать в каждом бою тоже надо время и следить за стримом» — поэтому
+        /// добивка всем участникам, без условия по урону (призыв делается вручную на
+        /// каждый бой). Размер — по бою: 30 тыс. за ровные 30 тыс. в стычке с 30–45
+        /// бандитами давали бы большую часть прибавки. По логу 25.09: +16% денег
+        /// (ровные 30 тыс. везде: +46%). Мёртвым не платим вовсе (KillRewardBehavior).</summary>
+        internal static int FloorGold(int enemies) => enemies >= 200 ? 30000 : enemies >= 50 ? 15000 : 5000;
+
+        /// <summary>Добивка отдельной частью участия; сама формула Calculate не меняется.</summary>
+        internal static Payout WithFloor(Payout payout, int enemies)
+        {
+            int floor = FloorGold(enemies);
+            if (payout.Total >= floor) return payout;
+            payout.Participation += floor - payout.Total;
+            return payout;
+        }
         internal static Payout Calculate(double personal, double retinue, int enemies, bool siege, bool won)
         {
             if (double.IsNaN(personal) || double.IsInfinity(personal)

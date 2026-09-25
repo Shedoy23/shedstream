@@ -44,7 +44,6 @@ namespace BannerlordLink.Actions
                 hero = HeroLookup.FindByUsername(username);
                 if (hero == null || !hero.IsAlive) { ActionFeedback.PostFailed(actionId, "hero_not_found"); return; }
                 if (hero.IsPrisoner) { ActionFeedback.PostFailed(actionId, "hero_prisoner"); return; }
-                if (!equipPurchase && EquipmentShopBehavior.PartyInventory(hero) == null) { ActionFeedback.PostFailed(actionId, "no_inventory"); return; }
                 if (equipPurchase && EquipmentShopBehavior.PartyInventory(hero) != null) { ActionFeedback.PostFailed(actionId, "inventory_state_changed"); return; }
                 if (Campaign.Current == null || data["save_id"]?.ToString() != Campaign.Current.UniqueGameId
                     || data["hero_id"]?.ToString() != hero.StringId)
@@ -103,15 +102,21 @@ namespace BannerlordLink.Actions
                     }
                     else
                     {
+                    // Без своего отряда покупка ложится в личный сундук героя (25.09).
                     var roster = EquipmentShopBehavior.PartyInventory(hero);
-                    if (roster == null) { ActionFeedback.PostFailed(actionId, "no_inventory"); return; }
+                    if (roster == null && ledger.StashCount() >= EquipmentShopPolicy.StashCapacity)
+                    { ActionFeedback.PostFailed(actionId, "stash_full"); return; }
                     var charge = new JObject { ["hero_gold_cost"] = price };
                     if (!HeroGoldCharge.TryCharge(hero, charge, actionId, ActionType, out charged)) return;
-                    roster.AddToCounts(new EquipmentElement(item), 1);
-                    rosterMutations.Add(Tuple.Create(roster, new EquipmentElement(item), 1));
+                    if (roster != null)
+                    {
+                        roster.AddToCounts(new EquipmentElement(item), 1);
+                        rosterMutations.Add(Tuple.Create(roster, new EquipmentElement(item), 1));
+                    }
+                    else ledger.Add(item.StringId);
                     behavior.Store(hero, ledger);
                     committed = true;
-                    BannerlordLinkModule.Log($"[{ActionType}] @{username} item={item.StringId} → party inventory gold=-{charged}");
+                    BannerlordLinkModule.Log($"[{ActionType}] @{username} item={item.StringId} → {(roster != null ? "party inventory" : "личный сундук")} gold=-{charged}");
                     }
                 }
                 else if (ActionType == "hero.discard_owned")
@@ -202,14 +207,22 @@ namespace BannerlordLink.Actions
                         { ActionFeedback.PostFailed(actionId, "item_modifier_unavailable"); return; }
                         // Legacy storage can supply a replacement, but displaced
                         // native equipment must return to the actual party roster.
+                        // Без своего отряда снятое остаётся в учёте: ledger.Equip
+                        // переносит его в личный сундук вместе с качеством (25.09).
                         var displaced = hero.BattleEquipment[index.Value];
-                        if (!displaced.IsEmpty)
+                        var roster = EquipmentShopBehavior.PartyInventory(hero);
+                        if (roster == null && !displaced.IsEmpty && owned.Slot != null
+                            && ledger.StashCount() >= EquipmentShopPolicy.StashCapacity)
+                        { ActionFeedback.PostFailed(actionId, "stash_full"); return; }
+                        if (roster != null)
                         {
-                            var roster = EquipmentShopBehavior.PartyInventory(hero);
-                            roster.AddToCounts(displaced, 1);
-                            rosterMutations.Add(Tuple.Create(roster, displaced, 1));
+                            if (!displaced.IsEmpty)
+                            {
+                                roster.AddToCounts(displaced, 1);
+                                rosterMutations.Add(Tuple.Create(roster, displaced, 1));
+                            }
+                            ledger.Items.RemoveAll(x => x.Slot == slot && x != owned);
                         }
-                        ledger.Items.RemoveAll(x => x.Slot == slot && x != owned);
                         if (owned.Slot != null) hero.BattleEquipment[EquipmentSync.SlotFromName(owned.Slot).Value] = EquipmentElement.Invalid;
                         hero.BattleEquipment[index.Value] = new EquipmentElement(item, modifier);
                         var applied = hero.BattleEquipment[index.Value];
@@ -220,13 +233,19 @@ namespace BannerlordLink.Actions
                     else
                     {
                         if (hero.BattleEquipment[index.Value].IsEmpty) { ActionFeedback.PostFailed(actionId, "equipment_slot_empty"); return; }
+                        // Без своего отряда снятое уходит в личный сундук героя (25.09).
                         var roster = EquipmentShopBehavior.PartyInventory(hero);
-                        if (roster == null) { ActionFeedback.PostFailed(actionId, "no_inventory"); return; }
-                        roster.AddToCounts(hero.BattleEquipment[index.Value], 1);
-                        rosterMutations.Add(Tuple.Create(roster, hero.BattleEquipment[index.Value], 1));
+                        if (roster == null && ledger.StashCount() >= EquipmentShopPolicy.StashCapacity)
+                        { ActionFeedback.PostFailed(actionId, "stash_full"); return; }
+                        if (roster != null)
+                        {
+                            roster.AddToCounts(hero.BattleEquipment[index.Value], 1);
+                            rosterMutations.Add(Tuple.Create(roster, hero.BattleEquipment[index.Value], 1));
+                        }
                         hero.BattleEquipment[index.Value] = EquipmentElement.Invalid;
                         if (!hero.BattleEquipment[index.Value].IsEmpty) throw new InvalidOperationException("equipment_remove_failed");
-                        ledger.Items.RemoveAll(x => x.Slot == slot);
+                        if (roster != null) ledger.Items.RemoveAll(x => x.Slot == slot);
+                        else ledger.Unequip(slot);
                     }
                     behavior.Store(hero, ledger);
                     committed = true;

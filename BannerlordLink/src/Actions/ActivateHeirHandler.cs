@@ -179,6 +179,23 @@ namespace BannerlordLink.Actions
                 HeroStateSync.Push(heir);
                 EquipmentSync.PushAll(heir);
 
+                // 7b. Личный сундук погибшего переходит наследнику (владелец
+                //     25.09); надетое уходит вместе с героем.
+                try
+                {
+                    var shop = BannerlordLink.Behaviors.EquipmentShopBehavior.Instance;
+                    int stash = shop?.InheritStash(heir, parentUsername, Campaign.Current.DeadOrDisabledHeroes) ?? 0;
+                    if (stash > 0)
+                    {
+                        BannerlordLinkModule.Log($"[heir.activate] @{parentUsername}: сундук ({stash} вещ.) перешёл наследнику");
+                        shop.Push(heir, shop.Read(heir));
+                    }
+                }
+                catch (Exception stashEx)
+                {
+                    BannerlordLinkModule.Log($"[heir.activate] @{parentUsername} сундук НЕ перенесён: {stashEx.Message}");
+                }
+
                 // 8. Sprint 5.33 (BLT-parity HERITAGE) — transfer inherited assets
                 //    engine-side. Backend ownership preserved (heir keeps parent's
                 //    username via rename), но engine ApplyByDeath uже распихал

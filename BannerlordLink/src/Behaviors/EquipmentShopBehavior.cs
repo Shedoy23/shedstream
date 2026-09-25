@@ -89,6 +89,32 @@ namespace BannerlordLink.Behaviors
             if (!string.IsNullOrEmpty(username)) _builds[username] = ledger.Build;
         }
 
+        /// <summary>Личный сундук погибшего героя зрителя переходит наследнику
+        /// (решение владельца 25.09); надетое уходит вместе с героем. Сундук
+        /// погибшего опустошается, поэтому повторный вызов ничего не переносит.
+        /// Учёт погибшего читается напрямую: Read() сверил бы его с надетым.</summary>
+        internal int InheritStash(Hero heir, string username, IEnumerable<Hero> deadHeroes)
+        {
+            if (heir == null || string.IsNullOrEmpty(username) || deadHeroes == null) return 0;
+            var heirLedger = Read(heir);
+            int moved = 0;
+            foreach (var dead in deadHeroes)
+            {
+                if (dead == null || dead == heir || dead.IsAlive
+                    || !_ledgers.TryGetValue(dead.StringId, out string json)) continue;
+                if (!string.Equals(Username(dead), username, StringComparison.OrdinalIgnoreCase)) continue;
+                var old = JsonConvert.DeserializeObject<EquipmentLedger>(json);
+                var rows = old?.Items?.Where(x => x.Slot == null).ToList();
+                if (rows == null || rows.Count == 0) continue;
+                heirLedger.Items.AddRange(rows);
+                old.Items.RemoveAll(x => x.Slot == null);
+                _ledgers[dead.StringId] = JsonConvert.SerializeObject(old);
+                moved += rows.Count;
+            }
+            if (moved > 0) Store(heir, heirLedger);
+            return moved;
+        }
+
         internal HeroBuildState GetBuild(string username)
         {
             if (string.IsNullOrEmpty(username)) return null;
@@ -225,6 +251,10 @@ namespace BannerlordLink.Behaviors
                     ["in_mission"] = missionOverride ?? (TaleWorlds.MountAndBlade.Mission.Current != null),
                     ["party_available"] = roster != null,
                     ["party_reason"] = hero.IsPrisoner ? "hero_prisoner" : roster == null ? "no_party_inventory" : null,
+                    // 25.09: без своего отряда вещи держит личный сундук героя.
+                    ["stash_available"] = roster == null && !hero.IsPrisoner,
+                    ["stash_count"] = ledger.StashCount(),
+                    ["stash_capacity"] = EquipmentShopPolicy.StashCapacity,
                     ["party_id"] = roster != null ? hero.PartyBelongedTo.StringId : null,
                     ["party_name"] = roster != null ? hero.PartyBelongedTo.Name?.ToString() : null },
                 ["build"] = HeroBuildRuntime.Snapshot(hero, ledger.Build, missionOverride) }.ToString(Formatting.None);

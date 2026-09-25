@@ -21,6 +21,9 @@ namespace BannerlordLink.Util
             }
         }
         internal const int PriceMultiplier = 10;
+        /// <summary>Мест в личном сундуке героя без своего отряда (владелец 25.09):
+        /// бездонный бесплатный склад обесценил бы клан с обозом.</summary>
+        internal const int StashCapacity = 10;
         internal static int Price(int itemValue)
             => (int)Math.Min(int.MaxValue, Math.Max(1L, (long)itemValue) * PriceMultiplier);
     }
@@ -71,6 +74,10 @@ namespace BannerlordLink.Util
             if (previous != null) Items.Remove(previous);
             if (itemId != null) Add(itemId, modifierId).Slot = slot;
         }
+
+        /// <summary>Личный сундук героя — вещи в учёте без слота (бывшее «старое
+        /// хранилище»). Метод, а не свойство: учёт сериализуется в сейв.</summary>
+        public int StashCount() => Items.Count(x => x.Slot == null);
 
         public void Equip(OwnedEquipment row, string slot)
         {

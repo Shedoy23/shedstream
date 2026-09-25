@@ -1609,7 +1609,14 @@ async def bannerlord_equipment_shop(request: Request):
         item.update(can_buy=reason is None, reason=reason,
                     message=refusal(reason)["message"] if reason else "")
     hero = ctx["hero"]
-    return {"success": True, "items": items, "inventory": ctx["inventory"],
+    # Панель заморожена на ревью Twitch и открывает кнопки только у вещей
+    # «из багажа». Без своего отряда багаж героя — его личный сундук (25.09),
+    # поэтому показываем вещи сундука там. Только в ответе панели: заявка
+    # берёт настоящий источник из ctx (validate_tx), мод получает «legacy».
+    inventory = ctx["inventory"]
+    if ctx["stash"]:
+        inventory = [dict(x, source='party') if x.get('source') == 'legacy' else x for x in inventory]
+    return {"success": True, "items": items, "inventory": inventory,
             "party_inventory": ctx["party_inventory"],
             "tiers": [{"tier": t, "required_level": lv} for t, lv in TIER_LEVELS.items()],
             "hero_level": hero[1] if hero else 0, "gold": hero[2] if hero else 0,

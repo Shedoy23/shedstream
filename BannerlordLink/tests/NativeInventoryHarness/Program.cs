@@ -49,7 +49,10 @@ class Program {
   data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero)));
   Check((string)data["inventory_state"]?["party_reason"]=="no_party_inventory","no party is unavailable, not empty");
   new EquipmentShopHandler("hero.buy_equipment").ExecuteAsync(request).GetAwaiter().GetResult();
-  Check(ActionFeedback.Error=="no_inventory" && hero.Gold==10000,"no-party queued purchase cannot spend gold");
+  // 25.09 (владелец): без своего отряда покупка идёт в личный сундук героя.
+  var bought=behavior.Read(hero);
+  Check(ActionFeedback.Applied && hero.Gold==9900 && bought.Items.Count(x=>x.Slot==null && x.ItemId=="armor")==1,"no-party queued purchase goes to personal stash");
+  bought.Items.RemoveAll(x=>x.Slot==null); behavior.Store(hero,bought); hero.Gold=10000;
   Check((bool?)data["inventory_state"]?["buy_equip_available"]==true && (bool?)data["inventory_state"]?["in_mission"]==false,"snapshot advertises direct purchase and map state");
   Check((int?)data["items"].First(x=>(string)x["slot"]=="body")["trade_in_gold"]==10,"native equipment quote contains trade-in value");
   request["equip_now"]=true; request["expected_item_id"]="armor"; request["expected_modifier_id"]=""; request["trade_in_gold"]=10;
@@ -124,6 +127,53 @@ class Program {
   latest.Queue(sample.Replace("1}","3,\"changed\":3}"),slow);
   blocked.SetResult(true); System.Threading.Thread.Sleep(100);
   lock(deliveredRows) Check(deliveredRows.Count==2 && deliveredRows.Last().Contains("\"changed\":3"),"slow transport retains only latest waiting hero snapshot");
+  // 25.09: личный сундук героя без своего отряда (10 мест, переходит наследнику).
+  behavior=new EquipmentShopBehavior(); behavior.RegisterEvents();
+  var sword=new ItemObject {StringId="sword",Name="Sword",ItemType=ItemObject.ItemTypeEnum.OneHandedWeapon,Value=50};
+  var axe=new ItemObject {StringId="axe",Name="Axe",ItemType=ItemObject.ItemTypeEnum.OneHandedWeapon,Value=30};
+  var legendary=new ItemModifier {StringId="legendary_sword",ItemQuality=ItemQuality.Legendary};
+  MBObjectManager.Instance.Objects["sword"]=sword; MBObjectManager.Instance.Objects["axe"]=axe; MBObjectManager.Instance.Objects["legendary_sword"]=legendary;
+  var streamer=new Hero {StringId="streamer",Name="Streamer"};
+  var lonely=HeroLookup.Hero=new Hero {PartyBelongedTo=new Party {LeaderHero=streamer}};
+  HeroIdentityBehavior.Instance.Users.Remove(lonely.StringId);
+  lonely.BattleEquipment[EquipmentIndex.Weapon0]=new EquipmentElement(sword,legendary);
+  data=JObject.Parse(behavior.Snapshot(lonely,behavior.Read(lonely)));
+  Check((bool?)data["inventory_state"]?["stash_available"]==true && (int?)data["inventory_state"]?["stash_capacity"]==10
+   && (int?)data["inventory_state"]?["stash_count"]==0,"hero in a foreign party gets a personal stash");
+  var st=new JObject { ["target"]="alice",["hero_id"]="hero1",["save_id"]="save1",["equipment_session_id"]=behavior.SessionId,["slot"]="weapon0" };
+  new EquipmentShopHandler("hero.unequip_owned").ExecuteAsync(st).GetAwaiter().GetResult();
+  var stash=behavior.Read(lonely).Items.Where(x=>x.Slot==null).ToList();
+  Check(ActionFeedback.Applied && lonely.BattleEquipment[EquipmentIndex.Weapon0].IsEmpty && stash.Count==1
+   && stash[0].ModifierId=="legendary_sword" && lonely.PartyBelongedTo.ItemRoster.Count==0,"unequip keeps reforged item in stash, not in foreign baggage");
+  lonely.BattleEquipment[EquipmentIndex.Weapon0]=new EquipmentElement(axe);
+  st["source"]="legacy"; st["owned_id"]=stash[0].OwnedId;
+  new EquipmentShopHandler("hero.equip_owned").ExecuteAsync(st).GetAwaiter().GetResult();
+  var led=behavior.Read(lonely);
+  Check(ActionFeedback.Applied && lonely.BattleEquipment[EquipmentIndex.Weapon0].ItemModifier==legendary
+   && led.Items.Count(x=>x.Slot==null)==1 && led.Items.Any(x=>x.Slot==null && x.ItemId=="axe")
+   && lonely.PartyBelongedTo.ItemRoster.Count==0,"equip from stash puts displaced item into stash");
+  for(int i=0;i<8;i++) led.Add("axe");
+  led.Add("sword","legendary_sword"); behavior.Store(lonely,led);
+  st.Remove("source"); st.Remove("owned_id");
+  new EquipmentShopHandler("hero.unequip_owned").ExecuteAsync(st).GetAwaiter().GetResult();
+  Check(ActionFeedback.Error=="stash_full" && lonely.BattleEquipment[EquipmentIndex.Weapon0].ItemModifier==legendary
+   && behavior.Read(lonely).Items.Count(x=>x.Slot==null)==10,"full stash (10) refuses unequip and keeps the item on the hero");
+  var buy=new JObject { ["target"]="alice",["hero_id"]="hero1",["save_id"]="save1",["equipment_session_id"]=behavior.SessionId,["item_id"]="axe",["price_gold"]=300 };
+  new EquipmentShopHandler("hero.buy_equipment").ExecuteAsync(buy).GetAwaiter().GetResult();
+  Check(ActionFeedback.Error=="stash_full" && lonely.Gold==10000,"purchase into full stash refused before charging");
+  led=behavior.Read(lonely); led.Items.Remove(led.Items.First(x=>x.Slot==null && x.ItemId=="axe")); behavior.Store(lonely,led);
+  new EquipmentShopHandler("hero.buy_equipment").ExecuteAsync(buy).GetAwaiter().GetResult();
+  Check(ActionFeedback.Applied && lonely.Gold==9700 && behavior.Read(lonely).Items.Count(x=>x.Slot==null)==10,"purchase without own party lands in stash");
+  var bobDead=new Hero {StringId="bob1",Name="[BLink] bob",IsAlive=false};
+  var bobLedger=behavior.Read(bobDead); bobLedger.Add("axe"); behavior.Store(bobDead,bobLedger);
+  lonely.IsAlive=false;
+  var heir=new Hero {StringId="heir1",Name="[BLink] alice"};
+  int moved=behavior.InheritStash(heir,"alice",new[]{lonely,bobDead});
+  var heirStash=behavior.Read(heir).Items.Where(x=>x.Slot==null).ToList();
+  Check(moved==10 && heirStash.Count==10 && heirStash.Any(x=>x.ModifierId=="legendary_sword")
+   && heir.BattleEquipment[EquipmentIndex.Weapon0].IsEmpty,"heir inherits the stash with reforges; equipped gear stays with the dead");
+  Check(behavior.InheritStash(heir,"alice",new[]{lonely,bobDead})==0,"inheritance is not repeated");
+  Check(behavior.Read(bobDead).Items.Count(x=>x.Slot==null)==1,"another viewer's stash is not taken");
   Console.WriteLine($"{checks} checks, {failures} failures"); return failures==0?0:1;
  }
 }

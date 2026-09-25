@@ -27,6 +27,7 @@ def refusal(reason):
         "equipment_price_changed": "Цена замены изменилась. Обнови магазин",
         "inventory_state_changed": "У героя появился или исчез багаж. Обнови магазин",
         "gold_limit_reached": "Продажа превысит предел динаров героя",
+        "stash_full": "Личный сундук героя полон (10 мест): надень или выкинь что-нибудь",
     }
     return {"success": False, "reason": reason, "message": messages[reason]}
 
@@ -61,18 +62,28 @@ async def context(conn, channel_id, username, *, require_party=False, for_shop=F
     inventory = json.loads(snapshot[0]) if snapshot else []
     if party_reason:
         inventory = [item for item in inventory if item.get('source') != 'party']
-    reason = "no_hero" if not hero else "hero_dead" if not hero[3] else "inventory_not_ready" if not snapshot else (party_reason if require_party else None) or ("pending" if pending else None)
-    direct_purchase = party_reason == 'no_party_inventory' and state.get('buy_equip_available') is True
+    # 25.09 (владелец): без своего отряда вещи держит личный сундук героя.
+    # Это отдельный признак от мода — «багажа отряда нет» остаётся правдой.
+    stash = None
+    if party_reason == 'no_party_inventory' and state.get('stash_available') is True:
+        count, cap = state.get('stash_count'), state.get('stash_capacity')
+        stash = {"count": count if type(count) is int and count >= 0 else 0,
+                 "capacity": cap if type(cap) is int and cap > 0 else 10}
+    manage_reason = None if stash else party_reason
+    reason = "no_hero" if not hero else "hero_dead" if not hero[3] else "inventory_not_ready" if not snapshot else (manage_reason if require_party else None) or ("pending" if pending else None)
+    direct_purchase = party_reason == 'no_party_inventory' and not stash and state.get('buy_equip_available') is True
     if for_shop:
-        shop_reason = ('in_mission' if state.get('in_mission') is not False else None) if direct_purchase else party_reason
+        shop_reason = ('in_mission' if state.get('in_mission') is not False else None) if direct_purchase else manage_reason
         reason = ("no_hero" if not hero else "hero_dead" if not hero[3] else
                   "inventory_not_ready" if not snapshot else shop_reason or ("pending" if pending else None))
     build = json.loads(snapshot[1]) if snapshot else {}
     return {"hero": hero, "save_id": save_id, "session_id": session_id, "inventory": inventory,
-            "party_inventory": {"available": party_reason is None, "reason": party_reason,
-                                "message": refusal(party_reason)['message'] if party_reason else '',
+            "party_inventory": {"available": manage_reason is None, "reason": manage_reason,
+                                "message": refusal(manage_reason)['message'] if manage_reason else '',
                                 "party_id": state.get('party_id') if not party_reason else None,
-                                "party_name": state.get('party_name') if not party_reason else None},
+                                "party_name": state.get('party_name') if not party_reason else
+                                f"Личный сундук героя ({stash['count']}/{stash['capacity']})" if stash else None},
+            "stash": stash,
             "build": build if isinstance(build, dict) else {},
             "legacy_build": bool(snapshot) and build is None,
             "direct_purchase": direct_purchase,
@@ -86,9 +97,16 @@ async def catalog(conn, channel_id):
     return [json.loads(row[0]) for row in await cur.fetchall()]
 
 
+def stash_full(ctx):
+    stash = ctx.get("stash")
+    return bool(stash) and stash["count"] >= stash["capacity"]
+
+
 def buy_reason(item, ctx, *, net_price=None):
     if ctx["reason"]:
         return ctx["reason"]
+    if net_price is None and stash_full(ctx):
+        return "stash_full"
     if ctx["hero"][1] < item["required_level"]:
         return "level_locked"
     if ctx["hero"][2] < (item["price_gold"] if net_price is None else max(0, net_price)):
@@ -172,6 +190,8 @@ async def validate_tx(conn, channel_id, username, action_type, data):
     else:
         if not any(x.get("slot") and x["slot"] == data.get("slot") for x in ctx["inventory"]):
             return refusal("empty_slot")
+        if stash_full(ctx):
+            return refusal("stash_full")
         payload["slot"] = data["slot"]
     client_id = data.get("client_action_id")
     data.clear()  # No viewer-supplied costs, targets, ids or modifiers reach the mod.

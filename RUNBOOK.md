@@ -105,7 +105,7 @@ ls -l /proc/$PID/fd | grep -oE '/[^ ]*\.db' | sort -u
 `urt=`). Применять вне стрима:
 `cp /etc/nginx/sites-enabled/twitchbot /root/twitchbot.nginx.bak.$(date +%F)`,
 скопировать файл на место, `nginx -t`, затем `systemctl reload nginx`. Самые
-медленные запросы после стрима: `awk '{for(i=1;i<=NF;i++) if($i~/^rt=/){sub("rt=","",$i); print $i, $6}}' /var/log/nginx/access.log | sort -rn | head`.
+медленные запросы после стрима: `awk '{for(i=1;i<=NF;i++) if($i~/^rt=/){sub("rt=","",$i); print $i, $5}}' /var/log/nginx/access.log | sort -rn | head`.
 
 План публикации подписанных Manager/RimLink artifacts вынесен отдельно:
 `docs/MANAGER_RELEASE_PUBLICATION_RUNBOOK.md`. Любые nginx/upload действия

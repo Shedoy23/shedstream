@@ -64,6 +64,13 @@ async def context(conn, channel_id, username, *, require_party=False, for_shop=F
         inventory = [item for item in inventory if item.get('source') != 'party']
     # 25.09 (владелец): без своего отряда вещи держит личный сундук героя.
     # Это отдельный признак от мода — «багажа отряда нет» остаётся правдой.
+    # Места в сундуке считаем у всех: с 25.09 покупки и снятое всегда идут в
+    # сундук, даже при своём отряде (его инвентарь игра распродаёт в городах).
+    slots = None
+    if type(state.get('stash_count')) is int:
+        count, cap = state.get('stash_count'), state.get('stash_capacity')
+        slots = {"count": count if count >= 0 else 0,
+                 "capacity": cap if type(cap) is int and cap > 0 else 10}
     stash = None
     if party_reason == 'no_party_inventory' and state.get('stash_available') is True:
         count, cap = state.get('stash_count'), state.get('stash_capacity')
@@ -84,6 +91,7 @@ async def context(conn, channel_id, username, *, require_party=False, for_shop=F
                                 "party_name": state.get('party_name') if not party_reason else
                                 f"Личный сундук героя ({stash['count']}/{stash['capacity']})" if stash else None},
             "stash": stash,
+            "stash_slots": slots or stash,
             "build": build if isinstance(build, dict) else {},
             "legacy_build": bool(snapshot) and build is None,
             "direct_purchase": direct_purchase,
@@ -98,8 +106,8 @@ async def catalog(conn, channel_id):
 
 
 def stash_full(ctx):
-    stash = ctx.get("stash")
-    return bool(stash) and stash["count"] >= stash["capacity"]
+    slots = ctx.get("stash_slots")
+    return bool(slots) and slots["count"] >= slots["capacity"]
 
 
 def buy_reason(item, ctx, *, net_price=None):

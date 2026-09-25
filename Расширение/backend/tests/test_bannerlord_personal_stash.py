@@ -97,6 +97,20 @@ async def main():
             assert result['success'], 'swap from a full stash frees a place — allowed'
             await settle()
 
+            # 25.09 (владелец): покупки и снятое идут в сундук и при своём отряде —
+            # 10 мест держатся и там.
+            await settle()
+            state.update(party_available=True, party_reason=None, party_id='party', party_name='Отряд',
+                         stash_available=False, stash_count=10)
+            await publish()
+            assert (await act('hero.buy_equipment', item_id='axe'))['reason'] == 'stash_full', 'own party: full stash refuses purchase'
+            assert (await act('hero.unequip_owned', slot='weapon0'))['reason'] == 'stash_full', 'own party: full stash refuses unequip'
+            state['stash_count'] = 3
+            await publish()
+            assert (await act('hero.buy_equipment', item_id='axe'))['success'], 'own party: room in stash — purchase goes'
+            await settle()
+            state.update(party_available=False, party_reason='no_party_inventory', party_id=None, party_name=None,
+                         stash_available=True, stash_count=10)
             state.pop('stash_available')
             await publish()
             shop = await route.bannerlord_equipment_shop(request)

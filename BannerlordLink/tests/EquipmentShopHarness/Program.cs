@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using BannerlordLink.Util;
 using BannerlordLink.Actions;
 using BannerlordLink.Behaviors;
@@ -52,8 +53,11 @@ class Program
         Check(ActionFeedback.Error == "stale_equipment_session", "Missing equipment session fails closed");
         request["equipment_session_id"] = behavior.SessionId; Mission.Current = new Mission();
         Act("hero.buy_equipment", request);
-        Check(ActionFeedback.Applied && hero.Gold == 500 && EquipmentShopBehavior.Inventory.CountOf(item) == 1
-            && behavior.Saved.Items.Count == 0, "Purchase in mission enters the real party inventory without equipping");
+        // 25.09 (владелец): покупка всегда в личный сундук — инвентарь отряда игра
+        // распродаёт при заходе в город.
+        Check(ActionFeedback.Applied && hero.Gold == 500 && EquipmentShopBehavior.Inventory.CountOf(item) == 0
+            && behavior.Saved.Items.Count(x => x.Slot == null && x.ItemId == "armor") == 1, "Purchase in mission goes to personal stash, not party inventory");
+        EquipmentShopBehavior.Inventory.AddToCounts(new EquipmentElement(item), 1); // вещь в багаже отряда (добыча) для проверок ниже
         request["owned_id"] = "party|armor|"; request["source"] = "party";
         request["modifier_id"] = null; request["slot"] = "body";
         Act("hero.equip_owned", request);
@@ -65,11 +69,13 @@ class Program
         Mission.Current = null; request.Remove("owned_id"); request.Remove("source"); request.Remove("modifier_id"); request.Remove("slot"); hero.Gold = 4500;
         behavior.StoreFails = true;
         Act("hero.buy_equipment", request);
-        Check(!ActionFeedback.Applied && hero.Gold == 4500 && EquipmentShopBehavior.Inventory.CountOf(item) == 0, "Persistence failure rolls back real inventory and actual gold charge");
+        Check(!ActionFeedback.Applied && hero.Gold == 4500 && behavior.Saved.Items.Count(x => x.Slot == null) == 1, "Persistence failure rolls back stash and actual gold charge");
         behavior.StoreFails = false; behavior.PushFails = true;
         Act("hero.buy_equipment", request);
-        Check(ActionFeedback.Applied && hero.Gold == 500 && EquipmentShopBehavior.Inventory.CountOf(item) == 1, "Successful purchase charges ten times native value and survives mirror network failure");
-        Check(hero.BattleEquipment[EquipmentIndex.Body].IsEmpty, "Purchase remains in real inventory until equipped");
+        Check(ActionFeedback.Applied && hero.Gold == 500 && behavior.Saved.Items.Count(x => x.Slot == null) == 2, "Successful purchase charges ten times native value and survives mirror network failure");
+        Check(hero.BattleEquipment[EquipmentIndex.Body].IsEmpty, "Purchase remains in stash until equipped");
+        behavior.PushFails = false;
+        EquipmentShopBehavior.Inventory.AddToCounts(new EquipmentElement(item), 1); // ещё одна вещь в багаже отряда
         request["owned_id"] = "party|armor|"; request["source"] = "party"; request["modifier_id"] = null; request["slot"] = "head";
         Act("hero.equip_owned", request);
         Check(ActionFeedback.Error == "incompatible_equipment_slot", "Armor cannot be put in wrong slot");
@@ -87,8 +93,9 @@ class Program
         behavior.StoreFails = false;
         Act("hero.equip_owned", request);
         Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item == item && hero.Gold == 500
-            && EquipmentShopBehavior.Inventory.CountOf(item) == 0 && EquipmentShopBehavior.Inventory.CountOf(old) == 1,
-            "Real inventory equip consumes one item and returns displaced gear");
+            && EquipmentShopBehavior.Inventory.CountOf(item) == 0 && EquipmentShopBehavior.Inventory.CountOf(old) == 0
+            && behavior.Saved.Items.Any(x => x.Slot == null && x.ItemId == "old_armor" && x.ModifierId == "lordly"),
+            "Party inventory equip consumes one item; displaced reforged gear goes to stash with its quality");
         var equipped = behavior.Saved.Items.Find(x => x.Slot == "body");
         request["source"] = null; request["owned_id"] = equipped.OwnedId;
         Mission.Current = new Mission();
@@ -102,8 +109,10 @@ class Program
         Mission.Current = null;
         Act("hero.unequip_owned", request);
         Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].IsEmpty
-            && EquipmentShopBehavior.Inventory.CountOf(item) == 1 && behavior.Saved.Items.TrueForAll(x => x.Slot == null),
-            "Unequip returns the exact item to real inventory");
+            && EquipmentShopBehavior.Inventory.CountOf(item) == 0 && behavior.Saved.Items.TrueForAll(x => x.Slot == null)
+            && behavior.Saved.Items.Count(x => x.ItemId == "armor") == 3,
+            "Unequip puts the exact item into the personal stash, not party inventory");
+        EquipmentShopBehavior.Inventory.AddToCounts(new EquipmentElement(item), 1); // добыча в багаже отряда
         request["source"] = "party"; request["item_id"] = "armor"; request["modifier_id"] = null; request["owned_id"] = "party|armor|";
         Act("hero.discard_owned", request);
         Check(ActionFeedback.Applied && EquipmentShopBehavior.Inventory.CountOf(item) == 0 && hero.Gold == 500, "Discard removes one exact real inventory instance without a refund");

@@ -78,8 +78,11 @@ class Program {
   request["source"]="legacy"; request["owned_id"]=saved.OwnedId;
   int before=hero.PartyBelongedTo.ItemRoster.GetElementCopyAtIndex(0).Amount;
   new EquipmentShopHandler("hero.equip_owned").ExecuteAsync(request).GetAwaiter().GetResult();
+  // 25.09 (владелец): снятое уходит в личный сундук даже при своём отряде —
+  // инвентарь отряда игра распродаёт в городах.
   Check(ActionFeedback.Applied && hero.BattleEquipment[EquipmentIndex.Body].Item==replacement
-   && hero.PartyBelongedTo.ItemRoster.GetElementCopyAtIndex(0).Amount==before+1,"legacy replacement returns displaced native armor to real baggage");
+   && hero.PartyBelongedTo.ItemRoster.GetElementCopyAtIndex(0).Amount==before
+   && behavior.Read(hero).Items.Any(x=>x.Slot==null && x.ItemId=="armor"),"stash replacement puts displaced armor into the stash, not party baggage");
   HeroIdentityBehavior.Instance.Users[hero.StringId]="alice"; hero.Name="Renamed Lord";
   try { data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero))); Check((string)data["username"]=="alice","persistent identity survives game rename"); }
   catch(Exception) { Check(false,"persistent identity survives game rename"); }

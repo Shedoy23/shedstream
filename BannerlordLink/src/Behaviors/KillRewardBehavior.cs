@@ -562,6 +562,23 @@ namespace BannerlordLink.Behaviors
             foreach (var s in snapshot)
             {
                 if (s?.Hero == null) continue;
+                // 25.09: stepuhatgn погиб в бою, а в конце боя выплата 16 370💰
+                // ушла мёртвому герою и пропала (зритель через 20 с создал
+                // нового). Мёртвому не платим и честно пишем об этом.
+                if (!s.Hero.IsAlive)
+                {
+                    s.PayoutSettled = true;
+                    BannerlordLinkModule.Log($"[BattlePayout v2] battle={_payoutId} @{s.Username} SKIP: герой погиб в этом бою — выплаты и опыта нет");
+                    try
+                    {
+                        TaleWorlds.Library.InformationManager.DisplayMessage(
+                            new TaleWorlds.Library.InformationMessage(
+                                $"@{s.Username}: герой погиб в бою — награда за бой не начислена",
+                                new TaleWorlds.Library.Color(1f, 0.5f, 0.4f)));
+                    }
+                    catch { }
+                    continue;
+                }
                 try
                 {
                     // Их side выиграл = (они на player side) == (player победил).

@@ -80,6 +80,45 @@ internal static partial class Program
             HourlyTick(b);
             Check(MobileParty.MainParty.DefaultBehavior != AiBehavior.EngageParty, "быстрее нас и далеко — пропускаем");
         });
+        // 25.09, стрим: погоня за грабителями срывалась, как только они на миг
+        // оказывались быстрее нас, — пересчёт уводил в патруль, через час охота
+        // брала их снова: до 77 разворотов в час на виду у зрителей.
+        Try("охота: цель на миг быстрее нас — погоню не бросаем", () =>
+        {
+            var (b, enemy) = HuntWorld(men: 100);
+            var bandits = HuntTarget("грабители", 20, 4, enemy, lord: false, speed: 6f);
+            Scores((AiBehavior.PatrolAroundPoint, new Settlement { Name = "Устокол" }, 2.25f));
+            CampaignTime.TestHours = 0; HourlyTick(b);
+            Check(MobileParty.MainParty.TargetParty == bandits, "погоня начата, пока цель рядом");
+            bandits.Position = new CampaignVec2 { X = 8 };
+            for (int h = 1; h <= 6; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.EngageParty && MobileParty.MainParty.TargetParty == bandits,
+                "за 6 часов «не догнать» не разворачиваемся в патруль: " + MobileParty.MainParty.DefaultBehavior);
+            Check(LogCount("продолжаем погоню") >= 1, "удержание погони записано в журнале");
+            Check(AutopilotLog.Lines.Count(l => l.Contains("НОВАЯ ЦЕЛЬ")) == 1, "ни одной лишней смены цели");
+        });
+        Try("охота: цель надолго вне досягаемости — погоня отпускается", () =>
+        {
+            var (b, enemy) = HuntWorld(men: 100);
+            var bandits = HuntTarget("грабители", 20, 4, enemy, lord: false, speed: 6f);
+            Scores((AiBehavior.PatrolAroundPoint, new Settlement { Name = "Устокол" }, 2.25f));
+            CampaignTime.TestHours = 0; HourlyTick(b);
+            bandits.Position = new CampaignVec2 { X = 8 };
+            for (int h = 1; h <= 8; h++) { CampaignTime.TestHours = h; HourlyTick(b); }
+            Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.PatrolAroundPoint,
+                "больше 6 часов не догнать — возвращаемся к обычным целям: " + MobileParty.MainParty.DefaultBehavior);
+        });
+        Try("охота: цель ушла в поселение — погоню не держим", () =>
+        {
+            var (b, enemy) = HuntWorld(men: 100);
+            var bandits = HuntTarget("грабители", 20, 4, enemy, lord: false, speed: 6f);
+            Scores((AiBehavior.PatrolAroundPoint, new Settlement { Name = "Устокол" }, 2.25f));
+            CampaignTime.TestHours = 0; HourlyTick(b);
+            bandits.Position = new CampaignVec2 { X = 8 };
+            bandits.CurrentSettlement = new Settlement { Name = "Укрытие" };
+            CampaignTime.TestHours = 1; HourlyTick(b);
+            Check(LogCount("продолжаем погоню") == 0, "ушедшую в поселение цель не держим");
+        });
         Try("охота: цель вне радиуса не трогаем", () =>
         {
             var (b, enemy) = HuntWorld(men: 100);

@@ -28,6 +28,11 @@ namespace BannerlordAutopilot
         private string _siegeOverRecruitKey;
         /// <summary>Быстрее нас и дальше этого — не догнать, не гонимся.</summary>
         private const float HuntCatchDistance = 5f;
+        /// <summary>Сколько игровых часов держим начатую погоню после последнего
+        /// подтверждения цели (25.09): одного шестичасового пересчёта хватает,
+        /// чтобы партия не развернулась на миг «не догнать».</summary>
+        private const float HuntHoldHours = 6f;
+        private double _huntConfirmedHours = double.MinValue;
 
         /// <summary>Почему сейчас не охотимся (null — можно). Это режим
         /// «Восстановление»: после поражения сначала набрать армию, иначе
@@ -51,7 +56,7 @@ namespace BannerlordAutopilot
                 || _fleeFrom != null
                 || party.SiegeEvent != null || party.BesiegedSettlement != null
                 || party.DefaultBehavior == AiBehavior.RaidSettlement) return false;
-            float radius = _preparingCampaign || HeadingToSiegeTarget(party) ? HuntRadiusOnCampaign : HuntRadius;
+            float radius = HuntRadiusFor(party);
             float ours = party.Party.EstimatedStrength;
             if (!(ours > 0f)) return false;
 
@@ -80,8 +85,18 @@ namespace BannerlordAutopilot
                     best = enemy; bestScore = score; bestRatio = ours / theirs; bestDistance = distance;
                 }
             }
-            if (best == null) return false;
-            if (party.DefaultBehavior == AiBehavior.EngageParty && party.TargetParty == best) return true;
+            if (best == null)
+            {
+                if (!HoldsChase(party, radius)) return false;
+                AutopilotLog.Write("ОХОТА: продолжаем погоню за «" + party.TargetParty.Name
+                    + "» — цель на миг вне досягаемости, не разворачиваемся");
+                return true;
+            }
+            if (party.DefaultBehavior == AiBehavior.EngageParty && party.TargetParty == best)
+            {
+                _huntConfirmedHours = CampaignTime.Now.ToHours;
+                return true;
+            }
 
             AutopilotLog.Write("ОХОТА: атакуем «" + best.Name + "» (" + (best.IsLordParty ? "отряд лорда" : "бандиты")
                 + "); силы наши " + ours.ToString("F0", CultureInfo.InvariantCulture)
@@ -92,7 +107,28 @@ namespace BannerlordAutopilot
             StreamStatus.Note("Нападаем на «" + best.Name + "» (" + (best.IsLordParty ? "отряд лорда" : "бандиты") + ")");
             ApplyDecision(party, new AIBehaviorData(best, AiBehavior.EngageParty,
                 MobileParty.NavigationType.Default, false, false, false), 1f);
+            _huntConfirmedHours = CampaignTime.Now.ToHours;
             return true;
+        }
+
+        /// <summary>25.09: погоня срывалась, как только бандиты на миг оказывались
+        /// быстрее нас (условие «догоним» выше), — шестичасовой пересчёт уводил в
+        /// патруль, а через час охота брала ту же цель снова: до 77 разворотов в час
+        /// на стриме. Начатую погоню держим, пока цель жива, враждебна, не в чужом
+        /// бою и в радиусе охоты, но не дольше HuntHoldHours после подтверждения.</summary>
+        private float HuntRadiusFor(MobileParty party)
+            => _preparingCampaign || HeadingToSiegeTarget(party) ? HuntRadiusOnCampaign : HuntRadius;
+
+        internal bool HoldsChase(MobileParty party, float radius)
+        {
+            MobileParty target = _combatTarget;
+            if (target == null || party.DefaultBehavior != AiBehavior.EngageParty || party.TargetParty != target) return false;
+            if (_mode != Mode.Apply || !ControlsParty(party) || _fleeFrom != null || HuntBlocked(party) != null) return false;
+            if (CampaignTime.Now.ToHours - _huntConfirmedHours > HuntHoldHours) return false;
+            if (!target.IsActive || target.CurrentSettlement != null || target.MapEvent != null
+                || target.MapFaction == null || party.MapFaction == null
+                || !party.MapFaction.IsAtWarWith(target.MapFaction) || InLeftForeignBattle(target)) return false;
+            return Math.Sqrt(party.Position.DistanceSquared(target.Position)) <= radius;
         }
 
         /// <summary>Вопрос 18.09 «осада или набор до 90%» закрыт владельцем 23.09:

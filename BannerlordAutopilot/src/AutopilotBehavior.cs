@@ -2151,6 +2151,9 @@ namespace BannerlordAutopilot
             // видит дальние маршруты, но не замечает даже слабых бандитов рядом.
             // Повторяем ровно NPC-порог (> 1) и его готовый выбор цели; свою
             // оценку силы, войны, скорости или дистанции здесь не изобретаем.
+            // Начатую охоту пересчёт не перебивает (25.09), даже если саму охоту
+            // в этот час пропустили — например, поверх карты было окно.
+            if (waitingIn == null && HoldsChase(party, HuntRadiusFor(party))) return;
             _hoursSinceThink++;
             bool idle = waitingIn == null && party.DefaultBehavior == AiBehavior.Hold;
             if (_ticksThisSession > 0 && !idle && _hoursSinceThink < ThinkPeriodHours)

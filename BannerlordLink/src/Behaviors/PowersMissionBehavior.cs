@@ -523,6 +523,10 @@ namespace BannerlordLink.Behaviors
             // ── hp_multiplier ──────────────────────────────────────────────
             // Тоже скипаем в честном бою (fairFight выше) — иначе стэк HP сверху.
             var hp = PowerCache.GetPowerValue(username, "hp_multiplier");
+            // «Защитник» (сборка): +15% только в полевых боях — как написано в
+            // панели; в осадах, убежищах и на море не действует (владелец 25.09).
+            if (hp.HasValue && BannerlordLink.Util.HeroBuildRuntime.State(username) != null
+                && !BannerlordLink.Util.MissionContext.IsFieldBattle()) hp = null;
             if (!fairFight && hp.HasValue && Math.Abs(hp.Value - 1.0) > 0.001)
             {
                 float ratio = (float)hp.Value;

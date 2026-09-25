@@ -29,6 +29,20 @@ namespace BannerlordLink.Util
             catch { return false; }
         }
 
+        /// <summary>Полевое сражение на карте — не штурм, не убежище, не морской
+        /// бой, не арена. Условие то же, что у BattleContinuePatch. Нужен для
+        /// «Защитника»: панель обещает +15% здоровья «в полевых боях» (25.09).</summary>
+        public static bool IsFieldBattle()
+        {
+            try
+            {
+                var battle = TaleWorlds.CampaignSystem.Encounters.PlayerEncounter.Battle;
+                return battle != null && battle.IsFieldBattle && !battle.IsSiegeAssault
+                    && !battle.IsHideoutBattle && !battle.IsNavalMapEvent;
+            }
+            catch { return false; }
+        }
+
         /// <summary>Идёт сам БОЙ арены/турнира (Mode==Battle) — отличает живой бой
         /// от меню/загрузки/зоны посещения. Для гейтов активных действий зрителя
         /// (power.activate / player.heal), которые ломают честный бой.</summary>

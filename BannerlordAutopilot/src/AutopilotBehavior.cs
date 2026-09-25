@@ -2520,12 +2520,36 @@ namespace BannerlordAutopilot
             }
         }
 
+        /// <summary>Владелец 25.09: «пока нет королевства и территорий пусть гуляет
+        /// по карте, где нейтральные территории». Когда у фракции отряда нет ни
+        /// одного поселения, игра (AiPatrollingBehavior.CalculateDefensivePatrollingScores)
+        /// оценивает патруль вокруг города как k·(ср.расстояние·5 / расстояние от
+        /// ДОМА до города): домашний город получает x5, и отряд часами трётся у него
+        /// (25.09: «Диатма» 3,50 против 0,3–0,9 у соседей). Здесь та же дробь снимается,
+        /// остаётся штатная часть оценки; города враждебных фракций — не для прогулок.
+        /// С поселениями у фракции игра считает патруль иначе — не трогаем.</summary>
+        private static float RoamingPatrolScore(Settlement settlement, float rawScore)
+        {
+            MobileParty party = MobileParty.MainParty;
+            IFaction faction = party?.MapFaction;
+            if (faction == null || faction.Settlements.Count > 0) return rawScore;
+            if (settlement.MapFaction != null && faction.IsAtWarWith(settlement.MapFaction)) return 0f;
+            Settlement home = party.HomeSettlement;
+            if (home == null) return rawScore;
+            float average = Campaign.Current.GetAverageDistanceBetweenClosestTwoTownsWithNavigationType(MobileParty.NavigationType.Default);
+            float distance = Campaign.Current.Models.MapDistanceModel.GetDistance(home, settlement, false, false, MobileParty.NavigationType.Default);
+            if (!(average > 0f)) return rawScore;
+            float homeBias = average * 5f / Math.Max(distance, average);
+            return homeBias > 0f ? rawScore / homeBias : rawScore;
+        }
+
         private float AdjustedDecisionScore(AIBehaviorData data, float rawScore)
         {
             if (data.AiBehavior != AiBehavior.PatrolAroundPoint || !(data.Party is Settlement settlement))
             {
                 return rawScore;
             }
+            rawScore = RoamingPatrolScore(settlement, rawScore);
 
             double now = CampaignTime.Now.ToHours;
             float penalty = 0f;

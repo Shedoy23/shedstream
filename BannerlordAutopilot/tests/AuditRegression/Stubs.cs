@@ -123,6 +123,8 @@ namespace TaleWorlds.CampaignSystem {
   public MenuContext CurrentMenuContext { get; set; }
   public ConversationManager ConversationManager { get; } = new();
   public GameModels Models { get; } = new();
+  public float AverageTownDistance = 10f;
+  public float GetAverageDistanceBetweenClosestTwoTownsWithNavigationType(MobileParty.NavigationType navigation) => AverageTownDistance;
   public readonly List<object> Behaviors = new() { new PartiesBuyFoodCampaignBehavior() };
   public T GetCampaignBehavior<T>() => Behaviors.OfType<T>().FirstOrDefault();
   public void SetTimeSpeed(int speed) {
@@ -226,7 +228,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public Settlement CurrentSettlement, BesiegedSettlement, LastVisitedSettlement, TargetSettlement;
   public MobileParty TargetParty; public MobileParty ShortTermTargetParty;
   public MobilePartyAi Ai=new(); public AiBehavior DefaultBehavior=AiBehavior.GoToSettlement;
-  public CampaignVec2 Position; public string Name="Player";
+  public CampaignVec2 Position; public string Name="Player"; public Settlement HomeSettlement;
   public float TotalWeightCarried;
   public int InventoryCapacity = 100;
   public PartyThinkParams ThinkParamsCache {get;} = new();

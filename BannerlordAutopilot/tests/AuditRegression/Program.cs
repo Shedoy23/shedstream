@@ -763,6 +763,27 @@ internal static partial class Program
                   "приказ посетить ДРУГОЕ поселение по-прежнему выдаётся (фикс не заблокировал поездки)");
         });
 
+        Console.WriteLine("\n[стрим 25.09] без королевства и владений гуляем по карте, а не трёмся у дома");
+        foreach (string world in new[] { "homeless", "own-land", "enemy-town" })
+        Try("патруль без владений: " + world, () =>
+        {
+            var b = Fresh(); Enable(b);
+            var faction = new TestFaction(); MobileParty.MainParty.MapFaction = faction;
+            var home = new Settlement { Name = "Диатма", Position = new CampaignVec2 { X = 0 } };
+            var far = new Settlement { Name = "Дальний", Position = new CampaignVec2 { X = 30 } };
+            MobileParty.MainParty.HomeSettlement = home;
+            if (world == "own-land") faction.Settlements.Add(home);
+            if (world == "enemy-town") { var enemy = new TestFaction(); far.MapFaction = enemy; faction.Enemies.Add(enemy); }
+            // Штатно: дом x5 (0,7·5 = 3,5), дальний город 0,8·(10·5/30) = 1,33.
+            Scores((AiBehavior.PatrolAroundPoint, home, 3.5f), (AiBehavior.PatrolAroundPoint, far, 1.3333f));
+            HourlyTick(b);
+            bool wentFar = AutopilotLog.Lines.Any(l => l.Contains("НОВАЯ ЦЕЛЬ") && l.Contains("PatrolAroundPoint → Дальний"));
+            bool stayedHome = AutopilotLog.Lines.Any(l => l.Contains("НОВАЯ ЦЕЛЬ") && l.Contains("PatrolAroundPoint → Диатма"));
+            Check(world == "homeless" ? wentFar && !stayedHome : stayedHome && !wentFar,
+                  world + ": " + (wentFar ? "Дальний" : stayedHome ? "Диатма" : "ничего"));
+            MobileParty.MainParty.MapFaction = null; MobileParty.MainParty.HomeSettlement = null;
+        });
+
         Console.WriteLine("\n[прогон в игре 14.09] партия игрока замечает ближайшего врага");
         Try("ближняя атака штатной модели", () =>
         {

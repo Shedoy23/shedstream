@@ -52,10 +52,11 @@ namespace TaleWorlds.Core {
 }
 
 namespace TaleWorlds.CampaignSystem {
- public interface IFaction { bool IsAtWarWith(IFaction other); }
+ public interface IFaction { bool IsAtWarWith(IFaction other); TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Settlement> Settlements { get; } }
  public class TestFaction : IFaction {
   public readonly HashSet<IFaction> Enemies = new();
   public bool IsAtWarWith(IFaction other) => other != null && Enemies.Contains(other);
+  public TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Settlement> Settlements { get; } = new();
  }
  public partial class CharacterObject : BasicCharacterObject {
   public string Name = "Боец"; public string StringId = "troop";
@@ -73,7 +74,13 @@ namespace TaleWorlds.CampaignSystem {
   public float ResultNumber { get; }
   public int RoundedResultNumber => (int)Math.Round(ResultNumber);        // 42955
  }
+ // MapDistanceModel (1.4.8): расстояние между поселениями; в стенде — по оси X.
+ public class TestMapDistanceModel {
+  public float GetDistance(TaleWorlds.CampaignSystem.Settlements.Settlement a, TaleWorlds.CampaignSystem.Settlements.Settlement b, bool isFromPort, bool isTargetingPort, TaleWorlds.CampaignSystem.Party.MobileParty.NavigationType navigation)
+   => System.Math.Abs(a.Position.X - b.Position.X);
+ }
  public class GameModels {
+  public TestMapDistanceModel MapDistanceModel { get; } = new();
   public TaleWorlds.CampaignSystem.ComponentInterfaces.ArmyManagementCalculationModel ArmyManagementCalculationModel { get; } = new();
   public TaleWorlds.CampaignSystem.ComponentInterfaces.SiegeEventModel SiegeEventModel { get; } = new();
   public MilitaryPowerModel MilitaryPowerModel { get; } = new();

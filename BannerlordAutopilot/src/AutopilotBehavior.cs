@@ -2805,13 +2805,15 @@ namespace BannerlordAutopilot
                     var siegeParty = MobileParty.MainParty;
                     string border = SiegeBorderRejection(siegeParty, data.Party as Settlement);
                     if (border != null) return border;
-                    string siegePreparation = PreparationNeeded(siegeParty);
+                    string siegePreparation = PreparationNeeded(siegeParty) ?? SiegeReadiness(siegeParty);
                     if (siegePreparation != null) return siegePreparation;
                     float defenders = SiegeDefenderStrength((Settlement)data.Party, siegeParty);
                     float attackers = SiegeAttackerStrength(siegeParty);
                     if (data.WillGatherArmy && siegeParty.Army == null)
                         attackers += AffordableArmyMembers(siegeParty).Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
-                    return defenders <= attackers * 1.5f ? null : "защитники сильнее 1.5x наших сил";
+                    return attackers >= defenders * SiegeStrengthRatio ? null
+                        : "защитники " + defenders.ToString("F1", CultureInfo.InvariantCulture) + " — нужен перевес x"
+                          + SiegeStrengthRatio.ToString("F0", CultureInfo.InvariantCulture);
                 case AiBehavior.DefendSettlement:
                     if (!FriendlySiege(data.Party as Settlement, MobileParty.MainParty)) return "нет дружественной осады";
                     if (data.Party == _defenseTarget && !OwnFort(data.Party as Settlement)) return "срочная цель обороны больше не принадлежит нашему клану";

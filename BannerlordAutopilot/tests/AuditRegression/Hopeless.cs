@@ -65,7 +65,7 @@ internal static partial class Program
         // через 3 с «найдена крепость … Замок Астер» — отряд вышел из круга подсчёта.
         Try("отказ от крепости по силам не отменяется через минуту", () =>
         {
-            var b = Fresh(); var castle = ConquestWorld(); castle.Name = "Замок Астер"; castle.Militia = 10;
+            var b = Fresh(); var castle = ConquestWorld(); castle.Name = "Замок Астер"; castle.Militia = 5;
             Settlement.All.Add(castle); Enable(b); HourlyTick(b);
             Check(SiegeTarget(b) == castle, "сначала крепость по силам — идём");
             var relief = new MobileParty { Name = "подмога", MapFaction = castle.MapFaction, Position = castle.Position };

@@ -133,7 +133,7 @@ internal static partial class Program
     {
         var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; castle.Name="Замок"; Settlement.All.Add(castle);
         var party=MobileParty.MainParty; party.Party.PartySizeLimit=100;
-        party.MemberRoster.AddToCounts(new CharacterObject(), extraMen);
+        party.MemberRoster.AddToCounts(Veteran(), extraMen);
         var village=new Settlement { Name="Деревня", IsVillage=true, MapFaction=party.MapFaction, Position=new CampaignVec2 { X=1 } };
         var notable=new Hero(); notable.VolunteerTypes[0]=new CharacterObject { TestCost=17 };
         village.Notables.Add(notable); Settlement.All.Add(village);

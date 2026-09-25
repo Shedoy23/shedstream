@@ -16,16 +16,47 @@ internal static partial class Program
         .GetField("_offensiveSiege", System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)
         .GetValue(b);
 
-    static Settlement ConquestWorld(int food = 35, int gold = 350, int wounded = 3)
+    // 25.09: на осады идёт только опытный отряд (средний уровень >= 3.5), поэтому
+    // осадные миры собраны из ветеранов; правило «зелёного» отряда — отдельные тесты.
+    static CharacterObject Veteran() => new CharacterObject { Tier = 4 };
+    static Settlement ConquestWorld(int food = 35, int gold = 350, int wounded = 3, int tier = 4)
     {
         var party = MobileParty.MainParty; var ours = new TestFaction(); var enemy = new TestFaction(); ours.Enemies.Add(enemy);
         party.MapFaction = ours; party.FoodChange = -5; party.TotalWage = 50; Hero.MainHero.Gold = gold;
-        party.MemberRoster.AddToCounts(new CharacterObject(), 10, woundedCount: wounded);
+        party.MemberRoster.AddToCounts(new CharacterObject { Tier = tier }, 10, woundedCount: wounded);
         party.ItemRoster.TestAdd(new ItemObject { IsFood = true }, food);
         return new Settlement { IsCastle = true, MapFaction = enemy };
     }
     static void ConquestTests()
     {
+        // 25.09, стрим: 320 бойцов, набранных за полчаса, пошли на «Замок Ремтойл»
+        // (453 против 382) и вернулись одним бойцом. Владелец: «сначала качать
+        // отряд, нападая на отряды, потом с очень крепким идти в осады».
+        Try("зелёный отряд на осаду не идёт, хотя крепость по силам", () => {
+            var b=Fresh(); var castle=ConquestWorld(tier:2); castle.Militia=1; Settlement.All.Add(castle);
+            Enable(b); HourlyTick(b);
+            Check(SiegeTarget(b)==null && MobileParty.MainParty.TargetSettlement!=castle,
+                "средний уровень 2 — осады нет: " + MobileParty.MainParty.TargetSettlement?.Name);
+            Check(LogCount("осад пока нет — отряд зелёный: средний уровень бойцов 2.0 < 3.5")==1, "причина записана один раз");
+            for(int hour=0; hour<12; hour++) HourlyTick(b);
+            Check(LogCount("осад пока нет")==1, "пересчёты не повторяют ту же запись");
+        });
+        Try("осаду, предложенную самой игрой, зелёный отряд тоже не берёт", () => {
+            var b=Fresh(); var castle=ConquestWorld(tier:2); castle.Militia=1; Settlement.All.Add(castle);
+            CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.BesiegeSettlement,
+                MobileParty.NavigationType.Default, false, false, false), 9f));
+            Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.TargetSettlement!=castle, "штатное предложение осады отклонено");
+            Check(AutopilotLog.Lines.Any(l=>(l.Contains("пропущено") || l.Contains("выполнимых решений нет")) && l.Contains("BesiegeSettlement") && l.Contains("отряд зелёный")), "в пропусках названа причина");
+        });
+        Try("окрепший отряд снова идёт на осады", () => {
+            var b=Fresh(); var castle=ConquestWorld(tier:2); castle.Militia=1; Settlement.All.Add(castle);
+            Enable(b); HourlyTick(b);
+            MobileParty.MainParty.MemberRoster.AddToCounts(new CharacterObject { Tier = 5, StringId = "sergeant" }, 30);
+            for(int hour=0; hour<6; hour++) HourlyTick(b);
+            Check(SiegeTarget(b)==castle, "средний уровень (10*2+30*5)/40=4.25 — идём");
+            Check(LogCount("отряд окреп — осады разрешены")==1, "смена записана");
+        });
         Try("пополнение до 90% идёт раньше осады и меняет поселение после посещения", () => {
             var b=Fresh(); var castle=ConquestWorld(gold:1000); castle.Militia=1; Settlement.All.Add(castle);
             var party=MobileParty.MainParty; party.Party.PartySizeLimit=100;
@@ -57,7 +88,7 @@ internal static partial class Program
                 "на 90/100 приоритет набора закончился и вернулся поход");
         });
         Try("самостоятельно выбираем слабую крепость без предложения движка", () => {
-            var b=Fresh(); var weak=ConquestWorld(); weak.Name="Слабый замок"; weak.Militia=10;
+            var b=Fresh(); var weak=ConquestWorld(); weak.Name="Слабый замок"; weak.Militia=5;
             weak.Town.GarrisonParty=new MobileParty();
             var strong=new Settlement { IsTown=true, Name="Сильный город", MapFaction=weak.MapFaction, Militia=20 };
             Settlement.All.Add(weak); Settlement.All.Add(strong);
@@ -65,32 +96,32 @@ internal static partial class Program
                 MobileParty.NavigationType.Default, false, false, false), 9f));
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==weak && MobileParty.MainParty.TargetSettlement==weak,
-                "цель осады создана модом, город свыше 1.5x отвергнут");
+                "цель осады создана модом, город без перевеса x2 отвергнут");
         });
         Try("отказ от осады записывает точный предел сил", () => {
             var b=Fresh(); var castle=ConquestWorld(); castle.Name="Пограничный замок";
-            castle.Militia=10; Settlement.All.Add(castle);
+            castle.Militia=5; Settlement.All.Add(castle);
             CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(castle, AiBehavior.PatrolAroundPoint,
                 MobileParty.NavigationType.Default, false, false, false), 2f));
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==castle && MobileParty.MainParty.TargetSettlement==castle,
                 "слабый замок сначала выбран");
-            castle.Militia=16; for(int hour=0; hour<6; hour++) HourlyTick(b);
+            castle.Militia=6; for(int hour=0; hour<6; hour++) HourlyTick(b);
             Check(AutopilotLog.Lines.Any(l => l.Contains("ПОХОД: прекращаем цель «Пограничный замок»")
-                && l.Contains("защитники 16.0 > предел 15.0")
+                && l.Contains("защитники 6.0 — нужен перевес x2, надо 12.0")
                 && l.Contains("далее PatrolAroundPoint")),
                 "после роста обороны записаны обе силы и следующий приказ");
         });
         Try("близкий вражеский отряд входит в риск осады", () => {
-            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=10; Settlement.All.Add(castle);
+            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=4; Settlement.All.Add(castle);
             var relief=new MobileParty { MapFaction=castle.MapFaction, Position=castle.Position };
-            relief.MemberRoster.AddToCounts(new CharacterObject(), 6); MobileParty.All.Add(relief);
+            relief.MemberRoster.AddToCounts(new CharacterObject(), 2); MobileParty.All.Add(relief);
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==null && MobileParty.MainParty.TargetSettlement!=castle,
-                "подкрепление делает защиту сильнее 1.5x");
+                "подкрепление лишает перевеса x2");
         });
         Try("для допустимой осады сначала собираем доступную армию", () => {
-            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=20; Settlement.All.Add(castle);
+            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=8; Settlement.All.Add(castle);
             var kingdom=new Kingdom(); kingdom.Enemies.Add(castle.MapFaction);
             MobileParty.MainParty.MapFaction=kingdom; Clan.PlayerClan.Kingdom=kingdom; Clan.PlayerClan.Influence=10;
             var ally=new MobileParty { MapFaction=kingdom }; ally.MemberRoster.AddToCounts(new CharacterObject(), 10);
@@ -98,7 +129,7 @@ internal static partial class Program
             Enable(b); HourlyTick(b);
             Check(MobileParty.MainParty.Army!=null && ally.Army==MobileParty.MainParty.Army
                 && Clan.PlayerClan.Influence==0,
-                "20 защитников превышают 1.5x отряда из 10, армия из 20 допустима");
+                "8 защитников: отряду из 10 нужен перевес x2, армия из 20 его даёт");
         });
         Try("истощённый отряд не начинает самостоятельную осаду", () => {
             var b=Fresh(); var castle=ConquestWorld(food:1); castle.Militia=1; Settlement.All.Add(castle);

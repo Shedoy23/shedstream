@@ -178,6 +178,38 @@ namespace BannerlordAutopilot
             return null;
         }
 
+        /// <summary>25.09, владелец: «сначала качать отряд, нападая на отряды, потом с
+        /// очень крепким идти в осады, а то с новичками дают пизды». В тот же вечер
+        /// отряд из 320 бойцов, набранных за полчаса, пошёл на «Замок Ремтойл» при
+        /// силе 453 против 382 и вернулся одним бойцом, герой в плену. Прежнее
+        /// правило пускало на штурм, пока защитники не сильнее нас в 1,5 раза.</summary>
+        internal const float SiegeStrengthRatio = 2f;
+        /// <summary>Средний уровень (тир) бойцов отряда, с которого идём на стены.</summary>
+        internal const float SiegeMinAverageTier = 3.5f;
+        private string _lastSiegeReadiness;
+
+        internal static float AverageTroopTier(MobileParty party)
+        {
+            int count = 0; float tiers = 0f;
+            foreach (var element in party.MemberRoster.GetTroopRoster())
+            {
+                if (element.Character == null || element.Character.IsHero || element.Number <= 0) continue;
+                count += element.Number;
+                tiers += element.Character.Tier * element.Number;
+            }
+            return count == 0 ? 0f : tiers / count;
+        }
+
+        /// <summary>Почему отряд ещё не идёт на осады (null — готов). Пока не готов,
+        /// он охотится (AutopilotHunt): бойцы растут в уровне в полевых боях.</summary>
+        internal static string SiegeReadiness(MobileParty party)
+        {
+            float tier = AverageTroopTier(party);
+            return tier >= SiegeMinAverageTier ? null
+                : "отряд зелёный: средний уровень бойцов " + tier.ToString("F1", CultureInfo.InvariantCulture)
+                  + " < " + SiegeMinAverageTier.ToString("F1", CultureInfo.InvariantCulture) + " — качаемся в поле";
+        }
+
         private static bool EnemyFortress(Settlement place, MobileParty party) =>
             place != null && (place.IsTown || place.IsCastle) && place.MapFaction != null
             && party?.MapFaction != null && party.MapFaction.IsAtWarWith(place.MapFaction);
@@ -270,6 +302,12 @@ namespace BannerlordAutopilot
             score = 0f;
             if (party?.MapFaction == null || !ControlsParty(party) || PreparationNeeded(party) != null)
                 return false;
+            string readiness = SiegeReadiness(party);
+            // Пишем только смену «готов / не готов», а не каждый пересчёт уровня.
+            if ((readiness == null) != (_lastSiegeReadiness == null))
+                AutopilotLog.Write(readiness == null ? "ПОХОД: отряд окреп — осады разрешены" : "ПОХОД: осад пока нет — " + readiness);
+            _lastSiegeReadiness = readiness;
+            if (readiness != null) return false;
             float own = SiegeAttackerStrength(party);
             var allies = party.Army == null ? AffordableArmyMembers(party) : new List<MobileParty>();
             float assembled = own + allies.Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
@@ -280,8 +318,8 @@ namespace BannerlordAutopilot
                 if (!EnemyFortress(place, party) || place.IsUnderSiege || place.IsUnderRaid || SiegeRecentlyRejected(place)) continue;
                 if (SiegeBorderRejection(party, place) != null) continue;
                 float defenders = SiegeDefenderStrength(place, party);
-                bool needsArmy = defenders > own * 1.5f;
-                if (needsArmy && (allies.Count == 0 || defenders > assembled * 1.5f)) continue;
+                bool needsArmy = own < defenders * SiegeStrengthRatio;
+                if (needsArmy && (allies.Count == 0 || assembled < defenders * SiegeStrengthRatio)) continue;
                 float distance = (float)Math.Sqrt(Math.Max(0f, party.Position.DistanceSquared(place.Position)));
                 float candidateScore = 5f + Math.Min(3f, (needsArmy ? assembled : own) / Math.Max(1f, defenders))
                     - distance / 200f;
@@ -305,14 +343,17 @@ namespace BannerlordAutopilot
             if (place.IsUnderRaid) return "поселение под налётом";
             string preparation = PreparationNeeded(party);
             if (preparation != null) return "поход не готов: " + preparation;
+            string readiness = SiegeReadiness(party);
+            if (readiness != null) return readiness;
             float defenders = SiegeDefenderStrength(place, party);
             float own = SiegeAttackerStrength(party);
-            if (defenders <= own * 1.5f) return null;
+            if (own >= defenders * SiegeStrengthRatio) return null;
             var allies = party.Army == null ? AffordableArmyMembers(party) : new List<MobileParty>();
             float assembled = own + allies.Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
-            if (allies.Count > 0 && defenders <= assembled * 1.5f) return null;
+            if (allies.Count > 0 && assembled >= defenders * SiegeStrengthRatio) return null;
             return "защитники " + defenders.ToString("F1", CultureInfo.InvariantCulture)
-                + " > предел " + (assembled * 1.5f).ToString("F1", CultureInfo.InvariantCulture)
+                + " — нужен перевес x" + SiegeStrengthRatio.ToString("F0", CultureInfo.InvariantCulture)
+                + ", надо " + (defenders * SiegeStrengthRatio).ToString("F1", CultureInfo.InvariantCulture)
                 + " (наша сила " + own.ToString("F1", CultureInfo.InvariantCulture)
                 + ", доступная армия " + assembled.ToString("F1", CultureInfo.InvariantCulture) + ")";
         }

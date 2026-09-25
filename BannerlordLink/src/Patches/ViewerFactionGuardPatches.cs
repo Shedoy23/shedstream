@@ -7,7 +7,6 @@ using HarmonyLib;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.CampaignBehaviors;
 using TaleWorlds.CampaignSystem.GameComponents;
-using TaleWorlds.CampaignSystem.Party;
 
 namespace BannerlordLink.Patches
 {
@@ -91,21 +90,5 @@ namespace BannerlordLink.Patches
             BannerlordLinkModule.Log($"[ViewerGuard] BLOCKED: переодевание правителя при смене власти в '{kingdom?.Name}'");
             return false;
         }
-    }
-
-    /// <summary>
-    /// 4. Отряд лорда, заходя в город, распродаёт весь свой инвентарь, кроме еды
-    /// (PartiesSellLootCampaignBehavior.OnSettlementEntered) по цене скупки. У
-    /// зрителя со своим отрядом туда ложатся покупки магазина (цена ×10) и
-    /// снятое снаряжение, в том числе перекованное: 25.09 igotpaws купил арбалет
-    /// за 46 190💰 — вещь пропала, пришла копеечная выручка. Отряд, которым
-    /// командует зритель, в городах не распродаём.
-    /// </summary>
-    [HarmonyPatch(typeof(PartiesSellLootCampaignBehavior), nameof(PartiesSellLootCampaignBehavior.OnSettlementEntered))]
-    internal static class ViewerPartyLootSalePatch
-    {
-        [HarmonyPrefix]
-        public static bool Prefix(MobileParty mobileParty)
-            => !HeroNaming.IsAdopted(mobileParty?.LeaderHero);
     }
 }

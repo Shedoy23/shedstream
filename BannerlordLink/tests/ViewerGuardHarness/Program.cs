@@ -17,9 +17,7 @@ namespace TaleWorlds.CampaignSystem {
 namespace TaleWorlds.CampaignSystem.CampaignBehaviors {
  public class FactionDiscontinuationCampaignBehavior { private Dictionary<TaleWorlds.CampaignSystem.Clan,TaleWorlds.CampaignSystem.CampaignTime> _independentClans=new(); public int Count=>_independentClans.Count; public void Add(TaleWorlds.CampaignSystem.Clan c)=>_independentClans[c]=default; }
  public class NPCEquipmentsCampaignBehavior {}
- public class PartiesSellLootCampaignBehavior { public void OnSettlementEntered(TaleWorlds.CampaignSystem.Party.MobileParty p,object s,TaleWorlds.CampaignSystem.Hero h){} }
 }
-namespace TaleWorlds.CampaignSystem.Party { public class MobileParty { public TaleWorlds.CampaignSystem.Hero LeaderHero; } }
 namespace TaleWorlds.CampaignSystem.GameComponents { public class DefaultMarriageModel { public float NpcCoupleMarriageChance(TaleWorlds.CampaignSystem.Hero a,TaleWorlds.CampaignSystem.Hero b)=>0.002f; } }
 namespace BannerlordLink { public static class BannerlordLinkModule { public static int Logged; public static void Log(string m){ Logged++; } } }
 namespace BannerlordLink.Util { public static class HeroNaming { public static bool IsAdopted(TaleWorlds.CampaignSystem.Hero h)=>h?.Name?.StartsWith("[BLink] ")==true; } }
@@ -59,12 +57,6 @@ class Program {
   Check(!Runs(new TaleWorlds.CampaignSystem.Kingdom{Leader=npc},viewerClan),"старый правитель — зритель: не переодеваем");
   Check(Runs(new TaleWorlds.CampaignSystem.Kingdom{Leader=npc},npcClan),"смена власти между NPC — как раньше");
   Check(Runs(new TaleWorlds.CampaignSystem.Kingdom{Leader=npc},null),"без старого клана — как раньше");
-  // 4. Распродажа инвентаря отряда в городе
-  var sale=M("ViewerPartyLootSalePatch","Prefix");
-  bool Sells(TaleWorlds.CampaignSystem.Hero leader)=>(bool)sale.Invoke(null,new object[]{new TaleWorlds.CampaignSystem.Party.MobileParty{LeaderHero=leader}});
-  Check(!Sells(viewer),"отряд зрителя в городе не распродаётся (25.09 igotpaws: арбалет)");
-  Check(Sells(npc),"отряд лорда-NPC распродаёт добычу как раньше");
-  Check((bool)sale.Invoke(null,new object[]{null}),"пустой отряд — как раньше");
   Console.WriteLine($"{passed} ok / {failed} FAIL"); return failed;
  }
 }

@@ -30,7 +30,7 @@ internal static partial class Program
         {
             var (b, enemy) = HuntWorld(men: 90);
             Fort("Свой замок", -5, MobileParty.MainParty.MapFaction);
-            Chaser(enemy, 200, 8);
+            Chaser(enemy, 500, 8);
             b.PollState();
             Check(File.ReadAllText(file).Contains("Отступаем"), "отход на экране");
         });

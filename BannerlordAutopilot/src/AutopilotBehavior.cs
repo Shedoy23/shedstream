@@ -573,6 +573,7 @@ namespace BannerlordAutopilot
             if (PollArmyDispersed(party)) return false;
             if (PollUnavoidableSurrender(party)) return false;
             if (PollRaidWarning()) return false;
+            if (PollTryToGetAway()) return false;
             if (PollFlee(party)) return false;
             if (PollEmergencyDefense(party)) return false;
             if (PollOffensiveSiege(party)) return false;
@@ -1493,6 +1494,20 @@ namespace BannerlordAutopilot
                 OperationClick("encounter_interrupted_raid_started_leave");
             }
             catch (Exception ex) { Disable("предупреждение о рейде: " + ex.GetType().Name + ": " + ex.Message); }
+            return true;
+        }
+
+        /// <summary>25.09 (стрим): после «Попытаться уйти» игра спрашивает
+        /// подтверждение (try_to_get_away: «Продолжайте» / «Придумайте что-нибудь
+        /// другое») и показывает итог. Автопилот их не знал и вставал на паузе.
+        /// Отход уже выбран — подтверждаем его и закрываем итог штатными кнопками.</summary>
+        private bool PollTryToGetAway()
+        {
+            string menu = MenuDriver.CurrentMenuId;
+            if (_mode != Mode.Apply || (menu != "try_to_get_away" && menu != "try_to_get_away_debrief")) return false;
+            if (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
+            try { OperationClick(menu == "try_to_get_away" ? "try_to_get_away_accept" : "try_to_get_away_continue"); }
+            catch (Exception ex) { Disable("отход с потерей бойцов: " + ex.GetType().Name + ": " + ex.Message); }
             return true;
         }
 

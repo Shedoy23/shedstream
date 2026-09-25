@@ -12,10 +12,10 @@ internal static partial class Program
 {
     // 24.09: 18.09 и 21.09 армия ~270 → 1 в бою у своей же осады — автопилот
     // принимал бой при любом перевесе врага. Порог тот же, что у отхода на карте:
-    // враг от 2x (при обороне своего замка — от 5x).
+    // враг от 5x везде (владелец 25.09; было 2x, при обороне своего замка — 5x).
     static void HopelessBattleTests()
     {
-        foreach (var (enemy, lift) in new[] { (25, true), (15, false) })
+        foreach (var (enemy, lift) in new[] { (55, true), (45, false) })
         Try("к осадному лагерю идёт армия x" + (enemy / 10.0), () =>
         {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);
@@ -29,7 +29,7 @@ internal static partial class Program
                 && MenuContext.Invoked.Contains("menu_siege_strategies_lead_assault") != lift,
                 (lift ? "снимаем осаду до удара" : "по силам — штурмуем") + ": " + string.Join(",", MenuContext.Invoked));
         });
-        foreach (var (ours, theirs, retreat) in new[] { (100f, 250f, true), (100f, 150f, false) })
+        foreach (var (ours, theirs, retreat) in new[] { (100f, 550f, true), (100f, 450f, false), (100f, 150f, false) })
         Try("бой в поле, силы " + ours + " против " + theirs, () =>
         {
             var b = Fresh(); ConquestWorld(); Enable(b);

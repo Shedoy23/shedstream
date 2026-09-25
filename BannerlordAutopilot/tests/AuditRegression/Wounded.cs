@@ -8,13 +8,14 @@ using TaleWorlds.CampaignSystem.Party;
 internal static partial class Program
 {
     // 24.09: раненый герой → «Послать воинов» при любом раскладе — 22.09 армии
-    // 122/312/322 → 1. Теперь при силах хуже 0,8x — отступаем штатной кнопкой.
+    // 122/312/322 → 1. С 25.09 (владелец: «5х везде») отступаем только от 5x, иначе авторасчёт.
     static void WoundedRetreatTests()
     {
         foreach (var (ours, theirs, options, expect) in new[]
         {
-            (100f, 300f, new[] { "leave", "leave_soldiers_behind" }, "leave"),
-            (100f, 300f, new[] { "leave_soldiers_behind" }, "leave_soldiers_behind"),
+            (100f, 600f, new[] { "leave", "leave_soldiers_behind" }, "leave"),
+            (100f, 600f, new[] { "leave_soldiers_behind" }, "leave_soldiers_behind"),
+            (100f, 300f, new[] { "leave", "leave_soldiers_behind" }, "str_order_attack"),
             (90f, 100f, new[] { "leave" }, "str_order_attack"),
             (100f, 300f, new string[0], "str_order_attack"),
         })

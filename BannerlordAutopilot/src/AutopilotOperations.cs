@@ -41,9 +41,6 @@ namespace BannerlordAutopilot
             return true;
         }
 
-        /// <summary>Раненый герой и силы хуже этой доли вражеских — не авторасчёт, а отход.</summary>
-        internal const float WoundedRetreatRatio = 0.8f;
-
         /// <summary>24.09: «Послать воинов» жалось при любом раскладе — 22.09 армии
         /// 122/312/322 стали одним бойцом в авторасчёте против 5–10x. Силы сторон —
         /// оценка игры (MapEvent.StrengthOfSide). Проигрываем — уходим штатной кнопкой:
@@ -56,9 +53,11 @@ namespace BannerlordAutopilot
             battle.RecalculateStrengthOfSides();
             int ours = (int)PartyBase.MainParty.Side;
             float us = battle.StrengthOfSide[ours], them = battle.StrengthOfSide[1 - ours];
-            if (!(them > 0f) || us >= them * WoundedRetreatRatio) return false;
+            // Владелец 25.09: отход только при 5x везде, и у раненого героя тоже
+            // (было: силы хуже 0,8x). Иначе — авторасчёт, как до 24.09.
+            if (!(them > 0f) || them < us * FleeRatio) return false;
             return PressRetreat("герой ранен, силы " + us.ToString("F0", CultureInfo.InvariantCulture) + " против "
-                + them.ToString("F0", CultureInfo.InvariantCulture) + " — хуже x" + WoundedRetreatRatio.ToString("F1", CultureInfo.InvariantCulture),
+                + them.ToString("F0", CultureInfo.InvariantCulture) + " — враг от x" + FleeRatio.ToString("F0", CultureInfo.InvariantCulture),
                 "Герой ранен, враг сильнее — отступаем", "остаётся авторасчёт");
         }
 

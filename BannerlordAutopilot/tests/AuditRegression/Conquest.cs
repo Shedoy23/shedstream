@@ -168,6 +168,28 @@ internal static partial class Program
             Check(clicks==(boundary=="apply" ? 1 : 0), "raid notice respects " + boundary);
             if (boundary=="apply") Check(b.CurrentMode==AutopilotBehavior.Mode.Apply && MenuDriver.CurrentMenuId=="join_encounter", "raid notice reaches native encounter without disabling");
         });
+        // 25.09 (стрим): после «Попытаться уйти» игра открывает try_to_get_away
+        // («Продолжайте» / «Придумайте что-нибудь другое») и итог; автопилот
+        // их не знал и вставал на паузе.
+        foreach (string boundary in new[] { "apply", "observe", "inquiry" })
+        Try("try to get away confirmed " + boundary, () => {
+            var b=Fresh(); MakeWorld(prisoners:false);
+            Enable(b, boundary=="observe" ? AutopilotBehavior.Mode.Observe : AutopilotBehavior.Mode.Apply);
+            PlayerEncounter.Current=new PlayerEncounter();
+            int accepted=0, continued=0;
+            var confirm=Menu("try_to_get_away", "try_to_get_away_accept", () => {
+                accepted++; Show(Menu("try_to_get_away_debrief", "try_to_get_away_continue", () => continued++));
+            });
+            confirm.Options.Add(new GameMenuOption { IdString="try_to_get_away_reject", IsEnabled=true, Consequence=() => Check(false,"reject never pressed") });
+            Show(confirm); TaleWorlds.Library.InformationManager.TestInquiryActive=boundary=="inquiry";
+            b.PollState();
+            Check(accepted==(boundary=="apply" ? 1 : 0), "escape confirmation respects " + boundary);
+            if (boundary=="apply") {
+                b.PollState();
+                Check(continued==1 && b.CurrentMode==AutopilotBehavior.Mode.Apply, "escape debrief continues without disabling");
+            }
+            TaleWorlds.Library.InformationManager.TestInquiryActive=false;
+        });
         foreach (bool wounded in new[] { true, false })
         Try("wounded hero sends troops through native option", () => {
             var b = Fresh(); ConquestWorld(); Enable(b);

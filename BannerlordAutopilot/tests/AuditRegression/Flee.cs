@@ -7,7 +7,7 @@ using TaleWorlds.CampaignSystem.Settlements;
 internal static partial class Program
 {
     // 23.09, владелец: «съёбывать в свой город/замок или просто отбегать, если
-    // бежит бить армия в разы сильнее». Порог 2x — «в разы»; он не пересекается
+    // бежит бить армия в разы сильнее». Порог 5x (владелец 25.09: «отступление только при 5х перевесе везде», было 2x); он не пересекается
     // с охотой (нападаем, пока враг не сильнее 1,25x нас).
     static MobileParty Chaser(IFaction faction, int strength, float distance, bool targetsUs = true)
     {
@@ -24,11 +24,11 @@ internal static partial class Program
 
     static void FleeTests()
     {
-        Try("армия в 2x идёт на нас — укрываемся в своём замке", () =>
+        Try("армия в 5,5x идёт на нас — укрываемся в своём замке", () =>
         {
             var (b, enemy) = HuntWorld(men: 90);
             var home = Fort("Свой замок", -5, MobileParty.MainParty.MapFaction);
-            Chaser(enemy, 200, 8);
+            Chaser(enemy, 500, 8);
             b.PollState();
             Check(MobileParty.MainParty.TargetSettlement == home, "едем в свой замок: " + MobileParty.MainParty.TargetSettlement?.Name);
             Check(LogCount("ОТХОД") >= 1, "причина записана");
@@ -40,6 +40,14 @@ internal static partial class Program
             Chaser(enemy, 135, 8);
             b.PollState();
             Check(LogCount("ОТХОД") == 0, "полтора раза — не «в разы», не бежим");
+        });
+        Try("враг 4x — не бежим, воюем (владелец 25.09)", () =>
+        {
+            var (b, enemy) = HuntWorld(men: 90);
+            Fort("Свой замок", -5, MobileParty.MainParty.MapFaction);
+            Chaser(enemy, 360, 8);
+            b.PollState();
+            Check(LogCount("ОТХОД") == 0, "4x — меньше порога 5x, не бежим");
         });
         Try("армия 3x идёт мимо — не бежим", () =>
         {
@@ -56,7 +64,7 @@ internal static partial class Program
             var away = new Settlement { Name = "Деревня в стороне", IsVillage = true, MapFaction = MobileParty.MainParty.MapFaction,
                 Position = new CampaignVec2 { X = -20 } };
             Settlement.All.Add(away);
-            Chaser(enemy, 250, 8);
+            Chaser(enemy, 500, 8);
             b.PollState();
             Check(MobileParty.MainParty.TargetSettlement == away, "не в замок за спиной врага, а прочь: " + MobileParty.MainParty.TargetSettlement?.Name);
         });
@@ -64,7 +72,7 @@ internal static partial class Program
         {
             var (b, enemy) = HuntWorld(men: 90);
             var home = Fort("Свой замок", -5, MobileParty.MainParty.MapFaction);
-            var chaser = Chaser(enemy, 200, 8);
+            var chaser = Chaser(enemy, 500, 8);
             b.PollState();
             ArriveTown(home); b.PollState(); b.PollState();
             var next = new Settlement { Name = "Next" };

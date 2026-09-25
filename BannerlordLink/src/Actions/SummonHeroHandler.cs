@@ -75,6 +75,18 @@ namespace BannerlordLink.Actions
             return Task.FromResult<(bool, string)>((true, null));
         }
 
+        /// <summary>Текущий бой для замка стороны: событие на карте (одна осада =
+        /// один бой, даже если сцен несколько); без него — сама сцена.</summary>
+        private static object CurrentBattle()
+        {
+            try
+            {
+                return (object)TaleWorlds.CampaignSystem.Encounters.PlayerEncounter.Battle
+                    ?? (object)MobileParty.MainParty?.MapEvent ?? Mission.Current;
+            }
+            catch { return Mission.Current; }
+        }
+
         private static void Summon(string username, bool isPlayerSide,
             System.Collections.Generic.List<string> retinueIds, string actionId)
         {
@@ -93,6 +105,16 @@ namespace BannerlordLink.Actions
                 {
                     BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] REFUSE @{username}: hero not found");
                     BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "hero_not_found");
+                    return;
+                }
+
+                // 25.09 (владелец): в одном бою — одна сторона. Кто вышел за стримера,
+                // не может следующим призывом выйти против него, и наоборот.
+                object battle = CurrentBattle();
+                if (!ViewerSideLock.Allows(battle, username, isPlayerSide))
+                {
+                    BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] REFUSE @{username}: в этом бою уже был за другую сторону");
+                    BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "side_locked");
                     return;
                 }
 
@@ -806,6 +828,7 @@ namespace BannerlordLink.Actions
                         catch { }
                     }
                 }
+                ViewerSideLock.Remember(battle, username, isPlayerSide);
                 BannerlordLink.Util.ActionFeedback.PostApplied(actionId);
             }
             catch (Exception ex)

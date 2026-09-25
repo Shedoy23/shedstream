@@ -100,6 +100,13 @@ ls -l /proc/$PID/fd | grep -oE '/[^ ]*\.db' | sort -u
 `systemctl reload nginx`. 2026-07-22 моя же правка сломала синтаксис, и поймала
 это именно проверка перед перезагрузкой.
 
+**Подготовлено 25.09.2026, НЕ применено (стрим):** `deploy/nginx/twitchbot.conf` —
+та же конфигурация + keepalive к приложению и лог с временем ответа (`rt=`,
+`urt=`). Применять вне стрима:
+`cp /etc/nginx/sites-enabled/twitchbot /root/twitchbot.nginx.bak.$(date +%F)`,
+скопировать файл на место, `nginx -t`, затем `systemctl reload nginx`. Самые
+медленные запросы после стрима: `awk '{for(i=1;i<=NF;i++) if($i~/^rt=/){sub("rt=","",$i); print $i, $6}}' /var/log/nginx/access.log | sort -rn | head`.
+
 План публикации подписанных Manager/RimLink artifacts вынесен отдельно:
 `docs/MANAGER_RELEASE_PUBLICATION_RUNBOOK.md`. Любые nginx/upload действия
 требуют отдельного подтверждения.

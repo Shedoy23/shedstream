@@ -49,6 +49,16 @@ internal static partial class Program
             Check(MobileParty.MainParty.TargetSettlement!=castle, "штатное предложение осады отклонено");
             Check(AutopilotLog.Lines.Any(l=>(l.Contains("пропущено") || l.Contains("выполнимых решений нет")) && l.Contains("BesiegeSettlement") && l.Contains("отряд зелёный")), "в пропусках названа причина");
         });
+        Try("нет крепости по силам — журнал называет ближайшую к порогу, раз в сутки", () => {
+            var b=Fresh(); var castle=ConquestWorld(); castle.Name="Крепкий замок"; castle.Militia=8; Settlement.All.Add(castle);
+            Enable(b); CampaignTime.TestHours=0; HourlyTick(b);
+            for(int hour=1; hour<=12; hour++) { CampaignTime.TestHours=hour; HourlyTick(b); }
+            Check(SiegeTarget(b)==null, "8 защитников против 10 — без перевеса x2 не идём");
+            Check(AutopilotLog.Lines.Count(l=>l.Contains("крепостей по силам нет") && l.Contains("«Крепкий замок»: защитники 8, надо x2 = 16, у нас 10"))==1,
+                "причина записана один раз за игровые сутки");
+            CampaignTime.TestHours=30; HourlyTick(b);
+            Check(LogCount("крепостей по силам нет")==2, "на следующие сутки запись повторяется");
+        });
         Try("окрепший отряд снова идёт на осады", () => {
             var b=Fresh(); var castle=ConquestWorld(tier:2); castle.Militia=1; Settlement.All.Add(castle);
             Enable(b); HourlyTick(b);

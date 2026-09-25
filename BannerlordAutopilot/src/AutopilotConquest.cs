@@ -187,6 +187,7 @@ namespace BannerlordAutopilot
         /// <summary>Средний уровень (тир) бойцов отряда, с которого идём на стены.</summary>
         internal const float SiegeMinAverageTier = 3.5f;
         private string _lastSiegeReadiness;
+        private double _siegeMissLoggedDay = double.MinValue;
 
         internal static float AverageTroopTier(MobileParty party)
         {
@@ -313,13 +314,21 @@ namespace BannerlordAutopilot
             float assembled = own + allies.Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
             Settlement best = null;
             bool gather = false;
+            // 26.09: после «отряд окреп» за 1,5 ч войны осад не было ни одной, а журнал
+            // молчал почему. Раз в игровой день пишем крепость, ближе всех к порогу.
+            Settlement closest = null; float closestDefenders = 0f; int fortresses = 0, borderSkipped = 0;
             foreach (var place in Settlement.All)
             {
                 if (!EnemyFortress(place, party) || place.IsUnderSiege || place.IsUnderRaid || SiegeRecentlyRejected(place)) continue;
-                if (SiegeBorderRejection(party, place) != null) continue;
+                fortresses++;
+                if (SiegeBorderRejection(party, place) != null) { borderSkipped++; continue; }
                 float defenders = SiegeDefenderStrength(place, party);
                 bool needsArmy = own < defenders * SiegeStrengthRatio;
-                if (needsArmy && (allies.Count == 0 || assembled < defenders * SiegeStrengthRatio)) continue;
+                if (needsArmy && (allies.Count == 0 || assembled < defenders * SiegeStrengthRatio))
+                {
+                    if (closest == null || defenders < closestDefenders) { closest = place; closestDefenders = defenders; }
+                    continue;
+                }
                 float distance = (float)Math.Sqrt(Math.Max(0f, party.Position.DistanceSquared(place.Position)));
                 float candidateScore = 5f + Math.Min(3f, (needsArmy ? assembled : own) / Math.Max(1f, defenders))
                     - distance / 200f;
@@ -328,7 +337,22 @@ namespace BannerlordAutopilot
                 gather = needsArmy;
                 score = candidateScore;
             }
-            if (best == null) return false;
+            if (best == null)
+            {
+                double day = Math.Floor(CampaignTime.Now.ToHours / 24);
+                if (fortresses > 0 && day != _siegeMissLoggedDay)
+                {
+                    _siegeMissLoggedDay = day;
+                    AutopilotLog.Write("ПОХОД: крепостей по силам нет (вражеских " + fortresses + ", вне досягаемости " + borderSkipped + ")"
+                        + (closest == null ? "" : "; ближе всех к порогу «" + closest.Name + "»: защитники "
+                            + closestDefenders.ToString("F0", CultureInfo.InvariantCulture) + ", надо x"
+                            + SiegeStrengthRatio.ToString("F0", CultureInfo.InvariantCulture) + " = "
+                            + (closestDefenders * SiegeStrengthRatio).ToString("F0", CultureInfo.InvariantCulture)
+                            + ", у нас " + own.ToString("F0", CultureInfo.InvariantCulture)
+                            + (allies.Count > 0 ? ", с армией " + assembled.ToString("F0", CultureInfo.InvariantCulture) : ", армию собрать не из кого")));
+                }
+                return false;
+            }
             target = new AIBehaviorData(best, AiBehavior.BesiegeSettlement,
                 MobileParty.NavigationType.Default, gather, false, false);
             return true;

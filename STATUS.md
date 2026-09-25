@@ -1,6 +1,6 @@
-**25.09, стрим — ждут выката (перерыв/после стрима):** BannerlordLink `B3CBCA2B…`
+**25.09, стрим — ВЫКАЧЕНО:** BannerlordLink `B3CBCA2B…` (откат `D:/shedlink-build/dll-rollback/20260925-link-stash-sidelock`)
 (покупки и снятое всегда в личный сундук; одна сторона на бой) + бэкенд
-(`equipment_shop.py`, `refusals.py`). Игру закрыть, бэкенд — короткий рестарт.
+(`equipment_shop.py`, `refusals.py`; бэкап `/root/twitch-extension/backups/stash-sidelock-20260925/`).
 
 **25.09 ~14:45 UTC (перерыв стрима) — ускорение сервера ВЫКАЧЕНО:** индекс M132,
 ASGI-мидлварь, uvloop/httptools, nginx keepalive + время ответа в логе.

@@ -178,6 +178,29 @@ class Program
             }
         }
 
+        // #61 (24.09): при роспуске королевства правителем кланы выводятся
+        // заранее, но клан с застрявшим флагом «уничтожен» пропускался и оставался
+        // в распущенном королевстве («Рой пчёл» 21.09 — флаг снят только 23.09).
+        {
+            var kingdom = new Kingdom { Name = "Пчелиный Каганат" };
+            Clan MakeClan(string name, bool eliminated, bool alive)
+            {
+                var c = new Clan { Name = name, Kingdom = kingdom, IsEliminated = eliminated };
+                var h = new Hero { Name = name + "_лидер", Clan = c, IsAlive = alive };
+                c.Heroes.Add(h); c.SetLeader(h);
+                return c;
+            }
+            var ruler = MakeClan("правитель", false, true);
+            var normal = MakeClan("обычный", false, true);
+            var stuck = MakeClan("Рой пчёл", true, true);
+            var dead = MakeClan("мёртвый", true, false);
+            ClanIntegrity.EvacuateForDissolution(kingdom, ruler);
+            if (normal.Kingdom != null) { failures++; Console.WriteLine("FAIL живой клан не выведен"); }
+            if (stuck.Kingdom != null || stuck.IsEliminated) { failures++; Console.WriteLine("FAIL клан с застрявшим флагом остался в распущенном королевстве"); }
+            if (dead.Kingdom != null) { failures++; Console.WriteLine("FAIL мёртвый клан висит в распущенном королевстве"); }
+            if (ruler.Kingdom != kingdom) { failures++; Console.WriteLine("FAIL клан правителя выводит обработчик, а не эвакуация"); }
+        }
+
         if (failures > 0)
         {
             Console.WriteLine($"{failures} check(s) failed");

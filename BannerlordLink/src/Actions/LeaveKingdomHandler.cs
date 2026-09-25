@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using BannerlordLink.Util;
 using Newtonsoft.Json;
@@ -93,11 +92,8 @@ namespace BannerlordLink.Actions
                         // DestroyKingdomAction никого не убивает, лишь деактивирует
                         // и снимает войны. Прочие зрители становятся независимы, живы.
                         var rulerClan = hero.Clan;
-                        foreach (var member in kingdom.Clans.ToList())
-                        {
-                            if (member != rulerClan && !member.IsEliminated)
-                                ChangeKingdomAction.ApplyByLeaveKingdom(member, false);
-                        }
+                        // #61 (24.09): кланы с флагом «уничтожен» тоже выводим.
+                        ClanIntegrity.EvacuateForDissolution(kingdom, rulerClan);
                         ChangeKingdomAction.ApplyByLeaveKingdom(rulerClan, false);
                         DestroyKingdomAction.Apply(kingdom);   // пустое → без смертей
                     }

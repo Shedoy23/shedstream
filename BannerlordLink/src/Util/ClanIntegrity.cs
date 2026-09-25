@@ -133,6 +133,29 @@ namespace BannerlordLink.Util
             return repaired;
         }
 
+        /// <summary>#61 (24.09): перед роспуском королевства вывести из него все
+        /// кланы, кроме правящего. Раньше кланы с флагом «уничтожен» пропускались
+        /// и оставались висеть в распущенном королевстве («Рой пчёл»). Живой клан
+        /// с застрявшим флагом сначала воскрешаем; если штатный выход упал или не
+        /// сработал — выводим присваиванием, как при ремонте.</summary>
+        internal static void EvacuateForDissolution(Kingdom kingdom, Clan rulerClan)
+        {
+            foreach (var member in kingdom.Clans.ToList())
+            {
+                if (member == null || member == rulerClan) continue;
+                ReviveIfAlive(member);
+                if (!member.IsEliminated)
+                {
+                    try { ChangeKingdomAction.ApplyByLeaveKingdom(member, false); }
+                    catch (Exception ex)
+                    {
+                        BannerlordLinkModule.Log($"[clan-repair] '{Describe(member)}': штатный выход при роспуске упал: {ex.Message}");
+                    }
+                }
+                if (member.Kingdom == kingdom) DropFromKingdom(member, Describe(member));
+            }
+        }
+
         /// <summary>
         /// <summary>
         /// Снять флаг «уничтожен» с клана, в котором остались живые люди и свой

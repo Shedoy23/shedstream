@@ -378,6 +378,9 @@ namespace BannerlordLink.Actions
                 var myKingdom = hero.Clan?.Kingdom;
                 if (myKingdom == null) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: не в kingdom'е"); ActionFeedback.PostFailed(actionId, "no_kingdom"); return; }
                 if (hero.Clan?.Leader != hero) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: не лидер клана"); ActionFeedback.PostFailed(actionId, "not_clan_leader"); return; }
+                // #62 (24.09): как в EnactPolicy/MakePeace — мёртвый клан или
+                // распущенное королевство политику не двигают.
+                if (myKingdom.IsEliminated || hero.Clan.IsEliminated) { BannerlordLinkModule.Log($"[diplo-war] REFUSE @{username}: клан или королевство уничтожены"); ActionFeedback.PostFailed(actionId, "kingdom_changed"); return; }
 
                 // Резолв целевого королевства. GetObject<Kingdom> ненадёжен (kingdoms —
                 // campaign-объекты, не всегда в MBObjectManager) → fallback на Kingdom.All.
@@ -444,6 +447,9 @@ namespace BannerlordLink.Actions
                 var myKingdom = hero.Clan?.Kingdom;
                 if (myKingdom == null) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: не в kingdom'е"); ActionFeedback.PostFailed(actionId, "no_kingdom"); return; }
                 if (hero.Clan?.Leader != hero) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: не лидер клана"); ActionFeedback.PostFailed(actionId, "not_clan_leader"); return; }
+                // #62 (24.09): как в EnactPolicy/MakePeace — мёртвый клан или
+                // распущенное королевство политику не двигают.
+                if (myKingdom.IsEliminated || hero.Clan.IsEliminated) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: клан или королевство уничтожены"); ActionFeedback.PostFailed(actionId, "kingdom_changed"); return; }
 
                 Kingdom target = DiploUtil.ResolveKingdom(targetKingdomId, targetKingdomName);
                 if (target == null) { BannerlordLinkModule.Log($"[diplo-ppeace] REFUSE @{username}: target '{targetKingdomId}'/'{targetKingdomName}' не найден"); ActionFeedback.PostFailed(actionId, "target_not_found"); return; }

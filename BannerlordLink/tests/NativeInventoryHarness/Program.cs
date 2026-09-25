@@ -60,7 +60,7 @@ class Program {
   data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero),true));
   Check((bool?)data["inventory_state"]?["in_mission"]==true,"mission snapshot disables direct purchase");
   request.Remove("equip_now");
-  hero.PartyBelongedTo=new Party();
+  hero.PartyBelongedTo=new Party{LeaderHero=hero};
   data=JObject.Parse(behavior.Snapshot(hero,behavior.Read(hero)));
   Check((bool?)data["inventory_state"]?["party_available"]==true,"empty existing party inventory is available");
   armor.NotMerchandise=true;

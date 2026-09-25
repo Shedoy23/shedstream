@@ -9,6 +9,7 @@
     <Compile Include="../../src/Util/EquipmentShopPolicy.cs" Link="EquipmentShopPolicy.cs" />
     <Compile Include="../../src/Util/EquipmentSessionHandshake.cs" Link="EquipmentSessionHandshake.cs" />
     <Compile Include="../../src/Util/HeroGoldCharge.cs" Link="HeroGoldCharge.cs" />
+    <Compile Include="../../src/Util/OwnPartyInventory.cs" Link="OwnPartyInventory.cs" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 </Project>

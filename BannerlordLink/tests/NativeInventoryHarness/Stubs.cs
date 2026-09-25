@@ -43,7 +43,7 @@ namespace TaleWorlds.CampaignSystem.Roster {
  }
 }
 namespace TaleWorlds.CampaignSystem {
- public class Party { public string StringId="party1",Name="Party"; public Roster.ItemRoster ItemRoster=new(); }
+ public class Party { public string StringId="party1",Name="Party"; public Roster.ItemRoster ItemRoster=new(); public Hero LeaderHero; }
  public class Hero { public string StringId="hero1",Name="[BLink] alice"; public bool IsAlive=true,IsPrisoner; public int Level=30,Gold=10000; public Party PartyBelongedTo,PartyBelongedToAsPrisoner; public TaleWorlds.Core.Equipment BattleEquipment=new(); }
  public class Campaign { public static Campaign Current=new(); public string UniqueGameId="save1"; public List<Hero> AliveHeroes=new(); }
  public abstract class CampaignBehaviorBase { public abstract void RegisterEvents(); public abstract void SyncData(IDataStore store); }

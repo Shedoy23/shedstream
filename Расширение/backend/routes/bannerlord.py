@@ -20,6 +20,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
 from dependencies import get_db, require_jwt_user
 from routes._mod_queue import enqueue_mod_action
@@ -1623,13 +1624,15 @@ async def bannerlord_equipment_shop(request: Request):
     inventory = ctx["inventory"]
     if ctx["stash"]:
         inventory = [dict(x, source='party') if x.get('source') == 'legacy' else x for x in inventory]
-    return {"success": True, "items": items, "inventory": inventory,
+    # Ответ ~600 КБ: готовый JSONResponse минует jsonable_encoder FastAPI,
+    # который обходил каждую из ~1000 вещей и стоил ~67 мс на проде (25.09).
+    return JSONResponse({"success": True, "items": items, "inventory": inventory,
             "party_inventory": ctx["party_inventory"],
             "tiers": [{"tier": t, "required_level": lv} for t, lv in TIER_LEVELS.items()],
             "hero_level": hero[1] if hero else 0, "gold": hero[2] if hero else 0,
             "has_hero": bool(hero), "ready": ctx["ready"], "pending": ctx["pending"],
             "can_manage": ctx["reason"] is None, "reason": ctx["reason"],
-            "message": refusal(ctx["reason"])["message"] if ctx["reason"] else ""}
+            "message": refusal(ctx["reason"])["message"] if ctx["reason"] else ""})
 
 
 @router.get("/api/bannerlord/build")

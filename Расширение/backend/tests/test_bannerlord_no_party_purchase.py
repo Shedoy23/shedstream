@@ -44,7 +44,7 @@ async def main():
                 data.update(extra)
                 return await route._bannerlord_buy_action_locked(request, 'alice', CHANNEL_ID, 'hero.buy_equipment', data)
             await publish()
-            response = await route.bannerlord_equipment_shop(request)
+            response = json.loads((await route.bannerlord_equipment_shop(request)).body)
             assert response['can_manage'], response
             sword = response['items'][0]
             assert sword['can_buy'] and sword['purchase_mode'] == 'equip', sword

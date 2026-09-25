@@ -113,10 +113,10 @@ async def main():
             # The legacy frozen client must never see new equipment catalog rows.
             route.require_jwt_user=lambda req:('alice',CHANNEL_ID)
             assert not (await route.bannerlord_shop(request))['items']
-            endpoint=await route.bannerlord_equipment_shop(request)
+            endpoint=json.loads((await route.bannerlord_equipment_shop(request)).body)
             assert len(endpoint['items'])==2 and not endpoint['can_manage']
             route.require_jwt_user=lambda req:('carol',CHANNEL_ID)
-            endpoint=await route.bannerlord_equipment_shop(request)
+            endpoint=json.loads((await route.bannerlord_equipment_shop(request)).body)
             assert not endpoint['has_hero'] and len(endpoint['items'])==2
             assert all(not item['can_buy'] for item in endpoint['items'])
             # Failed campaign handshake ts100 retried after a delayed boot ts110:

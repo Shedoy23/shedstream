@@ -98,11 +98,27 @@ async def context(conn, channel_id, username, *, require_party=False, for_shop=F
             "ready": bool(snapshot), "pending": pending, "reason": reason}
 
 
+# Каталог — ~1000 вещей и ~600 КБ JSON; разбор на каждый опрос панели стоил
+# ~26 мс на проде (замер 25.09). Кэш сверяется с версией в самой таблице:
+# id там AUTOINCREMENT, поэтому любая перезапись каталога (кто бы её ни делал)
+# меняет MAX(id), а удаление — COUNT(*). Отдаём копии: роут дописывает в вещь
+# поля конкретного зрителя (can_buy, reason).
+_CATALOG_CACHE = {}
+
+
 async def catalog(conn, channel_id):
     cur = await conn.execute(
-        "SELECT payload FROM module_catalogs WHERE channel_id=? AND module_id='bannerlord' AND catalog_type='equipment' ORDER BY entry_id",
+        "SELECT COUNT(*), MAX(id) FROM module_catalogs WHERE channel_id=? AND module_id='bannerlord' AND catalog_type='equipment'",
         (channel_id,))
-    return [json.loads(row[0]) for row in await cur.fetchall()]
+    version = tuple(await cur.fetchone())
+    cached = _CATALOG_CACHE.get(channel_id)
+    if cached is None or cached[0] != version:
+        cur = await conn.execute(
+            "SELECT payload FROM module_catalogs WHERE channel_id=? AND module_id='bannerlord' AND catalog_type='equipment' ORDER BY entry_id",
+            (channel_id,))
+        cached = (version, [json.loads(row[0]) for row in await cur.fetchall()])
+        _CATALOG_CACHE[channel_id] = cached
+    return [dict(x) for x in cached[1]]
 
 
 def stash_full(ctx):

@@ -58,7 +58,7 @@ async def main():
                 await sql("UPDATE module_actions SET status='done' WHERE channel_id=?", (CHANNEL_ID,))
 
             await publish()
-            shop = await route.bannerlord_equipment_shop(request)
+            shop = json.loads((await route.bannerlord_equipment_shop(request)).body)
             party = shop['party_inventory']
             assert shop['can_manage'] and party['available'] is True, shop
             assert party['party_name'] == 'Личный сундук героя (1/10)', party
@@ -88,7 +88,7 @@ async def main():
 
             state['stash_count'] = 10
             await publish()
-            shop = await route.bannerlord_equipment_shop(request)
+            shop = json.loads((await route.bannerlord_equipment_shop(request)).body)
             assert shop['party_inventory']['party_name'] == 'Личный сундук героя (10/10)'
             assert shop['items'][0]['reason'] == 'stash_full', shop['items'][0]
             assert (await act('hero.buy_equipment', item_id='axe'))['reason'] == 'stash_full'
@@ -113,7 +113,7 @@ async def main():
                          stash_available=True, stash_count=10)
             state.pop('stash_available')
             await publish()
-            shop = await route.bannerlord_equipment_shop(request)
+            shop = json.loads((await route.bannerlord_equipment_shop(request)).body)
             assert shop['party_inventory']['available'] is False and shop['items'][0]['purchase_mode'] == 'equip', \
                 'old mod without stash keeps the 21.09 buy-and-wear behaviour'
             assert (await act('hero.unequip_owned', slot='weapon0'))['reason'] == 'no_party_inventory'

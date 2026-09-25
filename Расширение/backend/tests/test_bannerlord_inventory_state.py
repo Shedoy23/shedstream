@@ -1,5 +1,6 @@
 """Native baggage state, legacy clients, captivity and snapshot identity (real DB)."""
 import asyncio
+import json
 import tempfile
 from pathlib import Path
 from test_bannerlord_buy_action import _build_db, _make_anon_request, CHANNEL_ID
@@ -25,7 +26,7 @@ async def main():
                 await conn.execute("INSERT INTO bannerlord_channel_state(channel_id,current_save_id) VALUES(?,'save')", (CHANNEL_ID,))
                 await conn.execute("INSERT INTO bannerlord_equipment_sessions(channel_id,session_id,session_ts) VALUES(?,'session',1)", (CHANNEL_ID,))
                 await conn.commit()
-            response = await route.bannerlord_equipment_shop(_make_anon_request())
+            response = json.loads((await route.bannerlord_equipment_shop(_make_anon_request())).body)
             assert response['reason'] == 'offline', 'Offline must not promise active synchronization'
             assert response['ready'] is False
             items = [dict(owned_id='body', item_id='armor', slot='body', source='equipped'),

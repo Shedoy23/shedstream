@@ -95,12 +95,10 @@ Check(ledger.Hit(blocked,0,100)==0,"healing no payout");
 Check(ledger.Hit(blocked,100,0)==50,"healing loop limited by original life budget");
 ledger.Track(blocked,100);Check(ledger.Hit(blocked,100,0)==0,"repeated registration cannot replenish life budget");
 Check(ledger.Hit(new object(),100,0)==0,"unknown target fails closed");
-// 26.09, владелец: добивка всем участникам, по размеру боя 30/15/5 тыс.
+// 26.09, владелец: добивка всем участникам до 30 тыс. в любом бою.
 Check(BattlePayoutPolicy.WithFloor(default,650).Total==30000,"большой бой без урона: участие добито до 30000");
-Check(BattlePayoutPolicy.WithFloor(default,120).Total==15000,"средний бой: до 15000");
-Check(BattlePayoutPolicy.WithFloor(default,40).Total==5000,"стычка с бандитами: до 5000");
-Check(BattlePayoutPolicy.WithFloor(default,200).Total==30000 && BattlePayoutPolicy.WithFloor(default,199).Total==15000
-   && BattlePayoutPolicy.WithFloor(default,50).Total==15000 && BattlePayoutPolicy.WithFloor(default,49).Total==5000,"границы 200 и 50");
+Check(BattlePayoutPolicy.WithFloor(default,120).Total==30000,"средний бой: до 30000");
+Check(BattlePayoutPolicy.WithFloor(default,40).Total==30000,"стычка с бандитами: тоже до 30000 (решение владельца)");
 var weak=BattlePayoutPolicy.Calculate(130.6,166.9,635,false,false); // stepuhatgn 25.09: 16370 по формуле
 var weakFloored=BattlePayoutPolicy.WithFloor(weak,635);
 Check(weakFloored.Total==30000 && weakFloored.Personal==weak.Personal && weakFloored.Retinue==weak.Retinue,

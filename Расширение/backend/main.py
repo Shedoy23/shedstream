@@ -1582,6 +1582,9 @@ async def run_migrations():
         from migrations import m131_daily_claim_action
         await m131_daily_claim_action.apply(conn)
 
+        from migrations import m132_module_actions_recent_index
+        await m132_module_actions_recent_index.apply(conn)
+
         print("✅ Migrations complete")
 
 

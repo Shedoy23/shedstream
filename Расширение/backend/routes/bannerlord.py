@@ -770,6 +770,19 @@ async def bannerlord_tournament_queue_usernames(channel_id: int = 0):
     return {"success": True, "usernames": usernames}
 
 
+# Недавние возвраты для тоста в /my-hero (опрос каждые 8 с у каждого зрителя).
+# 25.09.2026: без индекса по времени запрос перебирал все ~27 тыс. платных
+# действий канала и сортировал их — 153 мс на прод-базе на каждый опрос, около
+# трети единственного ядра на стриме. Индекс — миграция M132
+# (idx_module_actions_recent); держит tests/test_recent_refunds_index.py.
+RECENT_REFUNDS_SQL = (
+    "SELECT action_id, type, data, error_msg FROM module_actions "
+    "WHERE channel_id=? AND module_id='bannerlord' "
+    "  AND error_msg LIKE 'REFUNDED:%' "
+    "  AND created_at > datetime('now','-30 seconds') "
+    "ORDER BY id DESC LIMIT 20")
+
+
 @router.get("/api/bannerlord/battle-status")
 async def bannerlord_battle_status(request: Request):
     """Sprint 5.5: viewer-side battle indicator.
@@ -1536,13 +1549,7 @@ async def bannerlord_my_hero(request: Request):
         # hero-poll без пропусков. error_msg формат: "REFUNDED:{price} reason={r}"
         # (или "REFUNDED:0 (no_price) reason={r}" для бесплатных действий).
         recent_refunds = []
-        cur = await conn.execute(
-            "SELECT action_id, type, data, error_msg FROM module_actions "
-            "WHERE channel_id=? AND module_id='bannerlord' "
-            "  AND error_msg LIKE 'REFUNDED:%' "
-            "  AND created_at > datetime('now','-30 seconds') "
-            "ORDER BY id DESC LIMIT 20",
-            (channel_id,))
+        cur = await conn.execute(RECENT_REFUNDS_SQL, (channel_id,))
         _uname = (username or "").lower()
         for _aid, _atype, _adata, _aerr in await cur.fetchall():
             try:

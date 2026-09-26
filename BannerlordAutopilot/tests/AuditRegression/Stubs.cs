@@ -191,6 +191,7 @@ namespace TaleWorlds.CampaignSystem.Settlements {
   public bool IsVillage { get; set; }
   public bool IsTown { get; set; }
   public bool IsCastle { get; set; }
+  public bool IsFortification => IsTown || IsCastle;
   public bool IsRaided { get; set; }
   public float Militia { get; set; }
   public bool IsUnderRaid { get; set; }

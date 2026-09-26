@@ -44,6 +44,22 @@ internal static partial class Program
                 "атакуем лорда при соотношении 0,9x: " + MobileParty.MainParty.DefaultBehavior);
             Check(LogCount("ОХОТА") >= 1, "решение записано с причиной");
         });
+        // 26.09, владелец: армия не взяла Усанк, отступила — «надо было её добить».
+        foreach (var (attached, attack) in new[] { (40, true), (70, false) })
+        Try("охота: армия 60+" + attached + " — " + (attack ? "сильнее её, добиваем" : "слабее, не лезем"), () =>
+        {
+            var (b, enemy) = HuntWorld(men: 100);
+            var leader = HuntTarget("армия лорда", 60, 10, enemy, speed: 3f);
+            var member = HuntTarget("отряд в армии", attached, 10, enemy, speed: 3f);
+            var army = new Army { LeaderParty = leader }; leader.Army = army; member.Army = army;
+            leader.AttachedParties.Add(member);
+            HourlyTick(b);
+            var main = MobileParty.MainParty;
+            if (attack) Check(main.TargetParty == leader && main.DefaultBehavior == AiBehavior.EngageParty,
+                "нападаем на лидера армии: " + main.DefaultBehavior + " → " + main.TargetParty?.Name);
+            else Check(main.DefaultBehavior != AiBehavior.EngageParty, "армия 130 против наших 100 — не нападаем, хоть лидер один 60");
+            Check(main.TargetParty != member, "рядовой отряд армии целью не бывает");
+        });
         Try("охота: слабее 0,8x — не нападаем", () =>
         {
             var (b, enemy) = HuntWorld(men: 70);

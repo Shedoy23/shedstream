@@ -1108,10 +1108,31 @@ namespace BannerlordAutopilot
                 && (!s.IsTown || !_recentTownVisits.TryGetValue(s, out double townVisit)
                     || CampaignTime.Now.ToHours - townVisit >= RecruitmentVisitCooldownHours)
                 && SettlementServices.HasAffordableRecruits(party, s)).ToList();
+            // 26.09, владелец: «для восстановления отряда может убегать далеко от своих
+            // территорий и не успеть на защиту». Ближайшая к отряду деревня с
+            // добровольцами после каждого набора всё дальше: ближние уже вычерпаны.
+            // Сперва — только в сутках пути от крепостей нашего королевства; нет там
+            // никого — как раньше, ближайшая.
+            var home = Settlement.All.Where(s => s != null && s.IsFortification && s.MapFaction != null
+                && s.MapFaction == party.MapFaction).ToList();
+            float r2 = RecruitHomeRadius * RecruitHomeRadius;
+            var near = home.Count == 0 ? candidates
+                : candidates.Where(s => home.Any(f => f.Position.DistanceSquared(s.Position) <= r2)).ToList();
+            if (near.Count == 0 && candidates.Count > 0 && home.Count > 0 && !_recruitAwayNoted)
+            {
+                _recruitAwayNoted = true;
+                AutopilotLog.Write("ПОПОЛНЕНИЕ: у своих крепостей (радиус " + RecruitHomeRadius.ToString("F0")
+                    + ") добровольцев нет — набираем, где ближе");
+            }
+            if (near.Count > 0) { candidates = near; _recruitAwayNoted = false; }
             if (party.DefaultBehavior == AiBehavior.GoToSettlement
                 && candidates.Contains(party.TargetSettlement)) return party.TargetSettlement;
             return candidates.OrderBy(s => party.Position.DistanceSquared(s.Position)).FirstOrDefault();
         }
+
+        /// <summary>Сутки пути лорда: EstimatedAverageLordPartySpeed 3,36 ед./ч × 24 ≈ 80.</summary>
+        internal const float RecruitHomeRadius = 80f;
+        private bool _recruitAwayNoted;
 
         private void TryServe(MobileParty party, Settlement settlement, string menuId, string trigger)
         {

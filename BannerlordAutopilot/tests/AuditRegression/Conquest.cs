@@ -124,6 +124,25 @@ internal static partial class Program
             Check(party.TargetSettlement==castle && SiegeTarget(b)==castle,
                 "на 90/100 приоритет набора закончился и вернулся поход");
         });
+        // 26.09, владелец: «для восстановления отряда может убегать далеко от своих
+        // территорий и не успеть на защиту».
+        foreach (bool homeVillage in new[] { true, false })
+        Try("пополнение: " + (homeVillage ? "деревня у своей крепости важнее ближней к отряду" : "у своих набирать негде — ближайшая"), () => {
+            var b=Fresh(); ConquestWorld(gold:1000);
+            var party=MobileParty.MainParty; party.Party.PartySizeLimit=100;
+            var fort=new Settlement { Name="Свой замок", IsCastle=true, MapFaction=party.MapFaction, Position=new CampaignVec2 { X=200 } };
+            Settlement.All.Add(fort);
+            var away=new Settlement { Name="Чужая даль", IsVillage=true, MapFaction=party.MapFaction, Position=new CampaignVec2 { X=5 } };
+            var home=new Settlement { Name="Деревня у замка", IsVillage=true, MapFaction=party.MapFaction, Position=new CampaignVec2 { X=190 } };
+            foreach(var place in homeVillage ? new[] { away, home } : new[] { away }) {
+                var notable=new Hero(); notable.VolunteerTypes[0]=new CharacterObject { TestCost=17 };
+                place.Notables.Add(notable); Settlement.All.Add(place);
+            }
+            Enable(b); HourlyTick(b);
+            Check(party.TargetSettlement==(homeVillage ? home : away) && party.DefaultBehavior==AiBehavior.GoToSettlement,
+                "набирать едем в «" + party.TargetSettlement?.Name + "»");
+            if (!homeVillage) Check(LogCount("добровольцев нет")==1, "уход от своих записан в журнал");
+        });
         Try("самостоятельно выбираем слабую крепость без предложения движка", () => {
             var b=Fresh(); var weak=ConquestWorld(); weak.Name="Слабый замок"; weak.Militia=6;
             weak.Town.GarrisonParty=new MobileParty();
@@ -802,6 +821,7 @@ namespace TaleWorlds.CampaignSystem
         public enum ArmyTypes { Besieger, Raider, Defender }
         public MobileParty LeaderParty { get; set; }
         public float Cohesion { get; set; } = 100;
+        public float EstimatedStrength => LeaderParty.Party.EstimatedStrength + LeaderParty.AttachedParties.Sum(p => p.Party.EstimatedStrength);
         public int BoostChecks;
         private void ThinkAboutCohesionBoost() { BoostChecks++; } // Native AI can decline the boost.
         public void BoostCohesionWithInfluence(float gain, int cost)

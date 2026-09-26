@@ -18,6 +18,9 @@ namespace BannerlordAutopilot
     {
         /// <summary>Нападаем, если наша сила не меньше этой доли вражеской. Решение владельца 23.09.</summary>
         internal const float HuntMinRatio = 0.8f;
+        /// <summary>На армию — только когда сильнее её (владелец 26.09: «добивать, когда
+        /// сильнее»): проигрыш армии стоит всего отряда, «безбашенные» 0,8x тут не годятся.</summary>
+        internal const float HuntArmyMinRatio = 1f;
         /// <summary>Радиус поиска цели в единицах карты.</summary>
         private const float HuntRadius = 30f;
         /// <summary>Радиус охоты, пока идём на осаду или снабжаемся перед ней:
@@ -61,11 +64,17 @@ namespace BannerlordAutopilot
             if (!(ours > 0f)) return false;
 
             MobileParty best = null;
-            float bestScore = 0f, bestRatio = 0f, bestDistance = 0f;
+            float bestScore = 0f, bestRatio = 0f, bestDistance = 0f, bestTheirs = 0f;
             foreach (MobileParty enemy in MobileParty.All)
             {
+                // 26.09, владелец: армия не взяла Усанк, отступила — «надо было её
+                // добить». Армии раньше не рассматривались вовсе; теперь — через её
+                // лидера и с силой всей армии (лидер + присоединённые), а рядовые
+                // участники армии целью не бывают.
+                bool army = enemy?.Army != null;
                 if (enemy == null || enemy == party || !enemy.IsActive || !enemy.IsVisible
-                    || enemy.CurrentSettlement != null || enemy.MapEvent != null || enemy.Army != null
+                    || enemy.CurrentSettlement != null || enemy.MapEvent != null
+                    || army && enemy.Army.LeaderParty != enemy
                     || enemy.IsMilitia || enemy.IsCurrentlyAtSea
                     || !(enemy.IsLordParty || enemy.IsBandit)
                     || enemy.MapFaction == null || party.MapFaction == null
@@ -75,14 +84,14 @@ namespace BannerlordAutopilot
                 if (enemy.IsMoving && enemy.Speed > party.Speed && distance > HuntCatchDistance) continue;
                 if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil
                     && ReferenceEquals(enemy, _stuckTarget)) continue;
-                float theirs = enemy.Party.EstimatedStrength;
-                if (!(theirs > 0f) || ours < theirs * HuntMinRatio) continue;
+                float theirs = army ? enemy.Army.EstimatedStrength : enemy.Party.EstimatedStrength;
+                if (!(theirs > 0f) || ours < theirs * (army ? HuntArmyMinRatio : HuntMinRatio)) continue;
                 if (InLeftForeignBattle(enemy)) continue;
                 // Лорд важнее бандитов, крупный бой важнее мелкого, ближе — лучше.
                 float score = (enemy.IsLordParty ? 2f : 1f) * theirs / (1f + distance);
                 if (score > bestScore)
                 {
-                    best = enemy; bestScore = score; bestRatio = ours / theirs; bestDistance = distance;
+                    best = enemy; bestScore = score; bestRatio = ours / theirs; bestDistance = distance; bestTheirs = theirs;
                 }
             }
             if (best == null)
@@ -98,13 +107,15 @@ namespace BannerlordAutopilot
                 return true;
             }
 
-            AutopilotLog.Write("ОХОТА: атакуем «" + best.Name + "» (" + (best.IsLordParty ? "отряд лорда" : "бандиты")
+            string kind = best.Army != null ? "армия, отрядов " + (best.Army.LeaderParty.AttachedParties.Count + 1)
+                : best.IsLordParty ? "отряд лорда" : "бандиты";
+            AutopilotLog.Write("ОХОТА: атакуем «" + best.Name + "» (" + kind
                 + "); силы наши " + ours.ToString("F0", CultureInfo.InvariantCulture)
-                + " против " + best.Party.EstimatedStrength.ToString("F0", CultureInfo.InvariantCulture)
+                + " против " + bestTheirs.ToString("F0", CultureInfo.InvariantCulture)
                 + " (x" + bestRatio.ToString("F2", CultureInfo.InvariantCulture) + ", порог x"
-                + HuntMinRatio.ToString("F1", CultureInfo.InvariantCulture) + "); до цели "
+                + (best.Army != null ? HuntArmyMinRatio : HuntMinRatio).ToString("F1", CultureInfo.InvariantCulture) + "); до цели "
                 + bestDistance.ToString("F1", CultureInfo.InvariantCulture));
-            StreamStatus.Note("Нападаем на «" + best.Name + "» (" + (best.IsLordParty ? "отряд лорда" : "бандиты") + ")");
+            StreamStatus.Note("Нападаем на «" + best.Name + "» (" + kind + ")");
             ApplyDecision(party, new AIBehaviorData(best, AiBehavior.EngageParty,
                 MobileParty.NavigationType.Default, false, false, false), 1f);
             _huntConfirmedHours = CampaignTime.Now.ToHours;

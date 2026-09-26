@@ -1,0 +1,81 @@
+PASS tactics-only does not change speed, accuracy or weather multiplier
+PASS tactics-only runs native skill method (including >150 and Roguery)
+PASS vanillaCombatAi retains existing RBM body in OverrideSetAiRelatedProperties
+PASS vanillaCombatAi retains existing RBM body in SetWeaponSkillEffectsOnAgentPatch
+PASS rbmCombatEnabled retains existing RBM body in OverrideSetAiRelatedProperties
+PASS rbmCombatEnabled retains existing RBM body in SetWeaponSkillEffectsOnAgentPatch
+PASS postureEnabled retains existing RBM body in OverrideSetAiRelatedProperties
+PASS postureEnabled retains existing RBM body in SetWeaponSkillEffectsOnAgentPatch
+PASS null boundary falls back
+PASS empty boundary falls back
+PASS two-point boundary falls back
+PASS collinear boundary falls back
+PASS NaN boundary falls back
+PASS infinite boundary falls back
+PASS rectangle centroid -10000
+PASS reversed rectangle centroid -10000
+PASS rectangle centroid 0
+PASS reversed rectangle centroid 0
+PASS rectangle centroid 10000
+PASS reversed rectangle centroid 10000
+PASS one polygon only; missing/multiple regions retain native placement
+PASS one polygon only; missing/multiple regions retain native placement
+PASS one polygon only; missing/multiple regions retain native placement
+PASS one polygon only; missing/multiple regions retain native placement
+PASS one polygon only; missing/multiple regions retain native placement
+PASS direction points from actual spawn to formation and is normalized
+PASS zero/nonfinite/overflow facing retains native placement
+PASS zero/nonfinite/overflow facing retains native placement
+PASS zero/nonfinite/overflow facing retains native placement
+PASS zero/nonfinite/overflow facing retains native placement
+PASS explicit placement survives without accessing mission or troop state
+PASS FieldBattle/0/False: fast win only; continuation field consistent; no casualty access
+PASS FieldBattle/0/True: fast win only; continuation field consistent; no casualty access
+PASS FieldBattle/1/False: fast win only; continuation field consistent; no casualty access
+PASS FieldBattle/1/True: fast win only; continuation field consistent; no casualty access
+PASS FieldBattle/2/False: fast win only; continuation field consistent; no casualty access
+PASS FieldBattle/2/True: fast win only; continuation field consistent; no casualty access
+PASS FieldBattle/3/False: fast win only; continuation field consistent; no casualty access
+PASS FieldBattle/3/True: fast win only; continuation field consistent; no casualty access
+PASS Siege/0/False: fast win only; continuation field consistent; no casualty access
+PASS Siege/0/True: fast win only; continuation field consistent; no casualty access
+PASS Siege/1/False: fast win only; continuation field consistent; no casualty access
+PASS Siege/1/True: fast win only; continuation field consistent; no casualty access
+PASS Siege/2/False: fast win only; continuation field consistent; no casualty access
+PASS Siege/2/True: fast win only; continuation field consistent; no casualty access
+PASS Siege/3/False: fast win only; continuation field consistent; no casualty access
+PASS Siege/3/True: fast win only; continuation field consistent; no casualty access
+PASS Hideout/0/False: fast win only; continuation field consistent; no casualty access
+PASS Hideout/0/True: fast win only; continuation field consistent; no casualty access
+PASS Hideout/1/False: fast win only; continuation field consistent; no casualty access
+PASS Hideout/1/True: fast win only; continuation field consistent; no casualty access
+PASS Hideout/2/False: fast win only; continuation field consistent; no casualty access
+PASS Hideout/2/True: fast win only; continuation field consistent; no casualty access
+PASS Hideout/3/False: fast win only; continuation field consistent; no casualty access
+PASS Hideout/3/True: fast win only; continuation field consistent; no casualty access
+PASS missing encounter data preserves native path
+PASS Harmony prepared SetRoutedPatch
+PASS Harmony prepared OverrideSetAiRelatedProperties
+PASS Harmony prepared SetWeaponSkillEffectsOnAgentPatch
+PASS Harmony prepared SpawnTroopPatch
+PASS real patched encounter finishes victory without accessing rosters
+PASS repeat victory decision is idempotent
+PASS native re-entry after result clearing retains completed state
+63 checks / 0 failures; isolated DLL tests, not live gameplay
+
+DETECTED stale continuation
+DETECTED reopen battle
+DETECTED hidden ranged stats
+DETECTED hidden skill cap
+DETECTED backward reinforcement
+DETECTED merge deployment regions
+DETECTED incorrect centroid
+7/7 mutations detected; sources restored and rebuilt; all regression checks passed
+
+{
+  "FilesChecked": 132,
+  "Changed": 0,
+  "ChangedPaths": [
+    null
+  ]
+}

@@ -92,6 +92,25 @@ namespace BannerlordAutopilot
             return element.ItemValue;
         }
 
+        /// <summary>26.09, владелец: «как научить его не быть перегруженным постоянно, он
+        /// такой медленный». Еда не продавалась вовсе: после боёв с бандитами её запас
+        /// дорос до 460 дней, вес 41–47 тыс. при грузоподъёмности 9 тыс., и разгрузка
+        /// ходила по кругу, продавая пару вещей. Держим запас на столько дней, лишнее
+        /// продаём (для похода нужно 7 — PreparationNeeded).</summary>
+        internal const float FoodKeepDays = 20f;
+
+        internal static int FoodSurplus(MobileParty party)
+        {
+            float perDay = -party.FoodChange;
+            if (float.IsNaN(perDay) || float.IsInfinity(perDay) || perDay <= 0) return 0;
+            int keep = (int)Math.Ceiling(perDay * FoodKeepDays);
+            return Math.Max(0, party.ItemRoster.TotalFood - keep);
+        }
+
+        private static bool SellableFood(EquipmentElement element, HashSet<string> locks) => element.Item.IsFood
+            && !element.IsQuestItem && !element.Item.NotMerchandise
+            && !locks.Contains(element.Item.StringId + (element.ItemModifier?.StringId ?? ""));
+
         internal static void Sell(MobileParty party, Settlement settlement)
         {
             if (party == null || party != MobileParty.MainParty || Hero.MainHero == null
@@ -129,8 +148,33 @@ namespace BannerlordAutopilot
                     sold++; earned += price;
                 }
             }
-            AutopilotLog.Write("ПРОДАЖА: вещей " + sold + ", получено " + earned
-                + " динаров; осталось без полной оплаты " + unpaid + "; еда, закреплённые и квестовые сохранены");
+            // Лишняя еда: по одной штуке с самого большого вида — разнообразие еды
+            // (бонус к боевому духу) сохраняется, пока лишнее не кончится.
+            int surplus = FoodSurplus(party), foodSold = 0;
+            while (surplus > 0)
+            {
+                int pick = -1, most = 0;
+                for (int i = 0; i < party.ItemRoster.Count; i++)
+                {
+                    ItemRosterElement entry = party.ItemRoster.GetElementCopyAtIndex(i);
+                    if (entry.Amount > most && !entry.EquipmentElement.IsEmpty && SellableFood(entry.EquipmentElement, locks))
+                    { pick = i; most = entry.Amount; }
+                }
+                if (pick < 0) break;
+                EquipmentElement food = party.ItemRoster.GetElementCopyAtIndex(pick).EquipmentElement;
+                int price = town.GetItemPrice(food, party, true);
+                if (price <= 0 || settlement.SettlementComponent.Gold < price || Hero.MainHero.Gold > int.MaxValue - price)
+                { unpaid += surplus; break; }
+                int before = Stock(party.ItemRoster, food), market = Stock(settlement.ItemRoster, food), gold = Hero.MainHero.Gold;
+                SellItemsAction.Apply(party.Party, settlement.Party, new ItemRosterElement(food, 1), 1);
+                if (Stock(party.ItemRoster, food) != before - 1
+                    || Stock(settlement.ItemRoster, food) != market + 1 || Hero.MainHero.Gold != gold + price)
+                    throw new InvalidOperationException("продажа еды: передача/оплата не подтверждена для " + food.Item.Name);
+                surplus--; foodSold++; sold++; earned += price;
+            }
+            AutopilotLog.Write("ПРОДАЖА: вещей " + sold + " (из них лишней еды " + foodSold + "), получено " + earned
+                + " динаров; осталось без полной оплаты " + unpaid + "; еды оставлено на " + FoodKeepDays.ToString("F0")
+                + " дней, закреплённые и квестовые сохранены");
         }
 
         internal static Settlement FindUnloadingTown(MobileParty party, Func<Settlement, bool> eligible)
@@ -152,10 +196,13 @@ namespace BannerlordAutopilot
                 float next = party.Position.DistanceSquared(town.Position);
                 if (next >= distance) continue;
                 bool canSell = false;
+                bool foodSurplus = FoodSurplus(party) > 0;
                 for (int i = 0; i < party.ItemRoster.Count; i++)
                 {
                     ItemRosterElement entry = party.ItemRoster.GetElementCopyAtIndex(i);
-                    if (entry.Amount <= 0 || entry.EquipmentElement.IsEmpty || Protected(entry.EquipmentElement, locks)) continue;
+                    if (entry.Amount <= 0 || entry.EquipmentElement.IsEmpty) continue;
+                    if (Protected(entry.EquipmentElement, locks)
+                        && !(foodSurplus && SellableFood(entry.EquipmentElement, locks))) continue;
                     int price = town.Town.GetItemPrice(entry.EquipmentElement, party, true);
                     if (price > 0 && price <= town.SettlementComponent.Gold) { canSell = true; break; }
                 }

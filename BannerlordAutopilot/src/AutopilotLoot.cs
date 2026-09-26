@@ -33,6 +33,7 @@ namespace BannerlordAutopilot
                 _postBattleRestSettlement = settlement;
                 _postBattleRestUntil = now + PostBattleRestHours;
                 AutopilotLog.Write("ОТДЫХ: после боя ждём в «" + settlement.Name + "» 12 игровых часов");
+                Thoughts.Say("rest", settlement.StringId, settlement.Name);
             }
             if (now >= _postBattleRestUntil)
             {

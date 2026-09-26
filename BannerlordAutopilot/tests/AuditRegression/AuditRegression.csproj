@@ -18,7 +18,7 @@
     <Compile Include="../../src/AutopilotHunt.cs" Link="AutopilotHunt.cs" />
     <Compile Include="../../src/AutopilotFlee.cs" Link="AutopilotFlee.cs" />
     <Compile Include="../../src/AutopilotResume.cs" Link="AutopilotResume.cs" />
-    <Compile Include="../../src/StreamStatus.cs" Link="StreamStatus.cs" />
+    <Compile Include="../../src/StreamStatus.cs" Link="StreamStatus.cs" /><Compile Include="../../src/Thoughts.cs" Link="Thoughts.cs" />
     <Compile Include="../../src/AutopilotBehavior.cs" Link="AutopilotBehavior.cs" />
     <Compile Include="../../src/AutopilotOperations.cs" Link="AutopilotOperations.cs" />
     <Compile Include="../../src/AutopilotBanditGathering.cs" Link="AutopilotBanditGathering.cs" Condition="Exists('../../src/AutopilotBanditGathering.cs')" />

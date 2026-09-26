@@ -191,6 +191,7 @@ namespace BannerlordAutopilot
                 surplus--; foodSold++; sold++; earned += price;
             }
             BuyPackAnimals(party, settlement, town);
+            if (earned >= 1000) Thoughts.Say("sold", settlement.StringId, earned, settlement.Name);
             AutopilotLog.Write("ПРОДАЖА: вещей " + sold + " (из них лишней еды " + foodSold + "), получено " + earned
                 + " динаров; осталось без полной оплаты " + unpaid + "; еды оставлено на " + FoodKeepDays.ToString("F0")
                 + " дней, закреплённые и квестовые сохранены");
@@ -227,6 +228,7 @@ namespace BannerlordAutopilot
                 { stop = "покупка не подтвердилась"; break; }
                 bought++; spent += gold - Hero.MainHero.Gold;
             }
+            if (bought > 0) Thoughts.Say("mules", settlement.StringId, bought);
             if (bought > 0 || stop != null)
                 AutopilotLog.Write("ВЬЮЧНЫЕ: перегруз " + over.ToString("F0") + ", нужно " + need + ", куплено " + bought + " за " + spent
                     + " (место в табуне " + HerdRoom(party) + ")" + (stop != null && bought < need ? "; стоп: " + stop : ""));

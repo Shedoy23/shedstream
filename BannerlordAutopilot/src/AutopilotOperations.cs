@@ -90,7 +90,7 @@ namespace BannerlordAutopilot
             {
                 if (!MenuDriver.CanInvoke(option, out _)) continue;
                 AutopilotLog.Write("БОЙ: " + why + "; отход штатной кнопкой «" + option + "»");
-                StreamStatus.Note(phrase);
+                Thoughts.Say("battle_retreat", phrase);
                 OperationClick(option);
                 return true;
             }
@@ -268,6 +268,7 @@ namespace BannerlordAutopilot
                     {
                         _hideoutAttackRequested = _awaitingHideoutTroops = true;
                         _troopsRequestedAt = Clock();
+                        Thoughts.Say("hideout", place.StringId, place.Name);
                         AutopilotLog.Write("УБЕЖИЩЕ: штатный штурм «" + place.Name + "», подтверждаем предложенный игрой отряд");
                     }
                     else if (menu == "hideout_place" && CampaignTime.Now.IsNightTime && !Hero.MainHero.IsWounded

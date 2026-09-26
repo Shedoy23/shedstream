@@ -13,8 +13,8 @@ namespace BannerlordAutopilot
     /// ничего: когда играет стример, пометки быть не должно.</summary>
     internal static class StreamStatus
     {
-        internal const string Header = "ИГРАЕТ ИИ — автопилот ведёт отряд";
-        private const int Keep = 4;
+        internal const string Header = "ИГРАЕТ ИИ — стример отошёл, отрядом командую я";
+        private const int Keep = 5;
         private static readonly object Gate = new object();
         private static readonly LinkedList<string> Lines = new LinkedList<string>();
         private static bool _active;
@@ -33,6 +33,7 @@ namespace BannerlordAutopilot
         internal static void SetActive(bool active)
         {
             lock (Gate) { _active = active; if (!active) Lines.Clear(); Flush(); }
+            Thoughts.Reset();
         }
 
         internal static void Note(string phrase)

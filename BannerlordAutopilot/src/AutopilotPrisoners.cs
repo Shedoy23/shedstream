@@ -119,8 +119,12 @@ namespace BannerlordAutopilot
                             _swapStopped = true;
                             AutopilotLog.Write("ОБМЕН: отпустить слабых не удалось (было " + membersBefore + ", стало " + afterRelease + ") — обмен на этом экране прекращён");
                         }
-                        else AutopilotLog.Write("ОБМЕН: отпущено " + swap + " «" + weakName + "» (тир " + tierWeak
+                        else
+                        {
+                            Thoughts.Say("swap", weakName + "|" + bestName, swap, weakName, bestName);
+                            AutopilotLog.Write("ОБМЕН: отпущено " + swap + " «" + weakName + "» (тир " + tierWeak
                             + ") ради «" + bestName + "» (тир " + tierBest + ")");
+                        }
                         return true;
                     }
                 }

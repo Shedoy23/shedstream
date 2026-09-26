@@ -124,8 +124,7 @@ namespace BannerlordAutopilot
                 + PartyForce(party).ToString("F0", CultureInfo.InvariantCulture) + ", до него "
                 + threatDistance.ToString("F1", CultureInfo.InvariantCulture) + "); "
                 + (shelter != null ? "укрываемся в «" + target.Name + "»" : "уходим к «" + target.Name + "» прочь от врага"));
-            StreamStatus.Note("Отступаем от «" + threat.Name + "»: "
-                + (shelter != null ? "укрываемся в «" + target.Name + "»" : "уходим к «" + target.Name + "»"));
+            Thoughts.Say("flee", threat.Name?.ToString(), threat.Name, target.Name);
             ApplyDecision(party, new AIBehaviorData(target, AiBehavior.GoToSettlement,
                 MobileParty.NavigationType.Default, false, false, false), 1f);
             return true;
@@ -148,7 +147,7 @@ namespace BannerlordAutopilot
                 return true;
             }
             AutopilotLog.Write("УКРЫТИЕ: угроза у «" + settlement.Name + "» ушла, возвращаемся к обычным делам");
-            StreamStatus.Note("Опасность миновала — выходим из «" + settlement.Name + "»");
+            Thoughts.Say("flee_over", settlement.StringId, settlement.Name);
             _fleeFrom = null; _fleeTo = null; _shelterIn = null;
             _hoursSinceThink = ThinkPeriodHours;
             return false;

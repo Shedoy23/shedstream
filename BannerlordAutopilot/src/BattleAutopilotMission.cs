@@ -165,6 +165,9 @@ namespace BannerlordAutopilot
                 if (end != null && end.TryExit() == BattleEndLogic.ExitResult.True)
                 {
                     _exitRequested = true;
+                    var result = Mission.MissionResult;
+                    if (result != null && result.PlayerVictory) Thoughts.Say("battle_won", null);
+                    else if (result != null && result.PlayerDefeated) Thoughts.Say("battle_lost", null);
                     AutopilotLog.Write("БОЙ: результат определён игрой; штатный выход из завершённой миссии");
                 }
             }

@@ -196,10 +196,10 @@ namespace BannerlordAutopilot
             KingdomDecision chosen = decisions[target][move];
             ours.AddDecision(chosen);
             _politicsProposed[move + "|" + target.Name] = day;
-            StreamStatus.Note("Предлагаем королевству "
-                + (move == PoliticsMove.War ? "войну" : move == PoliticsMove.Peace ? "мир"
-                    : move == PoliticsMove.CallToWar ? "позвать союзника в войну" : move == PoliticsMove.Trade ? "торговлю" : "союз")
-                + " с «" + target.Name + "»");
+            Thoughts.Say("politics", move + "|" + target.Name,
+                move == PoliticsMove.War ? "войну" : move == PoliticsMove.Peace ? "мир"
+                    : move == PoliticsMove.CallToWar ? "позвать союзника в войну" : move == PoliticsMove.Trade ? "торговлю" : "союз",
+                target.Name);
             AutopilotLog.Write("ПОЛИТИКА: предлагаем королевству "
                 + (move == PoliticsMove.War ? "войну" : move == PoliticsMove.Peace ? "мир"
                     : move == PoliticsMove.CallToWar ? "призвать в войну союзника" : move == PoliticsMove.Trade ? "торговое соглашение" : "союз")

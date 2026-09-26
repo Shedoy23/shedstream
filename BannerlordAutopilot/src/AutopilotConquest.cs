@@ -155,6 +155,7 @@ namespace BannerlordAutopilot
             _gatheringSince = CampaignTime.Now.ToHours;
             party.SetMoveModeHold();
             AutopilotLog.Write("АРМИЯ: приглашено " + _invitedParties.Count + ", ждём соединения перед " + data.AiBehavior);
+            Thoughts.Say("army", (data.Party as Settlement)?.StringId, _invitedParties.Count);
             return true;
         }
 
@@ -526,6 +527,7 @@ namespace BannerlordAutopilot
                 if (fortresses > 0 && day != _siegeMissLoggedDay)
                 {
                     _siegeMissLoggedDay = day;
+                    if (closest != null) Thoughts.Say("no_fortress", closest.StringId, closest.Name);
                     AutopilotLog.Write("ПОХОД: крепостей по силам нет (вражеских " + fortresses + ", вне досягаемости " + borderSkipped + ")"
                         + (closest == null ? "" : "; ближе всех к порогу «" + closest.Name + "»: защитники "
                             + closestDefenders.ToString("F0", CultureInfo.InvariantCulture) + ", надо x"
@@ -540,7 +542,7 @@ namespace BannerlordAutopilot
             if (bestCampLeader != null && _alliedSiegeNoted != best)
             {
                 _alliedSiegeNoted = best;
-                StreamStatus.Note("Идём на помощь к осаде «" + best.Name + "»");
+                Thoughts.Say("siege_join", best.StringId, best.Name, bestCampLeader.Name);
                 AutopilotLog.Write("ПОХОД: присоединяемся к осаде «" + best.Name + "» — лагерь «" + bestCampLeader.Name
                     + "» " + bestCamp.ToString("F0", CultureInfo.InvariantCulture) + " + мы " + own.ToString("F0", CultureInfo.InvariantCulture)
                     + " против защитников " + bestDefenders.ToString("F0", CultureInfo.InvariantCulture));
@@ -688,7 +690,7 @@ namespace BannerlordAutopilot
                     {
                         _operationSettlement = place;
                         AutopilotLog.Write("ОСАДА: входим в лагерь «" + campLeader.Name + "» у «" + place.Name + "»");
-                        StreamStatus.Note("Присоединяемся к осаде «" + place.Name + "»");
+                        Thoughts.Say("siege_join_enter", place.StringId, place.Name);
                         OperationClick("join_siege_event"); return true;
                     }
                     _siegeRejectedUntil[place] = CampaignTime.Now.ToHours + SiegeRejectionHours;
@@ -708,7 +710,7 @@ namespace BannerlordAutopilot
                         OperationClick("town_outside_leave"); return true;
                     }
                     _operationSettlement = place;
-                    StreamStatus.Note("Начинаем осаду «" + place.Name + "»");
+                    Thoughts.Say("siege_start", place.StringId, place.Name);
                     OperationClick("town_besiege"); return true;
                 }
                 if (menu == "menu_siege_strategies" && commanded && place == _offensiveSiege)
@@ -738,7 +740,8 @@ namespace BannerlordAutopilot
                             AutopilotLog.Write("ПОХОД: снимаем осаду «" + place.Name + "» до удара — " + why);
                             NoteSiegeRejection(place, "защитники: " + why);
                             _siegeDefenseSeen[place] = (defendersNow, CampaignTime.Now.ToHours + SiegeReliefMemoryHours);
-                            StreamStatus.Note("К крепости идёт подмога — снимаем осаду");
+                            Thoughts.Say("siege_lift", place.StringId, place.Name,
+                                defendersNow.ToString("F0", CultureInfo.InvariantCulture), ownNow.ToString("F0", CultureInfo.InvariantCulture));
                             OperationClick("menu_siege_strategies_leave"); return true;
                         }
                     }
@@ -749,7 +752,7 @@ namespace BannerlordAutopilot
                     {
                         AutopilotLog.Write("ПОХОД: к лагерю идёт «" + relief.Name + "» сильнее нас от x"
                             + FleeRatio.ToString("F0", CultureInfo.InvariantCulture) + " — снимаем осаду до удара");
-                        StreamStatus.Note("К лагерю идёт армия сильнее — снимаем осаду");
+                        Thoughts.Say("siege_lift_army", relief.Name?.ToString(), relief.Name);
                         OperationClick("menu_siege_strategies_leave"); return true;
                     }
                     if (_configuredSiege != siege || siege.GetSiegeEventSide(BattleSideEnum.Attacker).SiegeStrategy == DefaultSiegeStrategies.Custom)
@@ -776,6 +779,7 @@ namespace BannerlordAutopilot
                         && MenuDriver.CanInvoke("menu_siege_strategies_lead_assault", out _))
                     {
                         AutopilotLog.Write("ОСАДА: лагерь готов — штурм, машины не ждём");
+                        Thoughts.Say("siege_assault", place.StringId, place.Name);
                         OperationClick("menu_siege_strategies_lead_assault");
                     }
                     else ResumeOperationWait();

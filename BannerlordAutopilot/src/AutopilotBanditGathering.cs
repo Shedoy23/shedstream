@@ -171,6 +171,7 @@ namespace BannerlordAutopilot
                     Disable("сбор бандитов: обработчики присоединения изменили силу сторон за предел 120%; атака не нажата");
                     return false;
                 }
+                Thoughts.Say("bandits_gathered", null);
                 AutopilotLog.Write("СБОР БАНДИТОВ: отрядов добавлено " + gathered + "; сила врагов "
                     + before.ToString("F1", CultureInfo.InvariantCulture) + " → " + after.ToString("F1", CultureInfo.InvariantCulture)
                     + "; наша " + ours.ToString("F1", CultureInfo.InvariantCulture) + "; предел добора 120%; радиус " + BanditGatherRadius);

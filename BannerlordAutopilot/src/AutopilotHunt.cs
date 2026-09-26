@@ -115,7 +115,8 @@ namespace BannerlordAutopilot
                 + " (x" + bestRatio.ToString("F2", CultureInfo.InvariantCulture) + ", порог x"
                 + (best.Army != null ? HuntArmyMinRatio : HuntMinRatio).ToString("F1", CultureInfo.InvariantCulture) + "); до цели "
                 + bestDistance.ToString("F1", CultureInfo.InvariantCulture));
-            StreamStatus.Note("Нападаем на «" + best.Name + "» (" + kind + ")");
+            Thoughts.Say(best.Army != null ? "hunt_army" : best.IsLordParty ? "hunt_lord" : "hunt_bandits", best.Name?.ToString(),
+                best.Name, bestTheirs.ToString("F0", CultureInfo.InvariantCulture), ours.ToString("F0", CultureInfo.InvariantCulture));
             ApplyDecision(party, new AIBehaviorData(best, AiBehavior.EngageParty,
                 MobileParty.NavigationType.Default, false, false, false), 1f);
             _huntConfirmedHours = CampaignTime.Now.ToHours;
@@ -156,7 +157,7 @@ namespace BannerlordAutopilot
             if (key != _siegeOverRecruitKey)
             {
                 _siegeOverRecruitKey = key;
-                StreamStatus.Note("Идём на осаду «" + (siege.Party as Settlement)?.Name + "»");
+                Thoughts.Say("siege_go", key, (siege.Party as Settlement)?.Name);
                 AutopilotLog.Write("ПОХОД: на войне осада важнее набора до 90%: заполнение "
                     + party.Party.NumberOfAllMembers + "/" + limit + ", крепость «" + (siege.Party as Settlement)?.Name + "»");
             }

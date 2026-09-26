@@ -945,6 +945,7 @@ namespace BannerlordAutopilot
                         _kingdomDecisionsResolvedThisSession++;
                         string name = optionType.GetProperty("Name")?.GetValue(chosen)?.ToString() ?? "вариант";
                         int percent = (int)(optionType.GetProperty("WinPercentage")?.GetValue(chosen) ?? -1);
+                        Thoughts.Say("vote", name, name);
                         AutopilotLog.Write("РЕШЕНИЕ КОРОЛЕВСТВА: выбран самый популярный вариант «" + name
                                            + "» (" + percent + "%)" + (supporter && !abstain ? ", минимальная поддержка" : ""));
                         return true;
@@ -2139,9 +2140,13 @@ namespace BannerlordAutopilot
                             var recruitDecision = new AIBehaviorData(recruitAt, AiBehavior.GoToSettlement,
                                 MobileParty.NavigationType.Default, false, false, false);
                             if (!IsSameDecision(recruitDecision, party))
+                            {
                                 AutopilotLog.Write("ПОПОЛНЕНИЕ: " + party.Party.NumberOfAllMembers + "/"
                                     + party.Party.PartySizeLimit + " (цель 90%); доступные добровольцы в «"
                                     + recruitAt.Name + "»; едем набирать");
+                                Thoughts.Say("recruit", recruitAt.StringId, recruitAt.Name,
+                                    party.Party.NumberOfAllMembers, party.Party.PartySizeLimit);
+                            }
                             if (waitingIn != null)
                             {
                                 if (waitingIn == recruitAt) TryServe(party, recruitAt, MenuDriver.CurrentMenuId, "пополнение");
@@ -2157,6 +2162,8 @@ namespace BannerlordAutopilot
                     {
                         var saleDecision = new AIBehaviorData(market, AiBehavior.GoToSettlement,
                             MobileParty.NavigationType.Default, false, false, false);
+                        if (!IsSameDecision(saleDecision, party))
+                            Thoughts.Say("unload", market.StringId, market.Name);
                         if (!IsSameDecision(saleDecision, party))
                             AutopilotLog.Write("РАЗГРУЗКА: вес " + party.TotalWeightCarried.ToString("F1", CultureInfo.InvariantCulture)
                                 + "/" + party.InventoryCapacity + "; идём продавать в «" + market.Name + "»");
@@ -2482,6 +2489,7 @@ namespace BannerlordAutopilot
                 string foodDays = party.FoodChange < 0
                     ? (party.TotalFoodAtInventory / -party.FoodChange).ToString("F1", CultureInfo.InvariantCulture) : "без расхода";
                 string wars = string.Join(", ", FactionHelper.GetEnemyKingdoms(clan.MapFaction).Select(k => k.Name.ToString()));
+                Thoughts.Say("week", week.ToString(), party.MemberRoster.TotalManCount, heldFiefs, Hero.MainHero.Gold.ToString("N0", CultureInfo.GetCultureInfo("ru-RU")));
                 AutopilotLog.Write("НЕДЕЛЯ " + week + ": феодов " + clan.Fiefs.Count
                                    + " (замков " + castles + ", городов " + (clan.Fiefs.Count - castles) + ")"
                                    + ", деревень " + clan.Villages.Count

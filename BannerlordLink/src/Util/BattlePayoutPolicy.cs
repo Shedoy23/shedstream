@@ -27,7 +27,12 @@ namespace BannerlordLink.Util
 
         /// <summary>До какого вклада растёт участие. Раньше упиралось в 8000.</summary>
         internal const double ParticipationFullAt = 20000;
-        internal static double Threat(int level) => Math.Max(0.4, Math.Min(1.5, level / 26.0));
+        /// <summary>Множитель очков за уровень врага. 26.09, владелец: «сделать от 1.5 до 2.6»
+        /// (было 0,4–1,5). Шкала сдвинута на +1,1: новобранец 1,5, уровень 26 — 2,1,
+        /// уровень 39+ — 2,6. Возражение (записано в DEFERRED): вместе с добивкой 30 тыс.
+        /// того же дня денег станет в ~2,5–3 раза больше, и эффекты не разделить.</summary>
+        internal const double ThreatShift = 1.1;
+        internal static double Threat(int level) => Math.Max(0.4, Math.Min(1.5, level / 26.0)) + ThreatShift;
 
         /// <summary>26.09, владелец: «давай попробуем до 30 тыс добивку» и «просто
         /// поучаствовать в каждом бою тоже надо время и следить за стримом» — поэтому

@@ -11,7 +11,10 @@ Check(BattlePayoutPolicy.Calculate(800,2000,100,false,false).Total>0,"defeat ret
 Check(BattlePayoutPolicy.Calculate(double.NaN,0,100,false,true).Total==0,"invalid score rejected");
 Check(BattlePayoutPolicy.Calculate(double.PositiveInfinity,0,100,false,true).Total==0,"infinite score rejected");
 Check(BattlePayoutPolicy.Calculate(-1,-1,100,false,true).Total==0,"negative score clamped");
-Check(BattlePayoutPolicy.Threat(1)==.4 && BattlePayoutPolicy.Threat(100)==1.5,"target threat bounded");
+// 26.09, владелец: множитель уровня врага 1,5–2,6 (было 0,4–1,5).
+Check(Math.Abs(BattlePayoutPolicy.Threat(1)-1.5)<1e-9 && Math.Abs(BattlePayoutPolicy.Threat(100)-2.6)<1e-9,"target threat bounded 1.5..2.6");
+Check(Math.Abs(BattlePayoutPolicy.Threat(26)-2.1)<1e-9,"level 26 enemy gives 2.1");
+Check(BattlePayoutPolicy.Threat(39)>BattlePayoutPolicy.Threat(13),"elite still worth more than a recruit");
 foreach(int enemies in new[]{10,49,50,199,200,1000})foreach(bool siege in new[]{false,true}){
  int previous=0;
  for(int score=0;score<=10000;score++){

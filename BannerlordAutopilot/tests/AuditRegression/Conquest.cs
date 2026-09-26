@@ -68,7 +68,7 @@ internal static partial class Program
             Check(AutopilotLog.Lines.Any(l=>l.Contains("лорды внутри 4")), "разбивка защиты в журнале");
         });
         Try("невидимая подмога рядом считается, дальняя — нет", () => {
-            foreach (var (x, expectSiege) in new[] { (60f, false), (150f, true) })
+            foreach (var (x, expectSiege) in new[] { (40f, false), (60f, true), (150f, true) })
             {
                 var b=Fresh(); var castle=ConquestWorld(); castle.Militia=4; Settlement.All.Add(castle);
                 EnemyLord(castle, 4, x, visible: false);
@@ -490,11 +490,11 @@ internal static partial class Program
         // Владелец: «точно от тех, кто идёт к нему, а не от мимо проходящих?» — идущий
         // к крепости лорд снимает осаду, проходящий мимо в том же месте — нет.
         foreach (var (reliefMen, heading, expectLeave) in new[] { (6, "крепость", true), (6, "мимо", false), (0, "нет", false) })
-        Try("осада: лорд " + reliefMen + " в 50, цель " + heading + ", стены 4, наша сила 10 — снимаем " + expectLeave, () => {
+        Try("осада: лорд " + reliefMen + " в 40, цель " + heading + ", стены 4, наша сила 10 — снимаем " + expectLeave, () => {
             var b = Fresh(); var castle = ConquestWorld(); castle.Name = "Осаждённый замок"; castle.Militia = 4; Enable(b);
             if (reliefMen > 0)
             {
-                var lord = EnemyLord(castle, reliefMen, 50, visible: false);
+                var lord = EnemyLord(castle, reliefMen, 40, visible: false);
                 lord.DefaultBehavior = heading == "крепость" ? AiBehavior.DefendSettlement : AiBehavior.GoToSettlement;
                 lord.TargetSettlement = heading == "крепость" ? castle : new Settlement { Name = "Другой город" };
             }

@@ -629,9 +629,12 @@ internal static partial class Program
             var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
             wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });
             wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_leave" }); Show(wait);
+            Campaign.Current.TimeControlMode = CampaignTimeControlMode.Stop;
             b.PollState(); b.PollState();
             Check(!MenuContext.Invoked.Contains("menu_siege_strategies_leave") && !MenuContext.Invoked.Contains("menu_siege_strategies_lead_assault"),
                 "командир — зритель: ни штурма, ни ухода: " + string.Join(",", MenuContext.Invoked));
+            Check(wait.IsWaitActive && Campaign.Current.TimeControlMode == CampaignTimeControlMode.UnstoppableFastForward,
+                "ждём в лагере с идущим временем, а не стоим: " + Campaign.Current.TimeControlMode);
         });
         // 26.09, владелец: «не тянуть — начинать только с осадным лагерем, без катапульт».
         Try("осада: лагерь готов — штурмуем, не дожидаясь машин и «логичного» штурма ИИ", () => {

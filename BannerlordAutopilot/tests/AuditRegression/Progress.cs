@@ -40,13 +40,13 @@ internal static partial class Program
         });
         // 26.09: «почему не предлагает мир Вландии?» — от королевства, статуса
         // наёмника и влияния зависит политика, в сводке этого не было.
-        foreach (var (merc, expect) in new[] { (true, "(наёмник)"), (false, "(вассал)") })
+        foreach (var (merc, ruler, expect) in new[] { (true, false, "(наёмник)"), (false, false, "(вассал)"), (false, true, "(правитель)") })
         Try("сводка называет королевство, статус и влияние: " + expect, () =>
         {
             var b = Fresh(); Enable(b);
             var clan = Clan.PlayerClan; clan.MapFaction = new TestFaction();
             clan.Kingdom = new Kingdom { Name = new TaleWorlds.Localization.TextObject("Империя") };
-            clan.IsUnderMercenaryService = merc; clan.Influence = 42;
+            clan.IsUnderMercenaryService = merc; clan.Influence = 42; if (ruler) clan.Kingdom.RulingClan = clan;
             CampaignTime.TestHours = 24 * 7 * 160 + 5; HourlyTick(b);
             Check(AutopilotLog.Lines.Any(l => l.Contains("НЕДЕЛЯ") && l.Contains("королевство «Империя» " + expect) && l.Contains("влияние 42")),
                   "видно королевство, наёмник/вассал и влияние");

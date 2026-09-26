@@ -2468,7 +2468,7 @@ namespace BannerlordAutopilot
                                    // 26.09: владелец спросил, почему нет мира/войны — политика
                                    // зависит от этих трёх вещей, а в сводке их не было.
                                    + "; королевство " + (clan.Kingdom == null ? "нет"
-                                       : "«" + clan.Kingdom.Name + "» (" + (clan.IsUnderMercenaryService ? "наёмник" : "вассал") + ")")
+                                       : "«" + clan.Kingdom.Name + "» (" + (clan.IsUnderMercenaryService ? "наёмник" : clan.Kingdom.RulingClan == clan ? "правитель" : "вассал") + ")")
                                    + "; влияние " + clan.Influence.ToString("F0", CultureInfo.InvariantCulture));
                 if (totalFiefs > 0 && heldFiefs >= totalFiefs)
                     AutopilotLog.Write("ЦЕЛЬ: все города и замки карты принадлежат нашему королевству/клану");

@@ -221,20 +221,47 @@ namespace BannerlordAutopilot
         // Count the militia as one strength per soldier and nearby visible enemy parties at
         // full strength. This deliberately overestimates resistance rather than starting
         // an assault on a deceptively empty garrison.
+        //
+        // 26.09: 25.09 сразу после начала осады нас дважды разбили в поле — 666 и 850
+        // врагов при оценке защитников 382 (Ремтойл: 320 бойцов → 1, герой в плену).
+        // Крепость зовёт на помощь с начала осады (ваниль: Settlement.LastAttackerParty
+        // ставится при старте осады → лорды получают цель «оборона»), а подготовка к
+        // штурму длится игровые дни. Прежняя оценка не видела лордов ВНУТРИ крепости
+        // (пропускала всех, кто в поселении) и лордов дальше 35 или вне поля зрения.
+        // Теперь: лорды в самой крепости и любые вражеские лорды в радиусе
+        // SiegeReliefRadius (в поселении или нет, видны или нет) — подмога.
+        private const float SiegeReliefRadius = 100f;
+
         private static float SiegeDefenderStrength(Settlement place, MobileParty party)
+            => SiegeDefenders(place, party, out _);
+
+        private static float SiegeDefenders(Settlement place, MobileParty party, out string breakdown)
         {
-            float strength = Math.Max(0f, place.Town?.GarrisonParty?.Party.EstimatedStrength ?? 0f)
+            float walls = Math.Max(0f, place.Town?.GarrisonParty?.Party.EstimatedStrength ?? 0f)
                 + Math.Max(0f, place.Militia);
+            float inside = 0f, relief = 0f, nearby = 0f;
             foreach (var enemy in MobileParty.All)
             {
                 if (enemy == null || enemy == party || enemy == place.Town?.GarrisonParty
-                    || !enemy.IsActive || !enemy.IsVisible || enemy.IsMilitia
-                    || enemy.CurrentSettlement != null || enemy.MapFaction == null
-                    || !party.MapFaction.IsAtWarWith(enemy.MapFaction)
-                    || enemy.Position.DistanceSquared(place.Position) > 35f * 35f) continue;
-                strength += Math.Max(0f, enemy.Party.EstimatedStrength);
+                    || !enemy.IsActive || enemy.IsMilitia || enemy.MapFaction == null
+                    || !party.MapFaction.IsAtWarWith(enemy.MapFaction)) continue;
+                float strength = Math.Max(0f, enemy.Party.EstimatedStrength);
+                float distance2 = enemy.Position.DistanceSquared(place.Position);
+                if (enemy.CurrentSettlement == place) inside += strength;
+                else if (enemy.IsLordParty && distance2 <= SiegeReliefRadius * SiegeReliefRadius) relief += strength;
+                else if (enemy.IsVisible && enemy.CurrentSettlement == null && distance2 <= 35f * 35f) nearby += strength;
             }
-            return strength;
+            breakdown = "стены " + walls.ToString("F0", CultureInfo.InvariantCulture)
+                + " + лорды внутри " + inside.ToString("F0", CultureInfo.InvariantCulture)
+                + " + подмога до " + SiegeReliefRadius.ToString("F0", CultureInfo.InvariantCulture) + " " + relief.ToString("F0", CultureInfo.InvariantCulture)
+                + " + прочие рядом " + nearby.ToString("F0", CultureInfo.InvariantCulture);
+            return walls + inside + relief + nearby;
+        }
+
+        private static string BreakdownOf(Settlement place, MobileParty party)
+        {
+            SiegeDefenders(place, party, out string breakdown);
+            return " (" + breakdown + ")";
         }
 
         private static float SiegeAttackerStrength(MobileParty party)
@@ -351,7 +378,8 @@ namespace BannerlordAutopilot
                             + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture) + " = "
                             + (closestDefenders * SiegeStrengthRatio).ToString("F0", CultureInfo.InvariantCulture)
                             + ", у нас " + own.ToString("F0", CultureInfo.InvariantCulture)
-                            + (allies.Count > 0 ? ", с армией " + assembled.ToString("F0", CultureInfo.InvariantCulture) : ", армию собрать не из кого")));
+                            + (allies.Count > 0 ? ", с армией " + assembled.ToString("F0", CultureInfo.InvariantCulture) : ", армию собрать не из кого")
+                            + BreakdownOf(closest, party)));
                 }
                 return false;
             }
@@ -381,7 +409,8 @@ namespace BannerlordAutopilot
                 + " — нужен перевес x" + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture)
                 + ", надо " + (defenders * SiegeStrengthRatio).ToString("F1", CultureInfo.InvariantCulture)
                 + " (наша сила " + own.ToString("F1", CultureInfo.InvariantCulture)
-                + ", доступная армия " + assembled.ToString("F1", CultureInfo.InvariantCulture) + ")";
+                + ", доступная армия " + assembled.ToString("F1", CultureInfo.InvariantCulture) + ")"
+                + BreakdownOf(place, party);
         }
 
         private static bool EnemyVillage(Settlement place, MobileParty party) => place?.IsVillage == true

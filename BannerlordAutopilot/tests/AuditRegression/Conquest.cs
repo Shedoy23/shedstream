@@ -49,6 +49,33 @@ internal static partial class Program
             Check(MobileParty.MainParty.TargetSettlement!=castle, "штатное предложение осады отклонено");
             Check(AutopilotLog.Lines.Any(l=>(l.Contains("пропущено") || l.Contains("выполнимых решений нет")) && l.Contains("BesiegeSettlement") && l.Contains("отряд зелёный")), "в пропусках названа причина");
         });
+        // 26.09: 25.09 после начала осады нас дважды разбили в поле (666 и 850 врагов
+        // при оценке 382) — оценка не видела лордов внутри крепости и подмогу вне поля зрения.
+        static MobileParty EnemyLord(Settlement castle, int men, float x, bool visible = true, Settlement inside = null)
+        {
+            var lord = new MobileParty { Name = "лорд", IsLordParty = true, MapFaction = castle.MapFaction,
+                IsVisible = visible, Position = new CampaignVec2 { X = x }, CurrentSettlement = inside };
+            lord.Party.MapFaction = castle.MapFaction;
+            lord.MemberRoster.AddToCounts(new CharacterObject { Name = "дружинник", StringId = "retainer" }, men);
+            MobileParty.All.Add(lord);
+            return lord;
+        }
+        Try("лорды внутри крепости считаются защитниками", () => {
+            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=4; Settlement.All.Add(castle);
+            EnemyLord(castle, 4, 0, inside: castle);
+            Enable(b); HourlyTick(b);
+            Check(SiegeTarget(b)==null, "ополчение 4 + лорд внутри 4 = 8, нам надо 12 — не идём");
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("лорды внутри 4")), "разбивка защиты в журнале");
+        });
+        Try("невидимая подмога рядом считается, дальняя — нет", () => {
+            foreach (var (x, expectSiege) in new[] { (60f, false), (150f, true) })
+            {
+                var b=Fresh(); var castle=ConquestWorld(); castle.Militia=4; Settlement.All.Add(castle);
+                EnemyLord(castle, 4, x, visible: false);
+                Enable(b); HourlyTick(b);
+                Check((SiegeTarget(b)==castle) == expectSiege, "лорд в " + x + " вне поля зрения: ждали осаду " + expectSiege);
+            }
+        });
         Try("нет крепости по силам — журнал называет ближайшую к порогу, раз в сутки", () => {
             var b=Fresh(); var castle=ConquestWorld(); castle.Name="Крепкий замок"; castle.Militia=8; Settlement.All.Add(castle);
             Enable(b); CampaignTime.TestHours=0; HourlyTick(b);

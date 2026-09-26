@@ -1,0 +1,42 @@
+{
+  "collection": "fantasy-v1",
+  "archive": "dist/pets-fantasy-20260926/sources",
+  "items": [
+    [
+      "necro_cat",
+      "Кот-некромант",
+      "exec-9d012116-bb0d-46b4-b9ef-c37e3aaf353b.png",
+      512
+    ],
+    [
+      "chest_mimic",
+      "Сундук-мимик",
+      "exec-47d06842-5dae-497c-a2b2-46562eefbc9c.png",
+      512
+    ],
+    [
+      "mushroom_grandpa",
+      "Грибной дедушка",
+      "exec-8eca9fbf-3012-40b0-b5a8-bbce8a8fb07f.png",
+      512
+    ],
+    [
+      "baker_dragon",
+      "Дракончик-пекарь",
+      "exec-88f997e7-2359-4c16-ae46-aa6c9e0d8363.png",
+      512
+    ],
+    [
+      "blanket_ghost",
+      "Призрак в пледе",
+      "exec-16fd2cf9-4892-4c92-beff-eb878cc425e9.png",
+      512
+    ],
+    [
+      "frog_samurai",
+      "Лягушка-самурай",
+      "exec-7b433f4f-0102-4ab9-b590-1c3ce50b29a7.png",
+      512
+    ]
+  ]
+}

@@ -4,8 +4,9 @@ const path=require('path');
 const http=require('http');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/Edward/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const root=path.resolve(__dirname,'../Расширение/frontend');
-const out=path.resolve(__dirname,'../dist/pets-collection-20260926');
-const ids=['wayfarer','crimson_knight','colony_engineer','lantern_mage','shadow_rogue','rain_fisher'];
+const fantasy=process.argv.includes('--fantasy');
+const out=path.resolve(__dirname,fantasy?'../dist/pets-fantasy-20260926':'../dist/pets-collection-20260926');
+const ids=fantasy?require('./pet-fantasy-spec.json').items.map(x=>x[0]):['wayfarer','crimson_knight','colony_engineer','lantern_mage','shadow_rogue','rain_fisher'];
 async function main(){
  require(path.join(root,'pet-assets/companions-v1/overlay-pets.js'));
  const pose=global.PetCompanions.poseAt;
@@ -20,7 +21,7 @@ async function main(){
  const browser=await chromium.launch({headless:true,channel:'msedge'});
  const page=await browser.newPage({viewport:{width:1120,height:850}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
-  await page.goto(base+'/pet-assets/companions-v1/preview.html');
+  await page.goto(base+'/pet-assets/'+(fantasy?'fantasy-v1':'companions-v1')+'/preview.html');
   await page.getByRole('button',{name:'Спать',exact:true}).click();
   await page.waitForFunction(()=>[...document.querySelectorAll('.sprite')].every(s=>s.dataset.frame==='4'));
   await page.screenshot({path:path.join(out,'collection-sleep.png'),fullPage:true});
@@ -41,9 +42,9 @@ async function main(){
   viewers=[{username:'same_viewer',level:20,pet_type:'hatched',equipped:{body:{item_id:'skin_lantern_mage'}}}];
   await page.evaluate(()=>pollPets());
   await page.waitForFunction(()=>document.querySelector('.pet-companion')?.dataset.petVariant==='lantern_mage');
-  viewers[0].equipped.body.item_id='skin_wayfarer';
+  viewers[0].equipped.body.item_id='skin_'+ids[0];
   await page.evaluate(()=>pollPets());
-  assert.equal(await page.locator('.pet-companion').getAttribute('data-pet-variant'),'wayfarer');
+  assert.equal(await page.locator('.pet-companion').getAttribute('data-pet-variant'),ids[0]);
   viewers[0].equipped.body.item_id='skin_kimono';
   await page.evaluate(()=>pollPets());
   assert.equal(await page.locator('.pet-companion').count(),0);

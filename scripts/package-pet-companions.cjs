@@ -5,7 +5,8 @@ const sharp = require(process.env.SHARP_MODULE || 'C:/Users/Edward/.cache/codex-
 const root = path.resolve(__dirname, '..');
 const source = process.argv[2];
 if (!source) throw new Error('Pass directory containing generated original PNGs');
-const items = [
+const spec = process.argv[3] ? JSON.parse(fs.readFileSync(process.argv[3], 'utf8')) : null;
+const items = spec ? spec.items : [
   ['wayfarer','Странник','exec-15d01c90-456d-428c-8dc6-a89b7c8c7ccd.png',512],
   ['crimson_knight','Багряный рыцарь','exec-6bb4f409-e40e-4650-9c2d-a1b1d411dce7.png',512],
   ['colony_engineer','Инженер','exec-a365c78b-feb4-479c-a0dd-74f9624b2dbc.png',512],
@@ -34,7 +35,7 @@ async function main() {
     const scale=Math.min(226/Math.max(...boxes.map(b=>b.height)),236/Math.max(...boxes.map(b=>b.width)));
     const out=path.join(root,'Расширение/frontend/pet-assets/v2',id);
     fs.mkdirSync(out,{recursive:true});
-    const archive=path.join(root,'dist/pets-collection-20260926/sources');
+    const archive=path.join(root,spec ? spec.archive : 'dist/pets-collection-20260926/sources');
     fs.mkdirSync(archive,{recursive:true});fs.copyFileSync(input,path.join(archive,id+'.png'));
     const sprites=[];
     for(let i=0;i<6;i++) {
@@ -48,7 +49,7 @@ async function main() {
     manifest.push({id,name,rarity:'rare',price:500000,frames:names,boxes,source:file});
     console.log(id+' packed');
   }
-  const dir=path.join(root,'Расширение/frontend/pet-assets/companions-v1');fs.mkdirSync(dir,{recursive:true});
+  const dir=path.join(root,'Расширение/frontend/pet-assets',spec ? spec.collection : 'companions-v1');fs.mkdirSync(dir,{recursive:true});
   fs.writeFileSync(path.join(dir,'manifest.json'),JSON.stringify(manifest,null,2));
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

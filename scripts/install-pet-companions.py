@@ -1,5 +1,5 @@
 """Server-side stage/apply. Exact source guards preserve unrelated deployments."""
-import asyncio,hashlib,json,os,py_compile,shutil,sqlite3,subprocess,sys,time,urllib.request
+import asyncio,hashlib,importlib,json,os,py_compile,shutil,sqlite3,subprocess,sys,time,urllib.request
 from pathlib import Path
 
 BUNDLE=Path(__file__).resolve().parent
@@ -7,6 +7,7 @@ ROOT=Path('/root/twitch-extension')
 BACKUP=BUNDLE/'backup'
 STAGE=BUNDLE/'stage'
 manifest=json.loads((BUNDLE/'manifest.json').read_text())
+variants=manifest.get('variants',['wayfarer','crimson_knight','colony_engineer','lantern_mage','shadow_rogue','rain_fisher'])
 
 def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
 def atomic_copy(source,target):
@@ -17,11 +18,29 @@ def frozen_hashes():return {r:digest(ROOT/r) for r in manifest['frozen'] if (ROO
 def check_bundle():
     assert not (set(manifest['files'])|set(manifest['patches'])) & set(manifest['frozen'])
     for rel,h in manifest['hashes'].items():assert digest(BUNDLE/'payload'/rel)==h,rel
+
+def check_new_target(rel):
+    # Preview assets may be published in advance while the stream is live.
+    target=ROOT/rel
+    if target.exists():
+        assert rel.startswith('frontend/pet-assets/'),('new backend target appeared',rel)
+        assert digest(target)==manifest['hashes'][rel],('new static target differs',rel)
+
+def publish_preview():
+    check_bundle();state=json.loads((BUNDLE/'prepared.json').read_text())
+    assert frozen_hashes()==state['frozen']
+    assets=[r for r in manifest['files'] if r.startswith('frontend/pet-assets/')]
+    for rel in assets:
+        check_new_target(rel)
+        assert digest(STAGE/rel)==manifest['hashes'][rel],rel
+    for rel in assets:atomic_copy(STAGE/rel,ROOT/rel)
+    assert frozen_hashes()==state['frozen']
+    print('Published',len(assets),'new static preview assets; no backend/catalog/restart changes')
 async def stage_migration(db):
     import aiosqlite
     sys.path.insert(0,str(STAGE/'backend'))
-    from migrations import m129_pet_companions
-    async with aiosqlite.connect(db) as conn:await m129_pet_companions.apply(conn)
+    migration=importlib.import_module('migrations.'+manifest.get('migration','m129_pet_companions'))
+    async with aiosqlite.connect(db) as conn:await migration.apply(conn)
 
 def prepare():
     check_bundle()
@@ -40,8 +59,14 @@ def prepare():
         assert not (ROOT/rel).exists(),('target already exists',rel)
         target=STAGE/rel;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(BUNDLE/'payload'/rel,target)
     shutil.copyfile(ROOT/'backend/config.py',STAGE/'backend/config.py')
+    for rel in manifest.get('stage_support',[]):
+        target=STAGE/rel;target.parent.mkdir(parents=True,exist_ok=True)
+        assert not target.exists(),('stage support overlaps release',rel)
+        shutil.copyfile(ROOT/rel,target)
     for p in (STAGE/'backend').rglob('*.py'):py_compile.compile(str(p),doraise=True)
     subprocess.run([sys.executable,str(STAGE/'backend/tests/test_pet_collection_purchase.py')],check=True)
+    for rel in manifest.get('extra_tests',[]):
+        subprocess.run([sys.executable,str(STAGE/rel)],check=True)
     with sqlite3.connect('file:'+str(ROOT/'backend/viewers.db')+'?mode=ro',uri=True) as src, sqlite3.connect(BACKUP/'viewers.db') as dst:src.backup(dst)
     shutil.copyfile(BACKUP/'viewers.db',STAGE/'viewers.db')
     with sqlite3.connect(STAGE/'viewers.db') as c:
@@ -50,7 +75,7 @@ def prepare():
         owned=c.execute('SELECT count(*) FROM pet_inventory').fetchone()[0]
     asyncio.run(stage_migration(STAGE/'viewers.db'))
     with sqlite3.connect(STAGE/'viewers.db') as c:
-        assert c.execute('SELECT count(*) FROM pet_catalog').fetchone()[0]==len(original_catalog)+6
+        assert c.execute('SELECT count(*) FROM pet_catalog').fetchone()[0]==len(original_catalog)+len(variants)
         for row in original_catalog:assert c.execute('SELECT * FROM pet_catalog WHERE item_id=?',(row[0],)).fetchone()==row
         assert c.execute('SELECT count(*) FROM pet_inventory').fetchone()[0]==owned
     state={'before':before,'frozen':frozen_hashes(),'staged':{r:digest(STAGE/r) for r in manifest['patches']}}
@@ -63,9 +88,10 @@ def apply():
     for rel,h in state['before'].items():assert digest(ROOT/rel)==h,('production changed since prepare',rel)
     subprocess.run([sys.executable,str(BUNDLE/'check-stream.py')],check=True)
     # Publish complete image directories first. No catalog item exists yet.
-    for rel in manifest['files']:atomic_copy(STAGE/rel,ROOT/rel)
-    for rel in manifest['patches']:atomic_copy(STAGE/rel,ROOT/rel)
+    for rel in manifest['files']:check_new_target(rel)
     try:
+        for rel in manifest['files']:atomic_copy(STAGE/rel,ROOT/rel)
+        for rel in manifest['patches']:atomic_copy(STAGE/rel,ROOT/rel)
         subprocess.run(['supervisorctl','restart','twitchbot'],check=True,timeout=60)
         for attempt in range(15):
             try:
@@ -75,12 +101,12 @@ def apply():
             time.sleep(2)
         else:raise RuntimeError('health failed')
         with urllib.request.urlopen('http://127.0.0.1:8000/api/pet/catalog',timeout=10) as r:catalog=json.load(r)
-        variants=['wayfarer','crimson_knight','colony_engineer','lantern_mage','shadow_rogue','rain_fisher']
         for variant in variants:
             item=next(x for x in catalog['items'] if x['item_id']=='skin_'+variant)
             assert item['rarity']=='rare' and item['price_crustics']==500000,item
         assert frozen_hashes()==state['frozen'],'frozen files changed'
         for rel,h in state['staged'].items():assert digest(ROOT/rel)==h,rel
+        for rel,h in manifest['hashes'].items():assert digest(ROOT/rel)==h,rel
         result={'health':health,'catalog':[{k:x[k] for k in ('item_id','rarity','price_crustics')} for x in catalog['items']], 'frozen_unchanged':True,'backup':str(BACKUP)}
         (BUNDLE/'deployed.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
         print(json.dumps(result,ensure_ascii=False))
@@ -88,10 +114,10 @@ def apply():
         for rel in manifest['patches']:atomic_copy(BACKUP/rel,ROOT/rel)
         # Never restore the whole live DB: preserve viewer purchases and unrelated writes.
         with sqlite3.connect(ROOT/'backend/viewers.db') as c:
-            for variant in ['wayfarer','crimson_knight','colony_engineer','lantern_mage','shadow_rogue','rain_fisher']:
+            for variant in variants:
                 c.execute('UPDATE pet_catalog SET deprecated=1 WHERE item_id=?',('skin_'+variant,))
         subprocess.run(['supervisorctl','restart','twitchbot'],check=True,timeout=60)
         raise
 
 if __name__=='__main__':
-    {'prepare':prepare,'apply':apply}[sys.argv[1]]()
+    {'prepare':prepare,'publish-preview':publish_preview,'apply':apply}[sys.argv[1]]()

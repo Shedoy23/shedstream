@@ -1547,6 +1547,9 @@ async def run_migrations():
         from migrations import m129_pet_companions
         await m129_pet_companions.apply(conn)
 
+        from migrations import m130_pet_fantasy
+        await m130_pet_fantasy.apply(conn)
+
         print("✅ Migrations complete")
 
 

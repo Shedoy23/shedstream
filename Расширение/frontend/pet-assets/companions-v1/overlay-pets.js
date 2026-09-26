@@ -1,7 +1,7 @@
 // OBS-only companion animation. Never loaded by the frozen Twitch shells.
 (function (global) {
     'use strict';
-    const VARIANTS = ['wayfarer', 'crimson_knight', 'colony_engineer', 'lantern_mage', 'shadow_rogue', 'rain_fisher'];
+    const VARIANTS = ['wayfarer', 'crimson_knight', 'colony_engineer', 'lantern_mage', 'shadow_rogue', 'rain_fisher', 'necro_cat', 'chest_mimic', 'mushroom_grandpa', 'baker_dragon', 'blanket_ghost', 'frog_samurai'];
     const images = new Map();
     let cards = [], running = false, lastDraw = 0;
 

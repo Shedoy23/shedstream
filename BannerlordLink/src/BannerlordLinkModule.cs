@@ -409,6 +409,7 @@ namespace BannerlordLink
                 try
                 {
                     campaignStarter.AddBehavior(new MainCampaignBehavior());
+                    campaignStarter.AddBehavior(new Patches.LordTroopDiagnosticsBehavior());
                     Log("MainCampaignBehavior registered (HeroKilled + HeroLevelledUp)");
                     // Sprint 5.32 (BLT-parity M9) — persistent identity dict.
                     // ДОЛЖЕН быть зарегистрирован ДО других behaviors, чтобы

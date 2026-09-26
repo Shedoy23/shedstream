@@ -40,11 +40,11 @@ namespace BannerlordAutopilot
         /// <summary>Почему сейчас не охотимся (null — можно). Это режим
         /// «Восстановление»: после поражения сначала набрать армию, иначе
         /// «безбашенный» автопилот сольёт остатки и зрителям некуда призываться.</summary>
-        internal static string HuntBlocked(MobileParty party)
+        internal static string HuntBlocked(MobileParty party, bool allowOwnArmy = false)
         {
             if (party?.Party == null || Hero.MainHero == null) return "нет партии/героя";
             if (Hero.MainHero.IsWounded) return "герой ранен";
-            if (party.Army != null) return "в армии решает её лидер";
+            if (party.Army != null && (!allowOwnArmy || party.Army.LeaderParty != party)) return "в армии решает её лидер";
             int total = party.MemberRoster.TotalManCount;
             int healthy = total - party.MemberRoster.TotalWounded;
             int limit = party.Party.PartySizeLimit;
@@ -55,6 +55,7 @@ namespace BannerlordAutopilot
 
         private bool TryHunt(MobileParty party)
         {
+            if (HoldCurrentChase(party, HuntRadiusFor(party))) return true;
             if (_mode != Mode.Apply || !ControlsParty(party) || party.IsCurrentlyAtSea || HuntBlocked(party) != null
                 || _fleeFrom != null
                 || party.SiegeEvent != null || party.BesiegedSettlement != null
@@ -135,12 +136,28 @@ namespace BannerlordAutopilot
         {
             MobileParty target = _combatTarget;
             if (target == null || party.DefaultBehavior != AiBehavior.EngageParty || party.TargetParty != target) return false;
-            if (_mode != Mode.Apply || !ControlsParty(party) || _fleeFrom != null || HuntBlocked(party) != null) return false;
+            if (_mode != Mode.Apply || !ControlsParty(party) || _fleeFrom != null
+                || party.IsCurrentlyAtSea || party.SiegeEvent != null || party.BesiegedSettlement != null
+                || HuntBlocked(party, allowOwnArmy: true) != null) return false;
             if (CampaignTime.Now.ToHours - _huntConfirmedHours > HuntHoldHours) return false;
             if (!target.IsActive || target.CurrentSettlement != null || target.MapEvent != null
                 || target.MapFaction == null || party.MapFaction == null
                 || !party.MapFaction.IsAtWarWith(target.MapFaction) || InLeftForeignBattle(target)) return false;
+            float theirs = target.Army != null ? target.Army.EstimatedStrength : target.Party.EstimatedStrength;
+            if (SiegeAttackerStrength(party) < theirs * (target.Army != null ? HuntArmyMinRatio : HuntMinRatio)) return false;
             return Math.Sqrt(party.Position.DistanceSquared(target.Position)) <= radius;
+        }
+
+        private bool HoldCurrentChase(MobileParty party, float radius)
+        {
+            if (!HoldsChase(party, radius)) return false;
+            var target = party.TargetParty;
+            if (!target.IsMoving || target.Speed <= party.Speed
+                || party.Position.DistanceSquared(target.Position) <= HuntCatchDistance * HuntCatchDistance)
+                _huntConfirmedHours = CampaignTime.Now.ToHours;
+            else
+                AutopilotLog.Write("ОХОТА: продолжаем погоню за «" + target.Name + "» — цель на миг вне досягаемости, не разворачиваемся");
+            return true;
         }
 
         /// <summary>Вопрос 18.09 «осада или набор до 90%» закрыт владельцем 23.09:

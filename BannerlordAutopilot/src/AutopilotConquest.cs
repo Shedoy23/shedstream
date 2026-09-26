@@ -33,17 +33,22 @@ namespace BannerlordAutopilot
         /// <summary>Простой дольше этого — сплочённость влиянием уже не поддерживаем.</summary>
         internal const double ArmyIdleNoBoostHours = 2;
         private double _armyBusyAt = double.MinValue;
+        private Army _idleTrackedArmy;
 
-        private static bool ArmyHasWork(MobileParty party) => party.SiegeEvent != null || party.MapEvent != null
+        private bool ArmyHasWork(MobileParty party) => party.SiegeEvent != null || party.MapEvent != null
             || party.DefaultBehavior == AiBehavior.BesiegeSettlement || party.DefaultBehavior == AiBehavior.DefendSettlement
-            || party.DefaultBehavior == AiBehavior.RaidSettlement || party.DefaultBehavior == AiBehavior.EngageParty;
+            || party.DefaultBehavior == AiBehavior.RaidSettlement || party.DefaultBehavior == AiBehavior.EngageParty
+            // Player siege/defence orders travel through GoToSettlement, unlike NPC orders.
+            || HeadingToSiegeTarget(party) && EnemyFortress(party.TargetSettlement, party)
+            || party.DefaultBehavior == AiBehavior.GoToSettlement && FriendlySiege(party.TargetSettlement, party);
 
         private double ArmyIdleFor(MobileParty party)
         {
             double now = CampaignTime.Now.ToHours;
-            if (party?.Army == null || party.Army.LeaderParty != party || _gatheringArmy == party.Army || ArmyHasWork(party)
+            if (party?.Army == null || _idleTrackedArmy != party.Army || party.Army.LeaderParty != party || _gatheringArmy == party.Army || ArmyHasWork(party)
                 || _armyBusyAt == double.MinValue)
                 _armyBusyAt = now;
+            _idleTrackedArmy = party?.Army;
             return now - _armyBusyAt;
         }
 
@@ -492,13 +497,40 @@ namespace BannerlordAutopilot
         /// 12 игровых часов.</summary>
         private const double SiegeRejectionHours = 12;
         private readonly Dictionary<Settlement, double> _siegeRejectedUntil = new Dictionary<Settlement, double>();
+        private sealed class SiegeRefusal
+        {
+            internal int Count;
+            internal double At;
+            internal float Own, Defense, Camp, Walls;
+            internal readonly List<(MobileParty Party, float Strength)> Troops = new List<(MobileParty, float)>();
+        }
+        private readonly Dictionary<Settlement, SiegeRefusal> _siegeRefusals = new Dictionary<Settlement, SiegeRefusal>();
+
+        private static float SiegeWalls(Settlement place) => Math.Max(0, place.Militia)
+            + Math.Max(0, place.Town?.GarrisonParty?.Party.EstimatedStrength ?? 0);
 
         private bool NoteSiegeRejection(Settlement place, string rejection)
         {
             if (place == null || rejection == null || !rejection.StartsWith("защитники", StringComparison.Ordinal)) return false;
-            _siegeRejectedUntil[place] = CampaignTime.Now.ToHours + SiegeRejectionHours;
-            AutopilotLog.Write("ПОХОД: «" + place.Name + "» не берём " + SiegeRejectionHours.ToString("F0", CultureInfo.InvariantCulture)
-                + " игровых часов — отказались по силам");
+            double now = CampaignTime.Now.ToHours;
+            var party = MobileParty.MainParty;
+            int count = _siegeRefusals.TryGetValue(place, out var previous) && now - previous.At < 168
+                ? Math.Min(4, previous.Count + 1) : 1;
+            double hours = Math.Min(72, SiegeRejectionHours * Math.Pow(2, count - 1));
+            float camp = AlliedCampStrength(place, party, out _);
+            var refusal = new SiegeRefusal { Count = count, At = now, Own = SiegeAttackerStrength(party) + camp,
+                Defense = SiegeDefenderStrength(place, party), Camp = camp, Walls = SiegeWalls(place) };
+            foreach (var enemy in MobileParty.All)
+                if (enemy != null && enemy != party && enemy.IsActive && !enemy.IsMilitia
+                    && enemy != place.Town?.GarrisonParty && enemy.MapFaction != null
+                    && party.MapFaction.IsAtWarWith(enemy.MapFaction)
+                    && (enemy.CurrentSettlement == place
+                        || enemy.Position.DistanceSquared(place.Position) <= (enemy.IsLordParty ? 50f * 50f : 35f * 35f)))
+                    refusal.Troops.Add((enemy, Math.Max(0, enemy.Party.EstimatedStrength)));
+            _siegeRefusals[place] = refusal;
+            _siegeRejectedUntil[place] = now + hours;
+            AutopilotLog.Write("ПОХОД: «" + place.Name + "» не берём " + hours.ToString("F0", CultureInfo.InvariantCulture)
+                + " игровых часов — отказались по силам (подряд " + count + "); раньше — при заметном улучшении сил");
             return true;
         }
 
@@ -513,8 +545,39 @@ namespace BannerlordAutopilot
             AutopilotLog.Write("ПОХОД: к отвергнутой крепости не идём, партия остановлена до нового решения");
         }
 
-        private bool SiegeRecentlyRejected(Settlement place) => place != null
-            && _siegeRejectedUntil.TryGetValue(place, out double until) && CampaignTime.Now.ToHours < until;
+        private bool SiegeRecentlyRejected(Settlement place)
+        {
+            if (place == null || !_siegeRejectedUntil.TryGetValue(place, out double until)
+                || CampaignTime.Now.ToHours >= until) return false;
+            if (_siegeRefusals.TryGetValue(place, out var seen))
+            {
+                var party = MobileParty.MainParty;
+                float camp = AlliedCampStrength(place, party, out _);
+                float own = SiegeAttackerStrength(party) + camp;
+                // Walking beyond the counting radius is NOT destruction of relief.
+                // Only observed losses/disbanding/change of side reduce the remembered force.
+                float losses = Math.Max(0, seen.Walls - SiegeWalls(place));
+                foreach (var troop in seen.Troops)
+                {
+                    float remaining = troop.Party.IsActive && troop.Party.MapFaction != null
+                        && party.MapFaction.IsAtWarWith(troop.Party.MapFaction)
+                        ? Math.Max(0, troop.Party.Party.EstimatedStrength) : 0;
+                    losses += Math.Max(0, troop.Strength - remaining);
+                }
+                float defense = Math.Max(SiegeDefenders(place, party, out _), seen.Defense - losses);
+                // Crossing x1.5 by a few men caused the same march every 10 seconds.
+                bool improved = own >= seen.Own * 1.2f || defense <= seen.Defense * .8f
+                    || camp > 0 && seen.Camp <= 0;
+                if (improved && own >= defense * SiegeStrengthRatio)
+                {
+                    _siegeRejectedUntil.Remove(place);
+                    if (losses > 0) _siegeDefenseSeen.Remove(place);
+                    AutopilotLog.Write("ПОХОД: «" + place.Name + "» снова доступна — соотношение сил заметно улучшилось");
+                    return false;
+                }
+            }
+            return true;
+        }
 
         private bool TryFindSiegeTarget(MobileParty party, out AIBehaviorData target, out float score)
         {

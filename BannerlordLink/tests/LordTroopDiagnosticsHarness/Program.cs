@@ -33,8 +33,10 @@ namespace TaleWorlds.CampaignSystem.CampaignBehaviors {
  }
  public class RecruitmentCampaignBehavior {
   public enum RecruitingDetail { VolunteerFromIndividual, MercenaryFromTavern, VolunteerFromMap }
-  [MethodImpl(MethodImplOptions.NoInlining)] public void RecruitPrisonersAi(MobileParty mobileParty,CharacterObject troop,int num,int conformityCost) { mobileParty.MemberRoster.TotalManCount += num; }
   [MethodImpl(MethodImplOptions.NoInlining)] public void ApplyInternal(MobileParty side1Party,Settlement settlement,Hero individual,CharacterObject troop,int number,int bitCode,RecruitingDetail detail) { side1Party.MemberRoster.TotalManCount += number; }
+ }
+ public class RecruitPrisonersCampaignBehavior {
+  [MethodImpl(MethodImplOptions.NoInlining)] public void RecruitPrisonersAi(MobileParty mobileParty,CharacterObject troop,int num,int conformityCost) { mobileParty.MemberRoster.TotalManCount += num; }
  }
 }
 class Program {
@@ -69,7 +71,7 @@ class Program {
   Check(lines.Any(s=>s.Contains("source=garrison")&&s.Contains("added=7")),"записано реально 7, а не запрошенные 100");
   Check(party.MemberRoster.TotalManCount==39,"учёт не меняет войска");
   lines.Clear();
-  recruit.RecruitPrisonersAi(party,new CharacterObject(),5,10); Call("Flush");
+  new TaleWorlds.CampaignSystem.CampaignBehaviors.RecruitPrisonersCampaignBehavior().RecruitPrisonersAi(party,new CharacterObject(),5,10); Call("Flush");
   Check(lines.Count==1 && lines[0].Contains("source=recruit:prisoner") && lines[0].Contains("added=5"),"обращение пленных учитывается отдельно от найма добровольцев");
   Check(party.MemberRoster.TotalManCount==44,"учёт не меняет обращение пленных");
   lines.Clear();
@@ -111,7 +113,7 @@ class Program {
   Signature("HeroSpawnCampaignBehavior","SpawnLordParty","hero:Hero,isNewGame:Boolean","MobileParty");
   Signature("RecruitmentCampaignBehavior","ApplyInternal","side1Party:MobileParty,settlement:Settlement,individual:Hero,troop:CharacterObject,number:Int32,bitCode:Int32,detail:RecruitingDetail","Void");
   Signature("GarrisonTroopsCampaignBehavior","TakeTroopsFromGarrison","mobileParty:MobileParty,settlement:Settlement,numberOfTroopsToTake:Int32,archersAreHighPriority:Boolean","Void");
-  Signature("RecruitmentCampaignBehavior","RecruitPrisonersAi","mobileParty:MobileParty,troop:CharacterObject,num:Int32,conformityCost:Int32","Void");
+  Signature("RecruitPrisonersCampaignBehavior","RecruitPrisonersAi","mobileParty:MobileParty,troop:CharacterObject,num:Int32,conformityCost:Int32","Void");
   Console.WriteLine($"{passed} ok / {failed} FAIL");return failed;
  }
 }

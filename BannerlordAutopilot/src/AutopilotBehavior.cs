@@ -2120,6 +2120,7 @@ namespace BannerlordAutopilot
             if (waitingIn == null && _fleeFrom != null) return;
             if (waitingIn != null && HoldShelter(party, waitingIn)) return;
             if (TryEmergencyDefense(party, waitingIn)) return;
+            RecheckPressureRaid(party);
             if (waitingIn != null && HoldPostBattleRest(party, waitingIn, true)) return;
             if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
 
@@ -2217,6 +2218,7 @@ namespace BannerlordAutopilot
             }
 
             var proposals = think.AIBehaviorScores.ToList();
+            AIBehaviorData pressureRaid = AIBehaviorData.Invalid;
             if (TryFindSiegeTarget(party, out AIBehaviorData siegeTarget, out float siegeScore))
             {
                 proposals.Add((siegeTarget, siegeScore));
@@ -2224,6 +2226,7 @@ namespace BannerlordAutopilot
                     + "; оценка " + siegeScore.ToString("F3", CultureInfo.InvariantCulture)
                     + (siegeTarget.WillGatherArmy ? "; сначала собираем армию" : "; сил отряда достаточно"));
             }
+            else if (TryFindPressureRaid(party, out pressureRaid)) proposals.Add((pressureRaid, 5f));
             AIBehaviorData best = AIBehaviorData.Invalid;
             float bestScore = -1f;
             var lines = new List<string>();
@@ -2309,8 +2312,13 @@ namespace BannerlordAutopilot
                     && p.Item1.Party is Settlement s && s.MapFaction != null && party.MapFaction != null
                     && !party.MapFaction.IsAtWarWith(s.MapFaction) && !s.IsUnderSiege && !s.IsUnderRaid && !s.IsRaided).ToList()
                 : applicable.Where(p => p.Item1.AiBehavior == AiBehavior.BesiegeSettlement && p.Item2 > 0).ToList();
+            if (!preparing && priority.Count == 0 && pressureRaid.AiBehavior == AiBehavior.RaidSettlement)
+                priority = applicable.Where(p => p.Item1.AiBehavior == AiBehavior.RaidSettlement
+                    && p.Item1.Party == pressureRaid.Party).ToList();
             bool hasPriority = priority.Count > 0;
-            if (hasPriority) AutopilotLog.Write(preparing ? "ПОХОД: снабжение/восстановление — " + preparation : "ПОХОД: готовы, приоритет захвату крепости");
+            if (hasPriority) AutopilotLog.Write(preparing ? "ПОХОД: снабжение/восстановление — " + preparation
+                : priority[0].Item1.AiBehavior == AiBehavior.RaidSettlement ? "ПОХОД: осада пока недоступна, бьём по снабжению крепости"
+                : "ПОХОД: готовы, приоритет захвату крепости");
             if (applicable.Count > 0)
             {
                 var ordinary = applicable;
@@ -2766,7 +2774,8 @@ namespace BannerlordAutopilot
 
         private bool TryApplyNearbyAttack(MobileParty party)
         {
-            if (_mode != Mode.Apply) return false;
+            if (_mode != Mode.Apply || !ControlsParty(party)) return false;
+            if (HoldCurrentChase(party, HuntRadiusFor(party))) return true;
             try
             {
                 Campaign.Current.Models.MobilePartyAIModel.GetBestInitiativeBehavior(
@@ -2822,7 +2831,7 @@ namespace BannerlordAutopilot
         {
             if (ReliefUnavailable(data.Party as Settlement)) return "прорыв недавно запрещён игрой, ждём повторной попытки";
             if (data.AiBehavior == AiBehavior.BesiegeSettlement && SiegeRecentlyRejected(data.Party as Settlement))
-                return "недавно отказались по силам, ждём 12 игровых часов";
+                return "недавно отказались по силам, ждём окончания паузы или заметного улучшения сил";
             // Цель, под приказ на которую партия не сдвинулась с места, временно
             // не предлагаем: иначе тот же приказ выдаётся снова и снова.
             if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil
@@ -2840,6 +2849,8 @@ namespace BannerlordAutopilot
             {
                 case AiBehavior.RaidSettlement:
                     if (!EnemyVillage(data.Party as Settlement, MobileParty.MainParty)) return "нет вражеской деревни";
+                    if (data.Party == _pressureVillage && !PressureRaidSafe(MobileParty.MainParty, _pressureVillage))
+                        return "деревня снабжения разграблена, занята или набег стал опасен";
                     return PreparationNeeded(MobileParty.MainParty);
                 case AiBehavior.BesiegeSettlement:
                     if (!EnemyFortress(data.Party as Settlement, MobileParty.MainParty)) return "нет вражеской крепости";
@@ -2997,6 +3008,7 @@ namespace BannerlordAutopilot
                         SetPartyAiAction.GetActionForEngagingParty(
                             party, (MobileParty)data.Party, data.NavigationType, data.IsFromPort);
                         _combatTarget = (MobileParty)data.Party;
+                        _huntConfirmedHours = CampaignTime.Now.ToHours;
                         break;
 
                     default:

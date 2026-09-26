@@ -17,7 +17,7 @@ internal static partial class Program
 
     static void CampaignStabilityTests()
     {
-        foreach (string scenario in new[] { "strong", "weak", "raided", "neutral", "danger", "other-bound" })
+        foreach (string scenario in new[] { "strong", "weak", "raided", "neutral", "danger", "other-bound", "trade-only" })
         Try("набег на снабжение крепости: " + scenario, () => {
             var b = Fresh(); var castle = ConquestWorld(); castle.Name = "Шарас";
             castle.Position = new CampaignVec2 { X = 30 }; castle.Militia = scenario == "weak" ? 1 : 100;
@@ -28,12 +28,40 @@ internal static partial class Program
             if (scenario == "raided") village.IsRaided = true;
             if (scenario == "neutral") village.MapFaction = new TestFaction();
             if (scenario == "other-bound") { village.Village.Bound = new Settlement(); village.Village.TradeBound = new Settlement(); }
+            if (scenario == "trade-only") village.Village.Bound = new Settlement();
             if (scenario == "danger") HuntTarget("подмога", 100, 20, castle.MapFaction);
             Settlement.All.Add(village); Enable(b); HourlyTick(b);
             bool raids = MobileParty.MainParty.DefaultBehavior == AiBehavior.RaidSettlement
                 && MobileParty.MainParty.TargetSettlement == village;
             Check(raids == (scenario == "strong"), "сильная крепость → безопасная связанная деревня; граница " + scenario);
             if (scenario == "weak") Check(SiegeTarget(b) == castle, "доступная осада важнее экономического набега");
+            if (scenario == "strong") {
+                village.IsRaided = true; HourlyTick(b);
+                Check(MobileParty.MainParty.DefaultBehavior != AiBehavior.RaidSettlement,
+                    "деревню успели разграбить — старый приказ отменён, даже если других целей нет");
+            }
+        });
+        foreach (string change in new[] { "danger", "defense", "commander" })
+        Try("поход к деревне пересматривается: " + change, () => {
+            var b = Fresh(); var castle = ConquestWorld(); castle.Militia = 100;
+            castle.Position = new CampaignVec2 { X = 30 }; Settlement.All.Add(castle);
+            var village = new Settlement { IsVillage = true, MapFaction = castle.MapFaction,
+                Position = new CampaignVec2 { X = 20 }, Militia = 1 };
+            village.Village.Bound = castle; Settlement.All.Add(village);
+            Enable(b); HourlyTick(b); var p = MobileParty.MainParty;
+            Check(p.TargetSettlement == village && p.DefaultBehavior == AiBehavior.RaidSettlement, "набег начат");
+            if (change == "danger") {
+                HuntTarget("пришедшая подмога", 100, 20, castle.MapFaction);
+                StabilityCall(b, "RecheckPressureRaid", p);
+                Check(p.DefaultBehavior == AiBehavior.Hold, "опасный подход отменён при повторной проверке");
+            } else if (change == "defense") {
+                var own = OwnSiege(); HourlyTick(b);
+                Check(p.TargetSettlement == own && p.DefaultBehavior == AiBehavior.GoToSettlement, "срочная оборона своего феода важнее набега");
+            } else {
+                p.Army = new Army { LeaderParty = new MobileParty() };
+                village.IsRaided = true; StabilityCall(b, "RecheckPressureRaid", p);
+                Check(p.DefaultBehavior == AiBehavior.RaidSettlement, "пересмотр не выдаёт Hold за чужого командующего");
+            }
         });
         foreach (var order in new[] { AiBehavior.BesiegeSettlement, AiBehavior.DefendSettlement })
         Try("армия сохраняется на настоящем маршруте " + order, () => {
@@ -80,6 +108,11 @@ internal static partial class Program
             StabilityCall(b, "NoteSiegeRejection", castle, "защитники 8");
             CampaignTime.TestHours = 63;
             Check((bool)StabilityCall(b, "SiegeRecentlyRejected", castle), "третий отказ удерживает 48 часов");
+            CampaignTime.TestHours = 87; StabilityCall(b, "NoteSiegeRejection", castle, "защитники 8");
+            CampaignTime.TestHours = 136;
+            Check((bool)StabilityCall(b, "SiegeRecentlyRejected", castle), "четвёртый отказ держится дольше 48 часов");
+            CampaignTime.TestHours = 160;
+            Check(!(bool)StabilityCall(b, "SiegeRecentlyRejected", castle), "предел паузы — 72 часа");
         });
         foreach (bool reinforcement in new[] { false, true })
         Try("заметное улучшение сил снимает запрет раньше таймера " + reinforcement, () => {

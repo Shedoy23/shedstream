@@ -1,3 +1,4 @@
+**26.09 ~17:10 — ГОТОВ К УСТАНОВКЕ мод `DCB25902…` (d4bb1108), игра была запущена:** отряды героев зрителей больше не сдают бойцов в гарнизоны (ваниль: ИИ-лорд, заходя в крепость своего королевства, отдаёт бойцов и оставляет себе 30; Гаронтор голосованием ушёл клану shedoy23 — отряд 100 → 30). Ставить при закрытой игре: `bash /d/shedlink-build/pending-20260926-link-garrison/apply.sh`. В игре проверять строки `[GarrisonDonation] BLOCKED`.
 **25.09, стрим — ВЫКАЧЕНО:** BannerlordLink `B3CBCA2B…` (откат `D:/shedlink-build/dll-rollback/20260925-link-stash-sidelock`)
 (покупки и снятое всегда в личный сундук; одна сторона на бой) + бэкенд
 (`equipment_shop.py`, `refusals.py`; бэкап `/root/twitch-extension/backups/stash-sidelock-20260925/`).

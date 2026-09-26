@@ -512,10 +512,34 @@ internal static partial class Program
                 Check(AutopilotLog.Lines.Any(l => l.Contains("идут к нам 6")), "в разбивке видна подмога, идущая к нам");
             }
         });
+        // 26.09, владелец: «не тянуть — начинать только с осадным лагерем, без катапульт».
+        Try("осада: лагерь готов — штурмуем, не дожидаясь машин и «логичного» штурма ИИ", () => {
+            var b = Fresh(); var castle = ConquestWorld(); Enable(b);
+            var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
+            siege.BesiegerCamp.IsPreparationComplete = true; siege.BesiegerCamp.IsReadyToBesiege = false;
+            MobileParty.MainParty.SiegeEvent = siege;
+            var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_leave" }); Show(wait);
+            b.PollState(); b.PollState();
+            Check(MenuContext.Invoked.Contains("menu_siege_strategies_lead_assault"), "лагерь готов — штурм: " + string.Join(",", MenuContext.Invoked));
+            Check(LogCount("лагерь готов — штурм") >= 1, "причина записана");
+        });
+        Try("осада: лагерь не готов — ждём, без штурма", () => {
+            var b = Fresh(); var castle = ConquestWorld(); Enable(b);
+            var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
+            siege.BesiegerCamp.IsPreparationComplete = false; siege.BesiegerCamp.IsReadyToBesiege = true;
+            MobileParty.MainParty.SiegeEvent = siege;
+            var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_leave" }); Show(wait);
+            b.PollState(); b.PollState();
+            Check(!MenuContext.Invoked.Contains("menu_siege_strategies_lead_assault"), "лагерь не достроен — штурма нет");
+        });
         Try("истощение осады вызывает штатный отход", () => {
             var b = Fresh(); var castle = ConquestWorld(food: 1); Enable(b);
             var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
-            siege.BesiegerCamp.IsReadyToBesiege = true; MobileParty.MainParty.SiegeEvent = siege;
+            siege.BesiegerCamp.IsPreparationComplete = true; MobileParty.MainParty.SiegeEvent = siege;
             var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
             wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });
             wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_leave" }); Show(wait); b.PollState();
@@ -645,7 +669,7 @@ internal static partial class Program
             b.PollState();
             Check(siege.BesiegerCamp.SiegeStrategy == DefaultSiegeStrategies.PrepareAssault,
                 "ручная стратегия после повторного открытия осады не оставляет автопилот без строительства");
-            siege.BesiegerCamp.IsReadyToBesiege = true; b.PollState();
+            siege.BesiegerCamp.IsPreparationComplete = true; b.PollState();
             Check(assaults == 1 && b.CurrentMode == AutopilotBehavior.Mode.Apply, "готовность AI запускает полноценный штурм");
             var battle = new MapEvent { MapEventSettlement = castle, IsSiegeAssault = true, PlayerSide = BattleSideEnum.Attacker };
             MobileParty.MainParty.MapEvent = PlayerEncounter.Battle = battle;
@@ -727,6 +751,8 @@ namespace TaleWorlds.CampaignSystem.Siege
     public class BesiegerCamp
     {
         public MobileParty LeaderParty { get; set; }
+        public bool IsPreparationComplete { get; set; }
+        /// <summary>Условие ИИ-лордов (лагерь + «штурм логичен» с машинами); автопилот его не ждёт.</summary>
         public bool IsReadyToBesiege { get; set; }
         public SiegeStrategy SiegeStrategy { get; private set; } = DefaultSiegeStrategies.Custom;
         public void SetSiegeStrategy(SiegeStrategy strategy) { SiegeStrategy = strategy; }

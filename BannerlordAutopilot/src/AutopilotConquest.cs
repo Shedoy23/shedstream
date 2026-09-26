@@ -603,11 +603,21 @@ namespace BannerlordAutopilot
                         siege.GetSiegeEventSide(BattleSideEnum.Attacker).SetSiegeStrategy(strategy);
                         _configuredSiege = siege;
                         _operationSettlement = place;
-                        AutopilotLog.Write("ОСАДА: выбрана автоматическая стратегия " + strategy + "; ожидаем строительство и готовность к штурму");
+                        AutopilotLog.Write("ОСАДА: выбрана автоматическая стратегия " + strategy + "; штурм сразу, как готов лагерь (машины не ждём)");
                     }
-                    if (siege.BesiegerCamp.IsReadyToBesiege
+                    // 26.09, владелец: «научить не тянуть и начинать только с осадным
+                    // лагерем, без катапульт и прочих построек». Раньше ждали
+                    // IsReadyToBesiege — это условие ИИ-лордов: лагерь готов И случайный
+                    // бросок «штурм логичен», растущий с тараном/башней/машинами (ваниль
+                    // BesiegerCamp.StartingAssaultOnBesiegedSettlementIsLogical), — лагерь
+                    // стоял днями и подмога успевала. Игроку кнопка «Возглавить штурм»
+                    // доступна, как только готов лагерь (IsPreparationComplete) — штурмуем тогда.
+                    if (siege.BesiegerCamp.IsPreparationComplete
                         && MenuDriver.CanInvoke("menu_siege_strategies_lead_assault", out _))
+                    {
+                        AutopilotLog.Write("ОСАДА: лагерь готов — штурм, машины не ждём");
                         OperationClick("menu_siege_strategies_lead_assault");
+                    }
                     else ResumeOperationWait();
                     return true;
                 }

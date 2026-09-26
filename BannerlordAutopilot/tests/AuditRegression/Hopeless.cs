@@ -23,7 +23,7 @@ internal static partial class Program
         {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);
             var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
-            siege.BesiegerCamp.IsReadyToBesiege = true; MobileParty.MainParty.SiegeEvent = siege;
+            siege.BesiegerCamp.IsPreparationComplete = true; MobileParty.MainParty.SiegeEvent = siege;
             HuntTarget("армия помощи", enemy, 8, castle.MapFaction);
             var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
             wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });

@@ -390,7 +390,7 @@ namespace BannerlordAutopilot
             Type camp = MemberType(siege, "BesiegerCamp", Inst, false, out _);
             Need(camp != null, "SiegeEvent.BesiegerCamp");
             MemberOf(camp, "LeaderParty", Inst, mobile);
-            MemberOf(camp, "IsReadyToBesiege", Inst, typeof(bool));
+            MemberOf(camp, "IsPreparationComplete", Inst, typeof(bool));
             Type strategy = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.SiegeStrategy");
             Type strategies = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.DefaultSiegeStrategies");
             MemberOf(strategies, "AllAttackerStrategies", Stat, strategy != null ? typeof(IEnumerable<>).MakeGenericType(strategy) : null);

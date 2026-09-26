@@ -70,6 +70,7 @@ namespace BannerlordAutopilot
                     AtWar = ours.IsAtWarWith(other),
                     ConstantWar = ours.IsAtConstantWarWith(other),
                     DaysSincePeace = ours.GetStanceWith(other).PeaceDeclarationDate.ElapsedDaysUntilNow,
+                    StrengthRatio = other.CurrentTotalStrength / System.Math.Max(1f, ours.CurrentTotalStrength),
                 };
                 var own = new Dictionary<PoliticsMove, KingdomDecision>();
                 if (c.AtWar)

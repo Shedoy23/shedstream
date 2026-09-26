@@ -19,6 +19,8 @@ namespace BannerlordAutopilot
         /// <summary>Этот союзник ещё не воюет с нашим врагом: позвать его в войну.</summary>
         public float CallToWarSupport; public bool CallToWarPossible; public string CallToWarAgainst;
         public float TradeSupport; public bool TradePossible;
+        /// <summary>Их сила / наша (Kingdom.CurrentTotalStrength). Больше 1 — сильнее нас.</summary>
+        public float StrengthRatio;
     }
 
     /// <summary>Есть ли уже своя заявка каждого вида / хватает ли влияния на неё.</summary>
@@ -38,6 +40,12 @@ namespace BannerlordAutopilot
         /// <summary>Порог поддержки союза, призыва союзника и торговли — как у
         /// штатного ИИ (ConsiderWar, ConsiderTradeAgreement: > 50).</summary>
         internal const float AllianceSupportNeeded = 50f;
+        /// <summary>26.09, владелец: «странно, что он мир Вландии не предлагает и не
+        /// нападает на более слабых». Единственную войну с тем, кто сильнее нас в
+        /// столько раз, меняем на войну со слабым: сперва мир, потом война.</summary>
+        internal const float StrongEnemyRatio = 2f;
+
+        private static bool WarCandidate(PoliticsCandidate c) => !c.AtWar && c.DaysSincePeace > TruceDays && c.WarPossible;
 
         internal static (PoliticsMove Move, PoliticsCandidate Target, string Why) Decide(
             IList<PoliticsCandidate> all, PoliticsFlags pending, PoliticsFlags canPay)
@@ -47,10 +55,12 @@ namespace BannerlordAutopilot
             int wars = all.Count(c => c.AtWar && !c.ConstantWar);
             if (wars < TargetWars && !warPending && canPayWar)
             {
-                var target = all.Where(c => !c.AtWar && c.DaysSincePeace > TruceDays && c.WarPossible)
-                    .OrderByDescending(c => c.WarSupport).FirstOrDefault();
+                // 26.09: сперва те, кто слабее нас, среди них — с большей поддержкой клана.
+                var target = all.Where(WarCandidate)
+                    .OrderBy(c => c.StrengthRatio >= 1f).ThenByDescending(c => c.WarSupport).FirstOrDefault();
                 if (target != null) return (PoliticsMove.War, target, "войн " + wars + " из " + TargetWars
-                    + "; поддержка нашего клана " + target.WarSupport.ToString("F0"));
+                    + "; поддержка нашего клана " + target.WarSupport.ToString("F0")
+                    + "; сила их/наша x" + target.StrengthRatio.ToString("F1"));
             }
             if (wars > TargetWars && !peacePending && canPayPeace)
             {
@@ -60,6 +70,15 @@ namespace BannerlordAutopilot
                     .OrderByDescending(c => c.PeaceScore).FirstOrDefault();
                 if (target != null) return (PoliticsMove.Peace, target, "войн " + wars + " при цели " + TargetWars
                     + "; мир нужнее всего здесь (оценка " + target.PeaceScore.ToString("F0") + ")");
+            }
+            // 26.09: единственная война — с тем, кто сильнее нас вдвое, а есть кого
+            // бить слабее: мир, чтобы завтра объявить войну слабому. Без слабой
+            // альтернативы мир не предлагаем — иначе мир и новая война с тем же по кругу.
+            if (wars == TargetWars && !peacePending && canPayPeace && all.Any(c => WarCandidate(c) && c.StrengthRatio < 1f))
+            {
+                var strong = all.FirstOrDefault(c => c.AtWar && !c.ConstantWar && c.PeacePossible && c.StrengthRatio >= StrongEnemyRatio);
+                if (strong != null) return (PoliticsMove.Peace, strong, "единственная война — с тем, кто сильнее нас в "
+                    + strong.StrengthRatio.ToString("F1") + " раза; есть противники слабее — меняем цель");
             }
             // Призвать союзника в текущую войну — больше крупных боёв (23.09).
             if (wars > 0 && !pending.CallToWar && canPay.CallToWar)

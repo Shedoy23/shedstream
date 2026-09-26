@@ -16,7 +16,7 @@ namespace TaleWorlds.CampaignSystem {
  public class CharacterObject { public string StringId="recruit"; }
  public interface IDataStore {}
  public abstract class CampaignBehaviorBase { public abstract void RegisterEvents(); public abstract void SyncData(IDataStore d); }
- public class TestEvent { public void AddNonSerializedListener(object o,Action f) {} }
+ public class TestEvent { public Action Handler; public void AddNonSerializedListener(object o,Action f) { Handler=f; } }
  public static class CampaignEvents { public static TestEvent HourlyTickEvent=new(); }
 }
 namespace TaleWorlds.CampaignSystem.Settlements { public class Settlement { public string StringId="town"; public string Name="Town"; } }
@@ -33,6 +33,7 @@ namespace TaleWorlds.CampaignSystem.CampaignBehaviors {
  }
  public class RecruitmentCampaignBehavior {
   public enum RecruitingDetail { VolunteerFromIndividual, MercenaryFromTavern, VolunteerFromMap }
+  [MethodImpl(MethodImplOptions.NoInlining)] public void RecruitPrisonersAi(MobileParty mobileParty,CharacterObject troop,int num,int conformityCost) { mobileParty.MemberRoster.TotalManCount += num; }
   [MethodImpl(MethodImplOptions.NoInlining)] public void ApplyInternal(MobileParty side1Party,Settlement settlement,Hero individual,CharacterObject troop,int number,int bitCode,RecruitingDetail detail) { side1Party.MemberRoster.TotalManCount += number; }
  }
 }
@@ -40,7 +41,8 @@ class Program {
  static int failed,passed;
  static void Check(bool b,string s) { Console.WriteLine((b?"PASS ":"FAIL ")+s); if(b)passed++;else failed++; }
  static void Limit(MobileParty __result) { __result.MemberRoster.TotalManCount=Math.Min(20,__result.MemberRoster.TotalManCount); }
- static int Main() {
+ static int Main(string[] args) {
+  if(args.Contains("--game-contract")) return GameContract();
   var asm=Assembly.GetExecutingAssembly();
   var audit=asm.GetType("BannerlordLink.Patches.LordTroopDiagnostics");
   Check(audit!=null,"наблюдатель источников пополнения существует"); if(audit==null)return failed;
@@ -67,16 +69,49 @@ class Program {
   Check(lines.Any(s=>s.Contains("source=garrison")&&s.Contains("added=7")),"записано реально 7, а не запрошенные 100");
   Check(party.MemberRoster.TotalManCount==39,"учёт не меняет войска");
   lines.Clear();
+  recruit.RecruitPrisonersAi(party,new CharacterObject(),5,10); Call("Flush");
+  Check(lines.Count==1 && lines[0].Contains("source=recruit:prisoner") && lines[0].Contains("added=5"),"обращение пленных учитывается отдельно от найма добровольцев");
+  Check(party.MemberRoster.TotalManCount==44,"учёт не меняет обращение пленных");
+  lines.Clear();
   recruit.ApplyInternal(MobileParty.MainParty,new Settlement(),new Hero(),new CharacterObject(),1,0,0);
   var neutral=new MobileParty(); neutral.MapFaction.Hostile=false;
   recruit.ApplyInternal(neutral,new Settlement(),new Hero(),new CharacterObject(),1,0,0);
   Call("Flush"); Check(lines.Count==0,"свои и нейтральные отряды не попадают в диагностику врага");
   recruit.ApplyInternal(party,new Settlement(),new Hero(),new CharacterObject(),0,0,0);
   Call("Flush"); Check(lines.Count==0,"тихий no-op не считается пополнением");
+  var behavior=(CampaignBehaviorBase)Activator.CreateInstance(asm.GetType("BannerlordLink.Patches.LordTroopDiagnosticsBehavior"),true);
+  behavior.RegisterEvents();
+  recruit.ApplyInternal(party,new Settlement(),new Hero(),new CharacterObject(),3,0,0);
+  CampaignTime.Hour=23; CampaignEvents.HourlyTickEvent.Handler();
+  Check(lines.Count==0,"часовой обработчик не сбрасывает пачку в тот же день");
+  CampaignTime.Hour=24; CampaignEvents.HourlyTickEvent.Handler();
+  Check(lines.Count==1 && lines[0].Contains("added=3") && lines[0].Contains("day=0"),"новый день сам выводит пачку без следующего найма");
+  lines.Clear();
   BannerlordLink.BannerlordLinkModule.Throws=true;
   try { new TaleWorlds.CampaignSystem.CampaignBehaviors.HeroSpawnCampaignBehavior().SpawnLordParty(new Hero(),false); Check(true,"ошибка записи не ломает спавн"); } catch { Check(false,"ошибка записи не ломает спавн"); }
   BannerlordLink.BannerlordLinkModule.Throws=false;
   limiter.UnpatchAll(limiter.Id); harmony.UnpatchAll(harmony.Id);
   Console.WriteLine($"{passed} ok / {failed} FAIL"); return failed;
+ }
+
+ static int GameContract() {
+  string bin=@"X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\bin\Win64_Shipping_Client";
+  AppDomain.CurrentDomain.AssemblyResolve += (s,e) => {
+   var path=System.IO.Path.Combine(bin,new AssemblyName(e.Name).Name+".dll");
+   return System.IO.File.Exists(path)?Assembly.LoadFrom(path):null;
+  };
+  var game=Assembly.LoadFrom(System.IO.Path.Combine(bin,"TaleWorlds.CampaignSystem.dll"));
+  void Signature(string type,string name,string expected,string result) {
+   var method=game.GetType("TaleWorlds.CampaignSystem.CampaignBehaviors."+type)?.GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public);
+   Check(method!=null,type+"."+name+" exists");
+   if(method==null)return;
+   string actual=string.Join(",",method.GetParameters().Select(p=>p.Name+":"+p.ParameterType.Name));
+   Check(actual==expected && method.ReturnType.Name==result,type+" native signature: "+actual);
+  }
+  Signature("HeroSpawnCampaignBehavior","SpawnLordParty","hero:Hero,isNewGame:Boolean","MobileParty");
+  Signature("RecruitmentCampaignBehavior","ApplyInternal","side1Party:MobileParty,settlement:Settlement,individual:Hero,troop:CharacterObject,number:Int32,bitCode:Int32,detail:RecruitingDetail","Void");
+  Signature("GarrisonTroopsCampaignBehavior","TakeTroopsFromGarrison","mobileParty:MobileParty,settlement:Settlement,numberOfTroopsToTake:Int32,archersAreHighPriority:Boolean","Void");
+  Signature("RecruitmentCampaignBehavior","RecruitPrisonersAi","mobileParty:MobileParty,troop:CharacterObject,num:Int32,conformityCost:Int32","Void");
+  Console.WriteLine($"{passed} ok / {failed} FAIL");return failed;
  }
 }

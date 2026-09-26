@@ -187,6 +187,24 @@ internal static partial class Program
                 && Clan.PlayerClan.Influence==0,
                 "8 защитников: отряду из 10 нужен перевес x1,5 (12), армия из 20 его даёт");
         });
+        // 26.09, владелец: «а армию что он не хочет собирать?» — список брали только у ИИ
+        // игры, у которого свои пороги для ИИ-лордов; правитель зовёт своих лордов сам.
+        foreach (var (kind, expectArmy) in new[] { ("свой лорд рядом, ИИ игры его не предложил", true),
+            ("лорд зрителя по приказу из панели", false), ("свой лорд далеко", false) })
+        Try("армия: " + kind + " — " + (expectArmy ? "зовём" : "не зовём"), () => {
+            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=8; Settlement.All.Add(castle);
+            var kingdom=new Kingdom(); kingdom.Enemies.Add(castle.MapFaction);
+            MobileParty.MainParty.MapFaction=kingdom; Clan.PlayerClan.Kingdom=kingdom; Clan.PlayerClan.Influence=10;
+            var ally=new MobileParty { Name="Лорд королевства", MapFaction=kingdom, IsLordParty=true,
+                Position=new CampaignVec2 { X = kind.EndsWith("далеко") ? 200 : 20 } };
+            ally.MemberRoster.AddToCounts(new CharacterObject(), 10); MobileParty.All.Add(ally);
+            if (kind.Contains("приказу")) ally.Ai.SetDoNotMakeNewDecisions(true);
+            Enable(b); HourlyTick(b);
+            Check((MobileParty.MainParty.Army!=null && ally.Army==MobileParty.MainParty.Army) == expectArmy,
+                "8 защитников, нас 10, с лордом 20: армия " + expectArmy);
+            if (!expectArmy) Check(LogCount(kind.Contains("приказу") ? "по приказу зрителя 1" : "дальше 150 1")==1,
+                "причина, почему некого позвать, записана");
+        });
         Try("истощённый отряд не начинает самостоятельную осаду", () => {
             var b=Fresh(); var castle=ConquestWorld(food:1); castle.Militia=1; Settlement.All.Add(castle);
             Enable(b); HourlyTick(b);

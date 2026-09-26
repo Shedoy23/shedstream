@@ -71,18 +71,53 @@ namespace BannerlordAutopilot
             var model = Campaign.Current.Models.ArmyManagementCalculationModel;
             if (!model.CanPlayerCreateArmy(out _)) return result;
             float remaining = Clan.PlayerClan.Influence;
-            var candidates = party.ThinkParamsCache.PossibleArmyMembersUponArmyCreation;
-            if (candidates == null) return result;
-            foreach (var candidate in candidates.Distinct())
+            // 26.09, владелец: «а армию что он не хочет собирать?» — 147 раз за день «армию
+            // собрать не из кого». Список брали только у ИИ игры (CanLordCreateArmy), а он
+            // для ИИ-лордов: зовёт отряды, заполненные > 60% и с едой > 15 дней, и как только
+            // у королевства есть крепости, требует суммарной силы от 1000 — иначе список пуст.
+            // Правитель-игрок зовёт вручную любого своего лорда за влияние (CheckPartyEligibility).
+            // Поэтому добавляем своих лордов рядом сами; лорды зрителей с приказом из панели
+            // (DoNotMakeNewDecisions) не трогаем — их ведёт зритель.
+            var candidates = new List<MobileParty>();
+            if (party.ThinkParamsCache.PossibleArmyMembersUponArmyCreation != null)
+                candidates.AddRange(party.ThinkParamsCache.PossibleArmyMembersUponArmyCreation);
+            int lords = 0, inArmy = 0, ordered = 0, far = 0, busy = 0, refused = 0, costly = 0;
+            float r2 = ArmyCallRadius * ArmyCallRadius;
+            foreach (var p in MobileParty.All)
             {
-                if (candidate == null || candidate == party || !candidate.IsActive || candidate.MapFaction != party.MapFaction
-                    || !model.CheckPartyEligibility(candidate, out _)) continue;
+                if (p == null || p == party || !p.IsActive || !p.IsLordParty || p.MapFaction != party.MapFaction) continue;
+                lords++;
+                if (p.Army != null) inArmy++;
+                else if (p.Ai != null && p.Ai.DoNotMakeNewDecisions) ordered++;
+                else if (p.Position.DistanceSquared(party.Position) > r2) far++;
+                else if (p.MapEvent != null || p.SiegeEvent != null || p.BesiegedSettlement != null
+                         || p.CurrentSettlement?.SiegeEvent != null || p.IsDisbanding) busy++;
+                else candidates.Add(p);
+            }
+            foreach (var candidate in candidates.Distinct().OrderByDescending(c => c.Party.EstimatedStrength))
+            {
+                if (candidate == null || candidate == party || !candidate.IsActive || candidate.MapFaction != party.MapFaction) continue;
+                if (!model.CheckPartyEligibility(candidate, out _)) { refused++; continue; }
                 int cost = model.CalculatePartyInfluenceCost(party, candidate);
-                if (cost < 0 || cost > remaining) continue;
+                if (cost < 0 || cost > remaining) { costly++; continue; }
                 remaining -= cost; result.Add(candidate);
+            }
+            double day = Math.Floor(CampaignTime.Now.ToHours / 24);
+            if (result.Count == 0 && day != _armyEmptyLoggedDay)
+            {
+                _armyEmptyLoggedDay = day;
+                AutopilotLog.Write("АРМИЯ: позвать некого — лордов королевства " + lords + ": уже в армии " + inArmy
+                    + ", по приказу зрителя " + ordered + ", дальше " + ArmyCallRadius.ToString("F0", CultureInfo.InvariantCulture) + " " + far
+                    + ", в бою/осаде " + busy + ", игра не пускает " + refused + ", не хватает влияния " + costly
+                    + " (влияния " + Clan.PlayerClan.Influence.ToString("F0", CultureInfo.InvariantCulture) + ")");
             }
             return result;
         }
+
+        /// <summary>Кого зовём в армию: около двух дней пути (как радиус местной
+        /// политики) — дальние не успеют к походу.</summary>
+        internal const float ArmyCallRadius = 150f;
+        private double _armyEmptyLoggedDay = -1;
 
         private bool StartArmy(MobileParty party, AIBehaviorData data, float score)
         {

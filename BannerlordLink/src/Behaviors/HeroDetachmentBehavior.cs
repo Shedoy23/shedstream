@@ -6,6 +6,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using BannerlordLink.Util;
 
 namespace BannerlordLink.Behaviors
 {
@@ -95,6 +96,8 @@ namespace BannerlordLink.Behaviors
             public float KiteProgressAt;
             public float KiteDistance;
             public float KiteReadyAt;            // Skirmish: раньше этого времени отходить нельзя
+            public bool Breach;                  // Gate (атака): все ворота разбиты — пройти внутрь и драться
+            public float NextRetargetAt;         // Gate: ворота ломают по ходу боя — цель пересчитываем
         }
 
         private readonly ConcurrentDictionary<int, DetachmentState> _states =
@@ -239,7 +242,9 @@ namespace BannerlordLink.Behaviors
         public bool Walls(Agent agent)
         {
             if (!CanControl(agent) || !IsSiegeMission()) return false;
-            var target = FindWallFiringPosition(agent);
+            bool defender = IsDefender(agent);
+            var target = FindWallFiringPosition(agent, defender);
+            if (!target.IsValid && !defender) target = FindAttackerClimbPoint(agent);
             if (!target.IsValid) target = FindNearestSiegeTarget(agent, false);
             if (!CanPathTo(agent, target)) return false;
             return IssueOrder(agent, DetachOrder.Walls, target);
@@ -248,9 +253,97 @@ namespace BannerlordLink.Behaviors
         public bool Gate(Agent agent)
         {
             if (!CanControl(agent) || !IsSiegeMission()) return false;
-            var target = FindNearestSiegeTarget(agent, true);
+            var target = FindGateTarget(agent, out bool breach);
+            if (!target.IsValid) { breach = false; target = FindNearestSiegeTarget(agent, true); }
             if (!CanPathTo(agent, target)) return false;
-            return IssueOrder(agent, DetachOrder.Gate, target);
+            if (!IssueOrder(agent, DetachOrder.Gate, target)) return false;
+            if (_states.TryGetValue(agent.Index, out var st))
+            {
+                st.Breach = breach;
+                st.NextRetargetAt = Mission.CurrentTime + GATE_RETARGET_INTERVAL;
+            }
+            return true;
+        }
+
+        /// <summary>Ворота ломают по ходу боя: раз в столько секунд цель «к воротам» пересчитывается.</summary>
+        private const float GATE_RETARGET_INTERVAL = 3f;
+
+        private static bool IsDefender(Agent agent)
+        {
+            try { return agent.Team != null && agent.Team.Side == BattleSideEnum.Defender; }
+            catch { return false; }
+        }
+
+        private static SiegePoint P(Vec3 v) => new SiegePoint(v.x, v.y, v.z);
+        private static Vec3 V(SiegePoint p) => new Vec3(p.X, p.Y, p.Z);
+
+        /// <summary>Цель «к воротам» по стороне осады (SiegeOrderPolicy.PickGate). Invalid —
+        /// ворот не нашли, вызывающий берёт старый поиск по сцене.</summary>
+        private WorldPosition FindGateTarget(Agent agent, out bool breach)
+        {
+            breach = false;
+            try
+            {
+                var scene = Mission.Current?.Scene;
+                if (scene == null) return WorldPosition.Invalid;
+                bool defender = IsDefender(agent);
+                var gates = new List<SiegeGate>();
+                foreach (var mo in Mission.Current.ActiveMissionObjects)
+                {
+                    if (!(mo is CastleGate g)) continue;
+                    gates.Add(new SiegeGate {
+                        Outer = g.GameEntity.HasTag(CastleGate.OuterGateTag),
+                        Inner = g.GameEntity.HasTag(CastleGate.InnerGateTag),
+                        Open = g.IsGateOpen,
+                        Middle = P(g.MiddleFrame.Origin.GetGroundVec3()),
+                        Wait = P(g.DefenseWaitFrame.Origin.GetGroundVec3()),
+                    });
+                }
+                var pick = SiegeOrderPolicy.PickGate(defender, gates, P(agent.Position));
+                if (pick.Goal == GateGoal.None) return WorldPosition.Invalid;
+                breach = pick.Goal == GateGoal.Breach;
+                BannerlordLinkModule.Log($"[DET] GATE target agent={agent.Index} side={(defender ? "defender" : "attacker")} "
+                    + $"gate={(pick.Gate.Outer ? "outer" : pick.Gate.Inner ? "inner" : "single")} open={pick.Gate.Open} goal={pick.Goal} gates={gates.Count}");
+                return ProjectToNavMesh(scene, V(pick.Point));
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[DET] FindGateTarget warn: {ex.Message}");
+                return WorldPosition.Invalid;
+            }
+        }
+
+        /// <summary>Атакующий, которому на стену пока нет пути: к подведённой осадной
+        /// башне или поднятой лестнице — туда, где идёт штурм. Лезть по лестнице скриптом
+        /// агента нельзя (потолок agent-level), поэтому это основание, и дальше герой
+        /// держит место и дерётся с теми, кто спускается к лестнице.</summary>
+        private WorldPosition FindAttackerClimbPoint(Agent agent)
+        {
+            try
+            {
+                var scene = Mission.Current?.Scene;
+                if (scene == null) return WorldPosition.Invalid;
+                WorldPosition best = WorldPosition.Invalid;
+                float bestSq = float.MaxValue;
+                foreach (var mo in Mission.Current.ActiveMissionObjects)
+                {
+                    bool active = mo is SiegeTower t && t.HasArrivedAtTarget
+                        || mo is SiegeLadder l && l.State == SiegeLadder.LadderState.OnWall;
+                    if (!active) continue;
+                    Vec3 at = mo.GameEntity.GlobalPosition;
+                    float d = (at - agent.Position).LengthSquared;
+                    if (d >= bestSq) continue;
+                    var wp = ProjectToNavMesh(scene, at);
+                    if (!CanPathTo(agent, wp)) continue;
+                    best = wp; bestSq = d;
+                }
+                return best;
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[DET] FindAttackerClimbPoint warn: {ex.Message}");
+                return WorldPosition.Invalid;
+            }
         }
 
         private static bool CanControl(Agent agent)
@@ -296,7 +389,7 @@ namespace BannerlordLink.Behaviors
         private void RestoreOrder(DetachmentState st)
         {
             try {
-                if (st.Status == "arrived" || st.Status == "blocked")
+                if (st.Status == "blocked")
                 {
                     st.Agent.DisableScriptedMovement();
                     st.Agent.DisableScriptedCombatMovement();
@@ -656,18 +749,52 @@ namespace BannerlordLink.Behaviors
         private void ApplyNavigate(DetachmentState st)
         {
             if (!st.NavValid) throw new InvalidOperationException("navigation_target_invalid");
-            if (st.Status == "arrived" || st.Status == "blocked") return;
-            if (!IsSiegeMission() || !CanPathTo(st.Agent, st.NavTarget))
+            if (st.Status == "blocked") return;
+            if (!IsSiegeMission()) throw new InvalidOperationException("navigation_path_unavailable");
+            float now = Mission.CurrentTime;
+            // Ворота ломают по ходу боя: защитник отходит к следующим целым, атакующий
+            // идёт к следующим, а когда разбиты все — проходит внутрь.
+            if (st.Order == DetachOrder.Gate && now >= st.NextRetargetAt)
+            {
+                st.NextRetargetAt = now + GATE_RETARGET_INTERVAL;
+                var fresh = FindGateTarget(st.Agent, out bool breach);
+                if (fresh.IsValid && CanPathTo(st.Agent, fresh)
+                    && (fresh.GetGroundVec3().Distance(st.NavTarget.GetGroundVec3()) > 3f || breach != st.Breach))
+                {
+                    st.NavTarget = fresh; st.Breach = breach; st.Status = "gate";
+                    st.ProgressAt = now; st.LastProgressDistance = float.MaxValue; st.LastProgressPosition = st.Agent.Position;
+                    BannerlordLinkModule.Log($"[DET] GATE retarget agent={st.Agent.Index} breach={breach}");
+                }
+            }
+            if (st.Status == "arrived")
+            {
+                // 26.09: дошёл — держит место и дерётся. Раньше «arrived» отдавал героя
+                // строю (DisableScriptedMovement), и строй уводил его обратно на своё место.
+                var hold = st.NavTarget;
+                st.Agent.SetScriptedPosition(ref hold, false, Agent.AIScriptedFrameFlags.NeverSlowDown);
+                return;
+            }
+            if (!CanPathTo(st.Agent, st.NavTarget))
                 throw new InvalidOperationException("navigation_path_unavailable");
             float distance = st.Agent.Position.Distance(st.NavTarget.GetGroundVec3());
             if (distance <= 2f)
             {
-                st.Agent.DisableScriptedMovement();
                 st.Agent.SetAutomaticTargetSelection(true);
+                if (st.Order == DetachOrder.Gate && st.Breach)
+                {
+                    // Все ворота разбиты и мы внутри — дальше как «в атаку».
+                    st.Order = DetachOrder.Charge; st.Status = "approaching";
+                    st.ChargeTarget = null; st.ChargeEngaged = false; st.NextTargetSearchAt = 0f;
+                    st.ProgressAt = now; st.LastProgressDistance = float.MaxValue; st.LastProgressPosition = st.Agent.Position;
+                    BannerlordLinkModule.Log($"[DET] GATE breached agent={st.Agent.Index} -> charge");
+                    return;
+                }
                 st.Status = "arrived";
+                var hold = st.NavTarget;
+                st.Agent.SetScriptedPosition(ref hold, false, Agent.AIScriptedFrameFlags.NeverSlowDown);
+                BannerlordLinkModule.Log($"[DET] {st.Order.ToString().ToUpperInvariant()} arrived agent={st.Agent.Index} -> holding and fighting");
                 return;
             }
-            float now = Mission.CurrentTime;
             if (distance < st.LastProgressDistance - 1f
                 || st.Agent.Position.Distance(st.LastProgressPosition) >= 1f)
             {
@@ -831,27 +958,36 @@ namespace BannerlordLink.Behaviors
         /// тела стены/лестницы). Лучников слегка приоритезируем (они на стрелковых позициях).
         /// Invalid, если своих на забрале нет (атакующий / стена пуста) → caller делает
         /// фолбэк на FindNearestSiegeTarget.</summary>
-        private WorldPosition FindWallFiringPosition(Agent agent)
+        private WorldPosition FindWallFiringPosition(Agent agent, bool defender)
         {
             try
             {
                 if (Mission.Current == null) return WorldPosition.Invalid;
                 Vec3 me = agent.Position;
                 Team team = agent.Team;
-                Agent best = null;
-                float bestScore = float.MaxValue;
+                var spots = new List<Agent>();
+                var enemies = new List<SiegePoint>();
                 foreach (var a in Mission.Current.Agents)
                 {
                     if (a == null || a == agent || !a.IsActive()) continue;
-
-                    if (a.Team != team) continue;                       // только свои
-                    if (a.Position.z <= me.z + WALL_MIN_ELEVATION) continue;   // выше нас = на забрале
-                    float score = (a.Position - me).LengthSquared;
-                    try { if (a.IsRangedCached) score *= 0.5f; } catch { }   // лёгкий приоритет стрелков
-                    if (score < bestScore && CanPathTo(agent, a.GetWorldPosition())) { bestScore = score; best = a; }
+                    if (a.Team != team)
+                    {
+                        if (a.IsEnemyOf(agent)) enemies.Add(P(a.Position));
+                        continue;
+                    }
+                    if (a.Position.z > me.z + WALL_MIN_ELEVATION) spots.Add(a);   // выше нас = на забрале
                 }
-                if (best == null) return WorldPosition.Invalid;
-                return ProjectToNavMesh(Mission.Current.Scene, best.Position);
+                // 26.09: защитник — на участок, где враг ближе всего (лестницы, башни),
+                // а не к ближайшему своему; атакующий — к ближайшему, куда уже есть путь.
+                var order = SiegeOrderPolicy.RankWallSpots(spots.Select(a => P(a.Position)).ToList(), P(me), enemies, defender);
+                int checks = 0;
+                foreach (int i in order)
+                {
+                    if (++checks > 12) break;
+                    if (CanPathTo(agent, spots[i].GetWorldPosition()))
+                        return ProjectToNavMesh(Mission.Current.Scene, spots[i].Position);
+                }
+                return WorldPosition.Invalid;
             }
             catch (Exception ex)
             {

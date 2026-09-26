@@ -3,6 +3,7 @@
   <ItemGroup Condition="'$(BaselineSourceDir)' == ''">
     <Compile Include="../../src/Behaviors/HeroDetachmentBehavior.cs" Link="HeroDetachmentBehavior.cs" />
     <Compile Include="../../src/Actions/DetachmentHandlers.cs" Link="DetachmentHandlers.cs" />
+    <Compile Include="../../src/Util/SiegeOrderPolicy.cs" Link="SiegeOrderPolicy.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(BaselineSourceDir)' != ''">
     <Compile Include="$(BaselineSourceDir)/HeroDetachmentBehavior.cs" /><Compile Include="$(BaselineSourceDir)/DetachmentHandlers.cs" />

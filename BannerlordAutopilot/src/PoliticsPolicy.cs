@@ -28,6 +28,14 @@ namespace BannerlordAutopilot
         public bool WeakFortressNear;
         /// <summary>У них рядом хоть кто-то: лорды или крепости. Нет — войне негде идти.</summary>
         public bool Nearby = true;
+        /// <summary>Доля голосов «да» за войну / мир по оценке игры (KingdomElection —
+        /// так же штатный ИИ в ConsiderWar). 26.09: автопилот раз в день предлагал мир
+        /// с Вландией, королевство отвечало «Нет» 100% — предлагать без голосов значит
+        /// жечь влияние и спамить стримеру голосованием.</summary>
+        public float WarVotes = 1f, PeaceVotes = 1f;
+        /// <summary>Что мы уже предлагали этому королевству за последние
+        /// DaysBetweenSameProposal дней.</summary>
+        public HashSet<PoliticsMove> Recent = new HashSet<PoliticsMove>();
     }
 
     /// <summary>Есть ли уже своя заявка каждого вида / хватает ли влияния на неё.</summary>
@@ -51,8 +59,18 @@ namespace BannerlordAutopilot
         /// нападает на более слабых». Единственную войну с тем, кто сильнее нас в
         /// столько раз, меняем на войну со слабым: сперва мир, потом война.</summary>
         internal const float StrongEnemyRatio = 2f;
+        /// <summary>Итог выбирает правитель — автопилот берёт самый популярный вариант,
+        /// значит без половины голосов «да» предложение гарантированно проваливается.</summary>
+        internal const float VotesNeeded = 0.5f;
+        /// <summary>Штатный ИИ не повторяет то же предложение 5 дней
+        /// (KingdomDecisionProposalBehavior.DaysBetweenSameProposal) — повторяем.</summary>
+        internal const double DaysBetweenSameProposal = 5;
 
-        private static bool WarCandidate(PoliticsCandidate c) => !c.AtWar && c.DaysSincePeace > TruceDays && c.WarPossible;
+        private static bool WarCandidate(PoliticsCandidate c) => !c.AtWar && c.DaysSincePeace > TruceDays && c.WarPossible
+            && c.WarVotes >= VotesNeeded && !c.Recent.Contains(PoliticsMove.War);
+        private static bool PeaceCandidate(PoliticsCandidate c) => c.AtWar && !c.ConstantWar && c.PeacePossible
+            && c.PeaceVotes >= VotesNeeded && !c.Recent.Contains(PoliticsMove.Peace);
+        private static string Votes(float v) => "; голосов «да» " + (v * 100).ToString("F0") + "%";
 
         internal static (PoliticsMove Move, PoliticsCandidate Target, string Why) Decide(
             IList<PoliticsCandidate> all, PoliticsFlags pending, PoliticsFlags canPay)
@@ -73,16 +91,16 @@ namespace BannerlordAutopilot
                     + "; поддержка нашего клана " + target.WarSupport.ToString("F0")
                     + "; рядом их сила/наша x" + target.StrengthRatio.ToString("F1")
                     + (target.WeakFortressNear ? "; рядом их крепость по силам" : "")
-                    + (target.Nearby ? "" : "; рядом их нет"));
+                    + (target.Nearby ? "" : "; рядом их нет") + Votes(target.WarVotes));
             }
             if (wars > TargetWars && !peacePending && canPayPeace)
             {
                 // Мир с той войной, где он нам нужнее всего по оценке игры, — а не с
                 // самой новой: новая часто оплачена зрителем.
-                var target = all.Where(c => c.AtWar && !c.ConstantWar && c.PeacePossible)
+                var target = all.Where(PeaceCandidate)
                     .OrderByDescending(c => c.PeaceScore).FirstOrDefault();
                 if (target != null) return (PoliticsMove.Peace, target, "войн " + wars + " при цели " + TargetWars
-                    + "; мир нужнее всего здесь (оценка " + target.PeaceScore.ToString("F0") + ")");
+                    + "; мир нужнее всего здесь (оценка " + target.PeaceScore.ToString("F0") + ")" + Votes(target.PeaceVotes));
             }
             // 26.09: единственная война — с тем, кто сильнее нас вдвое, а есть кого
             // бить слабее: мир, чтобы завтра объявить войну слабому. Без слабой
@@ -90,27 +108,27 @@ namespace BannerlordAutopilot
             if (wars == TargetWars && !peacePending && canPayPeace
                 && all.Any(c => WarCandidate(c) && c.Nearby && (c.WeakFortressNear || c.StrengthRatio < 1f)))
             {
-                var strong = all.FirstOrDefault(c => c.AtWar && !c.ConstantWar && c.PeacePossible && c.StrengthRatio >= StrongEnemyRatio);
+                var strong = all.FirstOrDefault(c => PeaceCandidate(c) && c.StrengthRatio >= StrongEnemyRatio);
                 if (strong != null) return (PoliticsMove.Peace, strong, "единственная война — с тем, кто рядом сильнее нас в "
-                    + strong.StrengthRatio.ToString("F1") + " раза; есть рядом противник слабее — меняем цель");
+                    + strong.StrengthRatio.ToString("F1") + " раза; есть рядом противник слабее — меняем цель" + Votes(strong.PeaceVotes));
             }
             // Призвать союзника в текущую войну — больше крупных боёв (23.09).
             if (wars > 0 && !pending.CallToWar && canPay.CallToWar)
             {
-                var target = all.Where(c => c.CallToWarPossible && c.CallToWarSupport > AllianceSupportNeeded)
+                var target = all.Where(c => c.CallToWarPossible && c.CallToWarSupport > AllianceSupportNeeded && !c.Recent.Contains(PoliticsMove.CallToWar))
                     .OrderByDescending(c => c.CallToWarSupport).FirstOrDefault();
                 if (target != null) return (PoliticsMove.CallToWar, target, "союзник ещё не воюет с «" + target.CallToWarAgainst
                     + "»; поддержка " + target.CallToWarSupport.ToString("F0"));
             }
             if (!alliancePending && canPayAlliance)
             {
-                var target = all.Where(c => !c.AtWar && c.AlliancePossible && c.AllianceSupport > AllianceSupportNeeded)
+                var target = all.Where(c => !c.AtWar && c.AlliancePossible && c.AllianceSupport > AllianceSupportNeeded && !c.Recent.Contains(PoliticsMove.Alliance))
                     .OrderByDescending(c => c.AllianceSupport).FirstOrDefault();
                 if (target != null) return (PoliticsMove.Alliance, target, "поддержка союза " + target.AllianceSupport.ToString("F0"));
             }
             if (!pending.Trade && canPay.Trade)
             {
-                var target = all.Where(c => !c.AtWar && c.TradePossible && c.TradeSupport > AllianceSupportNeeded)
+                var target = all.Where(c => !c.AtWar && c.TradePossible && c.TradeSupport > AllianceSupportNeeded && !c.Recent.Contains(PoliticsMove.Trade))
                     .OrderByDescending(c => c.TradeSupport).FirstOrDefault();
                 if (target != null) return (PoliticsMove.Trade, target, "поддержка торгового соглашения " + target.TradeSupport.ToString("F0"));
             }

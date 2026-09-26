@@ -21,6 +21,20 @@ namespace BannerlordAutopilot
         private double _politicsDay = -1;
         private bool _politicsBroken;
         private string _politicsIdleReason;
+        /// <summary>«ход|королевство» → день нашего предложения (для паузы в 5 дней).
+        /// Не сохраняется в сейв: после загрузки пауза начинается заново — терпимо.</summary>
+        private readonly Dictionary<string, double> _politicsProposed = new Dictionary<string, double>();
+
+        /// <summary>Доля голосов «да» по оценке игры — тот же расчёт, что у штатного ИИ
+        /// (KingdomElection в ConsiderWar); меняет только наше, ещё не поданное решение.</summary>
+        private static float YesVotes(KingdomDecision decision)
+        {
+            foreach (DecisionOutcome o in new KingdomElection(decision).PossibleOutcomes)
+                if (o is DeclareWarDecision.DeclareWarDecisionOutcome w && w.ShouldWarBeDeclared
+                    || o is MakePeaceKingdomDecision.MakePeaceDecisionOutcome p && p.ShouldPeaceBeDeclared)
+                    return o.Likelihood;
+            return 0f;
+        }
 
         partial void DailyPoliticsHook() => TryDailyPolitics();
 
@@ -72,6 +86,7 @@ namespace BannerlordAutopilot
 
         private void RunPolitics()
         {
+            double day = Math.Floor(CampaignTime.Now.ToDays);
             Clan clan = Clan.PlayerClan;
             Kingdom ours = clan?.Kingdom;
             // 26.09: раньше выход был молчаливым — владелец видел «мира/войны не
@@ -103,6 +118,9 @@ namespace BannerlordAutopilot
                     DaysSincePeace = ours.GetStanceWith(other).PeaceDeclarationDate.ElapsedDaysUntilNow,
                 };
                 LocalPicture(other, c);
+                foreach (PoliticsMove m in new[] { PoliticsMove.War, PoliticsMove.Peace, PoliticsMove.Alliance, PoliticsMove.CallToWar, PoliticsMove.Trade })
+                    if (_politicsProposed.TryGetValue(m + "|" + c.Name, out double when) && day - when < PoliticsPolicy.DaysBetweenSameProposal)
+                        c.Recent.Add(m);
                 var own = new Dictionary<PoliticsMove, KingdomDecision>();
                 if (c.AtWar)
                 {
@@ -114,7 +132,7 @@ namespace BannerlordAutopilot
                         var decision = new MakePeaceKingdomDecision(clan, other, tribute, days);
                         if (decision.CanMakeDecision(out _) && !decision.ShouldBeCancelled())
                         {
-                            c.PeacePossible = true; own[PoliticsMove.Peace] = decision;
+                            c.PeacePossible = true; c.PeaceVotes = YesVotes(decision); own[PoliticsMove.Peace] = decision;
                         }
                     }
                 }
@@ -123,7 +141,7 @@ namespace BannerlordAutopilot
                     var decision = new DeclareWarDecision(clan, other);
                     if (decision.CanMakeDecision(out _) && !decision.ShouldBeCancelled())
                     {
-                        c.WarPossible = true; c.WarSupport = decision.CalculateSupport(clan); own[PoliticsMove.War] = decision;
+                        c.WarPossible = true; c.WarSupport = decision.CalculateSupport(clan); c.WarVotes = YesVotes(decision); own[PoliticsMove.War] = decision;
                     }
                     var ally = new StartAllianceDecision(clan, other);
                     if (ally.CanMakeDecision(out _) && !ally.ShouldBeCancelled())
@@ -177,6 +195,7 @@ namespace BannerlordAutopilot
             if (move == PoliticsMove.None) return;
             KingdomDecision chosen = decisions[target][move];
             ours.AddDecision(chosen);
+            _politicsProposed[move + "|" + target.Name] = day;
             StreamStatus.Note("Предлагаем королевству "
                 + (move == PoliticsMove.War ? "войну" : move == PoliticsMove.Peace ? "мир"
                     : move == PoliticsMove.CallToWar ? "позвать союзника в войну" : move == PoliticsMove.Trade ? "торговлю" : "союз")

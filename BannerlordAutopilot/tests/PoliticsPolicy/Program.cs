@@ -82,4 +82,23 @@ d = PoliticsPolicy.Decide(new List<PoliticsCandidate> { K("Вландия", war:
 Check(d.Move == PoliticsMove.None, "поддержка торговли ниже порога — не предлагаем");
 d = PoliticsPolicy.Decide(new List<PoliticsCandidate> { K("Вландия", war: true), T("Кузаит", 80) }, new PoliticsFlags { Trade = true }, All());
 Check(d.Move == PoliticsMove.None, "своё торговое предложение уже на голосовании — второе не подаём");
+// 26.09: мир с Вландией предлагался каждый день и проваливался «Нет» 100%.
+PoliticsCandidate V(PoliticsCandidate c, float war = 1f, float peace = 1f, params PoliticsMove[] recent)
+{ c.WarVotes = war; c.PeaceVotes = peace; foreach (var m in recent) c.Recent.Add(m); return c; }
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> {
+    V(L(K("Вландия", war: true), 5.8f, false, true), peace: 0f), L(K("Асераи", warSupport: 20), 0.5f, true, true) }, None(), All());
+Check(d.Move != PoliticsMove.Peace, "за мир 0% голосов — не предлагаем, хоть враг рядом x5.8");
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> {
+    V(L(K("Вландия", war: true), 5.8f, false, true), peace: 0.6f), L(K("Асераи", warSupport: 20), 0.5f, true, true) }, None(), All());
+Check(d.Move == PoliticsMove.Peace, "за мир 60% — предлагаем, как раньше");
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> {
+    V(L(K("Вландия", war: true), 5.8f, false, true), peace: 0.6f, recent: PoliticsMove.Peace), L(K("Асераи", warSupport: 20), 0.5f, true, true) }, None(), All());
+Check(d.Move != PoliticsMove.Peace, "мир этому королевству уже предлагали за 5 дней — не повторяем");
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> {
+    V(L(K("Вландия", war: true), 5.8f, false, true), peace: 0.6f), V(L(K("Асераи", warSupport: 20), 0.5f, true, true), war: 0.3f) }, None(), All());
+Check(d.Move != PoliticsMove.Peace, "войну слабому королевство не поддержит — мир с сильным не затеваем (иначе останемся без войны)");
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> { V(K("Вландия", warSupport: 90), war: 0.2f), V(K("Стургия", warSupport: 10), war: 0.7f) }, None(), All());
+Check(d.Move == PoliticsMove.War && d.Target.Name == "Стургия", "войну — только той, за которую больше половины голосов");
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> { V(K("Вландия", warSupport: 90), recent: PoliticsMove.War) }, None(), All());
+Check(d.Move != PoliticsMove.War, "войну этому королевству уже предлагали за 5 дней — не повторяем");
 return failed;

@@ -83,6 +83,7 @@ namespace TaleWorlds.CampaignSystem {
   public TestMapDistanceModel MapDistanceModel { get; } = new();
   public TaleWorlds.CampaignSystem.ComponentInterfaces.ArmyManagementCalculationModel ArmyManagementCalculationModel { get; } = new();
   public TaleWorlds.CampaignSystem.ComponentInterfaces.SiegeEventModel SiegeEventModel { get; } = new();
+  public TaleWorlds.CampaignSystem.ComponentInterfaces.EncounterModel EncounterModel { get; } = new();
   public MilitaryPowerModel MilitaryPowerModel { get; } = new();
   public MobilePartyAIModel MobilePartyAIModel { get; } = new();
   public PartyFoodBuyingModel PartyFoodBuyingModel { get; } = new();
@@ -95,6 +96,7 @@ namespace TaleWorlds.CampaignSystem {
 }
 
 namespace TaleWorlds.CampaignSystem.ComponentInterfaces {
+ public class EncounterModel { public Hero Leader; public Hero GetLeaderOfSiegeEvent(TaleWorlds.CampaignSystem.Siege.SiegeEvent siege, TaleWorlds.Core.BattleSideEnum side) => Leader; }
  public class MilitaryPowerModel { public TaleWorlds.CampaignSystem.MapEvent.PowerCalculationContext GetContextForPosition(TaleWorlds.CampaignSystem.CampaignVec2 position) => default; }
  public class MobilePartyAIModel {
   public AiBehavior NextBehavior; public MobileParty NextTarget; public float NextScore;

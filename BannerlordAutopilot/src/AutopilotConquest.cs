@@ -213,6 +213,30 @@ namespace BannerlordAutopilot
                   + " < " + SiegeMinAverageTier.ToString("F1", CultureInfo.InvariantCulture) + " — качаемся в поле";
         }
 
+        /// <summary>26.09, владелец: «за защиту в осаде он будет строить катапы?» — нет:
+        /// ваниль (SetDefaultTactics) ставит командиру-игроку стратегию Custom, при
+        /// которой строится только поставленное вручную; ИИ-командиру — лучшую по
+        /// оценке. Командуем обороной мы — выбираем, как игра выбрала бы за ИИ, и
+        /// дальше машины строит игра.</summary>
+        private object _configuredDefense;
+
+        private void EnsureDefenderStrategy(Settlement place)
+        {
+            var siege = place?.SiegeEvent;
+            if (siege == null || _configuredDefense == siege) return;
+            if (Campaign.Current.Models.EncounterModel.GetLeaderOfSiegeEvent(siege, BattleSideEnum.Defender) != Hero.MainHero) return;
+            var side = siege.GetSiegeEventSide(BattleSideEnum.Defender);
+            if (side.SiegeStrategy != DefaultSiegeStrategies.Custom) { _configuredDefense = siege; return; }
+            var strategy = DefaultSiegeStrategies.AllDefenderStrategies
+                .Where(s => s != DefaultSiegeStrategies.Custom)
+                .OrderByDescending(s => Campaign.Current.Models.SiegeEventModel.GetSiegeStrategyScore(siege, BattleSideEnum.Defender, s))
+                .FirstOrDefault();
+            if (strategy == null) return;
+            side.SetSiegeStrategy(strategy);
+            _configuredDefense = siege;
+            AutopilotLog.Write("ОБОРОНА: командуем обороной «" + place.Name + "» — штатная стратегия " + strategy + ", машины строит игра");
+        }
+
         private static bool EnemyFortress(Settlement place, MobileParty party) =>
             place != null && (place.IsTown || place.IsCastle) && place.MapFaction != null
             && party?.MapFaction != null && party.MapFaction.IsAtWarWith(place.MapFaction);

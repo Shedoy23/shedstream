@@ -570,6 +570,12 @@ namespace BannerlordAutopilot
                     return false;
                 }
             }
+            // 26.09: оборона крепости, которой командуем мы, — выбрать штатную
+            // стратегию, чтобы игра строила машины. Не «занимает» опрос: дальше
+            // всё идёт как было. Любой путь в оборону (прорыв, осада своего города).
+            if (_mode == Mode.Apply && MenuDriver.CurrentMenuId == "menu_siege_strategies"
+                && party?.CurrentSettlement?.SiegeEvent != null)
+                EnsureDefenderStrategy(party.CurrentSettlement);
             if (PollArmyDispersed(party)) return false;
             if (PollUnavoidableSurrender(party)) return false;
             if (PollRaidWarning()) return false;

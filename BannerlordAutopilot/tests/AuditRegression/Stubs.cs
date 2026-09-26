@@ -184,7 +184,7 @@ namespace TaleWorlds.CampaignSystem.Settlements {
   public static TaleWorlds.Library.MBReadOnlyList<Settlement> All { get; } = new();
   public bool IsHideout { get; set; } public bool IsVisible { get; set; } = true;
   public CampaignVec2 Position { get; set; } public Hideout Hideout { get; set; }
-  public string Name="Town"; public bool IsUnderSiege; public CampaignVec2 GatePosition = new CampaignVec2{X=42};
+  public string Name="Town"; public bool IsUnderSiege; public CampaignVec2 GatePosition = new CampaignVec2{X=42}; public TaleWorlds.CampaignSystem.Siege.SiegeEvent SiegeEvent;
   // MBObjectBase.StringId: у каждого поселения свой, из XML мира, и он же после загрузки сейва.
   static int _nextId;
   public string StringId { get; set; } = "settlement_" + (++_nextId);

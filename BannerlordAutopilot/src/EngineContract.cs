@@ -394,6 +394,11 @@ namespace BannerlordAutopilot
             Type strategy = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.SiegeStrategy");
             Type strategies = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.DefaultSiegeStrategies");
             MemberOf(strategies, "AllAttackerStrategies", Stat, strategy != null ? typeof(IEnumerable<>).MakeGenericType(strategy) : null);
+            MemberOf(strategies, "AllDefenderStrategies", Stat, strategy != null ? typeof(IEnumerable<>).MakeGenericType(strategy) : null);
+            Type encounterModel = MemberType(typeof(GameModels), "EncounterModel", Inst, false, out _);
+            Need(encounterModel != null, "GameModels.EncounterModel");
+            Method(encounterModel, "GetLeaderOfSiegeEvent", Inst, typeof(Hero), siege, typeof(TaleWorlds.Core.BattleSideEnum));
+            MemberOf(typeof(Settlement), "SiegeEvent", Inst, siege);
             Type side = siege?.GetMethod("GetSiegeEventSide", Inst)?.ReturnType;
             Method(siege, "GetSiegeEventSide", Inst, side, typeof(TaleWorlds.Core.BattleSideEnum));
             Method(side, "SetSiegeStrategy", Inst, typeof(void), strategy);

@@ -536,6 +536,20 @@ internal static partial class Program
             b.PollState(); b.PollState();
             Check(!MenuContext.Invoked.Contains("menu_siege_strategies_lead_assault"), "лагерь не достроен — штурма нет");
         });
+        // 26.09, владелец: «за защиту в осаде он будет строить катапы?»
+        foreach (bool weLead in new[] { true, false })
+        Try("оборона крепости: командуем мы — штатная стратегия со строительством " + weLead, () => {
+            var b=Fresh(); ConquestWorld(wounded:0); var own=OwnSiege(); var party=MobileParty.MainParty; Enable(b);
+            var siege=new SiegeEvent { BesiegedSettlement=own }; own.SiegeEvent=siege;
+            Campaign.Current.Models.EncounterModel.Leader = weLead ? Hero.MainHero : new Hero();
+            PlayerEncounter.Current=new PlayerEncounter(); PlayerEncounter.EncounterSettlement=own;
+            party.CurrentSettlement=own; party.BesiegedSettlement=own;
+            Show(new GameMenu {StringId="menu_siege_strategies",IsWaitMenu=true});
+            b.PollState(); b.PollState();
+            Check((siege.DefenderSide.SiegeStrategy == DefaultSiegeStrategies.PrepareAgainstAssault) == weLead,
+                "командуем обороной — ставим штатную стратегию (строит машины); иначе не трогаем: " + weLead);
+            Check(LogCount("командуем обороной") == (weLead ? 1 : 0), "запись одна, без повторов");
+        });
         Try("истощение осады вызывает штатный отход", () => {
             var b = Fresh(); var castle = ConquestWorld(food: 1); Enable(b);
             var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
@@ -747,6 +761,8 @@ namespace TaleWorlds.CampaignSystem.Siege
         public static SiegeStrategy PrepareAssault { get; } = new();
         public static SiegeStrategy Custom { get; } = new();
         public static System.Collections.Generic.IEnumerable<SiegeStrategy> AllAttackerStrategies => new[] { PrepareAssault, Custom };
+        public static SiegeStrategy PrepareAgainstAssault { get; } = new();
+        public static System.Collections.Generic.IEnumerable<SiegeStrategy> AllDefenderStrategies => new[] { PrepareAgainstAssault, Custom };
     }
     public class BesiegerCamp
     {
@@ -761,7 +777,8 @@ namespace TaleWorlds.CampaignSystem.Siege
     {
         public Settlement BesiegedSettlement { get; set; }
         public BesiegerCamp BesiegerCamp { get; } = new();
-        public BesiegerCamp GetSiegeEventSide(BattleSideEnum side) => BesiegerCamp;
+        public BesiegerCamp DefenderSide { get; } = new();
+        public BesiegerCamp GetSiegeEventSide(BattleSideEnum side) => side == BattleSideEnum.Defender ? DefenderSide : BesiegerCamp;
     }
 }
 namespace TaleWorlds.CampaignSystem.ComponentInterfaces

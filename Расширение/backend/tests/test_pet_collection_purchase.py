@@ -21,6 +21,21 @@ async def main():
                 if isinstance(target, ast.Name) and target.id in ('PET_COSMETIC_PRICES', 'PET_BASE_TYPE'):
                     setattr(config, target.id, ast.literal_eval(node.value))
     sys.modules['config'] = config
+    from pet_collection import COMPANIONS, get_pet_price
+    assert len(COMPANIONS) == 6
+    assert all(get_pet_price('skin_' + x, 'rare') == 500000 for x in COMPANIONS)
+    assert get_pet_price('skin_kimono', 'rare') == 1000000
+    # Execute the actual catalog route to prove display and charge agree.
+    route_tree = ast.parse((ROOT / 'routes/pets.py').read_text(encoding='utf-8'))
+    route = next(n for n in route_tree.body if isinstance(n, ast.AsyncFunctionDef) and n.name == 'pet_catalog')
+    route.decorator_list = []
+    class CatalogDB:
+        async def list_pet_catalog(self, include_owned=None):
+            return [{'item_id': 'skin_' + k, 'rarity': 'rare'} for k in COMPANIONS] + [{'item_id':'skin_kimono','rarity':'rare'}]
+    rn = {'Request':object,'require_jwt_user':lambda _:None,'get_db':CatalogDB,'get_pet_price':get_pet_price}
+    exec(compile(ast.Module(body=[route],type_ignores=[]),'routes/pets.py','exec'),rn)
+    catalog = await rn['pet_catalog'](object())
+    assert [x['price_crustics'] for x in catalog['items']] == [500000]*6+[1000000]
     tree = ast.parse((ROOT / 'database.py').read_text(encoding='utf-8'))
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'Database')
     method = next(n for n in cls.body if isinstance(n, ast.AsyncFunctionDef) and n.name == 'purchase_pet_item')
@@ -53,6 +68,16 @@ async def main():
         assert old.get('purchased') and old['price'] == 1000000, old
         assert await (await conn.execute('SELECT bits_amount FROM pet_purchases ORDER BY id')).fetchall() == [(500000,),(1000000,)]
         assert (await purchase(DB(),'bob','skin_missing',11))['reason'] == 'item_not_found'
+    from migrations import m129_pet_companions
+    async with aiosqlite.connect(':memory:') as conn:
+        await conn.execute('CREATE TABLE pet_catalog(item_id TEXT PRIMARY KEY,name TEXT,slot TEXT,price_bits INTEGER,rarity TEXT,emoji TEXT,png_path TEXT,deprecated INTEGER)')
+        await conn.execute("INSERT INTO pet_catalog VALUES('skin_kimono','Кимоно','body',500,'rare',NULL,'old.png',0)")
+        await conn.commit()
+        await m129_pet_companions.apply(conn)
+        await m129_pet_companions.apply(conn)
+        rows=await (await conn.execute('SELECT item_id,rarity FROM pet_catalog')).fetchall()
+        assert len(rows)==7 and all(r[1]=='rare' for r in rows)
+        assert await (await conn.execute("SELECT png_path FROM pet_catalog WHERE item_id='skin_kimono'")).fetchone()==('old.png',)
     print('PASS: exact price, auto-equip, insufficient funds, duplicate, channel isolation, old prices, audit')
 
 

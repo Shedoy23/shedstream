@@ -749,6 +749,7 @@ body {
      доступен в renderPets(). -->
 <script src="pet-stage.js?v=20260524b"></script>
 <script src="pet-layout.js?v=20260823"></script>
+<script src="pet-assets/companions-v1/overlay-pets.js?v=20260926a"></script>
 
 <script>
 const SERVER = 'https://shedoy23.ru';
@@ -1028,6 +1029,9 @@ async function pollPets() {
                 eq.head?.item_id || '',
                 eq.accessory?.item_id || '',
                 eq.background?.item_id || '',
+                eq.body?.item_id || '',
+                eq.face?.item_id || '',
+                eq.aura?.item_id || '',
                 v.name || '',
                 v.pet_type || 'egg',
                 v.level || '',      // 2026-07-27: иначе повышение уровня не перерисует подпись
@@ -1050,18 +1054,19 @@ async function pollPets() {
             // Pet-stage рендерит south creature; на overlay поверх клеим
             // east + west sprites через absolute positioning, opacity
             // animations swap'ают их synchronized с pet-walk position.
-            const stageHtml = (typeof PetStage !== 'undefined')
-                ? PetStage.renderHtml(pet, eq, {size: 128})
-                : `<span>${v.pet_type === 'egg' ? '🥚' : '🐣'}</span>`;
             // Variant detection для east/west PNG paths (mirror логики из pet-stage.js).
             let variant = 'kimono';
             if (eq.body && typeof eq.body.item_id === 'string' &&
                 eq.body.item_id.startsWith('skin_')) {
                 const v2 = eq.body.item_id.slice(5);
-                if (v2 === 'kimono' || v2 === 'underwear') variant = v2;
+                if (/^[a-z0-9_]+$/.test(v2)) variant = v2;
             }
+            const animated = typeof PetCompanions !== 'undefined' && PetCompanions.supports(variant);
+            const stageHtml = animated ? PetCompanions.render(variant)
+                : (typeof PetStage !== 'undefined' ? PetStage.renderHtml(pet, eq, {size: 128})
+                    : `<span>${v.pet_type === 'egg' ? '🥚' : '🐣'}</span>`);
             const isHatched = pet.pet_type && pet.pet_type !== 'egg';
-            const walkSprites = isHatched ? `
+            const walkSprites = isHatched && !animated ? `
                 <img src="pet-assets/v2/${variant}/east.png"
                      class="pet-walk-frame pet-walk-frame--east"
                      alt="" draggable="false"/>
@@ -1130,6 +1135,7 @@ async function pollPets() {
                 requestAnimationFrame(() => card.classList.add('in'));
             });
         });
+        if (typeof PetCompanions !== 'undefined') PetCompanions.attach(strip);
     } catch (e) { /* silent */ }
 }
 

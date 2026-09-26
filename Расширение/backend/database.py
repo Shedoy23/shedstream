@@ -1994,7 +1994,8 @@ class Database:
         Compliance: атомарная транзакция — receipt проверяется UNIQUE,
         item added в inventory + purchase audit в одной TX.
         """
-        from config import PET_COSMETIC_PRICES, PET_BASE_TYPE
+        from config import PET_BASE_TYPE
+        from pet_collection import get_pet_price
         uname = username.lower()
 
         async with self._connect() as conn:
@@ -2014,7 +2015,7 @@ class Database:
                 if deprecated:
                     await conn.execute("ROLLBACK")
                     return {'purchased': False, 'reason': 'deprecated'}
-                price = PET_COSMETIC_PRICES.get(rarity, PET_COSMETIC_PRICES['common'])
+                price = get_pet_price(item_id, rarity)
 
                 # Already owned?
                 cur = await conn.execute(

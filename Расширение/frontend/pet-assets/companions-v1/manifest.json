@@ -1,0 +1,320 @@
+[
+  {
+    "id": "wayfarer",
+    "name": "Странник",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 110,
+        "top": 98,
+        "width": 330,
+        "height": 413
+      },
+      {
+        "left": 602,
+        "top": 98,
+        "width": 331,
+        "height": 413
+      },
+      {
+        "left": 1098,
+        "top": 98,
+        "width": 326,
+        "height": 413
+      },
+      {
+        "left": 110,
+        "top": 566,
+        "width": 338,
+        "height": 408
+      },
+      {
+        "left": 571,
+        "top": 667,
+        "width": 387,
+        "height": 307
+      },
+      {
+        "left": 1098,
+        "top": 566,
+        "width": 364,
+        "height": 408
+      }
+    ],
+    "source": "exec-15d01c90-456d-428c-8dc6-a89b7c8c7ccd.png"
+  },
+  {
+    "id": "crimson_knight",
+    "name": "Багряный рыцарь",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 86,
+        "top": 48,
+        "width": 332,
+        "height": 434
+      },
+      {
+        "left": 585,
+        "top": 58,
+        "width": 347,
+        "height": 424
+      },
+      {
+        "left": 1091,
+        "top": 61,
+        "width": 319,
+        "height": 421
+      },
+      {
+        "left": 95,
+        "top": 539,
+        "width": 326,
+        "height": 424
+      },
+      {
+        "left": 568,
+        "top": 639,
+        "width": 383,
+        "height": 331
+      },
+      {
+        "left": 1104,
+        "top": 540,
+        "width": 333,
+        "height": 423
+      }
+    ],
+    "source": "exec-6bb4f409-e40e-4650-9c2d-a1b1d411dce7.png"
+  },
+  {
+    "id": "colony_engineer",
+    "name": "Инженер",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 110,
+        "top": 50,
+        "width": 334,
+        "height": 446
+      },
+      {
+        "left": 633,
+        "top": 60,
+        "width": 306,
+        "height": 436
+      },
+      {
+        "left": 1144,
+        "top": 55,
+        "width": 311,
+        "height": 440
+      },
+      {
+        "left": 100,
+        "top": 544,
+        "width": 353,
+        "height": 430
+      },
+      {
+        "left": 593,
+        "top": 614,
+        "width": 375,
+        "height": 364
+      },
+      {
+        "left": 1097,
+        "top": 532,
+        "width": 392,
+        "height": 442
+      }
+    ],
+    "source": "exec-a365c78b-feb4-479c-a0dd-74f9624b2dbc.png"
+  },
+  {
+    "id": "lantern_mage",
+    "name": "Сонный колдунчик",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 87,
+        "top": 52,
+        "width": 365,
+        "height": 477
+      },
+      {
+        "left": 617,
+        "top": 60,
+        "width": 365,
+        "height": 468
+      },
+      {
+        "left": 1125,
+        "top": 68,
+        "width": 366,
+        "height": 460
+      },
+      {
+        "left": 92,
+        "top": 544,
+        "width": 360,
+        "height": 451
+      },
+      {
+        "left": 600,
+        "top": 643,
+        "width": 358,
+        "height": 349
+      },
+      {
+        "left": 1113,
+        "top": 544,
+        "width": 340,
+        "height": 451
+      }
+    ],
+    "source": "exec-30688c9b-643a-4526-a640-1e50cac8564b.png"
+  },
+  {
+    "id": "shadow_rogue",
+    "name": "Разбойник",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 77,
+        "top": 91,
+        "width": 352,
+        "height": 421
+      },
+      {
+        "left": 593,
+        "top": 101,
+        "width": 325,
+        "height": 411
+      },
+      {
+        "left": 1085,
+        "top": 100,
+        "width": 330,
+        "height": 412
+      },
+      {
+        "left": 77,
+        "top": 565,
+        "width": 360,
+        "height": 420
+      },
+      {
+        "left": 585,
+        "top": 652,
+        "width": 348,
+        "height": 331
+      },
+      {
+        "left": 1085,
+        "top": 565,
+        "width": 361,
+        "height": 419
+      }
+    ],
+    "source": "exec-4dcf42d3-d0fc-4fb7-b59f-e1e09850939b.png"
+  },
+  {
+    "id": "rain_fisher",
+    "name": "Рыбак",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 113,
+        "top": 64,
+        "width": 346,
+        "height": 408
+      },
+      {
+        "left": 627,
+        "top": 71,
+        "width": 341,
+        "height": 401
+      },
+      {
+        "left": 1131,
+        "top": 71,
+        "width": 315,
+        "height": 401
+      },
+      {
+        "left": 95,
+        "top": 567,
+        "width": 373,
+        "height": 403
+      },
+      {
+        "left": 581,
+        "top": 645,
+        "width": 371,
+        "height": 310
+      },
+      {
+        "left": 1088,
+        "top": 549,
+        "width": 403,
+        "height": 421
+      }
+    ],
+    "source": "exec-737174b2-af98-4a60-879c-44ed0ae0fa4d.png"
+  }
+]

@@ -1544,6 +1544,9 @@ async def run_migrations():
         from migrations import m128_bannerlord_tournament_queue_sync
         await m128_bannerlord_tournament_queue_sync.apply(conn)
 
+        from migrations import m129_pet_companions
+        await m129_pet_companions.apply(conn)
+
         print("✅ Migrations complete")
 
 

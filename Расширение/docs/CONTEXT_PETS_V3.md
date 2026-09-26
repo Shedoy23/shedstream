@@ -1,5 +1,10 @@
 # Pets v3 — pixel-art overhaul (chat handoff)
 
+**Актуализация 26.09.2026:** выложена шестёрка спутников (все rare, каждый
+500000 крустиков), OBS-only анимация и отдельная серверная цена коллекции.
+Полный актуальный handoff: `docs/PET_COMPANIONS_2026-09-26.md` в корне репозитория.
+Общий pet-stage.js и Twitch-кандидат не менялись. Остальное ниже — история 24.05.
+
 **Назначение:** handoff для продолжения работы над **визуальным обновлением Pets**
 (v2 emoji-blob → v3 pixel-art chibi character + PixelLab pipeline).
 **Last updated:** 2026-05-24 (после deploy в прод + overlay walking polish).

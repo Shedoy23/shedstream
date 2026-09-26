@@ -352,8 +352,34 @@ namespace BannerlordAutopilot
                 + " — берём это" : "") + ")";
         }
 
+        /// <summary>26.09, владелец «а почему нет»: вражескую крепость уже осаждает союзник
+        /// (зритель igotpaws по приказу с 18:16 стоял у Фрактори) — идём к нему в лагерь,
+        /// а не пропускаем крепость. Сила союзного лагеря без нас; leader == null — лагерь
+        /// не союзный или его нет. Командование после входа перейдёт к стримеру само:
+        /// ваниль отдаёт лагерь правителю королевства (DefaultEncounterModel.GetLeaderOfSiegeEvent).</summary>
+        private static float AlliedCampStrength(Settlement place, MobileParty party, out MobileParty leader)
+        {
+            var camp = place?.SiegeEvent?.BesiegerCamp;
+            leader = camp?.LeaderParty;
+            if (camp == null || leader == null || leader == party || leader.MapFaction == null || party?.MapFaction == null
+                || party.MapFaction.IsAtWarWith(leader.MapFaction) || party.BesiegerCamp == camp) { leader = null; return 0f; }
+            float sum = 0f;
+            foreach (var p in MobileParty.All)
+                if (p != null && p != party && p.IsActive && p.BesiegerCamp == camp) sum += Math.Max(0f, p.Party.EstimatedStrength);
+            return sum;
+        }
+
         private static float SiegeAttackerStrength(MobileParty party)
         {
+            // В лагере (своём или союзном) бьётся весь лагерь, а не только мы.
+            var camp = party.BesiegerCamp;
+            if (camp != null)
+            {
+                float all = 0f;
+                foreach (var p in MobileParty.All)
+                    if (p != null && p.IsActive && p.BesiegerCamp == camp) all += Math.Max(0f, p.Party.EstimatedStrength);
+                if (all > 0f) return all;
+            }
             float strength = Math.Max(0f, party.Party.EstimatedStrength);
             if (party.Army?.LeaderParty == party)
                 foreach (var attached in party.AttachedParties)
@@ -434,25 +460,30 @@ namespace BannerlordAutopilot
             // 26.09: после «отряд окреп» за 1,5 ч войны осад не было ни одной, а журнал
             // молчал почему. Раз в игровой день пишем крепость, ближе всех к порогу.
             Settlement closest = null; float closestDefenders = 0f; int fortresses = 0, borderSkipped = 0;
+            MobileParty bestCampLeader = null; float bestCamp = 0f, bestDefenders = 0f;
             foreach (var place in Settlement.All)
             {
-                if (!EnemyFortress(place, party) || place.IsUnderSiege || place.IsUnderRaid || SiegeRecentlyRejected(place)) continue;
+                if (!EnemyFortress(place, party) || place.IsUnderRaid || SiegeRecentlyRejected(place)) continue;
+                MobileParty campLeader = null;
+                float camp = place.IsUnderSiege ? AlliedCampStrength(place, party, out campLeader) : 0f;
+                if (place.IsUnderSiege && campLeader == null) continue;
                 fortresses++;
                 if (SiegeBorderRejection(party, place) != null) { borderSkipped++; continue; }
                 float defenders = SiegeDefenderStrength(place, party);
-                bool needsArmy = own < defenders * SiegeStrengthRatio;
-                if (needsArmy && (allies.Count == 0 || assembled < defenders * SiegeStrengthRatio))
+                bool needsArmy = own + camp < defenders * SiegeStrengthRatio;
+                if (needsArmy && (allies.Count == 0 || assembled + camp < defenders * SiegeStrengthRatio))
                 {
                     if (closest == null || defenders < closestDefenders) { closest = place; closestDefenders = defenders; }
                     continue;
                 }
                 float distance = (float)Math.Sqrt(Math.Max(0f, party.Position.DistanceSquared(place.Position)));
-                float candidateScore = 5f + Math.Min(3f, (needsArmy ? assembled : own) / Math.Max(1f, defenders))
+                float candidateScore = 5f + Math.Min(3f, ((needsArmy ? assembled : own) + camp) / Math.Max(1f, defenders))
                     - distance / 200f;
                 if (candidateScore <= score) continue;
                 best = place;
                 gather = needsArmy;
                 score = candidateScore;
+                bestCampLeader = campLeader; bestCamp = camp; bestDefenders = defenders;
             }
             if (best == null)
             {
@@ -471,24 +502,35 @@ namespace BannerlordAutopilot
                 }
                 return false;
             }
+            if (bestCampLeader != null && _alliedSiegeNoted != best)
+            {
+                _alliedSiegeNoted = best;
+                StreamStatus.Note("Идём на помощь к осаде «" + best.Name + "»");
+                AutopilotLog.Write("ПОХОД: присоединяемся к осаде «" + best.Name + "» — лагерь «" + bestCampLeader.Name
+                    + "» " + bestCamp.ToString("F0", CultureInfo.InvariantCulture) + " + мы " + own.ToString("F0", CultureInfo.InvariantCulture)
+                    + " против защитников " + bestDefenders.ToString("F0", CultureInfo.InvariantCulture));
+            }
             target = new AIBehaviorData(best, AiBehavior.BesiegeSettlement,
                 MobileParty.NavigationType.Default, gather, false, false);
             return true;
         }
+
+        private Settlement _alliedSiegeNoted;
 
         private string SiegeTargetRejection(MobileParty party, Settlement place)
         {
             if (!EnemyFortress(place, party)) return "крепость больше не принадлежит врагу";
             string border = SiegeBorderRejection(party, place);
             if (border != null) return border;
-            if (place.IsUnderSiege) return "крепость уже осаждают";
+            float camp = AlliedCampStrength(place, party, out MobileParty campLeader);
+            if (place.IsUnderSiege && campLeader == null) return "крепость уже осаждают";
             if (place.IsUnderRaid) return "поселение под налётом";
             string preparation = PreparationNeeded(party);
             if (preparation != null) return "поход не готов: " + preparation;
             string readiness = SiegeReadiness(party);
             if (readiness != null) return readiness;
             float defenders = SiegeDefenderStrength(place, party);
-            float own = SiegeAttackerStrength(party);
+            float own = SiegeAttackerStrength(party) + camp;
             if (own >= defenders * SiegeStrengthRatio) return null;
             var allies = party.Army == null ? AffordableArmyMembers(party) : new List<MobileParty>();
             float assembled = own + allies.Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
@@ -561,8 +603,11 @@ namespace BannerlordAutopilot
             var siege = party.SiegeEvent;
             var place = siege?.BesiegedSettlement ?? EncounterPlace(party);
             bool commanded = siege?.BesiegerCamp?.LeaderParty == party;
-            bool participating = siege != null && party.Army?.LeaderParty != null
-                && siege.BesiegerCamp?.LeaderParty == party.Army.LeaderParty;
+            // В союзном лагере командует правитель — стример; если командир всё же
+            // другой, ждём его штурма, как в чужой армии.
+            bool participating = siege != null && (party.Army?.LeaderParty != null
+                && siege.BesiegerCamp?.LeaderParty == party.Army.LeaderParty
+                || siege.BesiegerCamp != null && party.BesiegerCamp == siege.BesiegerCamp);
             bool approaching = siege == null && EnemyFortress(place, party)
                 && (_offensiveSiege == place || (party.DefaultBehavior == AiBehavior.BesiegeSettlement && party.TargetSettlement == place));
             if (_offensiveSiege == null && (commanded || approaching || participating)) _offensiveSiege = place;
@@ -598,6 +643,26 @@ namespace BannerlordAutopilot
                 }
                 if (menu == "encounter" && IsOwnedOperationBattle(party))
                 { OperationClick("attack"); return true; }
+                if (menu == "join_siege_event" && approaching)
+                {
+                    AlliedCampStrength(place, party, out MobileParty campLeader);
+                    if (campLeader == null) return false;
+                    string needed = PreparationNeeded(party);
+                    string joinWhy = null;
+                    if (needed == null && MenuDriver.CanInvoke("join_siege_event", out joinWhy))
+                    {
+                        _operationSettlement = place;
+                        AutopilotLog.Write("ОСАДА: входим в лагерь «" + campLeader.Name + "» у «" + place.Name + "»");
+                        StreamStatus.Note("Присоединяемся к осаде «" + place.Name + "»");
+                        OperationClick("join_siege_event"); return true;
+                    }
+                    _siegeRejectedUntil[place] = CampaignTime.Now.ToHours + SiegeRejectionHours;
+                    _offensiveSiege = null;
+                    AutopilotLog.Write("ОСАДА: в лагерь у «" + place.Name + "» не входим — "
+                        + (needed != null ? "требуется восстановление: " + needed : joinWhy)
+                        + "; не возвращаемся " + SiegeRejectionHours.ToString("F0", CultureInfo.InvariantCulture) + " игровых часов");
+                    OperationClick("join_encounter_leave"); return true;
+                }
                 if (menu == "town_outside" || menu == "castle_outside")
                 {
                     if (!approaching) return false;

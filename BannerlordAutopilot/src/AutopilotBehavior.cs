@@ -2840,7 +2840,8 @@ namespace BannerlordAutopilot
                     string siegePreparation = PreparationNeeded(siegeParty) ?? SiegeReadiness(siegeParty);
                     if (siegePreparation != null) return siegePreparation;
                     float defenders = SiegeDefenderStrength((Settlement)data.Party, siegeParty);
-                    float attackers = SiegeAttackerStrength(siegeParty);
+                    float attackers = SiegeAttackerStrength(siegeParty)
+                        + AlliedCampStrength((Settlement)data.Party, siegeParty, out _);
                     if (data.WillGatherArmy && siegeParty.Army == null)
                         attackers += AffordableArmyMembers(siegeParty).Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
                     return attackers >= defenders * SiegeStrengthRatio ? null

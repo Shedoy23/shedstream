@@ -582,6 +582,57 @@ internal static partial class Program
             CampaignTime.TestHours = 73;
             Check(Finds(), "через 3 дня память прошла — крепость снова по силам");
         });
+        // 26.09, владелец «а почему нет»: вражескую крепость уже осаждает союзник (зритель
+        // igotpaws стоял у Фрактори) — автопилот пропускал её как «уже осаждают».
+        static (Settlement Castle, MobileParty Camp) CampWorld(bool alliedCamp)
+        {
+            var castle = ConquestWorld(); castle.Name = "Осаждаемый замок"; castle.Militia = 12; Settlement.All.Add(castle);
+            var mine = MobileParty.MainParty.MapFaction;
+            var campFaction = alliedCamp ? mine : new TestFaction();
+            if (!alliedCamp) { ((TestFaction)mine).Enemies.Add(campFaction); ((TestFaction)campFaction).Enemies.Add(mine); }
+            var camp = new MobileParty { Name = "Отряд зрителя", IsLordParty = true, MapFaction = campFaction };
+            camp.Party.MapFaction = campFaction;
+            camp.MemberRoster.AddToCounts(new CharacterObject { Tier = 4 }, 10);
+            MobileParty.All.Add(camp);
+            var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = camp;
+            castle.SiegeEvent = siege; castle.IsUnderSiege = true; camp.BesiegerCamp = siege.BesiegerCamp;
+            return (castle, camp);
+        }
+        foreach (bool allied in new[] { true, false })
+        Try("осада: крепость уже осаждает " + (allied ? "союзник — сами не тянем, вместе тянем, идём к нему" : "враг врага — не лезем"), () => {
+            var b = Fresh(); var (castle, _) = CampWorld(allied);
+            Enable(b); HourlyTick(b);
+            var party = MobileParty.MainParty;
+            if (allied)
+            {
+                Check(SiegeTarget(b) == castle && party.TargetSettlement == castle,
+                    "стены 12, наших 10 (мало для x1,5), с лагерем 20 — идём: " + party.DefaultBehavior + " → " + party.TargetSettlement?.Name);
+                Check(LogCount("присоединяемся к осаде «Осаждаемый замок»") == 1, "решение записано с силами лагеря");
+            }
+            else Check(SiegeTarget(b) != castle, "чужой лагерь не наш — крепость пропускаем");
+        });
+        Try("осада: у союзного лагеря жмём «Присоединиться к осаде»", () => {
+            var b = Fresh(); var (castle, _) = CampWorld(true); Enable(b);
+            var party = MobileParty.MainParty;
+            party.DefaultBehavior = AiBehavior.BesiegeSettlement; party.TargetSettlement = castle;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounterSettlement = castle;
+            var join = new GameMenu { StringId = "join_siege_event" };
+            join.Options.Add(new GameMenuOption { IdString = "join_siege_event" });
+            join.Options.Add(new GameMenuOption { IdString = "join_encounter_leave" });
+            Show(join); b.PollState();
+            Check(MenuContext.Invoked.SequenceEqual(new[] { "join_siege_event" }), "вошли в лагерь: " + string.Join(",", MenuContext.Invoked));
+            Check(LogCount("входим в лагерь «Отряд зрителя»") == 1, "вход записан");
+        });
+        Try("осада: в союзном лагере командует не стример — ждём его штурма, не уходим", () => {
+            var b = Fresh(); var (castle, camp) = CampWorld(true); Enable(b);
+            var party = MobileParty.MainParty; party.SiegeEvent = castle.SiegeEvent; party.BesiegerCamp = castle.SiegeEvent.BesiegerCamp;
+            var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_leave" }); Show(wait);
+            b.PollState(); b.PollState();
+            Check(!MenuContext.Invoked.Contains("menu_siege_strategies_leave") && !MenuContext.Invoked.Contains("menu_siege_strategies_lead_assault"),
+                "командир — зритель: ни штурма, ни ухода: " + string.Join(",", MenuContext.Invoked));
+        });
         // 26.09, владелец: «не тянуть — начинать только с осадным лагерем, без катапульт».
         Try("осада: лагерь готов — штурмуем, не дожидаясь машин и «логичного» штурма ИИ", () => {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);

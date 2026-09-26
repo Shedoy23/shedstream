@@ -395,6 +395,9 @@ namespace BannerlordAutopilot
             Need(camp != null, "SiegeEvent.BesiegerCamp");
             MemberOf(camp, "LeaderParty", Inst, mobile);
             MemberOf(camp, "IsPreparationComplete", Inst, typeof(bool));
+            // 26.09: вход в осаду союзника — лагерь каждого отряда и осада крепости.
+            MemberOf(mobile, "BesiegerCamp", Inst, camp);
+            MemberOf(typeof(Settlement), "SiegeEvent", Inst, siege);
             Type strategy = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.SiegeStrategy");
             Type strategies = TypeNamed(campaign, "TaleWorlds.CampaignSystem.Siege.DefaultSiegeStrategies");
             MemberOf(strategies, "AllAttackerStrategies", Stat, strategy != null ? typeof(IEnumerable<>).MakeGenericType(strategy) : null);

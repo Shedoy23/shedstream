@@ -56,9 +56,11 @@ internal static partial class Program
             var pick = Thoughts.Pick; Thoughts.Pick = n => 0;
             try
             {
+                int start = File.ReadAllLines(file).Length;
                 Thoughts.Say("battle_won", "бой 1"); Thoughts.Say("battle_won", "бой 2");
                 var lines = File.ReadAllLines(file);
-                Check(lines.Length >= 3 && lines[1] != lines[2], "две победы подряд — разные фразы: " + string.Join(" | ", lines));
+                Check(lines.Length == start + 2 && lines[1] != lines[2],
+                    "две победы подряд — обе на экране и разными фразами: " + string.Join(" | ", lines));
                 int before = File.ReadAllLines(file).Length;
                 Thoughts.Say("hunt_lord", "лорд А", "лорд А", 10, 20);
                 Thoughts.Say("hunt_lord", "лорд А", "лорд А", 10, 20);

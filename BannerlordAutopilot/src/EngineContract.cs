@@ -492,6 +492,8 @@ namespace BannerlordAutopilot
             Need(list?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(list.PropertyType), "PartyVM.OtherPartyPrisoners: enumerable");
             var rescuedList = vm?.GetProperty("OtherPartyTroops", Inst);
             Need(rescuedList?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(rescuedList.PropertyType), "PartyVM.OtherPartyTroops: enumerable");
+            var ownList = vm?.GetProperty("MainPartyTroops", Inst);
+            Need(ownList?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(ownList.PropertyType), "PartyVM.MainPartyTroops: enumerable");
             MemberOf(troop, "IsTroopTransferrable", Inst, typeof(bool));
             MemberOf(troop, "Side", Inst, side);
             MemberNamed(troop, "Troop", Inst, "TroopRosterElement");

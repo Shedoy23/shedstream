@@ -49,6 +49,50 @@ internal static partial class Program
             Check(MobileParty.MainParty.MemberRoster.TotalWounded==Math.Min(5,free),"rescued wounded stay wounded " + free);
             Check(MobileParty.MainParty.PrisonRoster.TotalManCount==21,"prisoners still collected independently " + free);
         });
+        // 26.09, владелец: полный отряд — меняем слабых наших на сильных освобождённых.
+        Try("обмен: полный отряд, слева тир 5 — отпускаем тир 1 и берём сильных", () => {
+            var b=Surrender(); var vm=PrisonerScreen(50,0);
+            var recruit=new CharacterObject {Name="Новобранец",StringId="recruit",Tier=1};
+            var vet=new CharacterObject {Name="Ветеран",StringId="vet",Tier=3};
+            var elite=new CharacterObject {Name="Страж",StringId="guard",Tier=5};
+            vm.PartyScreenLogic.RightPartyMembersSizeLimit=10;
+            vm.PartyScreenLogic.CurrentData.RightMemberRoster.AddToCounts(recruit,4);
+            vm.PartyScreenLogic.CurrentData.RightMemberRoster.AddToCounts(vet,6);
+            vm.MainPartyTroops.Add(new PartyCharacterVM {Side=PartyScreenLogic.PartyRosterSide.Right,Troop=new TroopRosterElement {Character=recruit,Number=4}});
+            vm.MainPartyTroops.Add(new PartyCharacterVM {Side=PartyScreenLogic.PartyRosterSide.Right,Troop=new TroopRosterElement {Character=vet,Number=6}});
+            vm.OtherPartyTroops.Add(new PartyCharacterVM {Troop=new TroopRosterElement {Character=elite,Number=3}});
+            for(int i=0;i<20;i++) b.PollState();
+            var r=MobileParty.MainParty.MemberRoster;
+            Check(vm.Closed==1 && r.TotalManCount==10, "отряд остался полным: "+r.TotalManCount);
+            Check(r.GetTroopRoster().Where(t=>t.Character==elite).Sum(t=>t.Number)==3, "все 3 стража взяты");
+            Check(r.GetTroopRoster().Where(t=>t.Character==recruit).Sum(t=>t.Number)==1 && r.GetTroopRoster().Where(t=>t.Character==vet).Sum(t=>t.Number)==6,
+                  "отпущены ровно 3 самых слабых (новобранцы), ветераны не тронуты");
+            Check(LogCount("ОБМЕН: отпущено 3 «Новобранец» (тир 1) ради «Страж» (тир 5)")==1, "обмен записан");
+        });
+        Try("обмен: слева не сильнее — никого не отпускаем", () => {
+            var b=Surrender(); var vm=PrisonerScreen(50,0);
+            var vet=new CharacterObject {Name="Ветеран",StringId="vet",Tier=3};
+            var peasant=new CharacterObject {Name="Крестьянин",StringId="peasant",Tier=3};
+            vm.PartyScreenLogic.RightPartyMembersSizeLimit=5;
+            vm.PartyScreenLogic.CurrentData.RightMemberRoster.AddToCounts(vet,5);
+            vm.MainPartyTroops.Add(new PartyCharacterVM {Side=PartyScreenLogic.PartyRosterSide.Right,Troop=new TroopRosterElement {Character=vet,Number=5}});
+            vm.OtherPartyTroops.Add(new PartyCharacterVM {Troop=new TroopRosterElement {Character=peasant,Number=4}});
+            for(int i=0;i<10;i++) b.PollState();
+            Check(vm.Closed==1 && MobileParty.MainParty.MemberRoster.GetTroopRoster().All(t=>t.Character==vet) && LogCount("ОБМЕН")==0,
+                  "равный тир — обмена нет");
+        });
+        Try("обмен: игра не дала отпустить — обмен прекращён, автопилот работает", () => {
+            var b=Surrender(); var vm=PrisonerScreen(50,0); vm.NoRelease=true;
+            var recruit=new CharacterObject {Name="Новобранец",StringId="recruit",Tier=1};
+            var elite=new CharacterObject {Name="Страж",StringId="guard",Tier=5};
+            vm.PartyScreenLogic.RightPartyMembersSizeLimit=4;
+            vm.PartyScreenLogic.CurrentData.RightMemberRoster.AddToCounts(recruit,4);
+            vm.MainPartyTroops.Add(new PartyCharacterVM {Side=PartyScreenLogic.PartyRosterSide.Right,Troop=new TroopRosterElement {Character=recruit,Number=4}});
+            vm.OtherPartyTroops.Add(new PartyCharacterVM {Troop=new TroopRosterElement {Character=elite,Number=2}});
+            for(int i=0;i<10;i++) b.PollState();
+            Check(vm.Closed==1 && b.CurrentMode==AutopilotBehavior.Mode.Apply && LogCount("обмен на этом экране прекращён")==1,
+                  "неудачный обмен не выключает автопилот и не повторяется");
+        });
         foreach (bool denied in new[] { true, false }) Try("rescued transfer rejection", () => {
             var b=Surrender(); var vm=PrisonerScreen(50,0);
             vm.OtherPartyTroops.Add(new PartyCharacterVM { IsTroopTransferrable=!denied, Troop=new TroopRosterElement { Character=new CharacterObject(), Number=2 } });
@@ -106,19 +150,28 @@ namespace SandBox.GauntletUI {
  public class GauntletPartyScreen {private readonly PartyVM _dataSource; public GauntletPartyScreen(PartyVM vm){_dataSource=vm;} }
 }
 namespace TaleWorlds.CampaignSystem.ViewModelCollection.Party {
- public class PartyCharacterVM {public TroopRosterElement Troop {get;set;} public bool IsTroopTransferrable {get;set;}=true; public readonly PartyScreenLogic.PartyRosterSide Side=PartyScreenLogic.PartyRosterSide.Left;}
+ public class PartyCharacterVM {public TroopRosterElement Troop {get;set;} public bool IsTroopTransferrable {get;set;}=true; public PartyScreenLogic.PartyRosterSide Side=PartyScreenLogic.PartyRosterSide.Left;}
  public class PartyVM {
   public PartyScreenLogic PartyScreenLogic {get;} public List<PartyCharacterVM> OtherPartyPrisoners {get;}=new();
   public List<PartyCharacterVM> OtherPartyTroops {get;}=new();
+  public List<PartyCharacterVM> MainPartyTroops {get;}=new();
+  public bool NoRelease;
   public bool IsAnyPopUpOpen {get;set;} public int Closed,Confirmed;
   public bool ForeignQuery,NoTransfer; public int ForeignAccepted,TransferCalls;
   public PartyVM(PartyScreenLogic logic){PartyScreenLogic=logic;}
   private void OnTransferTroop(PartyCharacterVM troop,int index,int count,PartyScreenLogic.PartyRosterSide side){
    TransferCalls++; if(NoTransfer)return;
+   if(side==PartyScreenLogic.PartyRosterSide.Right){ // наш боец — влево (отпустить)
+    if(NoRelease)return;
+    var m=troop.Troop; m.Number-=count; troop.Troop=m;
+    PartyScreenLogic.CurrentData.RightMemberRoster.AddToCounts(m.Character,-count);
+    OtherPartyTroops.Add(new PartyCharacterVM {Troop=new TroopRosterElement {Character=m.Character,Number=count}});
+    return;
+   }
    var e=troop.Troop; int wounded=Math.Min(e.WoundedNumber,count); e.Number-=count;e.WoundedNumber-=wounded;troop.Troop=e;
    (OtherPartyTroops.Contains(troop) ? PartyScreenLogic.CurrentData.RightMemberRoster : PartyScreenLogic.CurrentData.RightPrisonerRoster).Add(new TroopRosterElement {Character=e.Character,Number=count,WoundedNumber=wounded});
   }
-  public void ExecuteRemoveZeroCounts(){OtherPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);OtherPartyTroops.RemoveAll(t=>t.Troop.Number==0);}
+  public void ExecuteRemoveZeroCounts(){OtherPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);OtherPartyTroops.RemoveAll(t=>t.Troop.Number==0);MainPartyTroops.RemoveAll(t=>t.Troop.Number==0);}
   public void ExecuteDone(){
    if(ForeignQuery){InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=()=>ForeignAccepted++});return;}
    if(OtherPartyPrisoners.Any(t=>t.Troop.Number>0)) InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=CloseScreenInternal});

@@ -14,6 +14,7 @@ namespace BannerlordAutopilot
         private PlayerEncounter _prisonerEncounter;
         private object _prisonerView;
         private bool _prisonerDoneRequested;
+        private bool _swapStopped;
 
         internal void AuthorizePrisonerScreen()
         {
@@ -22,13 +23,30 @@ namespace BannerlordAutopilot
             _lootEncounter = PlayerEncounter.Current;
             _prisonerView = null;
             _prisonerDoneRequested = false;
+            _swapStopped = false;
         }
+
+        private static int TierOf(object troopVm)
+        {
+            object character = ReadScreenMember(ReadScreenMember(troopVm, "Troop"), "Character");
+            return ReadScreenMember(character, "Tier") is int tier ? tier : 0;
+        }
+
+        private static bool IsHeroTroop(object troopVm) =>
+            ReadScreenMember(ReadScreenMember(ReadScreenMember(troopVm, "Troop"), "Character"), "IsHero") is true;
+
+        private static int NumberOf(object troopVm) => Convert.ToInt32(ReadScreenMember(ReadScreenMember(troopVm, "Troop"), "Number"));
+
+        private static bool Movable(object troopVm, string side) =>
+            ReadScreenMember(troopVm, "IsTroopTransferrable") is true && ReadScreenMember(troopVm, "Side")?.ToString() == side
+            && !IsHeroTroop(troopVm) && NumberOf(troopVm) > 0;
 
         private void ResetPrisonerScreen()
         {
             _prisonerEncounter = null;
             _prisonerView = null;
             _prisonerDoneRequested = false;
+            _swapStopped = false;
         }
 
         private static object ReadScreenMember(object target, string name)
@@ -73,7 +91,40 @@ namespace BannerlordAutopilot
                 int memberFree = Math.Max(0, memberLimit - membersBefore);
                 var rescued = ReadScreenMember(vm, "OtherPartyTroops") as IEnumerable;
                 if (members == null || rescued == null) throw new InvalidOperationException("список освобождённых бойцов отсутствует");
-                if (memberFree > 0) foreach (object troop in rescued)
+                // 26.09, владелец: «заменять освобождённых из плена войск высокого тира
+                // нашими слабыми». Берём сперва самых сильных; отряд полон — отпускаем
+                // (влево) самых слабых наших, если слева есть строго сильнее.
+                var rescuedByTier = new System.Collections.Generic.List<object>();
+                foreach (object t in rescued) rescuedByTier.Add(t);
+                rescuedByTier.Sort((a, c) => TierOf(c).CompareTo(TierOf(a)));
+                if (memberFree == 0 && !_swapStopped)
+                {
+                    object best = null, weakest = null;
+                    foreach (object t in rescuedByTier) if (Movable(t, "Left")) { best = t; break; }
+                    if (best != null && ReadScreenMember(vm, "MainPartyTroops") is IEnumerable ours)
+                        foreach (object t in ours)
+                            if (Movable(t, "Right") && (weakest == null || TierOf(t) < TierOf(weakest))) weakest = t;
+                    if (best != null && weakest != null && TierOf(best) > TierOf(weakest))
+                    {
+                        int swap = Math.Min(NumberOf(best), NumberOf(weakest));
+                        string weakName = ReadScreenMember(ReadScreenMember(ReadScreenMember(weakest, "Troop"), "Character"), "Name")?.ToString();
+                        string bestName = ReadScreenMember(ReadScreenMember(ReadScreenMember(best, "Troop"), "Character"), "Name")?.ToString();
+                        int tierWeak = TierOf(weakest), tierBest = TierOf(best);
+                        vm.GetType().GetMethod("OnTransferTroop", BindingFlags.NonPublic | BindingFlags.Instance)
+                            .Invoke(vm, new[] { weakest, (object)(-1), swap, ReadScreenMember(weakest, "Side") });
+                        vm.GetType().GetMethod("ExecuteRemoveZeroCounts").Invoke(vm, null);
+                        int afterRelease = Convert.ToInt32(ReadScreenMember(members, "TotalManCount"));
+                        if (afterRelease != membersBefore - swap)
+                        {
+                            _swapStopped = true;
+                            AutopilotLog.Write("ОБМЕН: отпустить слабых не удалось (было " + membersBefore + ", стало " + afterRelease + ") — обмен на этом экране прекращён");
+                        }
+                        else AutopilotLog.Write("ОБМЕН: отпущено " + swap + " «" + weakName + "» (тир " + tierWeak
+                            + ") ради «" + bestName + "» (тир " + tierBest + ")");
+                        return true;
+                    }
+                }
+                if (memberFree > 0) foreach (object troop in rescuedByTier)
                 {
                     if (!(ReadScreenMember(troop, "IsTroopTransferrable") is true)) continue;
                     object side = ReadScreenMember(troop, "Side");

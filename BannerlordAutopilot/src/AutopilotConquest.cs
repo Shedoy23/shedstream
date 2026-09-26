@@ -301,7 +301,8 @@ namespace BannerlordAutopilot
         {
             float walls = Math.Max(0f, place.Town?.GarrisonParty?.Party.EstimatedStrength ?? 0f)
                 + Math.Max(0f, place.Militia);
-            float inside = 0f, relief = 0f, nearby = 0f;
+            float inside = 0f, relief = 0f, nearby = 0f, loneMax = 0f, loneSum = 0f;
+            int lone = 0;
             foreach (var enemy in MobileParty.All)
             {
                 if (enemy == null || enemy == party || enemy == place.Town?.GarrisonParty
@@ -309,17 +310,36 @@ namespace BannerlordAutopilot
                     || !party.MapFaction.IsAtWarWith(enemy.MapFaction)) continue;
                 float strength = Math.Max(0f, enemy.Party.EstimatedStrength);
                 float distance2 = enemy.Position.DistanceSquared(place.Position);
-                if (enemy.CurrentSettlement == place) inside += strength;
-                else if (enemy.IsLordParty && (onlyComing
-                        ? ComingTo(enemy, place, party)
-                          && distance2 <= SiegeReliefRadius * SiegeReliefRadius
-                          || enemy.Position.DistanceSquared(party.Position) <= SiegeImminentRadius * SiegeImminentRadius
-                        : distance2 <= SiegeReliefRadius * SiegeReliefRadius)) relief += strength;
+                if (enemy.CurrentSettlement == place) { inside += strength; continue; }
+                if (onlyComing)
+                {
+                    // 26.09, владелец «сделай, попробуем»: после снятий осады Фрактори
+                    // автопилот поодиночке бил ту же «подмогу 460–660» — 5–8 лордов по
+                    // 46–157, каждый слабее нас в 5–19 раз. Армия и все, кто вплотную
+                    // к лагерю, ударят вместе — их складываем; одиночки издалека
+                    // подходят по одному — считаем только сильнейшего из них.
+                    bool close = enemy.Position.DistanceSquared(party.Position) <= SiegeImminentRadius * SiegeImminentRadius;
+                    bool coming = enemy.IsLordParty && ComingTo(enemy, place, party) && distance2 <= SiegeReliefRadius * SiegeReliefRadius;
+                    bool passing = enemy.IsVisible && enemy.CurrentSettlement == null && distance2 <= 35f * 35f;
+                    if (close && (enemy.IsLordParty || passing) || coming && enemy.Army != null) relief += strength;
+                    else if (coming || passing) { lone++; loneSum += strength; loneMax = Math.Max(loneMax, strength); }
+                    continue;
+                }
+                if (enemy.IsLordParty && distance2 <= SiegeReliefRadius * SiegeReliefRadius) relief += strength;
                 else if (enemy.IsVisible && enemy.CurrentSettlement == null && distance2 <= 35f * 35f) nearby += strength;
+            }
+            if (onlyComing)
+            {
+                breakdown = "стены " + walls.ToString("F0", CultureInfo.InvariantCulture)
+                    + " + лорды внутри " + inside.ToString("F0", CultureInfo.InvariantCulture)
+                    + " + армии и вплотную " + relief.ToString("F0", CultureInfo.InvariantCulture)
+                    + " + сильнейший из одиночек " + loneMax.ToString("F0", CultureInfo.InvariantCulture)
+                    + " (одиночек " + lone + ", всего " + loneSum.ToString("F0", CultureInfo.InvariantCulture) + ")";
+                return walls + inside + relief + loneMax;
             }
             breakdown = "стены " + walls.ToString("F0", CultureInfo.InvariantCulture)
                 + " + лорды внутри " + inside.ToString("F0", CultureInfo.InvariantCulture)
-                + (onlyComing ? " + идут к нам " : " + подмога до " + SiegeReliefRadius.ToString("F0", CultureInfo.InvariantCulture) + " ")
+                + " + подмога до " + SiegeReliefRadius.ToString("F0", CultureInfo.InvariantCulture) + " "
                 + relief.ToString("F0", CultureInfo.InvariantCulture)
                 + " + прочие рядом " + nearby.ToString("F0", CultureInfo.InvariantCulture);
             return walls + inside + relief + nearby;

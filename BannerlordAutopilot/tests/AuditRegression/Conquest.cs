@@ -528,8 +528,35 @@ internal static partial class Program
             if (expectLeave)
             {
                 Check(LogCount("снимаем осаду «Осаждённый замок» до удара") == 1, "причина с разбивкой записана один раз");
-                Check(AutopilotLog.Lines.Any(l => l.Contains("идут к нам 6")), "в разбивке видна подмога, идущая к нам");
+                Check(AutopilotLog.Lines.Any(l => l.Contains("сильнейший из одиночек 6")), "в разбивке видна подмога, идущая к нам");
             }
+        });
+        // 26.09, владелец «сделай, попробуем»: подмога к Фрактори была россыпью лордов по
+        // 46–157, которых автопилот потом бил поодиночке. Одиночек издалека считаем по
+        // одному (сильнейшего); армию и всех вплотную к лагерю — вместе.
+        foreach (var (kind, expectLeave) in new[] { ("три одиночки издалека", false), ("армия из трёх", true), ("три одиночки вплотную", true) })
+        Try("осада: стены 4, наших 10, подмога 3+3+3 — " + kind + " — снимаем " + expectLeave, () => {
+            var b = Fresh(); var castle = ConquestWorld(); castle.Name = "Осаждённый замок"; castle.Militia = 4; Enable(b);
+            var lords = new System.Collections.Generic.List<MobileParty>();
+            for (int i = 0; i < 3; i++)
+            {
+                var lord = EnemyLord(castle, 3, kind.EndsWith("вплотную") ? 10 : 40, visible: false);
+                lord.DefaultBehavior = AiBehavior.DefendSettlement; lord.TargetSettlement = castle; lords.Add(lord);
+            }
+            if (kind.StartsWith("армия"))
+            {
+                var army = new Army { LeaderParty = lords[0] };
+                foreach (var l in lords) l.Army = army;
+                lords[0].AttachedParties.AddRange(lords.Skip(1));
+            }
+            var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
+            MobileParty.MainParty.SiegeEvent = siege;
+            var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_leave" }); Show(wait);
+            CampaignTime.TestHours = 0; b.PollState(); b.PollState();
+            Check(MenuContext.Invoked.Contains("menu_siege_strategies_leave") == expectLeave,
+                kind + ": уходим " + expectLeave + " (одиночки по одному: 4+3=7, x1.2=8.4 ≤ 10; вместе: 4+9=13)");
         });
         // 26.09: «Замок Фрактори» осаждали 13 раз за два часа — после снятия осады из-за
         // подмоги запрет держался 12 игровых часов (минуты при ускорении), а до начала

@@ -1,3 +1,57 @@
+## 26.09.2026 (вечер) — ПЕРЕДАЧА СМЕНЫ от Claude (лимиты кончились): где что лежит
+
+**Рабочее место.** Ветка `claude/poststream-2026-09-22` (запушена в origin, последний
+коммит смены — см. `git log`), worktree
+`C:/Users/Edward/Desktop/work/.claude/worktrees/bannerlord-crash-analysis-a34de4`.
+Не ветка `main`. Несведённая чужая ветка `codex/retinue-mod-authority` (15.09, 4 коммита
+в BannerlordLink) — НЕ влита, в установленных DLL её тоже нет.
+
+**Что стоит в игре сейчас (26.09 ~22:00):**
+- BannerlordLink `37638886…` — гейт смены королевства/мира во время боя стримера
+  (краш 20:58), приказы зрителя «к стенам»/«к воротам» по стороне осады, отряды зрителей
+  не сдают бойцов в гарнизоны. Откат: `D:/shedlink-build/dll-rollback/20260926-link-factionguard`.
+- Автопилот `DA1A4901…` — живые реплики на экран (`src/Thoughts.cs`), армия из своих
+  лордов, вход в осаду союзника, подмога-одиночки по одному, память подмоги 3 дня,
+  политика по голосам + пауза 5 дней, охота на армии, набор у своих крепостей.
+  Откат: `D:/shedlink-build/dll-rollback/20260926-autopilot-thoughts`.
+
+**Ждёт установки (игра была запущена):** автопилот `64340270…` — роспуск армии без дела
+12 ч + всё из `DA1A4901`: `bash /d/shedlink-build/pending-20260926-autopilot-armyidle/apply.sh`
+(сам проверяет, что игра закрыта: процесс `TaleWorlds.MountAndBlade`, НЕ «bannerlord»).
+
+**Как собирать и проверять** (каждое изменение так, доказательство до «готово»):
+- автопилот: `dotnet build BannerlordAutopilot/src/BannerlordAutopilot.csproj -c Release`;
+  тесты `BannerlordAutopilot/tests/AuditRegression` (742/0), `tests/PoliticsPolicy` (32/32),
+  сверка с игрой `tests/ContractCheck` (507/507). `AutopilotPolitics.cs` в AuditRegression
+  НЕ компилируется — ошибки в нём ловит только сборка против игры.
+- мод: `dotnet build BannerlordLink/src/BannerlordLink.csproj -c Release`; стенды
+  `BannerlordLink/tests/{DetachmentHarness 58/58, SiegeOrderHarness, FactionGuardHarness,
+  GarrisonDonationHarness, ...}`.
+- после коммита — мутация (сломать защиту, тест красный, вернуть из копии в scratchpad,
+  `git status` чист). Пакет установки — `D:/shedlink-build/pending-*/apply.sh` по образцу.
+- код игры 1.4.8 декомпилирован: `ilspycmd` (`~/.dotnet/tools/ilspycmd.exe`) по DLL из
+  `X:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/bin/Win64_Shipping_Client`.
+
+**Открыто (подробности — `DEFERRED.md`, верх файла, блоки 26.09):**
+1. Сервер: диск 86% (было 97%); база растёт ~11 МБ/день (`module_actions`, журнал
+   событий). План ретенции + сжатия копий ждёт «делай» владельца, сначала staging.
+2. С ПК стримера ~половина новых подключений к серверу обрывается (путь, не сервер).
+3. «К стенам» в атаке — только до основания лестницы/башни; лезть по лестнице —
+   отдельный этап (`AIMoveToGameObjectEnable`), только с живой проверкой.
+4. Поток `[MapEventWounded] SWALLOWED` с включения RBM — гипотеза, не разобрано.
+5. `VassalAutoFollowBehavior` сам меняет королевство — не проверен на «посреди боя».
+6. Решение владельца: финал кампании = конец сезона, у зрителей остаются «эмоции» —
+   объявить заранее.
+7. Автопилот голосует «за самого популярного» и в решении «кому крепость» — вопрос
+   владельцу не решён (крепости уходят кланам зрителей).
+
+**Не проверено в игре** (смотреть по логу `Documents/Mount and Blade II Bannerlord/Logs/autopilot_*.txt`
+и `Configs/ModLogs/bannerlordlink_*.txt`): вход в осаду союзника (`ОСАДА: входим в лагерь`),
+охота на армию (`ОХОТА: атакуем … (армия`), роспуск армии (`АРМИЯ: распущена`),
+приказы ворот (`[DET] GATE target … side=`). Уже подтверждено в игре 26.09: гарнизон
+(`[GarrisonDonation] BLOCKED`), «к стенам» дошёл и держит (`arrived … holding and fighting`),
+реплики на экране, армия собиралась (`АРМИЯ: приглашено 2`).
+
 ## 24.09.2026 — отход из безнадёжных боёв установлен (разбор странностей)
 
 По логам 16–22.09 (`review/ODDITIES_2026-09-24.md`): армии ~270–320 → 1 от авторасчёта

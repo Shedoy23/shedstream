@@ -19,8 +19,15 @@ namespace BannerlordAutopilot
         /// <summary>Этот союзник ещё не воюет с нашим врагом: позвать его в войну.</summary>
         public float CallToWarSupport; public bool CallToWarPossible; public string CallToWarAgainst;
         public float TradeSupport; public bool TradePossible;
-        /// <summary>Их сила / наша (Kingdom.CurrentTotalStrength). Больше 1 — сильнее нас.</summary>
+        /// <summary>МЕСТНАЯ сила: их лорды рядом с нашим отрядом / сила нашего отряда.
+        /// 26.09 владелец выбрал вариант «а»: общая сила королевств для нас бесполезна —
+        /// наше королевство это наш отряд и кланы зрителей, слабее нас не было никого, и
+        /// политика объявила войну Стургии x16. Больше 1 — рядом они сильнее нас.</summary>
         public float StrengthRatio;
+        /// <summary>У них рядом есть крепость, которую наш отряд возьмёт (перевес по правилу осады).</summary>
+        public bool WeakFortressNear;
+        /// <summary>У них рядом хоть кто-то: лорды или крепости. Нет — войне негде идти.</summary>
+        public bool Nearby = true;
     }
 
     /// <summary>Есть ли уже своя заявка каждого вида / хватает ли влияния на неё.</summary>
@@ -55,12 +62,18 @@ namespace BannerlordAutopilot
             int wars = all.Count(c => c.AtWar && !c.ConstantWar);
             if (wars < TargetWars && !warPending && canPayWar)
             {
-                // 26.09: сперва те, кто слабее нас, среди них — с большей поддержкой клана.
+                // 26.09 (вариант «а»): сперва у кого рядом слабая крепость, потом кто рядом
+                // и слабее нас на месте, потом кто хоть рядом, среди равных — поддержка клана.
                 var target = all.Where(WarCandidate)
-                    .OrderBy(c => c.StrengthRatio >= 1f).ThenByDescending(c => c.WarSupport).FirstOrDefault();
+                    .OrderByDescending(c => c.WeakFortressNear)
+                    .ThenByDescending(c => c.Nearby && c.StrengthRatio < 1f)
+                    .ThenByDescending(c => c.Nearby)
+                    .ThenByDescending(c => c.WarSupport).FirstOrDefault();
                 if (target != null) return (PoliticsMove.War, target, "войн " + wars + " из " + TargetWars
                     + "; поддержка нашего клана " + target.WarSupport.ToString("F0")
-                    + "; сила их/наша x" + target.StrengthRatio.ToString("F1"));
+                    + "; рядом их сила/наша x" + target.StrengthRatio.ToString("F1")
+                    + (target.WeakFortressNear ? "; рядом их крепость по силам" : "")
+                    + (target.Nearby ? "" : "; рядом их нет"));
             }
             if (wars > TargetWars && !peacePending && canPayPeace)
             {
@@ -74,11 +87,12 @@ namespace BannerlordAutopilot
             // 26.09: единственная война — с тем, кто сильнее нас вдвое, а есть кого
             // бить слабее: мир, чтобы завтра объявить войну слабому. Без слабой
             // альтернативы мир не предлагаем — иначе мир и новая война с тем же по кругу.
-            if (wars == TargetWars && !peacePending && canPayPeace && all.Any(c => WarCandidate(c) && c.StrengthRatio < 1f))
+            if (wars == TargetWars && !peacePending && canPayPeace
+                && all.Any(c => WarCandidate(c) && c.Nearby && (c.WeakFortressNear || c.StrengthRatio < 1f)))
             {
                 var strong = all.FirstOrDefault(c => c.AtWar && !c.ConstantWar && c.PeacePossible && c.StrengthRatio >= StrongEnemyRatio);
-                if (strong != null) return (PoliticsMove.Peace, strong, "единственная война — с тем, кто сильнее нас в "
-                    + strong.StrengthRatio.ToString("F1") + " раза; есть противники слабее — меняем цель");
+                if (strong != null) return (PoliticsMove.Peace, strong, "единственная война — с тем, кто рядом сильнее нас в "
+                    + strong.StrengthRatio.ToString("F1") + " раза; есть рядом противник слабее — меняем цель");
             }
             // Призвать союзника в текущую войну — больше крупных боёв (23.09).
             if (wars > 0 && !pending.CallToWar && canPay.CallToWar)

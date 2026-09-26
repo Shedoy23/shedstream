@@ -23,6 +23,36 @@ namespace BannerlordAutopilot
 
         partial void DailyPoliticsHook() => TryDailyPolitics();
 
+        /// <summary>26.09 (владелец, вариант «а»): войны выбираем по тому, что рядом с
+        /// нашим отрядом, — радиус около двух дней пути.</summary>
+        internal const float PoliticsLocalRadius = 150f;
+
+        private static void LocalPicture(Kingdom other, PoliticsCandidate c)
+        {
+            MobileParty main = MobileParty.MainParty;
+            float ours = System.Math.Max(1f, SiegeAttackerStrength(main));
+            float r2 = PoliticsLocalRadius * PoliticsLocalRadius, theirs = 0f;
+            bool nearby = false, weakFort = false;
+            foreach (MobileParty p in MobileParty.All)
+            {
+                if (p == null || !p.IsActive || !p.IsLordParty || p.MapFaction != other
+                    || p.Position.DistanceSquared(main.Position) > r2) continue;
+                theirs += System.Math.Max(0f, p.Party.EstimatedStrength);
+                nearby = true;
+            }
+            foreach (TaleWorlds.CampaignSystem.Settlements.Settlement s in TaleWorlds.CampaignSystem.Settlements.Settlement.All)
+            {
+                if (s == null || !(s.IsTown || s.IsCastle) || s.MapFaction != other
+                    || s.Position.DistanceSquared(main.Position) > r2) continue;
+                nearby = true;
+                float walls = System.Math.Max(0f, s.Town?.GarrisonParty?.Party.EstimatedStrength ?? 0f) + System.Math.Max(0f, s.Militia);
+                if (ours >= walls * SiegeStrengthRatio) weakFort = true;
+            }
+            c.StrengthRatio = theirs / ours;
+            c.Nearby = nearby;
+            c.WeakFortressNear = weakFort;
+        }
+
         private void TryDailyPolitics()
         {
             if (_mode != Mode.Apply || _politicsBroken) return;
@@ -70,8 +100,8 @@ namespace BannerlordAutopilot
                     AtWar = ours.IsAtWarWith(other),
                     ConstantWar = ours.IsAtConstantWarWith(other),
                     DaysSincePeace = ours.GetStanceWith(other).PeaceDeclarationDate.ElapsedDaysUntilNow,
-                    StrengthRatio = other.CurrentTotalStrength / System.Math.Max(1f, ours.CurrentTotalStrength),
                 };
+                LocalPicture(other, c);
                 var own = new Dictionary<PoliticsMove, KingdomDecision>();
                 if (c.AtWar)
                 {

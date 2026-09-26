@@ -52,6 +52,20 @@ d = PoliticsPolicy.Decide(new List<PoliticsCandidate> { S(K("Вландия", wa
 Check(d.Move == PoliticsMove.War && d.Target.Name == "Стургия", "войн нет — войну слабому, среди слабых — с большей поддержкой (не сильной Вландии)");
 d = PoliticsPolicy.Decide(new List<PoliticsCandidate> { S(K("Вландия", warSupport: 90), 3f), S(K("Асераи", warSupport: 20), 2f) }, None(), All());
 Check(d.Move == PoliticsMove.War && d.Target.Name == "Вландия", "все сильнее — как раньше, по поддержке клана");
+// 26.09, вариант «а»: цель войны — по тому, что рядом с нашим отрядом.
+PoliticsCandidate L(PoliticsCandidate c, float ratio, bool weakFort, bool nearby) { c.StrengthRatio = ratio; c.WeakFortressNear = weakFort; c.Nearby = nearby; return c; }
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> {
+    L(K("Стургия", warSupport: 163), 16f, false, true), L(K("Асераи", warSupport: 20), 3f, true, true), L(K("Батания", warSupport: 90), 0f, false, false) }, None(), All());
+Check(d.Move == PoliticsMove.War && d.Target.Name == "Асераи", "рядом есть их крепость по силам — война им, а не Стургии x16 и не далёкой Батании");
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> {
+    L(K("Стургия", warSupport: 163), 16f, false, true), L(K("Кузаиты", warSupport: 10), 0.5f, false, true), L(K("Батания", warSupport: 90), 0f, false, false) }, None(), All());
+Check(d.Target?.Name == "Кузаиты", "крепостей по силам нет — тот, кто рядом и слабее нас на месте");
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> {
+    L(K("Стургия", war: true), 16f, false, true), L(K("Асераи", warSupport: 20), 3f, true, true) }, None(), All());
+Check(d.Move == PoliticsMove.Peace && d.Target.Name == "Стургия", "воюем с тем, кто рядом x16, а рядом есть крепость по силам у другого — мир");
+d = PoliticsPolicy.Decide(new List<PoliticsCandidate> {
+    L(K("Стургия", war: true), 16f, false, true), L(K("Батания", warSupport: 90), 0f, false, false) }, None(), All());
+Check(d.Move != PoliticsMove.Peace, "альтернатива только далёкая — мир не предлагаем");
 PoliticsCandidate Ally(string name, float support, bool ok = true) =>
     new PoliticsCandidate { Name = name, CallToWarPossible = ok, CallToWarSupport = support, CallToWarAgainst = "Вландия" };
 d = PoliticsPolicy.Decide(new List<PoliticsCandidate> { K("Вландия", war: true), Ally("Асераи", 70), K("Батания", ally: 90, allyOk: true) }, None(), All());

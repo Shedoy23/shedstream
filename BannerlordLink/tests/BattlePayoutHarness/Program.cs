@@ -24,14 +24,16 @@ foreach(int enemies in new[]{10,49,50,199,200,1000})foreach(bool siege in new[]{
  }
  Check(previous>0,"monotonic across score sweep "+enemies+" "+siege);
 }
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=1605600,"ordinary cap independent of retinue size");
-Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=2568960,"large siege cap");
+// 26.09 (владелец): надбавка за сверхусилие убрана — потолки (125000+100000+58000)
+// * масштаб * победа 1,2 * 2: обычный бой 679200, большая осада 1086720, малая 543360.
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,100,false,true).Total<=679200,"ordinary cap independent of retinue size");
+Check(BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total<=1086720,"large siege cap");
 // 22.09 (Codex, решение владельца): малые бои x0.8 вместо x0.24 — потолок
 // малой осады 385344*0.8/0.24 = 1284480; смысл проверки прежний: меньше большой.
 Check(BattlePayoutPolicy.Calculate(1e12,1e12,10,true,true).Total<BattlePayoutPolicy.Calculate(1e12,1e12,500,true,true).Total,"tiny siege cannot earn large siege prize");
-foreach(var scenario in new[]{(enemies:100,siege:false,cap:1605600),(enemies:500,siege:true,cap:2568960),(enemies:10,siege:true,cap:1284480)}) {
+foreach(var scenario in new[]{(enemies:100,siege:false,cap:679200),(enemies:500,siege:true,cap:1086720),(enemies:10,siege:true,cap:543360)}) {
  var ceiling=BattlePayoutPolicy.Calculate(1e12,1e12,scenario.enemies,scenario.siege,true);
- Check(ceiling.Total >= scenario.cap-6 && ceiling.Total <= scenario.cap,"потолок после перекалибровки 22.09 достижим " + scenario.cap);
+ Check(ceiling.Total >= scenario.cap-6 && ceiling.Total <= scenario.cap,"потолок без надбавки (26.09) достижим " + scenario.cap);
 }
 // Observed 2026-09-21 19:00 battle, same field defeat / no subscription boost.
 // Inputs are actual payout damage points, NOT kills * assumed target HP.
@@ -71,17 +73,19 @@ foreach(var o in new[]{
  Check(Math.Abs(now.Participation-2*o.part)<=2 && Math.Abs(now.Personal-2*o.pers)<=2 && Math.Abs(now.Retinue-2*o.ret)<=2,
   "ровно вдвое против фактической выплаты 21.09 ("+o.part+"/"+o.pers+"/"+o.ret+" -> "+now.Participation+"/"+now.Personal+"/"+now.Retinue+")");
 }
-// 22.09, решение владельца: такой вклад в осаду обязан оцениваться не меньше
-// миллиона. Входы — фактические из лога осады 22.09 (enemies=1650, победа).
+// 22.09 владелец требовал «не меньше миллиона» за такой вклад; 26.09 отменил
+// (надбавка за сверхусилие убрана: «думал, дальше меньше дают»). Входы — те же
+// фактические из осады 22.09 (enemies=1650, победа). Теперь: больше вклад —
+// больше денег, но каждое следующее очко дешевле и миллиона за личное нет.
 var siegeTop=BattlePayoutPolicy.Calculate(10501.7,1692.5,1650,true,true);   // slopkom_nyi_item
 var siegeMid=BattlePayoutPolicy.Calculate(7914.4,1116.2,1650,true,true);    // slopkom
 var siegeLow=BattlePayoutPolicy.Calculate(4574.7,1656.2,1650,true,true);    // igotpaws
-Check(siegeTop.Personal >= 1000000,
- "личная часть за 10 500 очков в осаде не меньше миллиона (сейчас "+siegeTop.Personal+")");
-Check(siegeTop.Personal > siegeMid.Personal * 1.15,
- "вклад 10 500 против 7 900 различим не на проценты ("+siegeTop.Personal+" против "+siegeMid.Personal+")");
-Check(siegeMid.Personal > siegeLow.Personal * 1.3,
- "вклад 7 900 против 4 600 различим ("+siegeMid.Personal+" против "+siegeLow.Personal+")");
+Check(siegeTop.Personal < 1000000 && siegeTop.Total < 1000000,
+ "без надбавки миллиона за такой вклад нет (личная "+siegeTop.Personal+", всего "+siegeTop.Total+")");
+Check(siegeTop.Personal > siegeMid.Personal && siegeMid.Personal > siegeLow.Personal,
+ "больший вклад всё равно платит больше ("+siegeTop.Personal+" > "+siegeMid.Personal+" > "+siegeLow.Personal+")");
+Check((double)(siegeTop.Personal-siegeMid.Personal)/(10501.7-7914.4) < (double)(siegeMid.Personal-siegeLow.Personal)/(7914.4-4574.7),
+ "за очко сверху платят меньше, чем в середине (затухание)");
 
 { var small=BattlePayoutPolicy.Calculate(8000,1000,49,false,true).Total; var mid=BattlePayoutPolicy.Calculate(8000,1000,100,false,true).Total;
   Check(Math.Abs(small-0.8*mid)<=6,"small battle multiplier is 0.8 ("+small+" vs "+mid+")"); }
@@ -103,6 +107,13 @@ Check(BattlePayoutPolicy.WithFloor(default,650).Total==30000,"большой б�
 Check(BattlePayoutPolicy.WithFloor(default,120).Total==30000,"средний бой: до 30000");
 Check(BattlePayoutPolicy.WithFloor(default,40).Total==30000,"стычка с бандитами: тоже до 30000 (решение владельца)");
 var weak=BattlePayoutPolicy.Calculate(130.6,166.9,635,false,false); // stepuhatgn 25.09: 16370 по формуле
+// 26.09: бой slopkom_nyi_item — 10461 очко героя, 2458 свиты, 753 врага, победа:
+// с надбавкой было 1021086, без неё около 482 тыс.
+var record=BattlePayoutPolicy.Calculate(10461,2458,753,false,true);
+Check(record.Total>=470000 && record.Total<=495000,"record effort without over-exertion bonus ~482k: "+record.Total);
+Check(BattlePayoutPolicy.Calculate(20000,0,753,false,true).Personal-BattlePayoutPolicy.Calculate(10000,0,753,false,true).Personal
+      < BattlePayoutPolicy.Calculate(10000,0,753,false,true).Personal-BattlePayoutPolicy.Calculate(2000,0,753,false,true).Personal,
+      "past the peak each extra point pays less (diminishing)");
 var weakFloored=BattlePayoutPolicy.WithFloor(weak,635);
 Check(weakFloored.Total==30000 && weakFloored.Personal==weak.Personal && weakFloored.Retinue==weak.Retinue,
    "добивка идёт в участие, личная и свита не трогаются: "+weak.Total+" -> "+weakFloored.Total);

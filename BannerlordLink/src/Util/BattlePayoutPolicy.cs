@@ -17,14 +17,6 @@ namespace BannerlordLink.Util
         // RewardBoostCache — не менялось.
         internal const int Multiplier = 2;
 
-        /// <summary>С какого личного вклада начинается «сверхусилие».
-        /// 6724.8 очка — максимум, наблюдённый 21.09 (59 убийств человека).</summary>
-        internal const double OverExertionFrom = 6700;
-        /// <summary>Потолок надбавки за сверхусилие (до множителя и масштаба боя).</summary>
-        internal const double OverExertionCeiling = 386000;
-        /// <summary>На сколько очков СВЕРХ порога набирается половина надбавки.</summary>
-        internal const double OverExertionHalf = 4000;
-
         /// <summary>До какого вклада растёт участие. Раньше упиралось в 8000.</summary>
         internal const double ParticipationFullAt = 20000;
         /// <summary>Множитель очков за уровень врага. 26.09, владелец: «сделать от 1.5 до 2.6»
@@ -73,17 +65,12 @@ namespace BannerlordLink.Util
                 // были за старым порогом, и участие переставало различать вклад.
                 Participation = Multiplier * (int)(50000
                     * Math.Min(ParticipationFullAt, contribution) / 8000 * result),
-                // 22.09, решение владельца: «такие вклады оцениваются не меньше
-                // миллиона», но «такие осады не часто и надо попотеть». Поэтому
-                // прежняя кривая НЕ тронута — до 6700 очков платится ровно
-                // столько же, сколько вчера. Выше порога включается вторая,
-                // отдельная кривая «сверхусилие»: она и даёт верх.
-                // Порог 6700 — потолок наблюдённых усилий 21.09 (59 убийств
-                // человека = 6724.8 очка), то есть надбавку получает только тот,
-                // кто вышел за прежний максимум.
-                Personal = Multiplier * (int)((100000 * personal / (personal + 4000)
-                          + OverExertionCeiling * Math.Max(0, personal - OverExertionFrom)
-                            / (Math.Max(0, personal - OverExertionFrom) + OverExertionHalf)) * result),
+                // 26.09, владелец: «убери надбавку» за сверхусилие (была с 22.09:
+                // сверх 6700 очков вторая кривая до +386 тыс.). Он ждал обратного —
+                // что дальше платят меньше; с множителем уровня врага 1,5–2,6 порог
+                // стал достижим часто (26.09 один бой дал 1,02 млн, из них 539 тыс.
+                // — надбавка). Личная часть снова только с затуханием.
+                Personal = Multiplier * (int)(100000 * personal / (personal + 4000) * result),
                 Retinue = Multiplier * (int)(58000 * retinue / (retinue + 2000) * result),
             };
         }

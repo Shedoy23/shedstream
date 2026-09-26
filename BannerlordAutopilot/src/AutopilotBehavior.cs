@@ -2090,6 +2090,7 @@ namespace BannerlordAutopilot
             }
 
             MobileParty party = MobileParty.MainParty;
+            DisbandIdleArmy(party);
             MaintainArmy(party);
             if (_mode == Mode.Off) return;
             if (party == null || !party.IsActive || UnsupportedState(party) != null)

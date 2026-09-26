@@ -205,6 +205,25 @@ internal static partial class Program
             if (!expectArmy) Check(LogCount(kind.Contains("приказу") ? "по приказу зрителя 1" : "дальше 150 1")==1,
                 "причина, почему некого позвать, записана");
         });
+        // 26.09, владелец: «распускать армию не умеет, если делать нечего, чтоб они пошли
+        // пополнять свои отряды».
+        foreach (var (behavior, expectDisband) in new[] { (AiBehavior.PatrolAroundPoint, true), (AiBehavior.BesiegeSettlement, false) })
+        Try("армия: " + behavior + " 13 часов — " + (expectDisband ? "распускаем" : "держим"), () => {
+            var b=Fresh(); ConquestWorld(); Enable(b);
+            var party=MobileParty.MainParty; var army=new Army { LeaderParty=party, Cohesion=40 }; party.Army=army;
+            party.DefaultBehavior=behavior; Clan.PlayerClan.Influence=100;
+            var disband=typeof(AutopilotBehavior).GetMethod("DisbandIdleArmy", System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            var maintain=typeof(AutopilotBehavior).GetMethod("MaintainArmy", System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            int before=TaleWorlds.CampaignSystem.Actions.DisbandArmyAction.Inactivity;
+            for (int h=0; h<=13; h++) { CampaignTime.TestHours=h; army.Cohesion=40; disband.Invoke(b, new object[]{party}); if (party.Army!=null) maintain.Invoke(b, new object[]{party}); }
+            Check((party.Army==null) == expectDisband && (TaleWorlds.CampaignSystem.Actions.DisbandArmyAction.Inactivity-before==1) == expectDisband,
+                behavior + ": армия " + (party.Army==null ? "распущена" : "на месте"));
+            if (expectDisband)
+            {
+                Check(LogCount("АРМИЯ: распущена")==1, "роспуск записан с причиной");
+                Check(LogCount("АРМИЯ: сплочённость")<=2, "в простое влияние на сплочённость не жжём: вливаний " + LogCount("АРМИЯ: сплочённость"));
+            }
+        });
         Try("истощённый отряд не начинает самостоятельную осаду", () => {
             var b=Fresh(); var castle=ConquestWorld(food:1); castle.Militia=1; Settlement.All.Add(castle);
             Enable(b); HourlyTick(b);
@@ -964,6 +983,6 @@ namespace TaleWorlds.CampaignSystem
 }
 namespace TaleWorlds.CampaignSystem.Actions
 {
-    public static class DisbandArmyAction { public static void ApplyByUnknownReason(Army army) { army.LeaderParty.Army = null; } }
+    public static class DisbandArmyAction { public static void ApplyByUnknownReason(Army army) { army.LeaderParty.Army = null; } public static int Inactivity; public static void ApplyByInactivity(Army army) { Inactivity++; army.LeaderParty.Army = null; } }
     public static class ChangeClanInfluenceAction { public static void Apply(Clan clan, float amount) { clan.Influence += amount; } }
 }

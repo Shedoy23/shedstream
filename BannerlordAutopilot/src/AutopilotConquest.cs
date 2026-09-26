@@ -25,10 +25,50 @@ namespace BannerlordAutopilot
         private bool _preparingCampaign;
         private readonly List<MobileParty> _invitedParties = new List<MobileParty>();
 
+        /// <summary>26.09, владелец: «распускать армию не умеет, если делать нечего, чтоб
+        /// они пошли пополнять свои отряды». Армия без дела столько игровых часов —
+        /// распускаем штатно (DisbandArmyAction.ApplyByInactivity), лорды уходят к своим
+        /// делам. Без дела — не осаждаем, не защищаем, не грабим, не охотимся, не собираемся.</summary>
+        internal const double ArmyIdleHours = 12;
+        /// <summary>Простой дольше этого — сплочённость влиянием уже не поддерживаем.</summary>
+        internal const double ArmyIdleNoBoostHours = 2;
+        private double _armyBusyAt = double.MinValue;
+
+        private static bool ArmyHasWork(MobileParty party) => party.SiegeEvent != null || party.MapEvent != null
+            || party.DefaultBehavior == AiBehavior.BesiegeSettlement || party.DefaultBehavior == AiBehavior.DefendSettlement
+            || party.DefaultBehavior == AiBehavior.RaidSettlement || party.DefaultBehavior == AiBehavior.EngageParty;
+
+        private double ArmyIdleFor(MobileParty party)
+        {
+            double now = CampaignTime.Now.ToHours;
+            if (party?.Army == null || party.Army.LeaderParty != party || _gatheringArmy == party.Army || ArmyHasWork(party)
+                || _armyBusyAt == double.MinValue)
+                _armyBusyAt = now;
+            return now - _armyBusyAt;
+        }
+
+        private void DisbandIdleArmy(MobileParty party)
+        {
+            if (_mode != Mode.Apply || party?.Army == null || !ControlsParty(party)) { _armyBusyAt = double.MinValue; return; }
+            double idle = ArmyIdleFor(party);
+            if (idle < ArmyIdleHours) return;
+            try
+            {
+                int members = party.AttachedParties.Count(p => p != null && p != party && p.Army == party.Army);
+                DisbandArmyAction.ApplyByInactivity(party.Army);
+                _armyBusyAt = double.MinValue;
+                AutopilotLog.Write("АРМИЯ: распущена — без дела " + idle.ToString("F0", CultureInfo.InvariantCulture)
+                    + " игровых часов; лорды (" + members + ") уходят пополнять свои отряды");
+                Thoughts.Say("army_disband", null, members);
+            }
+            catch (Exception ex) { Disable("роспуск армии: " + ex.GetType().Name + ": " + ex.Message); }
+        }
+
         private void MaintainArmy(MobileParty party)
         {
             if (_mode != Mode.Apply || party?.Army == null || !ControlsParty(party) || party.MapEvent != null
                 || Hero.MainHero?.IsPrisoner == true || party.Army.Cohesion >= 50) return;
+            if (ArmyIdleFor(party) >= ArmyIdleNoBoostHours) return;
             try
             {
                 // ArmyManagementVM buys +10 with this model price. The private AI

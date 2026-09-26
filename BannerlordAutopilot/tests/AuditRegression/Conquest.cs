@@ -487,10 +487,17 @@ internal static partial class Program
                 "доступная военная цель выбрана прежде погони");
         });
         // 26.09, владелец: снимать осаду, если к крепости идёт подмога, с которой не справиться.
-        foreach (var (reliefMen, expectLeave) in new[] { (6, true), (0, false) })
-        Try("осада: подмога " + reliefMen + " при стенах 4 и нашей силе 10 — снимаем " + expectLeave, () => {
+        // Владелец: «точно от тех, кто идёт к нему, а не от мимо проходящих?» — идущий
+        // к крепости лорд снимает осаду, проходящий мимо в том же месте — нет.
+        foreach (var (reliefMen, heading, expectLeave) in new[] { (6, "крепость", true), (6, "мимо", false), (0, "нет", false) })
+        Try("осада: лорд " + reliefMen + " в 50, цель " + heading + ", стены 4, наша сила 10 — снимаем " + expectLeave, () => {
             var b = Fresh(); var castle = ConquestWorld(); castle.Name = "Осаждённый замок"; castle.Militia = 4; Enable(b);
-            if (reliefMen > 0) EnemyLord(castle, reliefMen, 50, visible: false);
+            if (reliefMen > 0)
+            {
+                var lord = EnemyLord(castle, reliefMen, 50, visible: false);
+                lord.DefaultBehavior = heading == "крепость" ? AiBehavior.DefendSettlement : AiBehavior.GoToSettlement;
+                lord.TargetSettlement = heading == "крепость" ? castle : new Settlement { Name = "Другой город" };
+            }
             var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
             MobileParty.MainParty.SiegeEvent = siege;
             var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
@@ -502,7 +509,7 @@ internal static partial class Program
             if (expectLeave)
             {
                 Check(LogCount("снимаем осаду «Осаждённый замок» до удара") == 1, "причина с разбивкой записана один раз");
-                Check(AutopilotLog.Lines.Any(l => l.Contains("подмога до 100 6")), "в разбивке видна подмога");
+                Check(AutopilotLog.Lines.Any(l => l.Contains("идут к нам 6")), "в разбивке видна подмога, идущая к нам");
             }
         });
         Try("истощение осады вызывает штатный отход", () => {

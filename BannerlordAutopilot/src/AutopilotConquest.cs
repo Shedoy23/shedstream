@@ -242,7 +242,24 @@ namespace BannerlordAutopilot
         private static float SiegeDefenderStrength(Settlement place, MobileParty party)
             => SiegeDefenders(place, party, out _);
 
-        private static float SiegeDefenders(Settlement place, MobileParty party, out string breakdown)
+        /// <summary>Ближе этого вражеский лорд ударит по лагерю, куда бы ни шёл.</summary>
+        private const float SiegeImminentRadius = 15f;
+
+        /// <summary>26.09, владелец: «точно будет убегать от тех, кто идёт к нему, а не
+        /// от мимо проходящих?» Идёт к нам — если у него (или у командира его армии)
+        /// цель — эта крепость или наш отряд. До начала осады так не бывает: ваниль
+        /// зовёт подмогу только со стартом осады, поэтому при выборе крепости считаем
+        /// всех лордов в радиусе, а во время осады — только идущих к нам и вплотную.</summary>
+        private static bool ComingTo(MobileParty enemy, Settlement place, MobileParty party)
+        {
+            MobileParty leader = enemy.Army?.LeaderParty ?? enemy;
+            MobileParty ours = party.Army?.LeaderParty ?? party;
+            return leader.TargetSettlement == place
+                || leader.TargetParty == party || leader.TargetParty == ours
+                || leader.ShortTermTargetParty == party || leader.ShortTermTargetParty == ours;
+        }
+
+        private static float SiegeDefenders(Settlement place, MobileParty party, out string breakdown, bool onlyComing = false)
         {
             float walls = Math.Max(0f, place.Town?.GarrisonParty?.Party.EstimatedStrength ?? 0f)
                 + Math.Max(0f, place.Militia);
@@ -255,12 +272,17 @@ namespace BannerlordAutopilot
                 float strength = Math.Max(0f, enemy.Party.EstimatedStrength);
                 float distance2 = enemy.Position.DistanceSquared(place.Position);
                 if (enemy.CurrentSettlement == place) inside += strength;
-                else if (enemy.IsLordParty && distance2 <= SiegeReliefRadius * SiegeReliefRadius) relief += strength;
+                else if (enemy.IsLordParty && (onlyComing
+                        ? ComingTo(enemy, place, party)
+                          && distance2 <= SiegeReliefRadius * SiegeReliefRadius
+                          || enemy.Position.DistanceSquared(party.Position) <= SiegeImminentRadius * SiegeImminentRadius
+                        : distance2 <= SiegeReliefRadius * SiegeReliefRadius)) relief += strength;
                 else if (enemy.IsVisible && enemy.CurrentSettlement == null && distance2 <= 35f * 35f) nearby += strength;
             }
             breakdown = "стены " + walls.ToString("F0", CultureInfo.InvariantCulture)
                 + " + лорды внутри " + inside.ToString("F0", CultureInfo.InvariantCulture)
-                + " + подмога до " + SiegeReliefRadius.ToString("F0", CultureInfo.InvariantCulture) + " " + relief.ToString("F0", CultureInfo.InvariantCulture)
+                + (onlyComing ? " + идут к нам " : " + подмога до " + SiegeReliefRadius.ToString("F0", CultureInfo.InvariantCulture) + " ")
+                + relief.ToString("F0", CultureInfo.InvariantCulture)
                 + " + прочие рядом " + nearby.ToString("F0", CultureInfo.InvariantCulture);
             return walls + inside + relief + nearby;
         }
@@ -546,7 +568,7 @@ namespace BannerlordAutopilot
                     if (hour != _siegeLiftCheckedHour)
                     {
                         _siegeLiftCheckedHour = hour;
-                        float defendersNow = SiegeDefenders(place, party, out string breakdown);
+                        float defendersNow = SiegeDefenders(place, party, out string breakdown, onlyComing: true);
                         float ownNow = SiegeAttackerStrength(party);
                         if (ownNow < defendersNow * SiegeLiftRatio)
                         {

@@ -19,6 +19,7 @@ namespace BannerlordAutopilot
     {
         private double _politicsDay = -1;
         private bool _politicsBroken;
+        private string _politicsIdleReason;
 
         partial void DailyPoliticsHook() => TryDailyPolitics();
 
@@ -42,7 +43,18 @@ namespace BannerlordAutopilot
         {
             Clan clan = Clan.PlayerClan;
             Kingdom ours = clan?.Kingdom;
-            if (ours == null || ours.IsEliminated || clan.IsUnderMercenaryService || clan.Influence < 100f) return;
+            // 26.09: раньше выход был молчаливым — владелец видел «мира/войны не
+            // предлагает» и не знал почему. Пишем причину при её смене.
+            string idle = ours == null || ours.IsEliminated ? "клан не в королевстве"
+                : clan.IsUnderMercenaryService ? "клан служит наёмником — по правилам игры наёмник не предлагает войну и мир"
+                : clan.Influence < 100f ? "влияния " + clan.Influence.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) + " < 100"
+                : null;
+            if (idle != _politicsIdleReason)
+            {
+                if (idle != null) AutopilotLog.Write("ПОЛИТИКА: не предлагаем — " + idle);
+                _politicsIdleReason = idle;
+            }
+            if (idle != null) return;
             var diplomacy = Campaign.Current.Models.DiplomacyModel;
             var trade = Campaign.Current.Models.TradeAgreementModel;
             var decisions = new Dictionary<PoliticsCandidate, Dictionary<PoliticsMove, KingdomDecision>>();

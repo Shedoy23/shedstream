@@ -139,7 +139,7 @@ namespace TaleWorlds.CampaignSystem {
  public partial class Kingdom : TestFaction { public List<KingdomDecision> UnresolvedDecisions { get; } = new(); public TaleWorlds.Localization.TextObject Name { get; set; } = new("Королевство"); }
  // Clan 31710-31714: Fiefs — города и замки клана, Villages — его деревни.
  public class Clan {
-  public float Influence { get; set; }
+  public float Influence { get; set; } public bool IsUnderMercenaryService { get; set; }
   public static Clan PlayerClan = new(); public Kingdom Kingdom { get; set; } = new(); public IFaction MapFaction { get; set; }
   public TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Town> Fiefs { get; } = new();
   public TaleWorlds.Library.MBReadOnlyList<TaleWorlds.CampaignSystem.Settlements.Village> Villages { get; } = new();

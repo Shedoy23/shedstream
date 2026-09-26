@@ -38,5 +38,19 @@ internal static partial class Program
             CampaignTime.TestHours = 24 * 7 * 151; HourlyTick(b);
             Check(LogCount("НЕДЕЛЯ") == 2, "новая игровая неделя — новая сводка");
         });
+        // 26.09: «почему не предлагает мир Вландии?» — от королевства, статуса
+        // наёмника и влияния зависит политика, в сводке этого не было.
+        foreach (var (merc, expect) in new[] { (true, "(наёмник)"), (false, "(вассал)") })
+        Try("сводка называет королевство, статус и влияние: " + expect, () =>
+        {
+            var b = Fresh(); Enable(b);
+            var clan = Clan.PlayerClan; clan.MapFaction = new TestFaction();
+            clan.Kingdom = new Kingdom { Name = new TaleWorlds.Localization.TextObject("Империя") };
+            clan.IsUnderMercenaryService = merc; clan.Influence = 42;
+            CampaignTime.TestHours = 24 * 7 * 160 + 5; HourlyTick(b);
+            Check(AutopilotLog.Lines.Any(l => l.Contains("НЕДЕЛЯ") && l.Contains("королевство «Империя» " + expect) && l.Contains("влияние 42")),
+                  "видно королевство, наёмник/вассал и влияние");
+            clan.IsUnderMercenaryService = false; clan.Kingdom = new Kingdom();
+        });
     }
 }

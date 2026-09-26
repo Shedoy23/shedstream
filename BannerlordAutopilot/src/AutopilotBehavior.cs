@@ -2464,7 +2464,12 @@ namespace BannerlordAutopilot
                                    + "; войны: " + (wars.Length > 0 ? wars : "нет")
                                    + "; карта " + heldFiefs + "/" + totalFiefs
                                    + "; еда " + foodDays + " дней; жалование " + party.TotalWage + " в день"
-                                   + (party.Army == null ? "; без армии" : "; сплочённость " + party.Army.Cohesion.ToString("F0", CultureInfo.InvariantCulture)));
+                                   + (party.Army == null ? "; без армии" : "; сплочённость " + party.Army.Cohesion.ToString("F0", CultureInfo.InvariantCulture))
+                                   // 26.09: владелец спросил, почему нет мира/войны — политика
+                                   // зависит от этих трёх вещей, а в сводке их не было.
+                                   + "; королевство " + (clan.Kingdom == null ? "нет"
+                                       : "«" + clan.Kingdom.Name + "» (" + (clan.IsUnderMercenaryService ? "наёмник" : "вассал") + ")")
+                                   + "; влияние " + clan.Influence.ToString("F0", CultureInfo.InvariantCulture));
                 if (totalFiefs > 0 && heldFiefs >= totalFiefs)
                     AutopilotLog.Write("ЦЕЛЬ: все города и замки карты принадлежат нашему королевству/клану");
             }

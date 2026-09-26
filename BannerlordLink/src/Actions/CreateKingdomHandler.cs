@@ -172,6 +172,12 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                if (FactionChangeGuard.TouchesPlayerBattle(hero.Clan, hero.Clan.Kingdom))
+                {
+                    BannerlordLinkModule.Log($"[create_kingdom] REFUSE @{username}: идёт бой стримера с участием затронутых сторон");
+                    ActionFeedback.PostFailed(actionId, "in_battle");
+                    return;
+                }
                 // ── ENGINE: create kingdom ──
                 var creator = Campaign.Current?.KingdomManager;
                 if (creator == null)

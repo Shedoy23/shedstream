@@ -115,6 +115,12 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                if (FactionChangeGuard.TouchesPlayerBattle(hero.Clan, hero.Clan.Kingdom, target))
+                {
+                    BannerlordLinkModule.Log($"[join_kingdom] REFUSE @{username}: идёт бой стримера с участием затронутых сторон");
+                    ActionFeedback.PostFailed(actionId, "in_battle");
+                    return;
+                }
                 GiveGoldAction.ApplyBetweenCharacters(hero, null, JOIN_COST, true);
                 chargedHero = hero;
                 charged = true;

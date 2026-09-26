@@ -230,6 +230,12 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
+                if (FactionChangeGuard.TouchesPlayerBattle(myKingdom, target))
+                {
+                    BannerlordLinkModule.Log($"[diplo-peace] REFUSE @{username}: идёт бой стримера с участием затронутых сторон");
+                    ActionFeedback.PostFailed(actionId, "in_battle");
+                    return;
+                }
                 // Direct apply — viewer заплатил crustics, hard peace.
                 // Tribute can be positive (we pay) or negative (they pay us);
                 // engine clamps internally.

@@ -67,6 +67,12 @@ namespace BannerlordLink.Actions
                         $"[leave_kingdom] @{username}: clan не в королевстве");
                     return;
                 }
+                if (FactionChangeGuard.TouchesPlayerBattle(hero.Clan, kingdom))
+                {
+                    BannerlordLinkModule.Log($"[leave_kingdom] REFUSE @{username}: идёт бой стримера с участием затронутых сторон");
+                    ActionFeedback.PostFailed(actionId, "in_battle");
+                    return;
+                }
                 string oldKingdomName = kingdom.Name?.ToString() ?? "?";
                 // 2026-07-19 — если клан САМ правитель этого королевства, «выйти» через
                 // ApplyByLeaveKingdom НЕЛЬЗЯ: ваниль (ChangeKingdomAction, деталь LeaveKingdom)

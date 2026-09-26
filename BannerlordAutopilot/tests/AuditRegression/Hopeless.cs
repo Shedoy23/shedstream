@@ -15,7 +15,10 @@ internal static partial class Program
     // враг от 5x везде (владелец 25.09; было 2x, при обороне своего замка — 5x).
     static void HopelessBattleTests()
     {
-        foreach (var (enemy, lift) in new[] { (55, true), (45, false) })
+        // 26.09 (владелец: «снимать осаду, если все бегут давать пизды»): у лагеря
+        // считается вся защита с подмогой, порог x1,2 — армия x4,5 теперь тоже повод
+        // уйти (раньше штурмовали: снятие было только от x5).
+        foreach (var (enemy, lift) in new[] { (55, true), (45, true), (5, false) })
         Try("к осадному лагерю идёт армия x" + (enemy / 10.0), () =>
         {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);

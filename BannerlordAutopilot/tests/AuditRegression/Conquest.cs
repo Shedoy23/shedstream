@@ -486,6 +486,25 @@ internal static partial class Program
             Check(SiegeTarget(b) == castle && MobileParty.MainParty.TargetSettlement == castle,
                 "доступная военная цель выбрана прежде погони");
         });
+        // 26.09, владелец: снимать осаду, если к крепости идёт подмога, с которой не справиться.
+        foreach (var (reliefMen, expectLeave) in new[] { (6, true), (0, false) })
+        Try("осада: подмога " + reliefMen + " при стенах 4 и нашей силе 10 — снимаем " + expectLeave, () => {
+            var b = Fresh(); var castle = ConquestWorld(); castle.Name = "Осаждённый замок"; castle.Militia = 4; Enable(b);
+            if (reliefMen > 0) EnemyLord(castle, reliefMen, 50, visible: false);
+            var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
+            MobileParty.MainParty.SiegeEvent = siege;
+            var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_leave" }); Show(wait);
+            CampaignTime.TestHours = 0; b.PollState(); b.PollState();
+            Check(MenuContext.Invoked.Contains("menu_siege_strategies_leave") == expectLeave,
+                "4 стены + " + reliefMen + " подмоги против наших 10 (порог x1.2): уходим " + expectLeave);
+            if (expectLeave)
+            {
+                Check(LogCount("снимаем осаду «Осаждённый замок» до удара") == 1, "причина с разбивкой записана один раз");
+                Check(AutopilotLog.Lines.Any(l => l.Contains("подмога до 100 6")), "в разбивке видна подмога");
+            }
+        });
         Try("истощение осады вызывает штатный отход", () => {
             var b = Fresh(); var castle = ConquestWorld(food: 1); Enable(b);
             var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;

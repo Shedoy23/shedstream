@@ -231,6 +231,13 @@ namespace BannerlordAutopilot
         // Теперь: лорды в самой крепости и любые вражеские лорды в радиусе
         // SiegeReliefRadius (в поселении или нет, видны или нет) — подмога.
         private const float SiegeReliefRadius = 100f;
+        /// <summary>26.09, владелец: «надо снимать осаду и уходить, если чувствует, что
+        /// ему бегут все давать пизды». Пока лагерь готовится к штурму, раз в игровой
+        /// час пересчитываем защиту крепости вместе с подошедшей подмогой; перевес
+        /// ниже этого — снимаем осаду. Меньше входного SiegeStrengthRatio, чтобы
+        /// не снимать осаду от мелкого колебания оценки сразу после начала.</summary>
+        internal const float SiegeLiftRatio = 1.2f;
+        private double _siegeLiftCheckedHour = double.MinValue;
 
         private static float SiegeDefenderStrength(Settlement place, MobileParty party)
             => SiegeDefenders(place, party, out _);
@@ -530,6 +537,28 @@ namespace BannerlordAutopilot
                     {
                         AutopilotLog.Write("ПОХОД: снимаем осаду для восстановления: " + needed);
                         OperationClick("menu_siege_strategies_leave"); return true;
+                    }
+                    // 26.09: проверка ниже (одна армия от FleeRatio) с 25.09 требует перевеса
+                    // врага x5 — подмога x1,5–2 её не проходила, и 25.09 лагерь дважды
+                    // разбили в поле (666 и 850 врагов). Считаем всю защиту: стены, лордов
+                    // внутри и подмогу в радиусе — при бое у лагеря гарнизон выходит к ней.
+                    double hour = Math.Floor(CampaignTime.Now.ToHours);
+                    if (hour != _siegeLiftCheckedHour)
+                    {
+                        _siegeLiftCheckedHour = hour;
+                        float defendersNow = SiegeDefenders(place, party, out string breakdown);
+                        float ownNow = SiegeAttackerStrength(party);
+                        if (ownNow < defendersNow * SiegeLiftRatio)
+                        {
+                            string why = "защитники с подмогой " + defendersNow.ToString("F0", CultureInfo.InvariantCulture)
+                                + ", наша сила " + ownNow.ToString("F0", CultureInfo.InvariantCulture)
+                                + " — перевес ниже x" + SiegeLiftRatio.ToString("0.#", CultureInfo.InvariantCulture)
+                                + " (" + breakdown + ")";
+                            AutopilotLog.Write("ПОХОД: снимаем осаду «" + place.Name + "» до удара — " + why);
+                            NoteSiegeRejection(place, "защитники: " + why);
+                            StreamStatus.Note("К крепости идёт подмога — снимаем осаду");
+                            OperationClick("menu_siege_strategies_leave"); return true;
+                        }
                     }
                     // 24.09: к лагерю идёт армия от 2x — снимаем осаду до удара, дальше
                     // отход на карте (18.09 и 21.09 такой бой стоил армии ~270 → 1).

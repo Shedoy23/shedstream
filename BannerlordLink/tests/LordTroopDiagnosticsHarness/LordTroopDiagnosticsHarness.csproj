@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>disable</Nullable><NoWarn>0649</NoWarn></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/Patches/LordTroopDiagnostics.cs" Link="Diagnostics.cs" Condition="Exists('../../src/Patches/LordTroopDiagnostics.cs')" />
+    <Reference Include="0Harmony"><HintPath>X:/SteamLibrary/steamapps/workshop/content/261550/2859188632/bin/Win64_Shipping_Client/0Harmony.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

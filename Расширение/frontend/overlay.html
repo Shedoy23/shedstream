@@ -1171,6 +1171,8 @@ function bnrSortParticipants(a, b) {
     return (a.username || '').localeCompare(b.username || '');
 }
 
+const BNR_FINAL_SUMMARY_SEC = 30;
+
 async function pollBannerlordSummoned() {
     try {
         const url = SERVER + '/api/overlay/bannerlord/summoned'
@@ -1190,8 +1192,10 @@ async function pollBannerlordSummoned() {
             petsStrip.classList.toggle('battle', !!data.active && participants.length > 0);
         }
 
+        // 26.09 (владелец): итог боя висел 2 минуты и закрывал питомцев —
+        // держим 30 секунд.
         const recentFinal = data.final === true && Number.isFinite(data.age_sec)
-            && data.age_sec >= 0 && data.age_sec < 120;
+            && data.age_sec >= 0 && data.age_sec < BNR_FINAL_SUMMARY_SEC;
         if ((!data.active && !recentFinal) || participants.length === 0) {
             panel.classList.remove('visible');
             panel.innerHTML = '';

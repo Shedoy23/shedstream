@@ -472,15 +472,20 @@ namespace BannerlordLink.Actions
                         $"(класс зрителя, конь={withHorse}, " +
                         $"позиция={(heroSpawnPos.HasValue ? "у своих/врага" : "зона подкреплений")})");
 
+                    // 26.09: на расстановке — как в новом BLT: не по тревоге и не
+                    // подкреплением (боец встаёт в строй, тревогу включит начало боя).
+                    bool deploying = BannerlordLink.Util.SummonModePolicy.IsDeployment(Mission.Current.Mode.ToString());
+                    if (deploying)
+                        BannerlordLinkModule.Log($"[player.spawn:{sideLabel}] @{username} на расстановке: isAlarmed=false, не подкреплением");
                     agent = Mission.Current.SpawnTroop(
                         new SimpleAgentOrigin(hero.CharacterObject),
                         isPlayerSide:        isPlayerSide,
                         hasFormation:        true,
                         spawnWithHorse:      withHorse,
-                        isReinforcement:     !heroSpawnPos.HasValue,
+                        isReinforcement:     !deploying && !heroSpawnPos.HasValue,
                         formationTroopCount: 1,
                         formationTroopIndex: 0,
-                        isAlarmed:           true,
+                        isAlarmed:           !deploying,
                         wieldInitialWeapons: true,
                         // 2026-09-02 (1.4.8): параметра forceDismounted в SpawnTroop
                         // больше нет. Смысл он дублировал: стоял `!withHorse` при
@@ -648,7 +653,7 @@ namespace BannerlordLink.Actions
                     {
                         // Block 1: not in Battle mode (covers Conversation,
                         // Deployment, CutScene, Replay, etc.).
-                        if (m.Mode != MissionMode.Battle && m.Mode != MissionMode.StartUp)
+                        if (!BannerlordLink.Util.SummonModePolicy.RetinueAllowed(m.Mode.ToString()))
                         {
                             retinueAllowed = false;
                             retinueBlockReason = $"mode={m.Mode} (need Battle)";
@@ -744,15 +749,16 @@ namespace BannerlordLink.Actions
                             Agent retinueAgent;
                             try
                             {
+                                bool retinueDeploying = BannerlordLink.Util.SummonModePolicy.IsDeployment(Mission.Current.Mode.ToString());
                                 retinueAgent = Mission.Current.SpawnTroop(
                                     new SimpleAgentOrigin(troop),
                                     isPlayerSide:        isPlayerSide,
                                     hasFormation:        true,
                                     spawnWithHorse:      !SiegeForcesDismount() && troop.Equipment != null && troop.HasMount(),
-                                    isReinforcement:     !spawnPos.HasValue,
+                                    isReinforcement:     !retinueDeploying && !spawnPos.HasValue,
                                     formationTroopCount: 1,
                                     formationTroopIndex: 0,
-                                    isAlarmed:           true,
+                                    isAlarmed:           !retinueDeploying,
                                     wieldInitialWeapons: true,
                                     // 2026-09-02 (1.4.8): forceDismounted убран из
                                     // сигнатуры. Дублировал spawnWithHorse выше:
@@ -874,10 +880,7 @@ namespace BannerlordLink.Actions
             try { modeStr = m.Mode.ToString(); }
             catch { modeStr = null; }
 
-            if (modeStr == "Deployment" || modeStr == "CutScene"
-                || modeStr == "Conversation" || modeStr == "Replay"
-                || modeStr == "Barter"      || modeStr == "Duel"
-                || modeStr == "Tournament")
+            if (BannerlordLink.Util.SummonModePolicy.Blocks(modeStr))
             {
                 reason = $"mission mode {modeStr} (BLT block-list)";
                 return false;

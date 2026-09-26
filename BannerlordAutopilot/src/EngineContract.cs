@@ -370,6 +370,10 @@ namespace BannerlordAutopilot
             MemberOf(mobile, "Army", Inst, typeof(Army));
             MemberOf(typeof(Army), "LeaderParty", Inst, mobile);
             MemberOf(typeof(Army), "Cohesion", Inst, typeof(float));
+            // 26.09: охота на армию — сила всей армии, отряды при лидере; набор у своих крепостей.
+            MemberOf(typeof(Army), "EstimatedStrength", Inst, typeof(float));
+            MemberExists(mobile, "AttachedParties", Inst);
+            MemberOf(typeof(Settlement), "IsFortification", Inst, typeof(bool));
             Method(typeof(Army), "BoostCohesionWithInfluence", Inst, typeof(void), typeof(float), typeof(int));
             MemberOf(typeof(Clan), "Influence", Inst, typeof(float));
             Method(typeof(ChangeClanInfluenceAction), "Apply", Stat, typeof(void), typeof(Clan), typeof(float));

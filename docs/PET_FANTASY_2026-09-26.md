@@ -1,5 +1,10 @@
 # Fantasy pets — prepared, catalogue rollout pending
 
+**Superseded delivery instructions:** use [PET_ANIMATIONS_2026-09-26.md](PET_ANIMATIONS_2026-09-26.md)
+and the combined pet-walk-fix-20260926 bundle. Signature scenes and corrected walking
+are now public in both previews; live catalogue/OBS activation still waits for the stream to end.
+The earlier bundle described below has stale preview guards and must not be applied.
+
 Owner approved six fantasy pets, all rare and 500000 crustics each, matching the first collection.
 
 | Variant | Name |

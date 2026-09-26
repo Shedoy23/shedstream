@@ -17,6 +17,8 @@ def atomic_copy(source,target):
 def frozen_hashes():return {r:digest(ROOT/r) for r in manifest['frozen'] if (ROOT/r).is_file()}
 def check_bundle():
     assert not (set(manifest['files'])|set(manifest['patches'])) & set(manifest['frozen'])
+    for rel in manifest.get('preview_patches',[]):
+        assert rel.startswith('frontend/pet-assets/') and rel.endswith('/preview.html') and rel in manifest['patches'],rel
     for rel,h in manifest['hashes'].items():assert digest(BUNDLE/'payload'/rel)==h,rel
 
 def check_new_target(rel):
@@ -33,9 +35,14 @@ def publish_preview():
     for rel in assets:
         check_new_target(rel)
         assert digest(STAGE/rel)==manifest['hashes'][rel],rel
+    previews=manifest.get('preview_patches',[])
+    for rel in previews:
+        assert digest(ROOT/rel) in (state['before'][rel],state['staged'][rel]),('preview drift',rel)
+        assert digest(STAGE/rel)==state['staged'][rel],rel
     for rel in assets:atomic_copy(STAGE/rel,ROOT/rel)
+    for rel in previews:atomic_copy(STAGE/rel,ROOT/rel)
     assert frozen_hashes()==state['frozen']
-    print('Published',len(assets),'new static preview assets; no backend/catalog/restart changes')
+    print('Published',len(assets),'static assets and',len(previews),'previews; no backend/catalog/restart changes')
 async def stage_migration(db):
     import aiosqlite
     sys.path.insert(0,str(STAGE/'backend'))
@@ -56,7 +63,7 @@ def prepare():
             text=text.replace(old,new,1)
         target=STAGE/rel;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(text)
     for rel in manifest['files']:
-        assert not (ROOT/rel).exists(),('target already exists',rel)
+        check_new_target(rel)
         target=STAGE/rel;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(BUNDLE/'payload'/rel,target)
     shutil.copyfile(ROOT/'backend/config.py',STAGE/'backend/config.py')
     for rel in manifest.get('stage_support',[]):
@@ -85,7 +92,11 @@ def prepare():
 def apply():
     check_bundle();state=json.loads((BUNDLE/'prepared.json').read_text())
     assert frozen_hashes()==state['frozen'],'frozen frontend changed since prepare'
-    for rel,h in state['before'].items():assert digest(ROOT/rel)==h,('production changed since prepare',rel)
+    for rel,h in state['before'].items():
+        allowed=(h,state['staged'][rel]) if rel in manifest.get('preview_patches',[]) else (h,)
+        assert digest(ROOT/rel) in allowed,('production changed since prepare',rel)
+        assert digest(STAGE/rel)==state['staged'][rel],('staged patch changed',rel)
+    for rel,h in manifest['hashes'].items():assert digest(STAGE/rel)==h,('staged asset changed',rel)
     subprocess.run([sys.executable,str(BUNDLE/'check-stream.py')],check=True)
     # Publish complete image directories first. No catalog item exists yet.
     for rel in manifest['files']:check_new_target(rel)

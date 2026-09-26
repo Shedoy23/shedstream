@@ -4,18 +4,40 @@
 :root{color-scheme:dark;font-family:system-ui,sans-serif;background:#10151e;color:#edf2f8}*{box-sizing:border-box}body{max-width:1120px;margin:0 auto;padding:28px 22px}header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}h1{font-size:24px;margin:0}p{color:#aebcd0;margin:8px 0 22px}button,select{font:inherit;color:inherit;background:#202b3d;border:1px solid #40516a;border-radius:9px;padding:9px 13px;cursor:pointer}button[aria-pressed=true]{background:#7755b7;border-color:#b495e9}button:focus-visible,select:focus-visible{outline:3px solid #bea5eb;outline-offset:3px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.pet{background:#171f2d;border:1px solid #2a384e;border-radius:16px;overflow:hidden}.stage{height:225px;position:relative;background:radial-gradient(ellipse at bottom,#29374b00,#10151e66)}.stage:after{content:'';position:absolute;bottom:14px;left:14px;right:14px;border-bottom:1px solid #3b4b63}.sprite{position:absolute;width:128px;height:128px;bottom:17px;left:50%;image-rendering:pixelated;background-size:768px 128px}.caption{padding:14px 18px;border-top:1px solid #2a384e}.caption strong{font-weight:600}.price{display:flex;justify-content:space-between;margin-top:8px;color:#c4b0ea;font-size:14px}.state{font-size:13px;color:#aebcd0;margin-top:5px}footer{color:#91a1b8;font-size:13px;margin-top:20px}.light .stage{background:#c1cbd5}.light .stage:after{border-color:#7f8d9c}@media(max-width:720px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:440px){body{padding:18px 12px}.grid{grid-template-columns:1fr}.stage{height:210px}}
 </style></head><body>
 <header><div><h1>Шестёрка спутников</h1><p>Новые облики для оверлея ShedLink</p></div><label>Размер <select id="size"><option>96</option><option selected>128</option><option>180</option></select> px</label></header>
-<div class="actions" aria-label="Действие"><button data-mode="auto" aria-pressed="true">Сами по себе</button><button data-mode="walk" aria-pressed="false">Гулять</button><button data-mode="wave" aria-pressed="false">Привет</button><button data-mode="sleep" aria-pressed="false">Спать</button><button data-mode="cheer" aria-pressed="false">Радоваться</button><button id="pause" aria-pressed="false">Пауза</button><button id="background" aria-pressed="false">Светлый фон</button></div>
+<div class="actions" aria-label="Действие"><button data-mode="auto" aria-pressed="true">Сами по себе</button><button data-mode="walk" aria-pressed="false">Гулять</button><button data-mode="wave" aria-pressed="false">Привет</button><button data-mode="sleep" aria-pressed="false">Спать</button><button data-mode="cheer" aria-pressed="false">Радоваться</button><button data-mode="scene" aria-pressed="false">Фирменные сценки</button><button data-mode="step1" aria-pressed="false">Шаг 1</button><button data-mode="step2" aria-pressed="false">Шаг 2</button><button id="slow" aria-pressed="false">Замедлить ×4</button><button id="pause" aria-pressed="false">Пауза</button><button id="background" aria-pressed="false">Светлый фон</button></div>
+<p><a style="color:#c4b0ea" href="../fantasy-v1/preview.html">Сказочная шестёрка →</a></p>
 <main class="grid" id="pets"></main><footer>Редкие · по 500 000 крустиков. Предпросмотр внешности и анимаций; кнопки здесь не управляют живым оверлеем.</footer>
 <script>
 const items=[['wayfarer','Странник'],['crimson_knight','Багряный рыцарь'],['colony_engineer','Инженер'],['lantern_mage','Сонный колдунчик'],['shadow_rogue','Разбойник'],['rain_fisher','Рыбак']];
+const sceneNames={"wayfarer": "Привал", "crimson_knight": "Разминка", "colony_engineer": "Починка", "lantern_mage": "Сонное заклинание", "shadow_rogue": "Трюк с монетой", "rain_fisher": "Неудачный улов", "necro_cat": "Ожившая мышка", "chest_mimic": "Монетный чих", "mushroom_grandpa": "Маленький гриб", "baker_dragon": "Подгоревшая булочка", "blanket_ghost": "Чай под пледом", "frog_samurai": "Медитация и муха"};
 const grid=document.getElementById('pets');
 grid.innerHTML=items.map(([id,name])=>`<section class="pet"><div class="stage"><div class="sprite" role="img" aria-label="${name}" style="background-image:url('../v2/${id}/animation.png')"></div></div><div class="caption"><strong>${name}</strong><div class="price"><span>Редкий</span><span>500 000 💎</span></div><div class="state" aria-live="off">Гуляет</div></div></section>`).join('');
 const sprites=[...document.querySelectorAll('.sprite')],states=[...document.querySelectorAll('.state')],modes=[...document.querySelectorAll('[data-mode]')];
+let speed=1;
 let mode='auto',size=128,t=0,last=0,paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const names={walk:'Гуляет',wave:'Приветствует',sleep:'Спит',cheer:'Радуется',idle:'Отдыхает'};
+const names={step1:'Первый шаг',step2:'Второй шаг',walk:'Гуляет',wave:'Приветствует',sleep:'Спит',cheer:'Радуется',idle:'Отдыхает'};
 modes.forEach(b=>b.onclick=()=>{mode=b.dataset.mode;t=0;paused=false;document.getElementById('pause').textContent='Пауза';document.getElementById('pause').setAttribute('aria-pressed','false');modes.forEach(x=>x.setAttribute('aria-pressed',String(x===b)))});
+document.getElementById('slow').onclick=e=>{speed=speed===1?.25:1;e.target.setAttribute('aria-pressed',String(speed!==1));e.target.textContent=speed===1?'Замедлить ×4':'Обычная скорость'};
 document.getElementById('size').onchange=e=>{size=Number(e.target.value);sprites.forEach(s=>{s.style.width=size+'px';s.style.height=size+'px';s.style.backgroundSize=(size*6)+'px '+size+'px'})};
 document.getElementById('pause').onclick=e=>{paused=!paused;e.target.textContent=paused?'Продолжить':'Пауза';e.target.setAttribute('aria-pressed',String(paused))};
 document.getElementById('background').onclick=e=>{const on=document.body.classList.toggle('light');e.target.setAttribute('aria-pressed',String(on));e.target.textContent=on?'Тёмный фон':'Светлый фон'};
-function tick(now){const dt=last?Math.min(.05,(now-last)/1000):0;last=now;if(!paused)t+=dt;sprites.forEach((s,i)=>{const tt=mode==='auto'?t+i*.65:t,p=tt%24;const action=mode==='auto'?(p<8?'walk':p<11?'idle':p<18?'sleep':p<21?'wave':'cheer'):mode;let frame={idle:0,wave:3,sleep:4,cheer:5}[action]||0;let shift=0,flip=1,bob=0;if(action==='walk'){frame=1+Math.floor(tt/.22)%2;const travel=tt%8;const amp=Math.max(0,(s.parentElement.clientWidth-size-30)/2);shift=(travel<4?-1+travel/2:3-travel/2)*amp;flip=travel<4?1:-1;bob=Math.sin(tt/.22*Math.PI)}s.style.backgroundPosition=(-frame*size)+'px 0';s.style.transform=`translateX(calc(-50% + ${shift}px)) translateY(${bob}px) scaleX(${flip})`;states[i].textContent=names[action];s.dataset.frame=frame});requestAnimationFrame(tick)}requestAnimationFrame(tick);
+// Preload scenes before a manual or automatic transition.
+items.forEach(([id])=>{const image=new Image();image.src='../v2/'+id+'/scene-v1.png'});
+function tick(now){
+ const dt=last?Math.min(.05,(now-last)/1000):0;last=now;if(!paused)t+=dt*speed;
+ sprites.forEach((s,i)=>{
+  const tt=mode==='auto'?t+i*.65:t,p=tt%40;
+  let action=mode==='auto'?(p<10?'walk':p<13?'idle':p<17.2?'scene':p<20?'idle':p<30?'sleep':p<34?'wave':p<37?'cheer':'idle'):mode;
+  const sceneTime=mode==='auto'?p-13:tt%6;
+  if(action==='scene'&&sceneTime>=4.2)action='idle';
+  let frame={idle:0,step1:1,step2:2,wave:3,sleep:4,cheer:5}[action]||0,shift=0,flip=1,bob=0;
+  if(action==='scene')frame=Math.min(5,Math.floor(Math.max(0,sceneTime)/.7));
+  if(action==='walk'){frame=1+Math.floor(tt/.22)%2;const travel=tt%8;const amp=Math.max(0,(s.parentElement.clientWidth-size-30)/2);shift=(travel<4?-1+travel/2:3-travel/2)*amp;flip=travel<4?1:-1;bob=Math.sin(tt/.22*Math.PI)}
+  s.style.backgroundImage=`url('../v2/${items[i][0]}/${action==='scene'?'scene-v1':items[i][0]==='blanket_ghost'?'animation':'animation-v2'}.png')`;
+  s.style.backgroundPosition=(-frame*size)+'px 0';
+  s.style.transform=`translateX(calc(-50% + ${shift}px)) translateY(${bob}px) scaleX(${flip})`;
+  states[i].textContent=action==='scene'?sceneNames[items[i][0]]:names[action];
+  s.dataset.frame=frame;s.dataset.action=action;
+ });requestAnimationFrame(tick)
+}requestAnimationFrame(tick);
 </script></body></html>

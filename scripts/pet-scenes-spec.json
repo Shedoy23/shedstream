@@ -1,0 +1,62 @@
+[
+  {
+    "id": "wayfarer",
+    "name": "Привал",
+    "source": "exec-3728a93c-1fa6-4bc5-8966-26557211009b.png"
+  },
+  {
+    "id": "crimson_knight",
+    "name": "Разминка",
+    "source": "exec-e94ea397-2c61-40eb-95a3-e6f496d1fe13.png"
+  },
+  {
+    "id": "colony_engineer",
+    "name": "Починка",
+    "source": "exec-f71ef22a-cd5a-49be-bb91-78030eac3b35.png"
+  },
+  {
+    "id": "lantern_mage",
+    "name": "Сонное заклинание",
+    "source": "exec-ff6882ae-6759-4244-96b1-89e801ee07be.png"
+  },
+  {
+    "id": "shadow_rogue",
+    "name": "Трюк с монетой",
+    "source": "exec-cc2326ae-85b5-4578-8ebb-7c3d2d39a0fc.png"
+  },
+  {
+    "id": "rain_fisher",
+    "name": "Неудачный улов",
+    "source": "exec-46455e95-e1a2-4ada-9d02-341ef5e344c3.png"
+  },
+  {
+    "id": "necro_cat",
+    "name": "Ожившая мышка",
+    "source": "exec-20601f5f-2644-424c-9e50-4eb616c58b26.png"
+  },
+  {
+    "id": "chest_mimic",
+    "name": "Монетный чих",
+    "source": "exec-c7ee1b6f-104c-4d16-8be8-cc90a2997141.png"
+  },
+  {
+    "id": "mushroom_grandpa",
+    "name": "Маленький гриб",
+    "source": "exec-78f65878-9600-4a36-8607-1811a654596f.png"
+  },
+  {
+    "id": "baker_dragon",
+    "name": "Подгоревшая булочка",
+    "source": "exec-74210ca8-a6fc-440e-a3ae-180b0302ed3b.png"
+  },
+  {
+    "id": "blanket_ghost",
+    "name": "Чай под пледом",
+    "source": "exec-d283d5e7-c792-4c1a-9c65-a60bee5351e5.png"
+  },
+  {
+    "id": "frog_samurai",
+    "name": "Медитация и муха",
+    "source": "exec-3abf4341-c3a5-476f-a4cb-e97f8d953a83.png"
+  }
+]

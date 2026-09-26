@@ -531,6 +531,30 @@ internal static partial class Program
                 Check(AutopilotLog.Lines.Any(l => l.Contains("идут к нам 6")), "в разбивке видна подмога, идущая к нам");
             }
         });
+        // 26.09: «Замок Фрактори» осаждали 13 раз за два часа — после снятия осады из-за
+        // подмоги запрет держался 12 игровых часов (минуты при ускорении), а до начала
+        // осады подмоги не видно, и цифра снова проходила порог.
+        Try("осада: защиту с подмогой, увиденную при снятии осады, помним 3 дня", () => {
+            var b = Fresh(); var castle = ConquestWorld(); castle.Name = "Осаждённый замок"; castle.Militia = 4;
+            Settlement.All.Add(castle); Enable(b);
+            var lord = EnemyLord(castle, 6, 40, visible: false);
+            lord.DefaultBehavior = AiBehavior.DefendSettlement; lord.TargetSettlement = castle;
+            var siege = new SiegeEvent { BesiegedSettlement = castle }; siege.BesiegerCamp.LeaderParty = MobileParty.MainParty;
+            MobileParty.MainParty.SiegeEvent = siege;
+            var wait = new GameMenu { StringId = "menu_siege_strategies", IsWaitMenu = true };
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_lead_assault" });
+            wait.Options.Add(new GameMenuOption { IdString = "menu_siege_strategies_leave" }); Show(wait);
+            CampaignTime.TestHours = 0; b.PollState(); b.PollState();
+            Check(MenuContext.Invoked.Contains("menu_siege_strategies_leave"), "подмога 6 + стены 4 против наших 10 — осаду сняли");
+            MobileParty.All.Remove(lord); MobileParty.MainParty.SiegeEvent = null;
+            var find = typeof(AutopilotBehavior).GetMethod("TryFindSiegeTarget", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            bool Finds() { var args = new object[] { MobileParty.MainParty, null, null }; return (bool)find.Invoke(b, args) && ((AIBehaviorData)args[1]).Party == castle; }
+            CampaignTime.TestHours = 13;
+            Check(!Finds(), "через 13 часов подмоги не видно, стены 4 при наших 10 — но помним 10 и не идём");
+            Check(AutopilotLog.Lines.Any(l => l.Contains("при прошлой осаде с подмогой было 10")), "в журнале видно, что взяли запомненное");
+            CampaignTime.TestHours = 73;
+            Check(Finds(), "через 3 дня память прошла — крепость снова по силам");
+        });
         // 26.09, владелец: «не тянуть — начинать только с осадным лагерем, без катапульт».
         Try("осада: лагерь готов — штурмуем, не дожидаясь машин и «логичного» штурма ИИ", () => {
             var b = Fresh(); var castle = ConquestWorld(); Enable(b);

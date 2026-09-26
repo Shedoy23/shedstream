@@ -265,8 +265,20 @@ namespace BannerlordAutopilot
         internal const float SiegeLiftRatio = 1.2f;
         private double _siegeLiftCheckedHour = double.MinValue;
 
-        private static float SiegeDefenderStrength(Settlement place, MobileParty party)
-            => SiegeDefenders(place, party, out _);
+        private float SiegeDefenderStrength(Settlement place, MobileParty party)
+            => Math.Max(SiegeDefenders(place, party, out _), RememberedDefense(place));
+
+        /// <summary>26.09: «Замок Фрактори» с 17:08 до 18:55 осаждали 13 раз и 11 из них
+        /// снимали через секунды — подмога 400–960 приходит только после начала осады,
+        /// до начала её не видно, а запрет в 12 игровых часов при ускорении длится
+        /// минуты. Защиту, которую увидели при снятии осады, помним столько дней и
+        /// при выборе крепости берём большее из неё и текущей оценки.</summary>
+        internal const double SiegeReliefMemoryHours = 72;
+        private readonly Dictionary<Settlement, (float Defense, double Until)> _siegeDefenseSeen
+            = new Dictionary<Settlement, (float, double)>();
+
+        private float RememberedDefense(Settlement place) => place != null
+            && _siegeDefenseSeen.TryGetValue(place, out var seen) && CampaignTime.Now.ToHours < seen.Until ? seen.Defense : 0f;
 
         /// <summary>Ближе этого вражеский лорд ударит по лагерю, куда бы ни шёл.</summary>
         private const float SiegeImminentRadius = 15f;
@@ -313,10 +325,11 @@ namespace BannerlordAutopilot
             return walls + inside + relief + nearby;
         }
 
-        private static string BreakdownOf(Settlement place, MobileParty party)
+        private string BreakdownOf(Settlement place, MobileParty party)
         {
-            SiegeDefenders(place, party, out string breakdown);
-            return " (" + breakdown + ")";
+            float now = SiegeDefenders(place, party, out string breakdown), seen = RememberedDefense(place);
+            return " (" + breakdown + (seen > now ? "; при прошлой осаде с подмогой было " + seen.ToString("F0", CultureInfo.InvariantCulture)
+                + " — берём это" : "") + ")";
         }
 
         private static float SiegeAttackerStrength(MobileParty party)
@@ -604,6 +617,7 @@ namespace BannerlordAutopilot
                                 + " (" + breakdown + ")";
                             AutopilotLog.Write("ПОХОД: снимаем осаду «" + place.Name + "» до удара — " + why);
                             NoteSiegeRejection(place, "защитники: " + why);
+                            _siegeDefenseSeen[place] = (defendersNow, CampaignTime.Now.ToHours + SiegeReliefMemoryHours);
                             StreamStatus.Note("К крепости идёт подмога — снимаем осаду");
                             OperationClick("menu_siege_strategies_leave"); return true;
                         }

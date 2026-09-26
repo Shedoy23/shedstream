@@ -107,6 +107,23 @@ namespace BannerlordAutopilot
             return Math.Max(0, party.ItemRoster.TotalFood - keep);
         }
 
+        /// <summary>26.09, владелец: «разрешить ему вьючных лошадей чуть держать, не получая
+        /// дебаф "табун"». Ваниль 1.4.8: вьючное +100 к грузоподъёмности (5 бойцов), штраф
+        /// «табун» — когда вьючных + скота + лишних коней больше, чем людей
+        /// (DefaultPartySpeedCalculatingModel.GetHerdingModifier). Считаем всех коней
+        /// табуном (строже ванили: она вычитает коней под пеших) — запас не переступит.</summary>
+        internal static int HerdRoom(MobileParty party) => party.MemberRoster.TotalManCount
+            - (party.ItemRoster.NumberOfPackAnimals + party.ItemRoster.NumberOfLivestockAnimals + party.ItemRoster.NumberOfMounts);
+
+        private static bool IsPackAnimal(EquipmentElement element) =>
+            element.Item.HasHorseComponent && element.Item.HorseComponent.IsPackAnimal;
+
+        /// <summary>Вьючных оставляем, пока табун не больше людей.</summary>
+        private static bool KeepPackAnimal(MobileParty party, EquipmentElement element) =>
+            IsPackAnimal(element) && HerdRoom(party) >= 0;
+
+        internal const int MaxPackAnimalsPerVisit = 30;
+
         private static bool SellableFood(EquipmentElement element, HashSet<string> locks) => element.Item.IsFood
             && !element.IsQuestItem && !element.Item.NotMerchandise
             && !locks.Contains(element.Item.StringId + (element.ItemModifier?.StringId ?? ""));
@@ -130,9 +147,10 @@ namespace BannerlordAutopilot
             foreach (ItemRosterElement entry in stock)
             {
                 EquipmentElement element = entry.EquipmentElement;
-                if (element.IsEmpty || Protected(element, locks)) continue;
+                if (element.IsEmpty || Protected(element, locks) || KeepPackAnimal(party, element)) continue;
                 for (int i = 0; i < entry.Amount; i++)
                 {
+                    if (KeepPackAnimal(party, element)) break; // лишних вьючных продали — остальных держим
                     int before = Stock(party.ItemRoster, element);
                     if (before <= 0) break;
                     // Native sale clamps payment AFTER moving items. Prevent underpayment beforehand.
@@ -172,9 +190,46 @@ namespace BannerlordAutopilot
                     throw new InvalidOperationException("продажа еды: передача/оплата не подтверждена для " + food.Item.Name);
                 surplus--; foodSold++; sold++; earned += price;
             }
+            BuyPackAnimals(party, settlement, town);
             AutopilotLog.Write("ПРОДАЖА: вещей " + sold + " (из них лишней еды " + foodSold + "), получено " + earned
                 + " динаров; осталось без полной оплаты " + unpaid + "; еды оставлено на " + FoodKeepDays.ToString("F0")
                 + " дней, закреплённые и квестовые сохранены");
+        }
+
+        /// <summary>Перегружены и в табуне есть место — докупаем вьючных: сколько нужно,
+        /// чтобы груз влез (+100 за голову), не больше места в табуне и не за счёт
+        /// недельного жалования. Нужду считаем по весу ДО покупок: грузоподъёмность в
+        /// игре может обновиться не сразу.</summary>
+        private static void BuyPackAnimals(MobileParty party, Settlement settlement, Town town)
+        {
+            float over = party.TotalWeightCarried - party.InventoryCapacity;
+            if (float.IsNaN(over) || over <= 0) return;
+            int need = Math.Min(Math.Min((int)Math.Ceiling(over / 100f), HerdRoom(party)), MaxPackAnimalsPerVisit);
+            if (need <= 0) return;
+            int reserve = Math.Max(0, party.TotalWage) * 7 + 1000;
+            int bought = 0; long spent = 0; string stop = null;
+            while (bought < need)
+            {
+                int pick = -1, best = int.MaxValue;
+                for (int i = 0; i < settlement.ItemRoster.Count; i++)
+                {
+                    ItemRosterElement offer = settlement.ItemRoster.GetElementCopyAtIndex(i);
+                    if (offer.Amount <= 0 || offer.EquipmentElement.IsEmpty || !IsPackAnimal(offer.EquipmentElement)) continue;
+                    int p = town.GetItemPrice(offer.EquipmentElement, party, false);
+                    if (p > 0 && p < best) { best = p; pick = i; }
+                }
+                if (pick < 0) { stop = "в городе вьючных нет"; break; }
+                if (Hero.MainHero.Gold - best < reserve) { stop = "не хватает денег сверх недельного жалования"; break; }
+                EquipmentElement animal = settlement.ItemRoster.GetElementCopyAtIndex(pick).EquipmentElement;
+                int have = Stock(party.ItemRoster, animal), market = Stock(settlement.ItemRoster, animal), gold = Hero.MainHero.Gold;
+                SellItemsAction.Apply(settlement.Party, party.Party, new ItemRosterElement(animal, 1), 1);
+                if (Stock(party.ItemRoster, animal) != have + 1 || Stock(settlement.ItemRoster, animal) != market - 1 || Hero.MainHero.Gold >= gold)
+                { stop = "покупка не подтвердилась"; break; }
+                bought++; spent += gold - Hero.MainHero.Gold;
+            }
+            if (bought > 0 || stop != null)
+                AutopilotLog.Write("ВЬЮЧНЫЕ: перегруз " + over.ToString("F0") + ", нужно " + need + ", куплено " + bought + " за " + spent
+                    + " (место в табуне " + HerdRoom(party) + ")" + (stop != null && bought < need ? "; стоп: " + stop : ""));
         }
 
         internal static Settlement FindUnloadingTown(MobileParty party, Func<Settlement, bool> eligible)
@@ -200,7 +255,7 @@ namespace BannerlordAutopilot
                 for (int i = 0; i < party.ItemRoster.Count; i++)
                 {
                     ItemRosterElement entry = party.ItemRoster.GetElementCopyAtIndex(i);
-                    if (entry.Amount <= 0 || entry.EquipmentElement.IsEmpty) continue;
+                    if (entry.Amount <= 0 || entry.EquipmentElement.IsEmpty || KeepPackAnimal(party, entry.EquipmentElement)) continue;
                     if (Protected(entry.EquipmentElement, locks)
                         && !(foodSurplus && SellableFood(entry.EquipmentElement, locks))) continue;
                     int price = town.Town.GetItemPrice(entry.EquipmentElement, party, true);

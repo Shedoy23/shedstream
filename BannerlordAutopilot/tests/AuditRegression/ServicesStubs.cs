@@ -24,7 +24,7 @@ using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace TaleWorlds.Core {
- public partial class HorseComponent { public bool IsLiveStock { get; set; } public int MeatCount { get; set; } = 1; }
+ public partial class HorseComponent { public bool IsLiveStock { get; set; } public int MeatCount { get; set; } = 1; public bool IsPackAnimal { get; set; } public bool IsMount { get; set; } }
  public class ItemModifier { public string StringId = "modifier"; }
  public partial class ItemObject {
   public string Name { get; set; }
@@ -164,6 +164,9 @@ namespace TaleWorlds.CampaignSystem.Roster {
   private readonly List<ItemRosterElement> _data = new();
   public int Count => _data.Count;
   public int TotalFood => _data.Where(e => e.EquipmentElement.Item != null && e.EquipmentElement.Item.IsFood).Sum(e => e.Amount);
+  public int NumberOfPackAnimals => _data.Where(e => e.EquipmentElement.Item?.HorseComponent?.IsPackAnimal == true).Sum(e => e.Amount);
+  public int NumberOfMounts => _data.Where(e => e.EquipmentElement.Item?.HorseComponent?.IsMount == true && !e.EquipmentElement.Item.HorseComponent.IsPackAnimal).Sum(e => e.Amount);
+  public int NumberOfLivestockAnimals => _data.Where(e => e.EquipmentElement.Item?.HorseComponent?.IsLiveStock == true).Sum(e => e.Amount);
   public ItemRosterElement GetElementCopyAtIndex(int index) => index >= 0 && index < _data.Count ? _data[index] : ItemRosterElement.Invalid;
   public int FindIndexOfElement(EquipmentElement rosterElement) { for (int i = 0; i < _data.Count; i++) if (rosterElement.IsEqualTo(_data[i].EquipmentElement)) return i; return -1; }
   public int GetElementNumber(int index) => index >= 0 && index < _data.Count ? _data[index].Amount : 0;

@@ -57,6 +57,33 @@ internal static partial class Program
             EquipmentAndTrade.Sell(p, w.Place);
             Check(p.ItemRoster.TestCount(w.Grain) == 150, "150 при норме 200 — всё остаётся");
         });
+        // 26.09, владелец: «вьючных чуть держать, не получая дебаф "табун"».
+        foreach (var (extra, overflow) in new[] { (-3, false), (3, true) })
+        Try("вьючные: мулов людей" + (extra > 0 ? "+" : "") + extra + " — табун не больше людей", () => {
+            Fresh(); var w = MakeWorld(prisoners: false); var p = MobileParty.MainParty;
+            var tracker = new TestViewTracker(); Campaign.Current.Behaviors.Add(tracker);
+            int men = p.MemberRoster.TotalManCount;
+            var mule = new ItemObject { Name="мул", StringId="mule", TestPrice=50, HorseComponent=new HorseComponent { IsPackAnimal=true } };
+            p.ItemRoster.TestAdd(mule, men + extra);
+            EquipmentAndTrade.Sell(p, w.Place);
+            Check(p.ItemRoster.TestCount(mule) == (overflow ? men : men + extra),
+                  "людей " + men + ": вьючных осталось " + p.ItemRoster.TestCount(mule));
+        });
+        foreach (bool herdTight in new[] { false, true })
+        Try("вьючные: перегруз 500 — докупаем, место в табуне " + (herdTight ? "2" : "есть"), () => {
+            Fresh(); var w = MakeWorld(prisoners: false); var p = MobileParty.MainParty;
+            var tracker = new TestViewTracker(); Campaign.Current.Behaviors.Add(tracker);
+            int men = p.MemberRoster.TotalManCount;
+            var horse = new ItemObject { Name="конь", StringId="horse", TestPrice=1, HorseComponent=new HorseComponent { IsMount=true } };
+            if (herdTight) { p.ItemRoster.TestAdd(horse, men - 2); tracker.Locks.Add(horse.StringId); }
+            p.TotalWeightCarried = 1000; p.InventoryCapacity = 500;
+            var mule = new ItemObject { Name="мул", StringId="mule", TestPrice=100, HorseComponent=new HorseComponent { IsPackAnimal=true } };
+            w.Place.ItemRoster.TestAdd(mule, 20);
+            int gold = Hero.MainHero.Gold, expect = herdTight ? 2 : Math.Min(5, men);
+            EquipmentAndTrade.Sell(p, w.Place);
+            Check(p.ItemRoster.TestCount(mule) == expect, "куплено по нужде и месту в табуне: " + p.ItemRoster.TestCount(mule) + " из " + expect);
+            Check(Hero.MainHero.Gold == gold - expect * 100, "заплачено за каждого");
+        });
         Try("main hero equipment and protected inventory", () => {
             Fresh(); var w = MakeWorld(prisoners: false); var p = MobileParty.MainParty;
             var tracker = new TestViewTracker(); Campaign.Current.Behaviors.Add(tracker);

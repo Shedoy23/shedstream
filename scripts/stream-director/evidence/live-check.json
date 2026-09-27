@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "incremental two-log ingestion",
+    "late outcome and participant side",
+    "blank thought hides",
+    "restart preserves one episode without journal duplicates",
+    "no fake timecode",
+    "POST rejected",
+    "unknown routes rejected"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": [
+    "siege demo",
+    "victory",
+    "mobile 420px no horizontal overflow",
+    "long text",
+    "AI off hides",
+    "literal untrusted text",
+    "live polling updates"
+  ],
+  "pageErrors": []
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "mutation": "midnight",
+    "exit": 1,
+    "caught": true
+  },
+  {
+    "mutation": "pause",
+    "exit": 1,
+    "caught": true
+  },
+  {
+    "mutation": "unique_participants",
+    "exit": 1,
+    "caught": true
+  },
+  {
+    "mutation": "durable_cursor",
+    "exit": 1,
+    "caught": true
+  },
+  {
+    "mutation": "obs_generation",
+    "exit": 1,
+    "caught": true
+  },
+  {
+    "mutation": "gap_report",
+    "exit": 1,
+    "caught": true
+  }
+]

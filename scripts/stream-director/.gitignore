@@ -1,0 +1,6 @@
+state/
+real-output/
+node_modules/
+*.zip
+tests/.tmp/
+preview-state/

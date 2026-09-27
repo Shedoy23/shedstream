@@ -214,6 +214,7 @@ class RetentionAudit(unittest.TestCase):
             before = hashlib.sha256(path.read_bytes()).hexdigest()
             report = audit(path, datetime(2026,9,27,tzinfo=timezone.utc))
             self.assertFalse(report['delete_authorized_by_this_report'])
+            self.assertEqual(report['snapshot_last_action_by_channel'], {1: '2026-01-01', 2: '2026-01-01'})
             self.assertEqual(report['aged_client_id_keys'], 1)
             self.assertEqual(report['references_to_aged_actions'], [{'table':'requests','count':1}])
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), before)

@@ -24,7 +24,7 @@ def audit(path: Path, as_of: datetime) -> dict:
             raise ValueError('Unexpected module_actions schema; inspect before planning retention')
         result = {'read_only':True, 'as_of_utc':as_of.isoformat(),
                   'actions_cutoff_utc':cutoff_actions, 'events_cutoff_utc':cutoff_events,
-                  'snapshot_last_action':db.execute('SELECT MAX(created_at) FROM module_actions').fetchone()[0],
+                  'snapshot_last_action_by_channel':dict(db.execute('SELECT channel_id,MAX(created_at) FROM module_actions GROUP BY channel_id').fetchall()),
                   'delete_authorized_by_this_report':False}
         result['aged_actions'] = [dict(zip(['channel_id','module_id','status','count'],r)) for r in db.execute(
             'SELECT channel_id,module_id,status,COUNT(*) FROM module_actions WHERE created_at<? GROUP BY channel_id,module_id,status', (cutoff_actions,))]

@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
+from contextlib import closing
 
 BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
@@ -18,14 +19,16 @@ import backup_loop
 
 class BackupSafety(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='backup-safety-')
+        self.temp = tempfile.TemporaryDirectory(prefix='backup-safety-', dir=Path.cwd())
         self.root = Path(self.temp.name)
         self.src = self.root / 'live.db'
-        with sqlite3.connect(self.src) as c:
+        with closing(sqlite3.connect(self.src)) as c:
             c.execute('CREATE TABLE money(id INTEGER PRIMARY KEY, balance INTEGER)')
             c.execute('INSERT INTO money VALUES (1,700)')
+            c.commit()
 
     def tearDown(self):
+        assert self.root.resolve().parent == Path.cwd().resolve()
         self.temp.cleanup()
 
     def test_backup_is_compressed_and_restorable(self):
@@ -40,7 +43,7 @@ class BackupSafety(unittest.TestCase):
             raw = subprocess.check_output(['zstd', '-q', '-d', '-c', str(path)])
         restored = self.root / 'restored.db'
         restored.write_bytes(raw)
-        with sqlite3.connect(restored) as c:
+        with closing(sqlite3.connect(restored)) as c:
             self.assertEqual(c.execute('PRAGMA integrity_check').fetchone(), ('ok',))
             self.assertEqual(c.execute('SELECT balance FROM money').fetchone(), (700,))
 

@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 
-async def main(variant='lantern_mage'):
+async def main(variant='lantern_mage', legacy='skin_kimono'):
     config = ModuleType('config')
     for node in ast.parse((ROOT / 'config.py').read_text(encoding='utf-8')).body:
         if isinstance(node, ast.Assign):
@@ -24,18 +24,18 @@ async def main(variant='lantern_mage'):
     from pet_collection import COMPANIONS, get_pet_price
     assert len(COMPANIONS) == 6
     assert all(get_pet_price('skin_' + x, 'rare') == 500000 for x in COMPANIONS)
-    assert get_pet_price('skin_kimono', 'rare') == 1000000
+    assert get_pet_price(legacy, 'rare') == 100000
     # Execute the actual catalog route to prove display and charge agree.
     route_tree = ast.parse((ROOT / 'routes/pets.py').read_text(encoding='utf-8'))
     route = next(n for n in route_tree.body if isinstance(n, ast.AsyncFunctionDef) and n.name == 'pet_catalog')
     route.decorator_list = []
     class CatalogDB:
         async def list_pet_catalog(self, include_owned=None):
-            return [{'item_id': 'skin_' + k, 'rarity': 'rare'} for k in COMPANIONS] + [{'item_id':'skin_kimono','rarity':'rare'}]
+            return [{'item_id': 'skin_' + k, 'rarity': 'rare'} for k in COMPANIONS] + [{'item_id':legacy,'rarity':'rare'}]
     rn = {'Request':object,'require_jwt_user':lambda _:None,'get_db':CatalogDB,'get_pet_price':get_pet_price}
     exec(compile(ast.Module(body=[route],type_ignores=[]),'routes/pets.py','exec'),rn)
     catalog = await rn['pet_catalog'](object())
-    assert [x['price_crustics'] for x in catalog['items']] == [500000]*6+[1000000]
+    assert [x['price_crustics'] for x in catalog['items']] == [500000]*6+[100000]
     tree = ast.parse((ROOT / 'database.py').read_text(encoding='utf-8'))
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'Database')
     method = next(n for n in cls.body if isinstance(n, ast.AsyncFunctionDef) and n.name == 'purchase_pet_item')
@@ -49,7 +49,7 @@ async def main(variant='lantern_mage'):
         CREATE TABLE pet_inventory(username TEXT,item_id TEXT,PRIMARY KEY(username,item_id));
         CREATE TABLE pet_equipped(username TEXT,slot TEXT,item_id TEXT,equipped_at TEXT,PRIMARY KEY(username,slot));
         CREATE TABLE pet_purchases(id INTEGER PRIMARY KEY,username TEXT,item_id TEXT,channel_id INTEGER,bits_amount INTEGER,bits_receipt TEXT,mode TEXT);
-        INSERT INTO pet_catalog VALUES('skin_{variant}','rare','body',0),('skin_kimono','rare','body',0);
+        INSERT INTO pet_catalog VALUES('skin_{variant}','rare','body',0),('{legacy}','rare','body',0);
         INSERT INTO viewers VALUES(11,'alice',500000),(22,'alice',2000000),(11,'bob',499999);
         ''')
         class DB:
@@ -65,9 +65,9 @@ async def main(variant='lantern_mage'):
         assert (await purchase(DB(),'alice',item_id,22))['reason'] == 'already_owned'
         assert (await purchase(DB(),'bob',item_id,11))['reason'] == 'insufficient_crustics'
         assert await (await conn.execute('SELECT points FROM viewers WHERE username="bob"')).fetchone() == (499999,)
-        old = await purchase(DB(),'alice','skin_kimono',22)
-        assert old.get('purchased') and old['price'] == 1000000, old
-        assert await (await conn.execute('SELECT bits_amount FROM pet_purchases ORDER BY id')).fetchall() == [(500000,),(1000000,)]
+        old = await purchase(DB(),'alice',legacy,22)
+        assert old.get('purchased') and old['price'] == 100000, old
+        assert await (await conn.execute('SELECT bits_amount FROM pet_purchases ORDER BY id')).fetchall() == [(500000,),(100000,)]
         assert (await purchase(DB(),'bob','skin_missing',11))['reason'] == 'item_not_found'
     from migrations import m129_pet_companions
     async with aiosqlite.connect(':memory:') as conn:

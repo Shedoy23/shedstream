@@ -30,6 +30,7 @@
         if (now - lastDraw >= 80) {
             lastDraw = now;
             for (const c of cards) {
+                if (global.PetLiving && global.PetLiving.draw(c, now)) continue;
                 if (!c.image.complete || !c.image.naturalWidth) continue;
                 const animation = c.card.getAnimations().find(a => a.animationName === 'pet-walk');
                 const timing = animation && animation.effect.getComputedTiming();
@@ -59,6 +60,7 @@
     }
     function attach(strip) {
         const old = new Map(cards.map(c => [c.canvas, c]));
+        const previous = new Map(cards.map(c => [c.identity, c]));
         cards = Array.from(strip.querySelectorAll('.pet-companion')).map(canvas => {
             if (old.has(canvas)) return old.get(canvas);
             const variant = canvas.dataset.petVariant;
@@ -71,10 +73,13 @@
                 images.set(variant + ':scene', scene);
             }
             const card = canvas.closest('.pet-card');
-            const identity = (card.querySelector('.pet-card-name')?.textContent || '') + variant;
+            // Level updates rebuild the strip. Keep each viewer's animation state,
+            // but a new skin gets its own greeting and controller.
+            const identity = (card.querySelector('.pet-card-name')?.textContent || '').replace(/^\[\d+\s*lvl\]\s*/, '') + ':' + variant;
             const seed = Array.from(identity).reduce((h,ch) => ((h * 31 + ch.charCodeAt(0)) >>> 0), 0) % 1000;
             canvas.dataset.sceneSeed = String(seed);
-            return {canvas, card, variant, seed, image: images.get(variant), scene: images.get(variant + ':scene'), direction: parseFloat(card.style.getPropertyValue('--walk-amp')) < 0 ? -1 : 1, born: performance.now(), last: ''};
+            const prior = previous.get(identity);
+            return {canvas, card, variant, identity, seed, image: images.get(variant), scene: images.get(variant + ':scene'), direction: parseFloat(card.style.getPropertyValue('--walk-amp')) < 0 ? -1 : 1, born: prior ? prior.born : performance.now(), living: prior && prior.living, last: ''};
         });
         if (!running && cards.length) { running = true; global.requestAnimationFrame(draw); }
     }

@@ -749,7 +749,9 @@ body {
      доступен в renderPets(). -->
 <script src="pet-stage.js?v=20260524b"></script>
 <script src="pet-layout.js?v=20260823"></script>
-<script src="pet-assets/companions-v1/overlay-pets.js?v=20260926c"></script>
+<script src="pet-assets/living-pets-v1/animator.js?v=20260927a"></script>
+<script src="pet-assets/living-pets-v1/obs-living.js?v=20260927a"></script>
+<script src="pet-assets/companions-v1/overlay-pets.js?v=20260927a"></script>
 
 <script>
 const SERVER = 'https://shedoy23.ru';
@@ -946,7 +948,9 @@ async function poll() {
     try {
         // 2. Drop notifications через /api/overlay/latest
         // legacy-handlers удалены 2026-05-10/14 (Phase 1.I + Phase 8.F)
-        const jp = await fetch(SERVER + '/api/overlay/latest').then(r => r.json());
+        // Дроп своего канала (24.09.2026): раньше запрос шёл без канала.
+        const jp = await fetch(SERVER + '/api/overlay/latest'
+            + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '')).then(r => r.json());
 
         if (jp.drop && jp.drop.id !== lastDropId) {
             lastDropId = jp.drop.id;
@@ -1195,7 +1199,7 @@ async function pollBannerlordSummoned() {
         }
 
         const recentFinal = data.final === true && Number.isFinite(data.age_sec)
-            && data.age_sec >= 0 && data.age_sec < 120;
+            && data.age_sec >= 0 && data.age_sec < 30; // 26.09 владелец: итог боя 30 с вместо 120 (закрывал питомцев)
         if ((!data.active && !recentFinal) || participants.length === 0) {
             panel.classList.remove('visible');
             panel.innerHTML = '';

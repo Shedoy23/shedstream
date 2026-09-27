@@ -32,6 +32,9 @@ async function main(){
  const browser=await chromium.launch({headless:true,channel:'msedge'});
  const page=await browser.newPage({viewport:{width:1120,height:850}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
+  // Exercise the retained renderer explicitly. Living OBS integration has its
+  // own multi-pet suite; seeking the removed CSS clock would not test it.
+  if(process.argv.includes('--legacy-render')) await page.route('**/living-pets-v1/**',route=>route.fulfill({status:404,body:''}));
   await page.goto(base+'/pet-assets/'+(fantasy?'fantasy-v1':'companions-v1')+'/preview.html');
   await page.getByRole('button',{name:'Спать',exact:true}).click();
   await page.waitForFunction(()=>[...document.querySelectorAll('.sprite')].every(s=>s.dataset.frame==='4'));

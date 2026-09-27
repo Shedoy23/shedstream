@@ -11,7 +11,8 @@ Approach:
   - sqlite3.Connection.backup() — atomic, online backup API. Не блокирует
     main pool (отдельная sqlite3.connect для source). WAL-safe.
   - asyncio.to_thread wrap т.к. sqlite3 sync.
-  - Retention: keep last N (default 14) timestamped backups. Auto-prune.
+  - Verified compressed snapshots (zstd 3, gzip 1 fallback), published atomically.
+  - Retention: keep last N (default 14) snapshots, including legacy raw copies.
   - Configurable interval (env BACKUP_INTERVAL_HOURS, default 6).
   - Skip backup если free disk < threshold (avoid filling disk).
   - Log size + count per cycle.
@@ -25,9 +26,9 @@ import asyncio
 import logging
 import os
 import shutil
-import sqlite3
 import time
 from pathlib import Path
+from backup_storage import create_snapshot
 
 log = logging.getLogger(__name__)
 
@@ -76,26 +77,14 @@ def _free_disk_mb(path: Path) -> float:
         return stat.free / (1024 * 1024)
     except Exception as e:
         log.warning("[DB-BACKUP] disk_usage check failed: %s", e)
-        return 9999.0   # default OK if check fails
+        return 0.0   # fail closed: unknown capacity is not safe for a new backup
 
 
 def _do_backup_sync(src: Path, dst: Path) -> dict:
     """Synchronous backup. Returns {success, size_bytes, duration_s, error}."""
     t0 = time.time()
     try:
-        src_conn = sqlite3.connect(str(src))
-        try:
-            dst_conn = sqlite3.connect(str(dst))
-            try:
-                # backup() pages-at-a-time, won't block writers significantly
-                src_conn.backup(dst_conn)
-            finally:
-                dst_conn.close()
-        finally:
-            src_conn.close()
-        size = dst.stat().st_size if dst.exists() else 0
-        return {"success": True, "size_bytes": size,
-                "duration_s": time.time() - t0, "error": None}
+        return {"success": True, **create_snapshot(src, dst), "error": None}
     except Exception as e:
         return {"success": False, "size_bytes": 0,
                 "duration_s": time.time() - t0, "error": str(e)}
@@ -103,9 +92,12 @@ def _do_backup_sync(src: Path, dst: Path) -> dict:
 
 def _prune_old(backup_dir: Path, keep_count: int) -> int:
     """Keep latest `keep_count` backups, delete rest. Returns deleted count."""
+    keep_count = max(1, keep_count)
     try:
         files = sorted(
-            backup_dir.glob("backup_*.db"),
+            (p for p in backup_dir.glob("backup_*")
+             if p.is_file() and not p.is_symlink()
+             and p.name.endswith(('.db', '.db.gz', '.db.zst'))),
             key=lambda p: p.stat().st_mtime,
             reverse=True,    # newest first
         )
@@ -141,6 +133,7 @@ async def db_backup_loop():
         retain = int(os.getenv("BACKUP_RETAIN_COUNT", DEFAULT_RETAIN_COUNT))
     except ValueError:
         retain = DEFAULT_RETAIN_COUNT
+    retain = max(1, retain)
 
     interval_sec = max(60.0, interval_h * 3600.0)
     log.info("[DB-BACKUP] loop started: interval=%.1fh retain=%d backups",
@@ -179,16 +172,11 @@ async def db_backup_loop():
                 deleted = _prune_old(backup_dir, retain)
                 log.info(
                     "[DB-BACKUP] OK %s — %.1f MB in %.1fs (pruned %d old, free disk %.0f MB)",
-                    dst.name, size_mb, result["duration_s"], deleted, free_mb)
+                    Path(result['path']).name, size_mb, result["duration_s"], deleted, free_mb)
             else:
                 log.error("[DB-BACKUP] FAILED: %s — error: %s",
                           dst.name, result["error"])
-                # Don't leave a 0-byte file lying around
-                try:
-                    if dst.exists() and dst.stat().st_size == 0:
-                        dst.unlink()
-                except Exception:
-                    pass
+                # create_snapshot cleans its own partial output; old backups stay.
 
         except asyncio.CancelledError:
             log.info("[DB-BACKUP] loop cancelled (shutdown)")

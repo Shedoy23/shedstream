@@ -26,32 +26,25 @@ if [ ! -f "$DB_PATH" ]; then
     exit 1
 fi
 
-# Атомарный бэкап через sqlite3 .backup — корректно работает на живой БД (использует WAL).
-# В отличие от cp, не оставляет частично записанные страницы.
-DAILY_PATH="$BACKUP_DIR/viewers.daily.$DATE.db"
-sqlite3 "$DB_PATH" ".backup '$DAILY_PATH'" 2>&1
-
-if [ ! -s "$DAILY_PATH" ]; then
-    echo "[$(date)] ERROR: бэкап пустой"
-    exit 1
+# Общая проверенная реализация: SQLite backup + quick_check, zstd 3 (gzip 1
+# fallback), проверка распаковки/SHA256, атомарная публикация. При ошибке старая
+# готовая копия остаётся; set -e не даст перейти к ротации.
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+PYTHON="$SCRIPT_DIR/../venv/bin/python"
+if [ ! -x "$PYTHON" ]; then
+    PYTHON=python3
 fi
-
-# Сжимаем (zstd экономит ~70% при ~10x скорости gzip; если zstd нет — используем gzip)
-if command -v zstd >/dev/null 2>&1; then
-    zstd -q -19 --rm "$DAILY_PATH"
-    DAILY_PATH="${DAILY_PATH}.zst"
-elif command -v gzip >/dev/null 2>&1; then
-    gzip -9 "$DAILY_PATH"
-    DAILY_PATH="${DAILY_PATH}.gz"
-fi
+DAILY_PATH=$("$PYTHON" "$SCRIPT_DIR/backup_storage.py" \
+    --source "$DB_PATH" --destination "$BACKUP_DIR/viewers.daily.$DATE.db")
 
 SIZE=$(du -h "$DAILY_PATH" | awk '{print $1}')
 echo "[$(date)] DAILY backup OK: $DAILY_PATH ($SIZE)"
 
-# По воскресеньям делаем weekly-копию (просто хардлинк в weekly-папку)
+# По воскресеньям публикуем weekly-копию только после полного копирования.
 if [ "$DAY_OF_WEEK" = "7" ]; then
     WEEKLY_PATH="$BACKUP_DIR/viewers.weekly.$DATE.${DAILY_PATH##*.}"
-    cp "$DAILY_PATH" "$WEEKLY_PATH"
+    "$PYTHON" "$SCRIPT_DIR/backup_storage.py" \
+        --copy-archive "$DAILY_PATH" --destination "$WEEKLY_PATH" > /dev/null
     echo "[$(date)] WEEKLY backup OK: $WEEKLY_PATH"
 fi
 

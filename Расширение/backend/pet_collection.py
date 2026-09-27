@@ -17,10 +17,14 @@ FANTASY_COMPANIONS = {
     'frog_samurai': 'Лягушка-самурай',
 }
 COLLECTION_PRICE = 500_000
+LEGACY_SKINS = frozenset(('skin_kimono', 'skin_underwear'))
+LEGACY_SKIN_PRICE = 100_000
 
 
 def get_pet_price(item_id, rarity):
     from config import PET_COSMETIC_PRICES
+    if item_id in LEGACY_SKINS:
+        return LEGACY_SKIN_PRICE
     if item_id in {f'skin_{variant}' for variant in (*COMPANIONS, *FANTASY_COMPANIONS)}:
         return COLLECTION_PRICE
     return PET_COSMETIC_PRICES.get(rarity, PET_COSMETIC_PRICES['common'])

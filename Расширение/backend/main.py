@@ -1550,6 +1550,9 @@ async def run_migrations():
         from migrations import m130_pet_fantasy
         await m130_pet_fantasy.apply(conn)
 
+        from migrations import m133_pet_legacy_common
+        await m133_pet_legacy_common.apply(conn)
+
         print("✅ Migrations complete")
 
 

@@ -32,7 +32,7 @@ function harness(catalogs = {}) {
         return elements.get(id);
     };
     const requests = [];
-    const context = vm.createContext({console, window:{}, ShedLink:{registerGame(){}}, setInterval(){}, clearInterval(){},
+    const context = vm.createContext({console, window:{}, ShedLink:{registerGame(){}}, AbortController, setTimeout(){}, clearTimeout(){}, setInterval(){}, clearInterval(){},
         document:{getElementById:element, addEventListener(){}},
         API_URL:'https://example.invalid', authToken:'test-token', escapeHtml:escape,
         fetch: async url => {
@@ -182,4 +182,19 @@ test('reset during a catalog request discards its late payload and permits a fre
     release({ok:true,json:async()=>({success:true,cultures:catalog([{id:'old',name:'Old'}])})});
     await old;
     assert.equal(h.context._bnrContentCatalog('cultures').entries[0].id,'new');
+});
+test('catalog request timeout aborts transport and clears prior choices', async()=>{
+    const h=harness();
+    let expire, signal;
+    h.context.setTimeout=callback=>{expire=callback; return 1;};
+    h.context.fetch=(_url,options)=>new Promise((_resolve,reject)=>{
+        signal=options.signal;
+        signal?.addEventListener('abort',()=>reject(new Error('aborted')));
+    });
+    const request=h.context._loadBnrContentCatalogs();
+    assert.ok(signal, 'catalog transport must support cancellation');
+    expire();
+    await request;
+    assert.equal(signal.aborted,true);
+    assert.equal(h.context._bnrContentCatalog('cultures').available,false);
 });

@@ -271,6 +271,7 @@ namespace BannerlordLink.Behaviors
                     ["stash_capacity"] = EquipmentShopPolicy.StashCapacity,
                     ["party_id"] = roster != null ? hero.PartyBelongedTo.StringId : null,
                     ["party_name"] = roster != null ? hero.PartyBelongedTo.Name?.ToString() : null },
+                ["progression"] = HeroProgressionRuntime.Snapshot(hero, missionOverride),
                 ["build"] = HeroBuildRuntime.Snapshot(hero, ledger.Build, missionOverride) }.ToString(Formatting.None);
         }
 

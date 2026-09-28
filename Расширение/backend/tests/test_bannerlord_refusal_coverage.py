@@ -61,6 +61,9 @@ def main() -> int:
         text = path.read_text(encoding="utf-8", errors="ignore")
         codes.update(m.group(1) for m in _CODE.finditer(text))
 
+    # RuntimeGameCatalogs returns these through a variable; literal-call scanning
+    # above cannot see the actual culture refusals reaching PostFailed.
+    codes.update({"culture_not_found", "culture_no_wanderer_templates"})
     uncovered = sorted(c for c in codes if describe(c) == _FALLBACK)
     print(f"  кодов отказа в моде: {len(codes)}")
     print(f"  без своей фразы:     {len(uncovered)}")

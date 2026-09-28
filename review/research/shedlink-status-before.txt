@@ -1,0 +1,6 @@
+ M BannerlordAutopilot/HANDOFF.md
+ M DEFERRED.md
+ M STATUS.md
+?? BannerlordAutopilot/evidence/installation-20260927.json
+?? BannerlordLink/tests/ClanIntegrityHarness/Generated.cs
+?? BannerlordLink/tests/ProposeGateHarness/Generated.cs

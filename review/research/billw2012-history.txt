@@ -1,0 +1,48 @@
+c25daca 2023-01-15 Fixes to smithitem, all custom item commands use index only now
+41af5d8 2022-11-23 Update strings-achievements-RU.xml
+60111d0 2022-11-17 Adding SmithItem reward/command
+abe816f 2022-11-10 Fixing notification placeholders for achievements and killstreaks
+46920fb 2022-01-16 Fixing retinue command to respect number argument, and report more clearly
+0172de0 2022-01-09 Ensure companions can still accumulate summon achievements
+e4ab5f6 2021-10-31 Retinue death chance
+989eb14 2021-10-31 Ensure Allow Player Companion option will exclude companions if it is disabled
+c770ed5 2021-10-31 Already present heroes can resummon, and will get retinue automatically when they spawn
+b5d1227 2021-09-05 Retinue death chance
+a940be5 2021-09-05 Ensure Allow Player Companion option will exclude companions if it is disabled
+a644e68 2021-09-05 Already present heroes can resummon, and will get retinue automatically when they spawn
+8ea6b1b 2021-08-15 Checking for empty/null achievement and killstreak message strings
+86547f7 2021-08-14 Retinue command can buy multiple retinue at a time
+9434ffb 2021-08-12 Removing Break Companion Limit setting, the feature was already removed
+55a221a 2021-08-10 Fix current class constraint for achievements
+bfcf691 2021-08-10 Filter available achievements to those that are enabled
+eb3d669 2021-08-06 Some achievements added
+97e06ca 2021-08-02 Class powers can be unlockable, using same constraint system as achievements
+de16636 2021-08-01 Refactored custom prizes from tournaments to custom rewards, added to achievements
+6bdb5ce 2021-08-01 Save/load of derived types using tagging, class specific stats, more stats tracked, achievement requirements generalized
+31526eb 2021-07-25 Adding auction and bid commands to default config
+6dc8c45 2021-07-25 Auction custom item, more robust equip hero
+94a9a0b 2021-07-23 Achievements and tracked stats in hero info
+3beea64 2021-07-10 Class power cost reduced, some example achievements and kill streaks
+7ab10a5 2021-07-05 Fix retinue tier cost property ordering
+1f6dfce 2021-07-04 Death chance applied to all heroes, separate pricing for each retinue tier, cleanup
+97b129a 2021-07-01 Merge pull request #7 from KevinnTCG/achievements
+ce80a63 2021-06-22 Some refactoring to simplify the achievements code
+4b2e322 2021-06-21 Merge pull request #5 from KevinnTCG/achievements
+93cd76e 2021-06-21 Merge branch 'main' into achievements
+2e68849 2021-06-21 Initial Commit for Achievements
+0dea610 2021-06-15 Fix retinue having horses in sieges
+c681e6a 2021-06-13 Disable retinue in hideouts
+be119cf 2021-06-13 Fix horse use for retinue
+aaaa09c 2021-06-12 Fix retinue kills incorrectly displaying how many retinue has been killed
+baa5612 2021-06-11 Add retinue details option to hero info action
+7c7b599 2021-06-01 Fix retinue formation to match hero one
+9f0691c 2021-05-31 Show retinue and retinue kills on the overlay
+cbdb2b8 2021-05-29 Tweaking retinue text
+a9b48df 2021-05-29 Fix exception when showing info for empty retinue
+a8ae971 2021-05-28 Show retinue count and tier
+d1e752c 2021-05-28 Display inherited gold when adopting a new hero
+1f9e365 2021-05-28 Make troop type selection for retinue more robust
+93d39b6 2021-05-27 Global settings, info panels, inheritance, retirement, tournament queue
+4deaa3a 2021-05-26 Fixing save/load code for retinues
+e0e441c 2021-05-19 Retinue earn money from kills, are correctly added/removed from parties
+86e8329 2021-05-18 Added retinue, send message

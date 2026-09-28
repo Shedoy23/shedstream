@@ -1,0 +1,35 @@
+{
+  "billw2012": {
+    "path": "D:/shedlink-build/billw2012",
+    "head": "f989f5602f648c9c24f1d95a9364fa7a11676e31",
+    "branch": "main",
+    "commits": "624",
+    "remote": "https://github.com/billw2012/Bannerlord-Twitch.git",
+    "date": "2023-09-30T14:38:23+01:00",
+    "tags": "0.1.0-pre\n0.1.1-pre\n0.2.0-pre\n1.0.0\n1.2.1\n1.2.2\n1.3.0\n1.3.1\n1.3.3\n1.4.1\n1.4.2\n1.4.4\n1.4.5\n1.4.6\n2.0.0\n2.0.1\n2.0.2\n2.0.3\n2.1.0\n2.1.1\n2.1.4\n3.0.1\n3.0.2"
+  },
+  "Randomchair22": {
+    "path": "D:/shedlink-build/blt-research-randomchair22",
+    "head": "83b264f85774489c84c5682c73df3ef92915f39e",
+    "branch": "main",
+    "commits": "1386",
+    "remote": "https://github.com/Randomchair22/Bannerlord-Twitch.git",
+    "date": "2026-09-09T15:20:04-04:00",
+    "tags": "4.4.3\n4.4.4-beta\n4.4.5\n4.5.1\n4.7\n4.7.1\n4.7.2\n4.7.3\n5.0.0\n5.0.1\n5.0.2\n5.0.3\n5.0.4\n5.0.5\n5.0.6\n5.1.0\n5.1.2\n5.1.3\n5.1.4\n5.1.5\n5.1.5-beta\n5.1.6\n5.1.6-SaveCompatible\n5.2.0\n5.2.1\n5.2.2\n5.2.3\n5.2.4\n5.3.0\nTest"
+  },
+  "MesmerTurn": {
+    "path": "D:/shedlink-build/blt-research-mesmerturn",
+    "head": "dee0d1735f44b336a77986025ec1f863ea05e26f",
+    "branch": "master",
+    "commits": "36",
+    "remote": "https://github.com/MesmerTurn/BLT-5.4.x-Warsails-Reforged.git",
+    "date": "2026-08-12T18:16:47+02:00",
+    "tags": "dnd-v1.0\ndnd-v1.1\ndnd-v1.11\ndnd-v1.12\ndnd-v1.14\ndnd-v1.2\ndnd-v1.3\ndnd-v1.4\ndnd-v1.5\ndnd-v1.6\ndnd-v1.7\ndnd-v1.8\nv1.0.0\nv1.1\nv1.2\nv5.3.1\nv5.3.2\nv5.3.2-reforged\nv5.3.2-reforged-r2\nv5.3.2-reforged-r3\nv5.3.2-reforged-r4\nv5.3.2-reforged-r5\nv5.3.2-reforged-r6\nv5.4.0-1.3.15\nv5.4.0-1.4.5-1.4.6\nv5.4.1-1.3.15\nv5.4.2-1.3.15\nv5.4.3-1.3.15\nv5.4.4-1.3.15\nv5.4.5-1.3.15\nv5.4.6-1.3.15"
+  },
+  "MakeBltGreatAgain": {
+    "path": "D:\\shedlink-build\\blt-research-mbga",
+    "head": "5197130e8a1755b452755194b50e65e75998cf98",
+    "remote": "https://github.com/MesmerTurn/MakeBltGreatAgain",
+    "license": "README declares MIT; no standalone LICENSE file in inspected tree"
+  }
+}

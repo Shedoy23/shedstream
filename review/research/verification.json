@@ -1,0 +1,13 @@
+{
+  "source_commit": "0cdf6338db7bd1b5f5d9ab7e43b2b8b8efb31e30",
+  "source_files_hashed": 1219,
+  "source_changes_since_baseline": [],
+  "pinned_source_files_verified": 48,
+  "local_file_links_verified": 74,
+  "errors": [],
+  "limits": [
+    "Reference existence and line bounds are not semantic proof",
+    "No game execution, BLT build or production deployment",
+    "Historical and guide-only findings are explicitly labeled"
+  ]
+}

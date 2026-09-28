@@ -1,0 +1,146 @@
+83b264f 2026-09-09 Fix overlay script injection and untrusted command privileges (#129)
+0cc57c7 2026-09-06 Fix inverted MinimumAge test that made adult adopted heroes unkillable (#128)
+e75f655 2026-09-06 Guard Town_GetDefenderParties_Patch instead of assuming a siege is standing (#127)
+305eb2f 2026-09-06 Fix inverted MinimumAge test that made adult adopted heroes unkillable
+31590d1 2026-09-06 Guard Town_GetDefenderParties_Patch instead of assuming a siege is standing
+e4a34e2 2026-08-31 Prevent kingdom sponsor cost overflow (#126)
+01f5134 2026-08-31 Prevent kingdom sponsor cost overflow
+45b4fb9 2026-07-21 Change Duel Behavior Name Due to Compatibility Concerns
+0a235d3 2026-07-21 Integrate and Improve Duel System
+5befdec 2026-07-20 Rework Party Command Defend Case + Expand Smartguard Handle to Include Guard
+75b3951 2026-07-20 Integrate Follow + Guard + Duel Commands
+aa72482 2026-05-31 Add command aliases and siege formation guard
+f0701b9 2026-05-29 Restore DefenderPullBack reward guard
+238cc44 2026-05-25 Fix vassal fief ownership handling
+c907b58 2026-05-25 Add auction bid extension settings
+e0743ac 2026-04-25 EN Add bulk upgrade purchasing for clan and kingdom
+56767f3 2026-04-25 EN Add bulk upgrade purchasing for clan and kingdom
+b7dade3 2026-04-09 Overlay Safeguards
+fbdf173 2026-03-13 New Bonus Retinue Upgrades + Toggles for Lord/Merc Only Upgrades to Apply to Independent Clans
+cfe93ce 2026-03-11 Retinue Clear All
+076ff4f 2026-03-07 war and peace properly log kingdoms
+073fbc2 2026-02-27 Fix Garrison Cap in Info Fief
+079dc5a 2026-02-27 Add Upgrade Stat Floor Guard
+bc01b70 2026-02-26 Finish Merc Cap Upgrade + Fix Joining Player Kingdom Detection
+026a2ac 2026-02-26 Finish Kingdom Merc Cap + Merc Cap Upgrades
+aa65b7a 2026-02-25 New Kingdom Sponsor + Party Join Cases
+8df107f 2026-02-25 Fix for: Blocking Armies Per Kingdom + Upgrade Info Fixes
+573bcf3 2026-02-24 Blocking Armies Per Kingdom + Upgrade Info Fixes + Don't Mind That
+c9d034a 2026-02-24 Smith Culture Armor Fix
+09a6df8 2026-02-21 Add Naval Symbol to !info fief
+c2ab250 2026-02-20 no formation in boats and achievements need to be achieved
+78ad10c 2026-02-19 Influence and Troop Regen Upgrades are now Both Clan and Kingdom
+84c5726 2026-02-19 Assign Kingdom Banner on BLT Kingdom Creation
+096c099 2026-02-19 kingdom alliance and trade logs
+613f819 2026-02-19 Switch Arg Order for ManageFief
+81b510f 2026-02-16 (untested) achievement filter
+cdb3dd8 2026-02-13 new fief management command
+415cc4f 2026-02-09 Smithing + Equip Fixes
+64441cf 2026-02-04 prevent ai from joining blt kingdoms
+1f69fe6 2026-01-27 Remove Useless Retinue Error
+928a09a 2026-01-27 wip kingdom logs and kingdom fiefs
+562191a 2026-01-25 Fix Armies Case for Kingdom Command
+126ca2a 2026-01-25 Upgrade Documentation Restructure + Info/Kingdom Armies Command + Version Update
+c82d864 2026-01-23 Achievements can reward passive powers
+07b0a6f 2026-01-22 Fix Smithed Item Names
+3c27ebb 2026-01-21 Include Kingdom Tax Income in !income Command's Total Income
+d20f7e3 2026-01-21 !info war will use your kingdom as default if any
+06ba322 2026-01-17 New Upgrades, Separate Clan Limits for AI, Player, and BLT kingdoms
+92c7dfa 2026-01-17 Attemp fix of missing kingdom colors
+b3595c7 2026-01-16 kingdomlist ordered by strength Map legend in documentation
+e0a1b25 2026-01-09 Random (#45)
+86eb8c5 2026-01-08 Transfer and Upgrade Vassal's Fiefs
+130b8bd 2026-01-06 Random (#41)
+bc2f5af 2026-01-06 Smith by Culture Casing
+d83f17c 2026-01-04 Fix Retinue False Death Messages
+bf1f2a7 2026-01-04 fixed slings in battleinfo slings in itemstats(it was a null culture item) no retinue no longer crashes battles
+1c56079 2026-01-03 Remove Upgrade Command/Tag + Kingdom Taxes + Release and Expel Commands for Kings
+c811b48 2026-01-03 Include Upgrade Bonuses in Fief Info Stats
+e6f3a86 2025-12-31 Add diplomacy checks for kingdom joining
+b0491a7 2025-12-28 Fix Kingdom Join/Leave Harmony Patches
+e2b11b5 2025-12-25 Prevent Vassal Clans From Leaving/Joining Kingdoms Solo, and From Being Abducted When Kingdomless
+d8745dc 2025-12-25 Block BLT Clan Defecting to Other Kingdoms
+5075692 2025-12-25 Fix Typo in Smith Item Config
+73d9dba 2025-12-24 Fix Retinue Deaths
+7967b05 2025-12-21 Various Fixes - Full
+6112ad2 2025-12-20 Remove Fief and Merc Input Requirements from Income Command
+9a9c7bf 2025-12-20 Fix Clan and Kingdom Upgrade Cases
+22dd001 2025-12-18 Fix Retinue Logic and Error Message on Death
+463af72 2025-12-18 Fief, Clan, and Kingdom Upgrade System
+a709edd 2025-12-16 Fief and Merc Info Command and Fix
+7b89884 2025-12-16 Add Fief and Mercenary BLT Gold Income
+8f06942 2025-12-15 Militia Option for Retinue
+df29500 2025-12-15 Fix Secondary Retinue Death Chance Setting
+92f471c 2025-12-15 Separate Retinue Death Chances (#9)
+b54f19d 2025-12-14 Separate Retinue Death Chances
+d22ff42 2025-12-15 Retinue2 for party
+6d61bd7 2025-12-14 Additional Militia Cap for Kingdom Capitals
+51fef45 2025-12-14 Secondary Retinue
+df97701 2025-12-14 BLT Kingdom Rebellion Settings
+151cca9 2025-12-14 Player Kingdom Specific Join+Merc Costs
+71a56f4 2025-12-14 Fix Fief Transfer Checks
+cf873b5 2025-12-13 war progress, removed player peace toggle, added peace offer for player kingdom
+70e5c0f 2025-12-13 Add Setting for Peacing Out Player-led Kingdom
+02c82b1 2025-12-12 Command to Transfer Fiefs
+6a67a54 2025-12-12 Party Create Adds Culture Default Party Template
+b78120f 2025-12-12 Add Elite Variant + King Reinforcement Permission
+e8b525a 2025-12-11 Better battleinfo, clan banner start and end, diplomacy alliance and trade, reworked kingdom create, fixed OnShipOwnerChanged crash
+6f3bf5c 2025-11-18 Battle command, retinue clear,diplomacy policy and fixes
+1886d9b 2025-10-08 Harmony patches to avoid blt lead clans from being destroyed(kingdomless & kingdom destruction) and prevent normal join & leave kingdom Hopefully fix extreme nametag placement Daily tribute in kingdom stats Renown next to tier Tweaked defaults
+1553a56 2025-10-04 New command CampaignInfo: shows kingdom list, culture list, wars list and specific kingdom/war info
+2a62625 2025-08-26 Update KingdomManagement.cs
+ca8f369 2025-08-24 New Clan commands: Leave and Buy Title (Turns BLTs into Nobles) + Clan Stats command additions (#6)
+be74ebf 2025-08-21 Update ClanManagement.cs
+ab6cfe3 2025-08-18 Added wanderers turning into Nobles on joining or creating Clan
+6d06a07 2025-03-21 Fix inheritance
+80ecb8e 2025-01-14 Change not enough gold to conventional naming Fix leader check being inverted Fix clan stats kingdom Added "a" to list things
+6b84d72 2025-01-06 Version Change Implemented BLT Hero Leader "Dueling"
+93d5bcf 2023-12-27 Added joinKingdom command Test rebel change
+c25daca 2023-01-15 Fixes to smithitem, all custom item commands use index only now
+41af5d8 2022-11-23 Update strings-achievements-RU.xml
+60111d0 2022-11-17 Adding SmithItem reward/command
+abe816f 2022-11-10 Fixing notification placeholders for achievements and killstreaks
+46920fb 2022-01-16 Fixing retinue command to respect number argument, and report more clearly
+0172de0 2022-01-09 Ensure companions can still accumulate summon achievements
+e4ab5f6 2021-10-31 Retinue death chance
+989eb14 2021-10-31 Ensure Allow Player Companion option will exclude companions if it is disabled
+c770ed5 2021-10-31 Already present heroes can resummon, and will get retinue automatically when they spawn
+b5d1227 2021-09-05 Retinue death chance
+a940be5 2021-09-05 Ensure Allow Player Companion option will exclude companions if it is disabled
+a644e68 2021-09-05 Already present heroes can resummon, and will get retinue automatically when they spawn
+8ea6b1b 2021-08-15 Checking for empty/null achievement and killstreak message strings
+86547f7 2021-08-14 Retinue command can buy multiple retinue at a time
+9434ffb 2021-08-12 Removing Break Companion Limit setting, the feature was already removed
+55a221a 2021-08-10 Fix current class constraint for achievements
+bfcf691 2021-08-10 Filter available achievements to those that are enabled
+eb3d669 2021-08-06 Some achievements added
+97e06ca 2021-08-02 Class powers can be unlockable, using same constraint system as achievements
+de16636 2021-08-01 Refactored custom prizes from tournaments to custom rewards, added to achievements
+6bdb5ce 2021-08-01 Save/load of derived types using tagging, class specific stats, more stats tracked, achievement requirements generalized
+31526eb 2021-07-25 Adding auction and bid commands to default config
+6dc8c45 2021-07-25 Auction custom item, more robust equip hero
+94a9a0b 2021-07-23 Achievements and tracked stats in hero info
+3beea64 2021-07-10 Class power cost reduced, some example achievements and kill streaks
+7ab10a5 2021-07-05 Fix retinue tier cost property ordering
+1f6dfce 2021-07-04 Death chance applied to all heroes, separate pricing for each retinue tier, cleanup
+97b129a 2021-07-01 Merge pull request #7 from KevinnTCG/achievements
+ce80a63 2021-06-22 Some refactoring to simplify the achievements code
+4b2e322 2021-06-21 Merge pull request #5 from KevinnTCG/achievements
+93cd76e 2021-06-21 Merge branch 'main' into achievements
+2e68849 2021-06-21 Initial Commit for Achievements
+0dea610 2021-06-15 Fix retinue having horses in sieges
+c681e6a 2021-06-13 Disable retinue in hideouts
+be119cf 2021-06-13 Fix horse use for retinue
+aaaa09c 2021-06-12 Fix retinue kills incorrectly displaying how many retinue has been killed
+baa5612 2021-06-11 Add retinue details option to hero info action
+7c7b599 2021-06-01 Fix retinue formation to match hero one
+9f0691c 2021-05-31 Show retinue and retinue kills on the overlay
+cbdb2b8 2021-05-29 Tweaking retinue text
+a9b48df 2021-05-29 Fix exception when showing info for empty retinue
+a8ae971 2021-05-28 Show retinue count and tier
+d1e752c 2021-05-28 Display inherited gold when adopting a new hero
+1f9e365 2021-05-28 Make troop type selection for retinue more robust
+93d39b6 2021-05-27 Global settings, info panels, inheritance, retirement, tournament queue
+4deaa3a 2021-05-26 Fixing save/load code for retinues
+e0e441c 2021-05-19 Retinue earn money from kills, are correctly added/removed from parties
+86e8329 2021-05-18 Added retinue, send message

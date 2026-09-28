@@ -145,3 +145,12 @@ test('XP price is exact even when compact formatting would round it',async()=>{
     const h=harness(response);await h.render();
     assert.match(h.element('bannerlord-shop-list').innerHTML,/>1[\s\u00a0\u202f]?234💎</);
 });
+test('pending and revoked snapshots block clicks even before the next DOM repaint',async()=>{
+    for(const next of [{success:true,ready:false}, {...snapshot(),pending:true}]) {
+        const h=harness(snapshot());await h.render();
+        const focus=h.element('bnr-progression-slot').querySelectorAll('.bnr-prog-focus-btn')[0];
+        const xp=h.element('bannerlord-shop-list').querySelectorAll('[data-bnr-skillxp]')[0];
+        h.setResponse(next);await h.context._loadBnrProgression();
+        await focus.listeners.click();await xp.listeners.click();assert.equal(h.calls.length,0);
+    }
+});

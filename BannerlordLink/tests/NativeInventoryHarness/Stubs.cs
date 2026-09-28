@@ -90,3 +90,12 @@ namespace BannerlordLink.Util {
 namespace BannerlordLink.Behaviors {
  public class HeroIdentityBehavior { public static HeroIdentityBehavior Instance=new(); public Dictionary<string,string> Users=new(); public string GetUsername(TaleWorlds.CampaignSystem.Hero hero)=>Users.GetValueOrDefault(hero.StringId); }
 }
+// Catalog retry behavior is covered by RuntimeCatalogHarness; this harness isolates inventory.
+namespace BannerlordLink.Util {
+ public static class RuntimeGameCatalogs { public static System.Collections.Generic.List<string> Build(string save,string session,long seq)=>new System.Collections.Generic.List<string>(); }
+ public sealed class CatalogSnapshotBatch {
+  public CatalogSnapshotBatch(System.Collections.Generic.IEnumerable<string> payloads){}
+  public System.Threading.Tasks.Task<bool> PublishAsync(System.Func<string,System.Threading.Tasks.Task<bool>> send)=>System.Threading.Tasks.Task.FromResult(true);
+ }
+ public static class HeroProgressionRuntime { public static Newtonsoft.Json.Linq.JObject Snapshot(TaleWorlds.CampaignSystem.Hero hero,bool? missionOverride=null)=>null; }
+}

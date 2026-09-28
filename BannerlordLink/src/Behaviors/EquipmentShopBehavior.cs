@@ -227,6 +227,7 @@ namespace BannerlordLink.Behaviors
                     ["party_reason"] = hero.IsPrisoner ? "hero_prisoner" : roster == null ? "no_party_inventory" : null,
                     ["party_id"] = roster != null ? hero.PartyBelongedTo.StringId : null,
                     ["party_name"] = roster != null ? hero.PartyBelongedTo.Name?.ToString() : null },
+                ["progression"] = HeroProgressionRuntime.Snapshot(hero, missionOverride),
                 ["build"] = HeroBuildRuntime.Snapshot(hero, ledger.Build, missionOverride) }.ToString(Formatting.None);
         }
 

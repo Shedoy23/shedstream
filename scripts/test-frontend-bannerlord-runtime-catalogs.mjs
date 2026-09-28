@@ -96,6 +96,19 @@ test('kingdom policy choices use mod catalog descriptions and preserve IDs', asy
     assert.match(html,/&lt;script&gt;bad&lt;\/script&gt;/);
     assert.doesNotMatch(html,/data-policy-id="royal_guard"/);
 });
+test('policy clicks preserve exact runtime ID while pending and unavailable policies do not dispatch', async()=>{
+    const h=harness({policies:catalog([{id:'law_"mod',name:'Mod Law'}, {id:'blocked',name:'Blocked',available:false}, {id:'pending',name:'Pending'}])});
+    const fetch=h.context.fetch;
+    h.context.fetch=url=>url.endsWith('/kingdom-state') ? Promise.resolve({json:async()=>({success:true,has_hero:true,kingdom_id:'realm',is_clan_leader:true,policies_pending:[{policy_id:'pending'}]})}) : fetch(url);
+    vm.runInContext('_smartInnerHTML=(el,html)=>{el.innerHTML=html;return true;};_bnrBindSectionToggle=()=>{};',h.context);
+    const calls=[];
+    h.context._bannerlordBuyAction=(action,payload)=>calls.push({action,payload});
+    await h.context.loadBannerlordDiplomacy();
+    for(const row of h.element('bnr-diplo-slot').querySelectorAll('.bnr-diplo-policy-row')) await row.listeners.click();
+    assert.equal(calls.length,1);
+    assert.equal(calls[0].action,'hero.enact_policy');
+    assert.equal(calls[0].payload.policy_id,'law_"mod');
+});
 test('progression renders only received keys, including unknown values above vanilla ranges', ()=>{
     const h=harness();
     vm.runInContext(`_bannerlordLastHero = {has_hero:true,skills:[{skill_key:'ModMagic',label:'<Magic>',level:999,focus:7}],attributes:{mod_wisdom:12}};loadBannerlordProgression();`,h.context);

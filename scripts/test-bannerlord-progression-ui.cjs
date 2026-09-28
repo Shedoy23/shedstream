@@ -34,13 +34,14 @@ function harness(response) {
         }
     });
     vm.runInContext(source,context);
+    const realSmart=context._smartInnerHTML;
     vm.runInContext('_smartInnerHTML=(el,html)=>{el.innerHTML=html;return true;};',context);
     context._bannerlordBuyAction=(action,data)=>{calls.push({action,data});};
     const realHero=context.loadBannerlordHero;
     context.loadBannerlordHero=()=>{};
     context.state={has_hero:true,hero:{gold:999999},skills:[{skill_key:'Mod.Skill',level:99,focus:7}],attributes:{'Mod.Attribute':12}};
     async function render(){await context.loadBannerlordShop();vm.runInContext('_bannerlordLastHero=state;loadBannerlordProgression();',context);}
-    return {context,element,calls,render,realHero,setResponse:value=>{current=value;}};
+    return {context,element,calls,render,realHero,realSmart,setResponse:value=>{current=value;}};
 }
 function snapshot(){return {success:true,ready:true,context:{save_id:'save-A',equipment_session_id:'session-A',hero_id:'hero-A'},progression:{version:1,
     skills:[{id:'Mod.Skill',level:123,focus:7,native_focus_limit:12,focus_limit:9,focus_options:[{amount:1,cost_gold:731,available:true}],xp_available:true}],
@@ -153,4 +154,10 @@ test('pending and revoked snapshots block clicks even before the next DOM repain
         h.setResponse(next);await h.context._loadBnrProgression();
         await focus.listeners.click();await xp.listeners.click();assert.equal(h.calls.length,0);
     }
+});
+test('same hero and values rebind after token renewal despite smart HTML cache hit',async()=>{
+    const h=harness(snapshot());h.context._smartInnerHTML=h.realSmart;
+    await h.render();h.context.authToken='renewed-viewer-token';await h.render();
+    await h.element('bnr-progression-slot').querySelectorAll('.bnr-prog-focus-btn')[0].listeners.click();
+    assert.equal(h.calls.length,1);
 });

@@ -231,14 +231,15 @@ def _derive_kingdom(kingdom_id, kingdom_name, is_king, is_clan_leader,
 
 async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> dict:
     """King-only: propose policy для своего kingdom'а. Mod применит engine API."""
-    policy_id = (data.get("policy_id") or "").strip()
-    policy_name = (data.get("policy_name") or "").strip() or policy_id
+    from modules.bannerlord.content_catalogs import _text
+    policy_id = data.get("policy_id")
+    if not _text(policy_id, 256, required=True):
+        return {"success": False, "message": "policy_id required (non-empty string, max 256 chars)"}
+    policy_name = data.get("policy_name")
+    policy_name = policy_name.strip() if isinstance(policy_name, str) else ""
+    policy_name = policy_name or policy_id
     log.info("[DIPLO-POLICY ENTRY] ch=%s @%s policy=%s name='%s'",
              channel_id, owner, policy_id, policy_name)
-    if not policy_id or len(policy_id) < 3:
-        log.info("[DIPLO-POLICY REFUSE] invalid policy_id ch=%s @%s raw=%r",
-                 channel_id, owner, policy_id)
-        return {"success": False, "message": "policy_id required (≥3 chars)"}
 
     # Check: viewer должен быть king (или хотя бы clan leader в kingdom).
     cur = await conn.execute(

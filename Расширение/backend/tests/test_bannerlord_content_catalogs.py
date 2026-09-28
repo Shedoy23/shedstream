@@ -144,13 +144,29 @@ async def opaque_state_ids(db):
     print('PASS opaque game state identifiers')
 
 
+async def short_policy_ids(db):
+    from routes.bannerlord_diplomacy import handle_enact_policy
+    async with db._connect() as conn:
+        await conn.execute("UPDATE bannerlord_heroes SET kingdom_id='mod-kingdom',is_king=1 WHERE channel_id=? AND username='alice'", (CHANNEL_ID,))
+        for key in ('x', 'p1', ' Mod.Policy '):
+            result = await handle_enact_policy(conn, CHANNEL_ID, 'alice', {'policy_id': key})
+            assert result['success'], ('runtime policy rejected', key, result)
+            row = await (await conn.execute("SELECT data FROM module_actions WHERE channel_id=? AND type='hero.enact_policy' ORDER BY rowid DESC LIMIT 1", (CHANNEL_ID,))).fetchone()
+            assert json.loads(row[0])['policy_id'] == key, ('policy ID changed', row)
+        for key in (None, '', '   ', 7, ['x'], 'x' * 257):
+            result = await handle_enact_policy(conn, CHANNEL_ID, 'alice', {'policy_id': key})
+            assert not result['success'], ('invalid policy accepted', key)
+        await conn.rollback()
+    print('PASS short/opaque policy IDs; invalid inputs refused')
+
+
 async def main():
     failures = []
     with tempfile.TemporaryDirectory() as tmp:
         os.environ['DB_PATH'] = str(Path(tmp) / 'import.db')
         db = await _build_db(str(Path(tmp) / 'catalogs.db'))
         try:
-            for check in (run, equipment, opaque_state_ids):
+            for check in (run, equipment, opaque_state_ids, short_policy_ids):
                 try:
                     await check(db)
                 except Exception as error:

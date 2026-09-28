@@ -21,6 +21,11 @@ class Program {
   Check(RuntimeGameCatalogs.CreationTemplates("no_templates",out reason).Count==0 && reason=="culture_no_wanderer_templates","Known unavailable culture must not become random other culture");
   Check(RuntimeGameCatalogs.CreationTemplates("removed_mod",out reason).Count==0 && reason=="culture_not_found","Removed culture fails explicitly");
   Check(RuntimeGameCatalogs.CreationTemplates("",out reason).Single()==template,"Explicit random still works");
+  var caseDistinct=new CultureObject{StringId="MOD_NORTH",Name="Другой мод"};
+  var otherTemplate=new CharacterObject{Culture=caseDistinct,Occupation=Occupation.Wanderer};
+  m.GetObjectTypeList<CultureObject>().Add(caseDistinct);
+  m.GetObjectTypeList<CharacterObject>().Add(otherTemplate);
+  Check(RuntimeGameCatalogs.CreationTemplates("MOD_NORTH",out reason).Single()==otherTemplate,"Case-distinct mod IDs must select exact culture");
   m.GetObjectTypeList<SkillObject>().Add(new SkillObject{StringId="magic",Name="Магия",Description="Из мода"});
   m.GetObjectTypeList<CharacterAttribute>().Add(new CharacterAttribute{StringId="spirit",Name="Дух",Description="Сила духа"});
   PolicyObject.All.Add(new PolicyObject{StringId="mod_law",Name="Закон мода",Description="Правило",SecondaryEffects="Эффект"});

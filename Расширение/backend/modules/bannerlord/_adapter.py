@@ -985,6 +985,11 @@ class BannerlordAdapter(ModuleAdapter):
     async def _on_catalog_update(self, channel_id: int, env: ModuleEnvelope) -> None:
         """Generic catalog write. Catalog types declared в manifest.yaml."""
         catalog_type = str(env.data.get("catalog") or "").lower()
+        from .content_catalogs import CATALOG_TYPES, store_catalog as store_content_catalog
+        if catalog_type in CATALOG_TYPES:
+            from dependencies import get_db
+            await store_content_catalog(get_db(), channel_id, env.data)
+            return
         if catalog_type == "equipment":
             from dependencies import get_db
             from .equipment_shop import store_catalog
@@ -1517,7 +1522,7 @@ class BannerlordAdapter(ModuleAdapter):
         """Hero leveled up skill / gained xp."""
         data = env.data
         username = (data.get("username") or "").lower()
-        skill_key = (data.get("skill_key") or "").lower()
+        skill_key = data.get("skill_key") or ""
         level = data.get("level")
         xp = data.get("xp", 0)
         if not username or not skill_key or level is None:

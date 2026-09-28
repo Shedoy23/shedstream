@@ -217,7 +217,7 @@ async def store_inventory(db, channel_id, env):
 
 
 async def store_catalog(db, channel_id, env):
-    """Replace catalog atomically only for current save; tier gates are server-owned."""
+    """Replace current-save catalog; preserve the game-owned purchase requirement."""
     entries = env.data.get("entries")
     if not isinstance(entries, list) or not env.data.get("save_id"):
         return
@@ -229,7 +229,10 @@ async def store_catalog(db, channel_id, env):
         tier, gold = entry.get("tier"), entry.get("price_gold")
         if not isinstance(item_id, str) or not item_id or type(tier) is not int or tier not in TIER_LEVELS or type(gold) is not int or gold < 1:
             continue
-        normalized.append({**entry, "id": item_id, "item_id": item_id, "required_level": TIER_LEVELS[tier]})
+        required_level = entry.get('required_level', TIER_LEVELS[tier])
+        if type(required_level) is not int or not 0 <= required_level <= 2147483647:
+            continue
+        normalized.append({**entry, "id": item_id, "item_id": item_id, "required_level": required_level})
     async with db._connect() as conn:
         await conn.execute("BEGIN IMMEDIATE")
         cur = await conn.execute("SELECT 1 FROM bannerlord_channel_state s JOIN bannerlord_equipment_sessions e ON e.channel_id=s.channel_id WHERE s.channel_id=? AND s.current_save_id=? AND e.session_id=?", (channel_id, env.data["save_id"], env.data.get("equipment_session_id")))

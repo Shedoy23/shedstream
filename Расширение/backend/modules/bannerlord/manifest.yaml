@@ -207,6 +207,10 @@ extensions:
 
 # Каталоги — те же что RimWorld (универсальный shape entry per MODULE_API.md §9):
 catalogs:
+  - cultures
+  - policies
+  - skills
+  - attributes
   - equipment
   - shop          # цены героев / снаряжения / войск
   - events        # битвы / осады / торговцы / и т.д.

@@ -94,3 +94,30 @@ test('equipment includes unknown stats, zero and negative values with escaped na
     assert.equal(context.numericStats(item)['mod_<magic>'],50);
     assert.match(context.comparedStats(item,{stats:{'mod_<magic>':30}}),/mod_&lt;magic&gt;/);
 });
+test('hero equipment rows retain stats from unknown slots and mod keys', ()=>{
+    const h=harness();
+    const html=h.context._renderEquipRow('mod_charm', {name:'Charm',stats:{'mod_<magic>':17,zero:0,curse:-5}}, {});
+    assert.match(html,/mod_&lt;magic&gt;/);
+    assert.match(html,/17/);
+    assert.match(html,/zero/);
+    assert.match(html,/-5/);
+});
+test('empty game culture list differs from unavailable and random remains available for legacy mods', async()=>{
+    const empty=harness({cultures:catalog([])});
+    await empty.context.loadBannerlordHero();
+    assert.match(empty.element('hero-body').innerHTML,/пустой список/);
+    assert.match(empty.element('hero-body').innerHTML,/id="bnr-adopt-random" disabled/);
+    const legacy=harness({});
+    await legacy.context.loadBannerlordHero();
+    assert.doesNotMatch(legacy.element('hero-body').innerHTML,/id="bnr-adopt-random" disabled/);
+});
+test('game names resolve legacy vanilla attribute casing without losing unknown exact IDs', async()=>{
+    const h=harness({attributes:catalog([{id:'vigor',name:'Game Vigor'},{id:'ArcanePower',name:'<Arcane Power>'}]),skills:catalog([{id:'ModMagic',name:'Game Magic'}])});
+    await h.context.loadBannerlordHero();
+    vm.runInContext('_bannerlordLastHero={has_hero:true,skills:[{skill_key:"ModMagic",level:10,focus:1}],attributes:{Vigor:3,ArcanePower:4}};loadBannerlordProgression();',h.context);
+    const html=h.element('bnr-progression-slot').innerHTML;
+    assert.match(html,/Game Vigor/);
+    assert.match(html,/&lt;Arcane Power&gt;/);
+    assert.match(html,/Game Magic/);
+    assert.match(html,/data-attr="ArcanePower"/);
+});

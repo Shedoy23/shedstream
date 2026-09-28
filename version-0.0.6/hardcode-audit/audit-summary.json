@@ -1,0 +1,25 @@
+{
+  "findings": 137,
+  "classifications": {
+    "game_truth": 40,
+    "duplicated_platform_policy": 18,
+    "adapter_constraint": 58,
+    "platform_policy_ok": 15,
+    "legacy_inactive": 6
+  },
+  "statuses": {
+    "active": 115,
+    "fallback": 15,
+    "inactive": 6,
+    "uncertain": 1
+  },
+  "priorities": {
+    "P1": 35,
+    "P2": 70,
+    "P3": 13,
+    "INFO": 19
+  },
+  "scanned_files": 483,
+  "targeted_files_in_scanned_scope": 126,
+  "source_commit": "c5684483d11533bb9ef65e7d569177c6d214cb8a"
+}

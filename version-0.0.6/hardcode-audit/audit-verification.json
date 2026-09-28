@@ -1,0 +1,89 @@
+{
+  "baseline_files_checked": 1314,
+  "baseline_documentation_changes": [
+    "DEFERRED.md",
+    "README_0.0.6.md",
+    "STATUS.md"
+  ],
+  "unexpected_baseline_changes": [],
+  "runtime_modified": [],
+  "evidence_references_hash_verified": 316,
+  "finding_schema_and_line_ranges": "validated by build_report.py",
+  "summary": {
+    "findings": 137,
+    "classifications": {
+      "game_truth": 40,
+      "duplicated_platform_policy": 18,
+      "adapter_constraint": 58,
+      "platform_policy_ok": 15,
+      "legacy_inactive": 6
+    },
+    "statuses": {
+      "active": 115,
+      "fallback": 15,
+      "inactive": 6,
+      "uncertain": 1
+    },
+    "priorities": {
+      "P1": 35,
+      "P2": 70,
+      "P3": 13,
+      "INFO": 19
+    },
+    "scanned_files": 483,
+    "targeted_files_in_scanned_scope": 126,
+    "source_commit": "c5684483d11533bb9ef65e7d569177c6d214cb8a"
+  },
+  "frozen_client_sha256": "6f8e07f56b7d6a0b4f628a2731d81686a47b77dd8b7cfcc912dd1f8af3f90672",
+  "frozen_client_path": "dist/shedlink-0.0.5.zip",
+  "test_fixture_sha256": "6f7e115bfd8bdabbd254a4c1f42cf730961d56f06da0523161d3a54ab43da253",
+  "frontend_probe": "four expected current limitations reproduced; not fixed",
+  "backend_probe": "expected current overwrite/filter reproduced; not fixed",
+  "existing_tests": [
+    {
+      "command": "python Расширение/backend/tests/test_catalog_blocklist.py",
+      "cwd": "isolated temporary directory",
+      "exit_code": 1,
+      "log": "test_catalog_blocklist.py.log",
+      "note": "Existing test; does not prove future dynamic game catalog contract."
+    },
+    {
+      "command": "python Расширение/backend/tests/test_rimworld_catalog_gate.py",
+      "cwd": "isolated temporary directory",
+      "exit_code": 0,
+      "log": "test_rimworld_catalog_gate.py.log",
+      "note": "Existing test; does not prove future dynamic game catalog contract."
+    },
+    {
+      "command": "python Расширение/backend/tests/test_shedcolony_item_catalog.py",
+      "cwd": "isolated temporary directory",
+      "exit_code": 0,
+      "log": "test_shedcolony_item_catalog.py.log",
+      "note": "Existing test; does not prove future dynamic game catalog contract."
+    },
+    {
+      "command": "python Расширение/backend/tests/test_shedcolony_catalog_check.py",
+      "cwd": "isolated temporary directory",
+      "exit_code": 0,
+      "log": "test_shedcolony_catalog_check.py.log",
+      "note": "Existing test; does not prove future dynamic game catalog contract."
+    },
+    {
+      "command": "python Расширение/backend/tests/test_catalog_blocklist.py",
+      "cwd": "isolated temporary directory",
+      "exit_code": 0,
+      "log": "catalog-blocklist-aligned.log",
+      "note": "DB_PATH aligned with the existing test explicit Database(viewers.db); initial run used two different isolated files, causing missing shop_catalog."
+    }
+  ],
+  "lint": {
+    "exit_code": 0,
+    "warning": "game assembly policy ID check unavailable; skipped"
+  },
+  "limits": [
+    "No live game or browser E2E",
+    "Minecraft Java connector source absent",
+    "CodeGraph database locked; no graph coverage",
+    "Lexical scan is not exhaustive semantic verification"
+  ]
+}

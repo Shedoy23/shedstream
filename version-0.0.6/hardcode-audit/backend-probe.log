@@ -1,0 +1,30 @@
+{
+  "method": "real functions, SQLite :memory:, no game or production DB",
+  "input": [
+    {
+      "item_id": "mod_sword",
+      "tier": 4,
+      "price_gold": 100,
+      "required_level": 1
+    },
+    {
+      "item_id": "mod_tier7",
+      "tier": 7,
+      "price_gold": 100,
+      "required_level": 1
+    }
+  ],
+  "stored": [
+    {
+      "item_id": "mod_sword",
+      "tier": 4,
+      "price_gold": 100,
+      "required_level": 25,
+      "id": "mod_sword"
+    }
+  ],
+  "hero_level": 24,
+  "buy_reason": "level_locked",
+  "result": "PASS"
+}
+exit_code=0

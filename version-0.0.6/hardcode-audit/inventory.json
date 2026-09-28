@@ -1,0 +1,5247 @@
+[
+  {
+    "path": "BannerlordAutopilot/src/AutopilotBehavior.cs",
+    "layer": "autopilot",
+    "lines": 2041,
+    "sha256": "650d82d0c36b1ac3151a95d3688bba2e138d4f87127b44a91bb7c6f9ea901b9c",
+    "candidate_counts": {
+      "catalog_identity": 25,
+      "limits_rules": 17,
+      "closed_sets": 8,
+      "fallback": 12
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/AutopilotLog.cs",
+    "layer": "autopilot",
+    "lines": 66,
+    "sha256": "0548c26e0e60203e066cc5878d0b10f74107b44d1bd103ad47109d36c459f4fd",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "fallback": 1,
+      "catalog_identity": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/AutopilotLoot.cs",
+    "layer": "autopilot",
+    "lines": 94,
+    "sha256": "335c062d363e2acfbe8ac8826794f3b3374894479234edcfcff9e90f8cce641a",
+    "candidate_counts": {
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/AutopilotOperations.cs",
+    "layer": "autopilot",
+    "lines": 251,
+    "sha256": "fb0d316caa5e611084d0343b41fd462a86b1cf6024fc2cf5504cd5928d05193e",
+    "candidate_counts": {
+      "catalog_identity": 3,
+      "limits_rules": 2,
+      "fallback": 1,
+      "closed_sets": 1,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/AutopilotPrisoners.cs",
+    "layer": "autopilot",
+    "lines": 132,
+    "sha256": "5c7eb464aa511b4dc235e02d3744c5e9c3a06d7ecd85eda02406cd069f33e77b",
+    "candidate_counts": {
+      "fallback": 1,
+      "limits_rules": 2,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/AutopilotSubModule.cs",
+    "layer": "autopilot",
+    "lines": 212,
+    "sha256": "3acd8d1997d13e90bd30e5f704570b4c0fa427c977faf45eea092b371a6237f7",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/BannerlordAutopilot.csproj",
+    "layer": "autopilot",
+    "lines": 35,
+    "sha256": "f078bbe79890e79725b89a69ada30ad90728b14800e261d5c877f970a385146f",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/BattleAutopilotMission.cs",
+    "layer": "autopilot",
+    "lines": 220,
+    "sha256": "d44510a9a3a1415a26cf7a066a2aa28ef2b01739e8af588c5a882ad51c4292ac",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/EngineContract.cs",
+    "layer": "autopilot",
+    "lines": 665,
+    "sha256": "c743f6bbca15eac76d8cf3d00b1590494124285bf44dddd9bd901d18ba4186f0",
+    "candidate_counts": {
+      "catalog_identity": 16,
+      "closed_sets": 5,
+      "dynamic_discovery": 1,
+      "limits_rules": 4,
+      "fallback": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/MenuDriver.cs",
+    "layer": "autopilot",
+    "lines": 94,
+    "sha256": "fd7cbbba513480053f364b76ddc7fd744983d09877fc4d817148bc6a140e0b7a",
+    "candidate_counts": {
+      "catalog_identity": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordAutopilot/src/SettlementServices.cs",
+    "layer": "autopilot",
+    "lines": 612,
+    "sha256": "491e5aa236572976c02ca88746340b43f0996a52a668e2885c13ebb11d2c257d",
+    "candidate_counts": {
+      "catalog_identity": 8,
+      "limits_rules": 38,
+      "fallback": 2,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/ActionRegistry.cs",
+    "layer": "bannerlord_connector",
+    "lines": 130,
+    "sha256": "f31d38b86da620059b4d070ec5bbd2ee49394bb4690b3efcd5643e4995e713cd",
+    "candidate_counts": {
+      "catalog_identity": 8,
+      "closed_sets": 1,
+      "fallback": 1,
+      "explicit_hardcode": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/ActivateHeirHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 336,
+    "sha256": "d148d3ab54372f6993101ddfdbb13706ae35467576760b1f06b2d974e7d9b4c6",
+    "candidate_counts": {
+      "catalog_identity": 11,
+      "limits_rules": 5,
+      "fallback": 9
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/ActivatePowerHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 651,
+    "sha256": "200a56785402c584c6d4796c00ed3cca99a44407558020b06474b900c9f9952e",
+    "candidate_counts": {
+      "fallback": 31,
+      "explicit_hardcode": 1,
+      "limits_rules": 17,
+      "catalog_identity": 8,
+      "closed_sets": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/AddAttributeHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 186,
+    "sha256": "e04cd40857c90c068ea7a732f936771f5974f1d6de2c4c4e309ae756976c1186",
+    "candidate_counts": {
+      "catalog_identity": 47,
+      "limits_rules": 16,
+      "fallback": 4,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/AddFocusHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 201,
+    "sha256": "931428117c4ee5308b6af9736be2d76e22f682bbd91cad4a3cdea401921b9776",
+    "candidate_counts": {
+      "catalog_identity": 34,
+      "limits_rules": 19,
+      "closed_sets": 1,
+      "fallback": 4,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/AddSkillXpHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 297,
+    "sha256": "3d667610c5f65431c02aa4066fe0646074218cb519aaebc3c84da0b0cfa0feb2",
+    "candidate_counts": {
+      "catalog_identity": 95,
+      "closed_sets": 12,
+      "fallback": 4,
+      "limits_rules": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/AdoptHeroHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 395,
+    "sha256": "7550da6088af1adf981541200b137330cf018bd0f72084c5728039db8d89526f",
+    "candidate_counts": {
+      "catalog_identity": 31,
+      "explicit_hardcode": 1,
+      "fallback": 10,
+      "dynamic_discovery": 1,
+      "limits_rules": 8,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/ArmyHandlers.cs",
+    "layer": "bannerlord_connector",
+    "lines": 239,
+    "sha256": "7a143b15e737d6e26a3d2a1c4bcbf2f6a39ee757ebbf9e6cb73a986d6a4692c9",
+    "candidate_counts": {
+      "explicit_hardcode": 3,
+      "fallback": 5,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/BroadcastMessageHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 87,
+    "sha256": "65b09ba1ba5b9c7c512efff8080de5a51fc4c74311fe59991bf6a5860dc7b4ac",
+    "candidate_counts": {
+      "limits_rules": 1,
+      "fallback": 3,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/BuyClanUpgradesHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 66,
+    "sha256": "3047a530fe55f496256ea015be2164864ec0b8cf88496ea5f7be6c44532918e7",
+    "candidate_counts": {
+      "fallback": 1,
+      "closed_sets": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/CaravanHandlers.cs",
+    "layer": "bannerlord_connector",
+    "lines": 375,
+    "sha256": "c3649960c248899e08107a09a69e6227e16f7313577bd209fc33d708e01af472",
+    "candidate_counts": {
+      "catalog_identity": 42,
+      "fallback": 17,
+      "dynamic_discovery": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/ClassLoadout.cs",
+    "layer": "bannerlord_connector",
+    "lines": 395,
+    "sha256": "c29dda0893e291b4fc0b31e89f32ca86f35e0aadb7b71cce7b8f72a130fcf401",
+    "candidate_counts": {
+      "catalog_identity": 17,
+      "closed_sets": 7,
+      "dynamic_discovery": 1,
+      "fallback": 6,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/CreateClanHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 193,
+    "sha256": "10a2a29552a2af22d54878dc7d0b17ee5830ae5d143ee20f7cb82c404977d186",
+    "candidate_counts": {
+      "limits_rules": 9,
+      "catalog_identity": 8,
+      "fallback": 5,
+      "dynamic_discovery": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/CreateKingdomHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 264,
+    "sha256": "42ee847abdf98de75b75cf309a2f77913891275558fbdeb072fec9eab9a27a0f",
+    "candidate_counts": {
+      "catalog_identity": 7,
+      "limits_rules": 11,
+      "fallback": 7,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/CreatePartyHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 300,
+    "sha256": "6a9530657a52e1fa103ef50975013f0285826abed6d74721a0f456837d3b4559",
+    "candidate_counts": {
+      "limits_rules": 7,
+      "fallback": 5,
+      "catalog_identity": 5,
+      "dynamic_discovery": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/DetachmentHandlers.cs",
+    "layer": "bannerlord_connector",
+    "lines": 314,
+    "sha256": "18b04a9699b12e672ca4dc4a78b46420e00d73185fe83c7b99651cc7a5b59b7f",
+    "candidate_counts": {
+      "fallback": 9
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/DiagnosticPingHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 21,
+    "sha256": "068d219b4f2f116843c8eb97c25e96cd10fddd089c98bafaa77c696946a52434",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/DiplomacyHandlers.cs",
+    "layer": "bannerlord_connector",
+    "lines": 623,
+    "sha256": "b1fa741c632f56a96ec90f5029f6ba4eecbde51a62881d62bbd2994e867135c2",
+    "candidate_counts": {
+      "explicit_hardcode": 4,
+      "catalog_identity": 34,
+      "limits_rules": 12,
+      "fallback": 18,
+      "dynamic_discovery": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/DiscardItemHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 94,
+    "sha256": "68508e279b2b87cc2447a4a579f23b77c5d32eff2ca9c8374bb56888b6fd18ab",
+    "candidate_counts": {
+      "fallback": 3,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/EchoHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 41,
+    "sha256": "934dbb2a357b7f7febd4b4c4f9142e7df9f42f2fbfb80ec34fd26c3e03756030",
+    "candidate_counts": {
+      "fallback": 2,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/EquipItemHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 358,
+    "sha256": "232bb6fb2306d56063cc32c6df967e2af6e19407fc3d574c1daabf2b8f05d1d7",
+    "candidate_counts": {
+      "catalog_identity": 13,
+      "limits_rules": 17,
+      "fallback": 8,
+      "closed_sets": 6,
+      "dynamic_discovery": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/EquipTrophyHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 307,
+    "sha256": "1c3734c848c35960e3993c24f9bee45221ec4d140f16d118b19504d586d95839",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "explicit_hardcode": 2,
+      "fallback": 18,
+      "limits_rules": 2,
+      "closed_sets": 8,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/EquipmentShopHandlers.cs",
+    "layer": "bannerlord_connector",
+    "lines": 275,
+    "sha256": "65571858dfad476be7000f350a9e97bf739c2dcccef4786f24dafd79e9e89c53",
+    "candidate_counts": {
+      "catalog_identity": 15,
+      "fallback": 9,
+      "limits_rules": 11,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/FamilyHandlers.cs",
+    "layer": "bannerlord_connector",
+    "lines": 325,
+    "sha256": "630ea6cdfb01bc71082e32671b3c870655a3c95e87b79f35971f93d8c2dac41d",
+    "candidate_counts": {
+      "catalog_identity": 19,
+      "fallback": 15,
+      "explicit_hardcode": 1,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/GiveGoldHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 110,
+    "sha256": "3a9a162cb30b27c604e403356c7d36025238c99718c03c20fd418e79a9885f2d",
+    "candidate_counts": {
+      "fallback": 3,
+      "limits_rules": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/HealHeroHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 68,
+    "sha256": "9749c6e5c6ea53b6e4a08ed071829962fff5a5f5c69766998df83072af17aa8f",
+    "candidate_counts": {
+      "explicit_hardcode": 1,
+      "fallback": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/HeroBuildHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 97,
+    "sha256": "f505a42097a0279e5935f1de7892e5244bb28d12bcddfadd26582f79b8255202",
+    "candidate_counts": {
+      "fallback": 1,
+      "catalog_identity": 4,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/HeroLookup.cs",
+    "layer": "bannerlord_connector",
+    "lines": 52,
+    "sha256": "280cdbd5cac1f29e08f2a11f3ab7a1d1effacba503075e1bdc38fb36d195e636",
+    "candidate_counts": {
+      "limits_rules": 2,
+      "explicit_hardcode": 1,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/IActionHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 24,
+    "sha256": "678d05c61800e3b87dffe1418fcdc967929881f65a136a4aa85baa6439a931b8",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/JoinClanHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 175,
+    "sha256": "efae51d6c2669ab3a3ad2098bb8702130688a376cf649b255bf32d54194aaddb",
+    "candidate_counts": {
+      "limits_rules": 12,
+      "fallback": 4,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/JoinKingdomHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 226,
+    "sha256": "263b456b09b8168c320f982fc34715db442c470a39c9a0c562565fd1e87fc306",
+    "candidate_counts": {
+      "limits_rules": 12,
+      "fallback": 3,
+      "dynamic_discovery": 1,
+      "catalog_identity": 5,
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/JoinTournamentHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 90,
+    "sha256": "4a6dd56d0c6d8d58cc6823c06b53c1dea91072a844791a8a50dfc6113148c75e",
+    "candidate_counts": {
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/LeaveClanHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 404,
+    "sha256": "f28926de75a39ad0cbf9fae1854c181f803f9fab6a636485b19af3d9f56fa225",
+    "candidate_counts": {
+      "limits_rules": 1,
+      "fallback": 15
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/LeaveKingdomHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 144,
+    "sha256": "071993811fd41342366343f1be76470ad0d5451001e1dbc8e4c18d30a2ed83f0",
+    "candidate_counts": {
+      "limits_rules": 2,
+      "fallback": 2,
+      "explicit_hardcode": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/MakeBabyHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 142,
+    "sha256": "fd1c4a97e0b2f17e2847aa7239af1b9d9b6141786bd7cbc97d3bb61caf7c43f5",
+    "candidate_counts": {
+      "explicit_hardcode": 1,
+      "limits_rules": 9,
+      "closed_sets": 2,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/MarryHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 295,
+    "sha256": "44169a71255e9a0b605ad49d74f47291082ce6195f4fc33148ccf77dd387ad30",
+    "candidate_counts": {
+      "fallback": 3,
+      "limits_rules": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/ModifyAttributeHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 113,
+    "sha256": "192e30c987b2623026a9f7dce292bcba92811c41deae108ef2d7659777518b0a",
+    "candidate_counts": {
+      "catalog_identity": 26,
+      "explicit_hardcode": 1,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/PartyOrderHandlers.cs",
+    "layer": "bannerlord_connector",
+    "lines": 301,
+    "sha256": "4ffd900058de910ed6fb2f86d42c41e3075a3aea58c45e36427cead8b58cd398",
+    "candidate_counts": {
+      "fallback": 9,
+      "catalog_identity": 2,
+      "limits_rules": 2,
+      "dynamic_discovery": 1,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/RecruitTroopsHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 476,
+    "sha256": "6d616da0ad235cb533faa543999b9762338be3c96cb2049bf148702ece566e88",
+    "candidate_counts": {
+      "catalog_identity": 52,
+      "limits_rules": 22,
+      "closed_sets": 3,
+      "fallback": 13,
+      "explicit_hardcode": 1,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/ReequipGearHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 88,
+    "sha256": "e088b406301196da41e4486a199a1c50c3aa4109c8c84a085804d8e63cf715b4",
+    "candidate_counts": {
+      "fallback": 3,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/ReforgeQualityHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 132,
+    "sha256": "a2e0b3d48345519e5d79dec6585bb31d70760075b88a5eca015e699765b9a0cf",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "closed_sets": 2,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/SetClassHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 344,
+    "sha256": "2922fe4efa1baabbdbfeb449b21e6fdd15203f67bc300158d96606d2db4c778a",
+    "candidate_counts": {
+      "catalog_identity": 29,
+      "fallback": 8,
+      "limits_rules": 2,
+      "closed_sets": 1,
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/SetCombatStanceHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 82,
+    "sha256": "727b5f7b8cf04388707e188e10821efe5ce8f38120f89171c50e225cffa35467",
+    "candidate_counts": {
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/SetGenderHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 140,
+    "sha256": "44d9e3ee137459bc4f5cc324f8eb69d6d193427622be40c6fc6c926c1e69c2f6",
+    "candidate_counts": {
+      "limits_rules": 2,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/SummonHeroHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 1235,
+    "sha256": "ef6a6579ac311648b0915a63bde1c5091f347e9bb72dfe2567f60af0cfb1237a",
+    "candidate_counts": {
+      "fallback": 21,
+      "catalog_identity": 17,
+      "closed_sets": 6,
+      "limits_rules": 1,
+      "explicit_hardcode": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/TrainTroopsHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 189,
+    "sha256": "353a150bf55d472f43377e93aadaf199612b9040f41e330ca0f801f63a38e5d4",
+    "candidate_counts": {
+      "catalog_identity": 11,
+      "limits_rules": 19,
+      "closed_sets": 1,
+      "fallback": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/TriggerWorldEventHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 221,
+    "sha256": "d511c96b2bb41da22304502801a516362226f145b179301f2c050e138ebab055",
+    "candidate_counts": {
+      "catalog_identity": 5,
+      "fallback": 5,
+      "limits_rules": 1,
+      "dynamic_discovery": 3,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/UpgradeGearHandler.cs",
+    "layer": "bannerlord_connector",
+    "lines": 305,
+    "sha256": "ca476806ea5dd93846898800d88a841e9084bc899e08d6af790a62c6b21f3ca2",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "fallback": 5,
+      "limits_rules": 8,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/VassalHandlers.cs",
+    "layer": "bannerlord_connector",
+    "lines": 544,
+    "sha256": "364b19b62d7c617d619b1f4cd07de649bfcf9055ff84e7c28d36914098e9aceb",
+    "candidate_counts": {
+      "catalog_identity": 13,
+      "limits_rules": 12,
+      "fallback": 18,
+      "dynamic_discovery": 1,
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Actions/WorkshopHandlers.cs",
+    "layer": "bannerlord_connector",
+    "lines": 401,
+    "sha256": "933afb36dfdf3e44a5c87d906ccce7fbae938bbe21bf97f729a5f8e0d020140d",
+    "candidate_counts": {
+      "fallback": 21,
+      "dynamic_discovery": 8,
+      "catalog_identity": 12,
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/BannerlordLink.csproj",
+    "layer": "bannerlord_connector",
+    "lines": 42,
+    "sha256": "36357b0e038a0add8841b27512d59f09ca4d36320598d30be074087612291571",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/BannerlordLinkModule.cs",
+    "layer": "bannerlord_connector",
+    "lines": 557,
+    "sha256": "294c00591274e0bfd92d4efab54c96714a4cc769610548ca63e8373d3bcc791f",
+    "candidate_counts": {
+      "closed_sets": 9,
+      "limits_rules": 1,
+      "catalog_identity": 3,
+      "explicit_hardcode": 1,
+      "fallback": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/BannerlordLinkSaveableTypeDefiner.cs",
+    "layer": "bannerlord_connector",
+    "lines": 21,
+    "sha256": "abf153ec5a5d999999f6b7857e266f38b8b987e63cc1264be88dde5065e6321d",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/AdoptedMountTrackerBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 120,
+    "sha256": "c3aa567834281c154f3c53d4fcbe3ba5dcf87dff889d13ec644a70079c08ce79",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "closed_sets": 4,
+      "explicit_hardcode": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/CaravanTrackerBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 206,
+    "sha256": "90d9a3daa2eb9990e61acc7742ca20fb243587c47bbc4552265114fe63671c5f",
+    "candidate_counts": {
+      "catalog_identity": 19,
+      "fallback": 3,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/ClanUpgradesBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 287,
+    "sha256": "4b514be2701631e200443874bbca6a9383ca962c5cd28b8457e5233d0e0bc94e",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 6,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/EquipmentShopBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 294,
+    "sha256": "a480b6f905af0e6addfa8642b169818a0fcdb21a1c07b03a478e1ed2ad567626",
+    "candidate_counts": {
+      "catalog_identity": 15,
+      "closed_sets": 3,
+      "limits_rules": 4,
+      "fallback": 4,
+      "dynamic_discovery": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/FiefTributeSyncBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 177,
+    "sha256": "6357bc3eaeff18fa27618588cba5a79cb22f96a0b126b137ec8ad3aecd40d51d",
+    "candidate_counts": {
+      "dynamic_discovery": 2,
+      "fallback": 3,
+      "catalog_identity": 7,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/HeroDetachmentBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 961,
+    "sha256": "e5a52ee7f84c0789a32908b5eee2206c1a4d6610f2499cc2a216974743cedc2e",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "fallback": 6,
+      "limits_rules": 20,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/HeroIdentityBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 251,
+    "sha256": "ade2d3341cc15bb508ed3b8a15bced04e1e16c6921c043bbd81e524ff0b1570a",
+    "candidate_counts": {
+      "catalog_identity": 11,
+      "explicit_hardcode": 3,
+      "fallback": 1,
+      "dynamic_discovery": 1,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/HeroNametagMissionView.cs",
+    "layer": "bannerlord_connector",
+    "lines": 422,
+    "sha256": "e9b1542ee0ee331ef3aa96d97bdcd3b3f0125bbe66b739e2ebe5912a844efe31",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "limits_rules": 12,
+      "closed_sets": 4,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/HeroPfxBehaviour.cs",
+    "layer": "bannerlord_connector",
+    "lines": 153,
+    "sha256": "260504d52399869a715f545002af71c55b0eb49c456595fc5ddeab71a8e42eea",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/HeroProfileBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 150,
+    "sha256": "861b861a5b337c9da9cc8b8d9f127f927b3b5273fb69312891e0103d488f3a3f",
+    "candidate_counts": {
+      "catalog_identity": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/KillRewardBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 1545,
+    "sha256": "6d3e7a6f091f1f22a4575354a8199c42ee90153df29891b619b64214061b122b",
+    "candidate_counts": {
+      "catalog_identity": 43,
+      "limits_rules": 13,
+      "closed_sets": 9,
+      "fallback": 10,
+      "dynamic_discovery": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/KingdomTaxBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 161,
+    "sha256": "18953314bed759dd7358f34e9946273ff8448b76e6553ed26108373fbb56c336",
+    "candidate_counts": {
+      "catalog_identity": 10,
+      "limits_rules": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/MainCampaignBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 957,
+    "sha256": "263c10475ea15817ace2e06d10881f6d46b4f7d27e829238cef623f467fd7866",
+    "candidate_counts": {
+      "catalog_identity": 27,
+      "limits_rules": 23,
+      "fallback": 14,
+      "closed_sets": 2,
+      "explicit_hardcode": 2,
+      "dynamic_discovery": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/PartyOrderBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 839,
+    "sha256": "bd82f7a6caf85297c745da8037ecdeca5e7545ef61b76a046fd4880d1962b2f6",
+    "candidate_counts": {
+      "catalog_identity": 14,
+      "closed_sets": 8,
+      "fallback": 10,
+      "limits_rules": 8,
+      "explicit_hardcode": 3,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/PowersMissionBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 615,
+    "sha256": "9df5cf0a028c4b33aecc3768d20cfb14ecd553f86e022d7ed0054dbfd4d04743",
+    "candidate_counts": {
+      "closed_sets": 5,
+      "catalog_identity": 3,
+      "limits_rules": 10,
+      "fallback": 3,
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/RetinueSpawnTracker.cs",
+    "layer": "bannerlord_connector",
+    "lines": 69,
+    "sha256": "f247f237080bebd5604ea63c158f4b2b312f76ef48a698b0ebd19d4a94b21162",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "closed_sets": 4,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/TournamentMissionBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 533,
+    "sha256": "ed04cd871eb67019494b981522705e7051bbcef0dafbd1aa7de3d042b70c6af1",
+    "candidate_counts": {
+      "catalog_identity": 32,
+      "closed_sets": 2,
+      "fallback": 9,
+      "dynamic_discovery": 2,
+      "limits_rules": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/TournamentQueueBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 362,
+    "sha256": "a9a10cd0b935995e34a2b32f6fc02c617c11d35346ae5c744c2ed3cd60a745a8",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "fallback": 5,
+      "explicit_hardcode": 1,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/VassalAutoFollowBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 452,
+    "sha256": "e8a742a47b4b486a9d6e1260680283a0755c0e5da346071464246b4d1283cc93",
+    "candidate_counts": {
+      "catalog_identity": 20,
+      "limits_rules": 10,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Behaviors/WorkshopProfitSyncBehavior.cs",
+    "layer": "bannerlord_connector",
+    "lines": 192,
+    "sha256": "7e31856fbd2ac1801e78fd5e832d7d572f5432462791853a148fa3fd32688974",
+    "candidate_counts": {
+      "catalog_identity": 13,
+      "dynamic_discovery": 3,
+      "limits_rules": 3,
+      "fallback": 8
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/MainThreadDispatcher.cs",
+    "layer": "bannerlord_connector",
+    "lines": 340,
+    "sha256": "771f65b9a5e6f58d7c8a5dbda882d3c8da7b07c4065ddc0d18c8fe4363163a8b",
+    "candidate_counts": {
+      "fallback": 7,
+      "catalog_identity": 9,
+      "closed_sets": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Models/BLUpgradeModels.cs",
+    "layer": "bannerlord_connector",
+    "lines": 170,
+    "sha256": "19c00cb8e8c634e94709cad794684f610befa6734ddb7bac465bce535cd84208",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 9,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/ActionOutcomeStore.cs",
+    "layer": "bannerlord_connector",
+    "lines": 189,
+    "sha256": "d5a9191d08936a10953ef65d265a4db7b5dd708eeb015e2bb9ecebe795e8c795",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 6,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/ActionPoller.cs",
+    "layer": "bannerlord_connector",
+    "lines": 332,
+    "sha256": "b7da15ed109a1ef85d466aedcd36ee0e4ec35b8ca71c28741974a700a4040804",
+    "candidate_counts": {
+      "limits_rules": 12,
+      "fallback": 11
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/ActiveBuffState.cs",
+    "layer": "bannerlord_connector",
+    "lines": 258,
+    "sha256": "c00cbce3301afec3fabe641fc71939df7732a6d5b4184902630d74c96229f0eb",
+    "candidate_counts": {
+      "catalog_identity": 3,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/ActiveTrophyState.cs",
+    "layer": "bannerlord_connector",
+    "lines": 62,
+    "sha256": "d347eb463c09451a2f9a620e20eec9262b7a9302932b0748c55121b162c6e4f4",
+    "candidate_counts": {
+      "limits_rules": 1,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/BackendClient.cs",
+    "layer": "bannerlord_connector",
+    "lines": 378,
+    "sha256": "21271e92a13bd62bb6ac40f2981beaeef1745c24fbb7b4135c8456c916a55a44",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "fallback": 3,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/BackendConfig.cs",
+    "layer": "bannerlord_connector",
+    "lines": 122,
+    "sha256": "2f82e7287e467490cb6662ae0ecbcab89d92dc3a4843c6272c55970cdea0a5a3",
+    "candidate_counts": {
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/DurableEventOutbox.cs",
+    "layer": "bannerlord_connector",
+    "lines": 285,
+    "sha256": "a6e4999e71a16151a01ca5279675efa914b50f642ac5ae168d62541f34b04811",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "fallback": 3,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/EventAckParser.cs",
+    "layer": "bannerlord_connector",
+    "lines": 68,
+    "sha256": "f2aed55e59e349661586a1de4af370a538415e299e8e198a060c621de5ce1dfb",
+    "candidate_counts": {
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/PowerCache.cs",
+    "layer": "bannerlord_connector",
+    "lines": 185,
+    "sha256": "707af85a6d75350525a758812af0a1397cecc77dfb5906964ff69b9fc8e9b079",
+    "candidate_counts": {
+      "catalog_identity": 3,
+      "closed_sets": 2,
+      "limits_rules": 1,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/RetinueRegistry.cs",
+    "layer": "bannerlord_connector",
+    "lines": 45,
+    "sha256": "6c1371ed0f419438f3bb2f5ca24c350af49aefad69e96a9134ac57a486b72b97",
+    "candidate_counts": {
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/RewardBoostCache.cs",
+    "layer": "bannerlord_connector",
+    "lines": 83,
+    "sha256": "256487f81f5ba79cf7536709dd3672b5476db42fde3b46665fffca52b27d3457",
+    "candidate_counts": {
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Net/StealthState.cs",
+    "layer": "bannerlord_connector",
+    "lines": 36,
+    "sha256": "f54219b2124c5ff35f9c01274b75bd4582a034a489ba80b4359d59ab5f68ae2c",
+    "candidate_counts": {
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/AdoptedHeroDeathPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 235,
+    "sha256": "de42f4fe2c1f9147ba868838e89431bf0ac49c5b5fc39e2425427c0ce3d4ebdf",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "fallback": 4,
+      "explicit_hardcode": 7,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/BannerCampaignBehaviorPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 144,
+    "sha256": "c3c7661b3c0c0981d016cc95c4b47367a93309864e2b570df75dbfb88fc61533",
+    "candidate_counts": {
+      "explicit_hardcode": 8,
+      "closed_sets": 3,
+      "catalog_identity": 1,
+      "fallback": 4,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/CleavePatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 109,
+    "sha256": "db146300f23b72cf2c21cb9323e7757df7b2941a2da87d07639521b5136aa6a1",
+    "candidate_counts": {
+      "explicit_hardcode": 1,
+      "limits_rules": 6,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/CraftingOrderPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 138,
+    "sha256": "cba316fb4ace91e6197f9e7968dae46a91c20da40c966aa265743cb150a4f19b",
+    "candidate_counts": {
+      "explicit_hardcode": 5,
+      "closed_sets": 2,
+      "catalog_identity": 1,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/DamageHookPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 724,
+    "sha256": "1ab307199e82c10d0fdd1c0ee9720af484ba63623a1caaeef65ea0b349f1e505",
+    "candidate_counts": {
+      "limits_rules": 22,
+      "closed_sets": 2,
+      "catalog_identity": 5,
+      "fallback": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/IsSideDepletedPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 109,
+    "sha256": "cfe59b26d512a028e1ceca6018713b349ee1c468f26a4d51312afbaa00bb0381",
+    "candidate_counts": {
+      "explicit_hardcode": 2,
+      "catalog_identity": 1,
+      "closed_sets": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/KingdomVoteNotificationPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 152,
+    "sha256": "0a3951b832999f61e3715565c8eacc0cb0e8ab476d590e56b32b499f8693fd48",
+    "candidate_counts": {
+      "explicit_hardcode": 10,
+      "closed_sets": 3,
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/MapEventKilledPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 71,
+    "sha256": "1334cbc431918e9231dc57e2319b01cf6e511975ce598bb6f404a07692a17305",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "explicit_hardcode": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/MapEventWoundedPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 71,
+    "sha256": "e890dfa31067e9f26f9cb20e30a0fff1edec269b8a2ffbc067c7ba9ad657cf5c",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "explicit_hardcode": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/MilitiaSallyOutFix.cs",
+    "layer": "bannerlord_connector",
+    "lines": 115,
+    "sha256": "be3ad83a8074d7557023fd9c98dc356c1850977af19a7ccaad351e07607b95c5",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "explicit_hardcode": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/MobilePartySiegePatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 83,
+    "sha256": "c2eec87b713ce7a5bb8d61b17df07fa91c163bff2f70cf6c9c3e845d34e31ce4",
+    "candidate_counts": {
+      "explicit_hardcode": 3,
+      "closed_sets": 1,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/NameMarkerPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 39,
+    "sha256": "92ebc21ff88e00e5a60ad5eba59e03f55e59fb7a087b59a66a3255572c15af1d",
+    "candidate_counts": {
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/PregnancyModelPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 122,
+    "sha256": "a41fe7db4f995a42d6d42682c97c3855b5cbb96b47c97ea254f8fef42867f8f4",
+    "candidate_counts": {
+      "explicit_hardcode": 3,
+      "closed_sets": 2,
+      "catalog_identity": 1,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/SiegeRetreatFix.cs",
+    "layer": "bannerlord_connector",
+    "lines": 126,
+    "sha256": "fb6e5bea4addd1ecdbb23ac34f5467298cb7eb1d2dcf09c16199b5dc93b5acaa",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "explicit_hardcode": 3,
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/StubbornAssaultPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 83,
+    "sha256": "b0ec1b4c5962a4068ba2781ba1359eb7fcae13c45f3b7e69ba39bafd2de0e1dc",
+    "candidate_counts": {
+      "explicit_hardcode": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/TournamentParticipantsPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 195,
+    "sha256": "dcd558b0c1a14959f5a1e32953f3e5498451d2b93fb79eaedeaa9cb184cfaf8c",
+    "candidate_counts": {
+      "catalog_identity": 8,
+      "fallback": 13
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Patches/ViewerKingdomAiPatch.cs",
+    "layer": "bannerlord_connector",
+    "lines": 43,
+    "sha256": "9743510260dc6b75abc913e95a18786342fa9c4184dd23cd306280f48d0f3321",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "closed_sets": 2,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/ActionFeedback.cs",
+    "layer": "bannerlord_connector",
+    "lines": 169,
+    "sha256": "44e49bd089b6226b7584b97a21a6181089cddbcc71827e93d95ecf44acb303b2",
+    "candidate_counts": {
+      "limits_rules": 1,
+      "fallback": 4,
+      "catalog_identity": 6
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/AgentPfx.cs",
+    "layer": "bannerlord_connector",
+    "lines": 177,
+    "sha256": "6ceb30e19f61c8a3f7c4c4020b8d9c931f1c51fc5f32a13f59e21147fff3bc04",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/BattlePayoutPolicy.cs",
+    "layer": "bannerlord_connector",
+    "lines": 70,
+    "sha256": "05c560adc3dfb514b9d7d93b8c054ab2114ec976cdae8379592c32f1601403fd",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "limits_rules": 7,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/ClanFactory.cs",
+    "layer": "bannerlord_connector",
+    "lines": 229,
+    "sha256": "3334b731f68bc216dc7b5f3b54cad457417920f51a01deb49493506fdc223ed9",
+    "candidate_counts": {
+      "explicit_hardcode": 6,
+      "catalog_identity": 2,
+      "fallback": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/EquipmentSessionHandshake.cs",
+    "layer": "bannerlord_connector",
+    "lines": 29,
+    "sha256": "fe2d64e9594595c0c48c5d3df4bd0dbbb79da99ca038bb49296f2d83f3e03108",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/EquipmentShopPolicy.cs",
+    "layer": "bannerlord_connector",
+    "lines": 86,
+    "sha256": "d3d1ab3912ae6e3e4f8c5af632a7fd89c01165b150883eb3d527012069ac5bdb",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "limits_rules": 4,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/EquipmentSync.cs",
+    "layer": "bannerlord_connector",
+    "lines": 325,
+    "sha256": "ba5dac1e29b58bb64d07f1c0b9dcefbcd85c01fbaf603daeda20f6b4806ddd42",
+    "candidate_counts": {
+      "catalog_identity": 9,
+      "limits_rules": 4,
+      "closed_sets": 4,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/HeroBuildPolicy.cs",
+    "layer": "bannerlord_connector",
+    "lines": 83,
+    "sha256": "7cab8b5e704e4b746703c498786d97c68dcec7a3b6e82798d559051218ba6bc0",
+    "candidate_counts": {
+      "catalog_identity": 6,
+      "limits_rules": 3,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/HeroBuildRuntime.cs",
+    "layer": "bannerlord_connector",
+    "lines": 158,
+    "sha256": "ac9a0c8163af36fb5cce25fb9b33601091076143536d631fe82a90bb73e66fb7",
+    "candidate_counts": {
+      "catalog_identity": 25,
+      "closed_sets": 8,
+      "dynamic_discovery": 1,
+      "fallback": 3,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/HeroGoldCharge.cs",
+    "layer": "bannerlord_connector",
+    "lines": 100,
+    "sha256": "7f03bc5a31835d5a04b928181eb20040e0f8b5d7541922ea362b0f5a1ca2673e",
+    "candidate_counts": {
+      "limits_rules": 11,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/HeroNaming.cs",
+    "layer": "bannerlord_connector",
+    "lines": 80,
+    "sha256": "caf698751ffca1c31a38de023f7ba50455a31b9ffff9971a8591458b19dd77de",
+    "candidate_counts": {
+      "limits_rules": 2,
+      "explicit_hardcode": 7,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/HeroResolver.cs",
+    "layer": "bannerlord_connector",
+    "lines": 102,
+    "sha256": "4bd060b34b30b4d68b3b4fe4ce96139156c79ccef1ba93ae6208c9e499f64d8a",
+    "candidate_counts": {
+      "catalog_identity": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/HeroStateSync.cs",
+    "layer": "bannerlord_connector",
+    "lines": 532,
+    "sha256": "0fdf45885b3324bd6f0d7d18e708049fa826f395e1a22a0b8559f3edf7b7fbe6",
+    "candidate_counts": {
+      "catalog_identity": 41,
+      "closed_sets": 1,
+      "fallback": 14,
+      "limits_rules": 7,
+      "dynamic_discovery": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/MissionContext.cs",
+    "layer": "bannerlord_connector",
+    "lines": 45,
+    "sha256": "838da7af03fe3c44ee3620ae8f99473df4df5dfd7ee403483333f659e97bc382",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/OneShotEffect.cs",
+    "layer": "bannerlord_connector",
+    "lines": 117,
+    "sha256": "1479d8f94290c4efb7905e0fa3b332597c54c22e4cd9d8770d0d3c5c690f48ae",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/PowerVisualFx.cs",
+    "layer": "bannerlord_connector",
+    "lines": 342,
+    "sha256": "b4f16ec0c2321498af52beb2f7cb7774dd3cb7f80b839be0b4410df907766c92",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "explicit_hardcode": 2,
+      "fallback": 9,
+      "closed_sets": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/StateSyncTracker.cs",
+    "layer": "bannerlord_connector",
+    "lines": 185,
+    "sha256": "6e15e2db8cb2d26438b0630177fa1d1b243c6d7a92599aa056e14cd70a7f8b5a",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "BannerlordLink/src/Util/WandererHome.cs",
+    "layer": "bannerlord_connector",
+    "lines": 137,
+    "sha256": "591ec08e2d75f02de8472bb2ef75ce1c897f5b31c901bbc7fdcd77852f19d1ea",
+    "candidate_counts": {
+      "fallback": 3,
+      "catalog_identity": 8,
+      "dynamic_discovery": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/API/RimLinkAPI.cs",
+    "layer": "rimworld_connector",
+    "lines": 388,
+    "sha256": "d8e5870877bba7c75cb6b06b9dbf623eebc67874191e4455d24439dfecc9a94d",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Actions/CommandFactory.cs",
+    "layer": "rimworld_connector",
+    "lines": 323,
+    "sha256": "5cbdf5c6f800a3d1f012203269a8f784fd4c56f9e510abff4213531acabace99",
+    "candidate_counts": {
+      "catalog_identity": 71,
+      "dynamic_discovery": 2,
+      "closed_sets": 3,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Actions/EventCommands.cs",
+    "layer": "rimworld_connector",
+    "lines": 318,
+    "sha256": "b15387be5c305fda582fc55141a67140be23e4f74a2f9c2220fc2e475b441212",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "fallback": 7,
+      "dynamic_discovery": 10,
+      "closed_sets": 1,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Actions/PawnCommands.cs",
+    "layer": "rimworld_connector",
+    "lines": 227,
+    "sha256": "4138d27b64af7ce4fbb24114ffd63418acfd5e4ded317ee3671998e3b42ca568",
+    "candidate_counts": {
+      "catalog_identity": 18,
+      "fallback": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Components/RimLinkGameComponent.cs",
+    "layer": "rimworld_connector",
+    "lines": 219,
+    "sha256": "9dba339ae0e3798e0689009604b238383bac0f811d01a34d0e64dd40de55ad66",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Components/ViewerIdentity.cs",
+    "layer": "rimworld_connector",
+    "lines": 87,
+    "sha256": "0dd785ae608a7aab4b7645d491c47da28548daa435b5a44ffb49ed120a132b7b",
+    "candidate_counts": {
+      "catalog_identity": 17,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Constants/RimLinkConstants.cs",
+    "layer": "rimworld_connector",
+    "lines": 16,
+    "sha256": "859972c4db9d27a7ef64508761e4dcc83e579275253a4d227d26492ae360b98c",
+    "candidate_counts": {
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Managers/CommandQueue.cs",
+    "layer": "rimworld_connector",
+    "lines": 434,
+    "sha256": "64495b497bcafc290ccce0b7f19f30b349b544b694a4853e29a49e21242b727e",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "closed_sets": 4,
+      "limits_rules": 9,
+      "fallback": 7,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Managers/EventManager.cs",
+    "layer": "rimworld_connector",
+    "lines": 499,
+    "sha256": "80962c078a0ee41fb18086a3fa16c4224c8380fd717d8638e04ff8a7d4ce2b3e",
+    "candidate_counts": {
+      "catalog_identity": 3,
+      "closed_sets": 10,
+      "limits_rules": 16,
+      "fallback": 5,
+      "explicit_hardcode": 1,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Managers/PawnDataBuilder.cs",
+    "layer": "rimworld_connector",
+    "lines": 625,
+    "sha256": "761c8618c7ccfd8f3fbbcd84b6025b13fc08f1eea9cbe4bbbae1c0c483f6e318",
+    "candidate_counts": {
+      "catalog_identity": 91,
+      "fallback": 49,
+      "limits_rules": 7,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Managers/PawnManager.cs",
+    "layer": "rimworld_connector",
+    "lines": 1253,
+    "sha256": "eb262efc99e040df9660e3eeaf90d8bd4738b67b5f88208746ac622fc3a4e697",
+    "candidate_counts": {
+      "catalog_identity": 55,
+      "closed_sets": 2,
+      "fallback": 15,
+      "dynamic_discovery": 8,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Managers/ShopManager.cs",
+    "layer": "rimworld_connector",
+    "lines": 918,
+    "sha256": "2455a6595d73bc9732193e7afe8e41a243855539c0eaf2957dc73c3e0dc96e6f",
+    "candidate_counts": {
+      "catalog_identity": 64,
+      "limits_rules": 32,
+      "closed_sets": 1,
+      "dynamic_discovery": 8,
+      "fallback": 50,
+      "explicit_hardcode": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/PriceSettings.cs",
+    "layer": "rimworld_connector",
+    "lines": 178,
+    "sha256": "ea6acca64391fdfc14e48a01e63a50d89e3d2c01ec6dcf45609883f57a6417b9",
+    "candidate_counts": {
+      "catalog_identity": 27,
+      "limits_rules": 10,
+      "fallback": 1,
+      "dynamic_discovery": 3,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/RimLink.csproj",
+    "layer": "rimworld_connector",
+    "lines": 51,
+    "sha256": "f25ec7377fc559181df626dc8081ccf5dae0fd809288a84de5366319dc436e6a",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/RimLinkLog.cs",
+    "layer": "rimworld_connector",
+    "lines": 92,
+    "sha256": "9a0ceac521583de3da9829597b83f69b7453ad716300753a407ee94af9fac25e",
+    "candidate_counts": {
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/RimLinkMod.cs",
+    "layer": "rimworld_connector",
+    "lines": 506,
+    "sha256": "6a3af187d56edf46ae36e484337f01efd3f33161bb4b304281452e8c9b1eda0d",
+    "candidate_counts": {
+      "catalog_identity": 12,
+      "limits_rules": 69,
+      "fallback": 8,
+      "closed_sets": 4,
+      "dynamic_discovery": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Utils/PawnUtils.cs",
+    "layer": "rimworld_connector",
+    "lines": 23,
+    "sha256": "0ad3d14f86688c2777ffce38c81aa781e1cb4775903253254dcc67346490365e",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "RimLink/Source/Utils/SimpleJson.cs",
+    "layer": "rimworld_connector",
+    "lines": 283,
+    "sha256": "02cd137cc257b0ffbf0c0aa7a204881106ad101c7d4a2a68cf0397ea97ed31c0",
+    "candidate_counts": {
+      "catalog_identity": 3,
+      "limits_rules": 3,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.App/App.xaml",
+    "layer": "manager",
+    "lines": 20,
+    "sha256": "2822a07174919a85be8c40319e9b4a7cdbbeb16f6fa72ed6da615373d79ea00a",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.App/App.xaml.cs",
+    "layer": "manager",
+    "lines": 7,
+    "sha256": "c929679b8afadaf391e769cd3a4cc9ee68e6f4add9d895ede018f9bfdbdaa5bb",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.App/DiagnosticPreviewWindow.xaml",
+    "layer": "manager",
+    "lines": 30,
+    "sha256": "6ef926d5eddb2c687d08e77bde34137052fd27c3ca2267ff79b4bc280c4bd387",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.App/DiagnosticPreviewWindow.xaml.cs",
+    "layer": "manager",
+    "lines": 31,
+    "sha256": "dd7c30f5faa9a30e7bb1e70ae2c6c3042ad86052317200e8046d5d15cbd832c1",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.App/MainWindow.xaml",
+    "layer": "manager",
+    "lines": 124,
+    "sha256": "55ce1a452ab7cb67cd3b5c31545e91033647457681bf8b9f9b1a26a92e1a171b",
+    "candidate_counts": {
+      "limits_rules": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.App/MainWindow.xaml.cs",
+    "layer": "manager",
+    "lines": 1238,
+    "sha256": "945b13f3371cad1fec3db6394d415fdf7665f81098112dc72f4aed2854691e27",
+    "candidate_counts": {
+      "fallback": 13,
+      "limits_rules": 9,
+      "closed_sets": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.App/ReleaseConfiguration.cs",
+    "layer": "manager",
+    "lines": 164,
+    "sha256": "a16b6f3cf7e96ce6dcfac25805c9825a923ef8fde9cafa6786238e034867e982",
+    "candidate_counts": {
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.App/ShedLink.Manager.App.csproj",
+    "layer": "manager",
+    "lines": 24,
+    "sha256": "341e2fa6b2a9a7c8bd0e5e856bea984cdb8412b3de617fef37ee70ea8e31d454",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Api/ManagerApiClient.cs",
+    "layer": "manager",
+    "lines": 224,
+    "sha256": "9a4077753759e659561a32be89fdec3d3a35e682170cc396cdfa4e7b1ee79cd6",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "catalog_identity": 1,
+      "limits_rules": 2,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Api/ManagerApiException.cs",
+    "layer": "manager",
+    "lines": 16,
+    "sha256": "e1fb44a866575ea29740397ed3efb56c4952451d1966e80109798875851a4bdd",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Api/ManagerContracts.cs",
+    "layer": "manager",
+    "lines": 92,
+    "sha256": "ac179d74386834dc2a36638cfeb5f3f809f306c54d51285bc67aa1297c409d56",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Detection/GameDetectionService.cs",
+    "layer": "manager",
+    "lines": 296,
+    "sha256": "60492fef6e6f862bb0414989321a8d863f5d4e534f2c6556e6756fab86df254d",
+    "candidate_counts": {
+      "fallback": 5,
+      "dynamic_discovery": 1,
+      "limits_rules": 3,
+      "catalog_identity": 3,
+      "closed_sets": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Detection/GameInstallation.cs",
+    "layer": "manager",
+    "lines": 12,
+    "sha256": "e4f26b9803a21fc093ea8de8642f771aa244b820dae48558f1c7606b4c3d21e9",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Detection/GameVersionDetector.cs",
+    "layer": "manager",
+    "lines": 20,
+    "sha256": "dedf1f5b32733c5c5ed727538fd51d6e44b66a0c04212d7b31d682f7d231b6d1",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Diagnostics/DiagnosticReportBuilder.cs",
+    "layer": "manager",
+    "lines": 90,
+    "sha256": "00c029773b3c909682d9ee896689d680ebf11845a62a4f3a5d680e97a0ef7a2c",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "catalog_identity": 1,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/ArtifactSignatureVerifier.cs",
+    "layer": "manager",
+    "lines": 97,
+    "sha256": "9b960f3032ce7452e635083257462320522958a7d8c013d559edc14a916551f0",
+    "candidate_counts": {
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/ArtifactVerifier.cs",
+    "layer": "manager",
+    "lines": 23,
+    "sha256": "971969a934277d8e3375fa201fa2dc361ab0376099f8ca856af18aa302ebfb6a",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/AtomicDirectoryTransaction.cs",
+    "layer": "manager",
+    "lines": 247,
+    "sha256": "771a7ccf4dd8547a2655fe1d3ae840a33ad790b10f640e41c298f3c5a22c1574",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/AtomicFileTransaction.cs",
+    "layer": "manager",
+    "lines": 126,
+    "sha256": "429a23993b051a6add97466db158051476f657c341bcf9052a71853a5420015c",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/ConfigurationPathResolver.cs",
+    "layer": "manager",
+    "lines": 30,
+    "sha256": "5b27d49c98411a4a2c6831b9355316ef8a1936f5e0211d72c49d1ea1bbbab3d4",
+    "candidate_counts": {
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/ConfigurationValueResolver.cs",
+    "layer": "manager",
+    "lines": 27,
+    "sha256": "33044a15e2118b8a9803b36c4c001618bd6e35b61a584b34203b9149f4e40d5d",
+    "candidate_counts": {
+      "fallback": 1,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationInspector.cs",
+    "layer": "manager",
+    "lines": 70,
+    "sha256": "f3350d391fd471cbe011d79ecfe6f52b29e4cfd195c2f8f9d867ccf57f61c904",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationManifest.cs",
+    "layer": "manager",
+    "lines": 234,
+    "sha256": "f15abf242dc4d729bcc45a8f4e99ec654e1d7ebe49032bbf540bc316d6eb9b1f",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationManifestLoader.cs",
+    "layer": "manager",
+    "lines": 114,
+    "sha256": "f685ebece852abe7c7d99a09d50c0ca5a36375fb295ecf2e669d14e79b3e6cb2",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "fallback": 1,
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationPrerequisiteChecker.cs",
+    "layer": "manager",
+    "lines": 33,
+    "sha256": "9d907038a1494bb2aa34fdd33e90323aa7edaad204fa44eaa4d9ff98d050d5ae",
+    "candidate_counts": {
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationReleaseCatalog.cs",
+    "layer": "manager",
+    "lines": 39,
+    "sha256": "985b64588503e79425d0a95da84ddd23c963b14af11e9bb4df2f2a4987820fef",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationReleaseSelector.cs",
+    "layer": "manager",
+    "lines": 36,
+    "sha256": "107e47230ac4b44e0829108b49ab7386296ede29f1c397c2c7bcdf9ee512ccdc",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/IntegrationInstallationService.cs",
+    "layer": "manager",
+    "lines": 287,
+    "sha256": "fc6aca3969600d73b387f5331a7ab21b65a4d926530da7665f8c9815365efc8e",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "fallback": 3,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/ManagedConfiguration.cs",
+    "layer": "manager",
+    "lines": 163,
+    "sha256": "5650d46153ac20128972c8b8c598873207c3621794b4077846445ab08e29b0b6",
+    "candidate_counts": {
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/ManagedConfigurationWriter.cs",
+    "layer": "manager",
+    "lines": 16,
+    "sha256": "a1a4471aee653585b263be92dcf988060ac4124c8f0a5190be76d895946d4dbe",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/ManagedJsonConfiguration.cs",
+    "layer": "manager",
+    "lines": 91,
+    "sha256": "b1247c1c044fa8c53d9fc18b39feae038528e1b4c450dc8bde9fcec5d8b6412e",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/ManagedXmlConfiguration.cs",
+    "layer": "manager",
+    "lines": 81,
+    "sha256": "fd4810c757e7c74614e96416a9519ad5711f821d13823598fbf2b2460b77e8a6",
+    "candidate_counts": {
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/PackageInstaller.cs",
+    "layer": "manager",
+    "lines": 176,
+    "sha256": "a738895f19b7830fc62e9d5e248cf090ad36fa407165d0cdac9cd19b534ec462",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/PathBoundary.cs",
+    "layer": "manager",
+    "lines": 35,
+    "sha256": "d8a0ee542a74b5b45ff7fa36896a0dd77a12d6aab0ace700ce7fb5c0e70227dc",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/SafeZipExtractor.cs",
+    "layer": "manager",
+    "lines": 39,
+    "sha256": "c13c4ef9ce118aa0835a4a5784cea1961d813fbaf692fd09b6e3bfd630588d74",
+    "candidate_counts": {
+      "limits_rules": 2,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/SecureArtifactDownloader.cs",
+    "layer": "manager",
+    "lines": 130,
+    "sha256": "b515cfcb54743cc1ada7320f8af11e549fc1c7e539202750acd61ef80b2d25b5",
+    "candidate_counts": {
+      "fallback": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/ManagerCoordinator.cs",
+    "layer": "manager",
+    "lines": 214,
+    "sha256": "2c8ad32c1a603bd8eccc3245b3b007d1206515d57aec457e3db7ee56d0f9f9b9",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/ManagerFailureMessage.cs",
+    "layer": "manager",
+    "lines": 87,
+    "sha256": "75e61dbb5566470a0a4f2d69a4fb28c423945c44217c2d3d0df14cc02070392c",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Security/CredentialKeys.cs",
+    "layer": "manager",
+    "lines": 13,
+    "sha256": "cc7238b00cfd1adce86dffc80f2d6a0cf520a391f601eabe3ead5dbb76f777c9",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Security/CredentialRotationService.cs",
+    "layer": "manager",
+    "lines": 220,
+    "sha256": "7da9b44315d82e59632a2a87c02ff616a77aef41f801d60b849e4648963bcd2e",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "fallback": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Security/ICredentialVault.cs",
+    "layer": "manager",
+    "lines": 8,
+    "sha256": "56a6778ac846aa85684602dc283405ae7960d94120586615ecbc784f51779e2a",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Security/WindowsCredentialVault.cs",
+    "layer": "manager",
+    "lines": 141,
+    "sha256": "7ea923dfee305e9d54bd309346156843580322c553ceda345727ba019bd62c08",
+    "candidate_counts": {
+      "catalog_identity": 6,
+      "limits_rules": 2,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/ShedLink.Manager.Core.csproj",
+    "layer": "manager",
+    "lines": 8,
+    "sha256": "c9e0c471fa526f31a809bb120da2cf414f26b80acb44a894f65d04e8d0295995",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/State/ManagerState.cs",
+    "layer": "manager",
+    "lines": 67,
+    "sha256": "bed3ae9de9cd38a494d1517bf44b72257daa10d9b05ac6c4137540e5719bb01a",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/State/ManagerStateStore.cs",
+    "layer": "manager",
+    "lines": 52,
+    "sha256": "a7f518953d8e38fb73b05869ecf542d21b2f498d4c7846b6fc8afd256465d639",
+    "candidate_counts": {
+      "closed_sets": 1,
+      "catalog_identity": 1,
+      "limits_rules": 1,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Telemetry/OnboardingReporter.cs",
+    "layer": "manager",
+    "lines": 180,
+    "sha256": "362fa822d425d99f4671130bbf44c0c70fc259ebfc91820921100ec0d3df441c",
+    "candidate_counts": {
+      "limits_rules": 4,
+      "closed_sets": 2,
+      "catalog_identity": 1,
+      "fallback": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Update/ManagerReleaseManifest.cs",
+    "layer": "manager",
+    "lines": 112,
+    "sha256": "b4abcf98d5b81e23d53177771bcfcb4573d0bc54285ac2659835ab28645d0fef",
+    "candidate_counts": {
+      "fallback": 1,
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Update/ManagerUpdateService.cs",
+    "layer": "manager",
+    "lines": 248,
+    "sha256": "b7d4e6e7105022a615924b09978329ef1fe82c87573b933cb3747772aec1b07c",
+    "candidate_counts": {
+      "limits_rules": 5,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "ShedLink.Manager/src/ShedLink.Manager.Core/Update/ManagerVersion.cs",
+    "layer": "manager",
+    "lines": 88,
+    "sha256": "768139ca452c96ab72e41e64b640e2abb5b3eca6f063c844621709c4a250a634",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/bannerlord-0.1.1.json",
+    "layer": "installation_manifests",
+    "lines": 180,
+    "sha256": "31f6fc0311ba61491b6a9b075975824f4dd9486d8b2dd1f897f9ec8880142805",
+    "candidate_counts": {
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/bannerlord-0.1.2.json",
+    "layer": "installation_manifests",
+    "lines": 180,
+    "sha256": "757112d2fff868a6d8fef03619f41adce24dcdb8a55b9f90f2a242d17fee7e94",
+    "candidate_counts": {
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/bannerlord-0.1.3.json",
+    "layer": "installation_manifests",
+    "lines": 180,
+    "sha256": "6bf3ad8ddf87ac23c1d4ee37a9dad3c2c78f0ec6d666aea545215d9d0c591d89",
+    "candidate_counts": {
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/rimworld-0.1.1.json",
+    "layer": "installation_manifests",
+    "lines": 122,
+    "sha256": "09e1cd714374d24bf57eb58f7262f10b40cb60493638198ac3aa579c31a6eb67",
+    "candidate_counts": {
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/rimworld-0.1.2.json",
+    "layer": "installation_manifests",
+    "lines": 175,
+    "sha256": "02ee43790861d4b4ed6109ecbf4a1c6438f8c9c0ad64f2e94424db966d76953d",
+    "candidate_counts": {
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/rimworld-0.1.3.json",
+    "layer": "installation_manifests",
+    "lines": 175,
+    "sha256": "8a3eca31ed86131e91051f78b52856b24bcae39831ce68e90617295b5e7ca379",
+    "candidate_counts": {
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/rimworld-0.1.4.json",
+    "layer": "installation_manifests",
+    "lines": 175,
+    "sha256": "8229cf2076c34ddbf04ac4c2bc19af9830a006fdd4abdaa7cf5f0e646ba96024",
+    "candidate_counts": {
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/shedcolony-0.1.0.json",
+    "layer": "installation_manifests",
+    "lines": 153,
+    "sha256": "085f5c9d0698e3c9231f7d9e9e3bc9a781de6cabd7141ebc43fe9a93f7573b55",
+    "candidate_counts": {
+      "limits_rules": 11,
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/shedcolony-0.1.1.json",
+    "layer": "installation_manifests",
+    "lines": 153,
+    "sha256": "f3b496f1084086d16e81f8550557da0e4897dcd80abbbce29df35ef9502947ad",
+    "candidate_counts": {
+      "limits_rules": 11,
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/shedcolony-0.1.2.json",
+    "layer": "installation_manifests",
+    "lines": 153,
+    "sha256": "75f6ab83eb0a18980ee8db22d891cc8cbde8bef69907e6e4cfdeefd4166e6511",
+    "candidate_counts": {
+      "limits_rules": 11,
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/shedcolony-0.1.4.json",
+    "layer": "installation_manifests",
+    "lines": 153,
+    "sha256": "7826ace8e65f78de3c16956420817bdc8c9321be4f5bac6dfe2b5e4dd88e91b6",
+    "candidate_counts": {
+      "limits_rules": 11,
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "manifests/installation/v1.schema.json",
+    "layer": "installation_manifests",
+    "lines": 724,
+    "sha256": "bd18ad2c85ca7c1eaf973381c25bed0af70b2398d47f12571ce656ab53fa19bc",
+    "candidate_counts": {
+      "limits_rules": 28,
+      "closed_sets": 8
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/admin/admin.html",
+    "layer": "admin",
+    "lines": 1488,
+    "sha256": "c0d89ae44dfa91c95c02b8ab0e5d688b5b02dc2f10c70e60d7eb0abd1736295b",
+    "candidate_counts": {
+      "limits_rules": 20,
+      "catalog_identity": 1,
+      "closed_sets": 82,
+      "fallback": 11
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/actions_pause.py",
+    "layer": "backend",
+    "lines": 60,
+    "sha256": "54c461a1dfb92039d7d3afc94eba07e9328378c9b36992d3fb163e0c8187661a",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/activity_policy.py",
+    "layer": "backend",
+    "lines": 20,
+    "sha256": "2ab61dd0062f9ffc357831194dea06d1e14ec08f094cd249b5aeb60eb7677bf1",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/auth.py",
+    "layer": "backend",
+    "lines": 96,
+    "sha256": "0cb199efb0187cd3945b3c07a0ae466c3eedbe6b67162287bb25f694eda63f58",
+    "candidate_counts": {
+      "fallback": 5,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/backup_loop.py",
+    "layer": "backend",
+    "lines": 199,
+    "sha256": "e4b2efb95dd1e5e82e1e1970c274c50d4400c22ff7161571e0b6e835e12e6833",
+    "candidate_counts": {
+      "closed_sets": 6,
+      "limits_rules": 4,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/bot_core.py",
+    "layer": "backend",
+    "lines": 1654,
+    "sha256": "06abdb5918beaf8accb3b98ea4282dae435150a2da4e1e4d68752d3486785ad5",
+    "candidate_counts": {
+      "catalog_identity": 6,
+      "limits_rules": 25,
+      "fallback": 31,
+      "closed_sets": 8
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/bug_reports.py",
+    "layer": "backend",
+    "lines": 76,
+    "sha256": "47e9363bbb1a581675ce904a3d45724a026a3804c5e9765e720a494c17f59849",
+    "candidate_counts": {
+      "limits_rules": 8
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/config.py",
+    "layer": "backend",
+    "lines": 919,
+    "sha256": "2b8cc0b969a8b98515b14c2e1925a3e99ceb93e976d1d8b93814041b5681c332",
+    "candidate_counts": {
+      "fallback": 13,
+      "catalog_identity": 5,
+      "closed_sets": 5,
+      "limits_rules": 54,
+      "explicit_hardcode": 2,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/database.py",
+    "layer": "backend",
+    "lines": 5133,
+    "sha256": "8061cf5d59f0cb59820584cb8a3dac89373f1b976f6892afd9613c3578b5a7b7",
+    "candidate_counts": {
+      "limits_rules": 112,
+      "catalog_identity": 150,
+      "closed_sets": 18,
+      "fallback": 16,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/db_pool.py",
+    "layer": "backend",
+    "lines": 280,
+    "sha256": "c751bc0cb3f09b82b4652d581cd0964f602add8e8c4f11639df4f5c80a9c5152",
+    "candidate_counts": {
+      "limits_rules": 15,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/dependencies.py",
+    "layer": "backend",
+    "lines": 823,
+    "sha256": "4784154fbd158c2913662d0c31de6142520a75b72a3632514a1e5c4aaab08b79",
+    "candidate_counts": {
+      "closed_sets": 21,
+      "fallback": 14,
+      "limits_rules": 12
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/eventsub.py",
+    "layer": "backend",
+    "lines": 1182,
+    "sha256": "76f0c303a2cb6b0668db722bb879e827367ca54efea5da6f247f04f8344d8b48",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "fallback": 24,
+      "limits_rules": 6
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/feature_usage.py",
+    "layer": "backend",
+    "lines": 46,
+    "sha256": "4d7775642fbe6f6d178fe231b9e58392c30b258bc9d8cbb61e0fdbdbf1c6c6ec",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/get_broadcaster_id.py",
+    "layer": "backend",
+    "lines": 52,
+    "sha256": "d1ddaa22cbe461490820f7cb4af058e33fe70a38a226a25fc413ce8ea0e1e590",
+    "candidate_counts": {
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/http_session.py",
+    "layer": "backend",
+    "lines": 70,
+    "sha256": "30d064ad1b96da4a05436d4e9dce9e11eca6bf633d371195a4b7184ed189daf0",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/logging_setup.py",
+    "layer": "backend",
+    "lines": 102,
+    "sha256": "2cb2245548cf6d2265e448cc08cdbb5bdaa7418f7f3d0603929c0b5cc8e39d24",
+    "candidate_counts": {
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/main.py",
+    "layer": "backend",
+    "lines": 2573,
+    "sha256": "67e6d22ecb931ca0a98b825f90edfa1469e1f189a0528457d8e5a36677b93d47",
+    "candidate_counts": {
+      "limits_rules": 18,
+      "catalog_identity": 44,
+      "fallback": 12,
+      "closed_sets": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/manager_auth.py",
+    "layer": "backend",
+    "lines": 590,
+    "sha256": "8c2187a7fbb9e19843bfa3c9f37b38405245d61d002c512db3be9d5e67de0386",
+    "candidate_counts": {
+      "closed_sets": 10,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/__init__.py",
+    "layer": "migrations",
+    "lines": 5,
+    "sha256": "2f4ef5362af2ac3bda2558ea862c4e5a6d0e1f81ed5b57c0c8bab6104c84e9e6",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m100_feature_usage_context.py",
+    "layer": "migrations",
+    "lines": 55,
+    "sha256": "9018fcc8e5ebaf8d927057e6c3cfce67d0fc8a497896a35b6935386801e66247",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m101_peace_offer_action_id.py",
+    "layer": "migrations",
+    "lines": 61,
+    "sha256": "eb5bd57a5eb14ffa99e29d439b1c30aa6584e7c37a4abc95aa46e0fdd04916d9",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m102_tts_moderation.py",
+    "layer": "migrations",
+    "lines": 79,
+    "sha256": "6d66f30669df86a73f9c87729779c2828ef79cb5d0192c79b2f437a92b301a2b",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m103_viewer_notices.py",
+    "layer": "migrations",
+    "lines": 61,
+    "sha256": "f21dc5f7fa65e4c225c5788da0280fd7bad60d193bbae256a05ea7d6911e28a7",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m104_drop_dead_tables.py",
+    "layer": "migrations",
+    "lines": 76,
+    "sha256": "c788aaf3f81c370616272f28510635caf59700a15021027d1108ffe950598e7c",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m105_season_payout_log.py",
+    "layer": "migrations",
+    "lines": 60,
+    "sha256": "be4d2bc9bffba6536ba0e5867ce0d623e1b8e133627773a0fb4e951b253fe4f3",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m106_rimworld_pawn_children_scope.py",
+    "layer": "migrations",
+    "lines": 112,
+    "sha256": "dcc761ffd68b52ce2813a8242963fd218d0e93f63fa0c5c2df51d4a97e7cc137",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "closed_sets": 2,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m107_tts_approval_gate.py",
+    "layer": "migrations",
+    "lines": 91,
+    "sha256": "887f773c1f7c1051e0dc463dfd651d57d9d24f40e173b0c50c6817af0c474b32",
+    "candidate_counts": {
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m108_module_action_ack_receipt.py",
+    "layer": "migrations",
+    "lines": 43,
+    "sha256": "a5ff74a6c5a982cbcd9674177aae770e0d35e9e370f56c65bd8cfb6f4d4ba936",
+    "candidate_counts": {
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m109_module_last_seen.py",
+    "layer": "migrations",
+    "lines": 45,
+    "sha256": "b512a3302458a628e7e4a0a9e33aef600faeb4af0a0d0d8a38e3a88d8ca67739",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m10_matchmaking.py",
+    "layer": "migrations",
+    "lines": 233,
+    "sha256": "ae25c2888127d9889a1a0c7297ac00435f17c76e504844e303495364c74327f7",
+    "candidate_counts": {
+      "closed_sets": 6,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m110_manager_credentials.py",
+    "layer": "migrations",
+    "lines": 90,
+    "sha256": "a26542ceb96d49301fbfb73c87467080a913e2a0a41155d09297d93a8af4d095",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m111_manager_session_scope.py",
+    "layer": "migrations",
+    "lines": 36,
+    "sha256": "cea43448beecfcc5564951fb203175b770f7782a48a24398bea8430a0091c08e",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m112_manager_diagnostics.py",
+    "layer": "migrations",
+    "lines": 32,
+    "sha256": "3c430b80c906774d1e016dce3470520bc54e64dfb23736b090c5714af598d20e",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m113_onboarding_events.py",
+    "layer": "migrations",
+    "lines": 68,
+    "sha256": "03e888593856233e3cf8a5ed9c5e89569af051b8a5d79fee0979e1ea0a21cc5c",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m114_channel_auto_messages.py",
+    "layer": "migrations",
+    "lines": 69,
+    "sha256": "550040daaba0c1facbc0147fbbef1404808cae5155bd035ea43166b7128da6d3",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m115_auto_message_timers.py",
+    "layer": "migrations",
+    "lines": 104,
+    "sha256": "14503d05dee60774312fd5454525cfe13c66a1cbc7e0b858ba35f9737dc1126b",
+    "candidate_counts": {
+      "closed_sets": 3,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m116_engagement_watchtime.py",
+    "layer": "migrations",
+    "lines": 76,
+    "sha256": "2e43ab22c85ae8d94c108be62bf79343a8b48183af775486349783496b82f502",
+    "candidate_counts": {
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m117_income_ledger.py",
+    "layer": "migrations",
+    "lines": 51,
+    "sha256": "fffa317c38f9ae33004f80adedebab78e3d37b1ff4f21007cc6254e95c7216b9",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m118_points_ledger.py",
+    "layer": "migrations",
+    "lines": 95,
+    "sha256": "c07851ad8b8d77547a0bfc61ff88912eff6117ef319488a982f25d2a9ef0e995",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m119_actions_pause.py",
+    "layer": "migrations",
+    "lines": 42,
+    "sha256": "3080e0d7a11d639e3cd157d38aea5df7e82afcf293a74840e6c4240d3139749f",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m11_guilds.py",
+    "layer": "migrations",
+    "lines": 143,
+    "sha256": "bb63c0f62ae48dc5f349932bc85b423720ceaf92e9ed1d510855ff376f0e86e2",
+    "candidate_counts": {
+      "catalog_identity": 9,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m120_viewer_reward_clock.py",
+    "layer": "migrations",
+    "lines": 16,
+    "sha256": "85fa3273760e96d897b8ebbb86660ee3c6d5732ac86e10f4a5ab1bae39e7566e",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m121_shedcolony_catalog_check.py",
+    "layer": "migrations",
+    "lines": 54,
+    "sha256": "10084ec3aedf4053bef5f318821ed6d13ee91989a7319718f820aa8ea5330043",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m122_twitch_login_map.py",
+    "layer": "migrations",
+    "lines": 66,
+    "sha256": "0d0f43e8c9dc6ab4e68d1a4b86d4c0c59c06889cc1225a2b5647462ae09a3e15",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m123_hero_state_ts.py",
+    "layer": "migrations",
+    "lines": 75,
+    "sha256": "75a8da8b42ef696ce620d694f50e72a053f595b86dfe5b44e38e1addc16f1640",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m124_shop_catalog_tooltip.py",
+    "layer": "migrations",
+    "lines": 92,
+    "sha256": "d3640b783e2e4d6d11bccb68f70edb15434502bb1390b032eb8a9412677e756b",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m125_bannerlord_inventory.py",
+    "layer": "migrations",
+    "lines": 27,
+    "sha256": "340aa878dc6398db7d3b251f81207432fb595707405b7d330f3226f40f43bc71",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m126_bannerlord_build.py",
+    "layer": "migrations",
+    "lines": 9,
+    "sha256": "0d8fac9ddcdb5008d3db11a7635a16724510591cc496b12e6aca9833e1acc7b2",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m127_bannerlord_inventory_state.py",
+    "layer": "migrations",
+    "lines": 9,
+    "sha256": "eda2d646f3cffad2faa4b1f9f2dcb8663436e33f46f1c562e64f4c803d343ea7",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m128_bannerlord_tournament_queue_sync.py",
+    "layer": "migrations",
+    "lines": 7,
+    "sha256": "94da836ce118d63565ce6925153c15b1a0c98040ebd16f74682597a226134b74",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m129_pet_companions.py",
+    "layer": "migrations",
+    "lines": 13,
+    "sha256": "026393c6b186edf4e7d34a8fa67cb32804a89de4377701665f08368a9c089dfd",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m12_voting.py",
+    "layer": "migrations",
+    "lines": 176,
+    "sha256": "c3d34af1bbb3aca150e797f59cf08d2f316daaa48e47a9fcc74158f3da3ba27f",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m130_pet_fantasy.py",
+    "layer": "migrations",
+    "lines": 12,
+    "sha256": "0c67aaccd4dc11eb43cf583dc3a3f3e01711ac48a2444d433a92e3ddb45f0004",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m133_pet_legacy_common.py",
+    "layer": "migrations",
+    "lines": 13,
+    "sha256": "f74258de5f66863795bde3acebc3f55a805a1c3e52dc4237a7b1369062c0f371",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m13_pets.py",
+    "layer": "migrations",
+    "lines": 192,
+    "sha256": "ce0630654525f624cd702338cd9c722b370ddd5c1e6895f12a5405990e491813",
+    "candidate_counts": {
+      "limits_rules": 8,
+      "catalog_identity": 14
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m14_bannerlord.py",
+    "layer": "migrations",
+    "lines": 183,
+    "sha256": "81e396ce062acd47fa53887edc17014728be6f9c3a1e6297ae54cf60450c5553",
+    "candidate_counts": {
+      "limits_rules": 1,
+      "catalog_identity": 24,
+      "explicit_hardcode": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m15_bannerlord_classes.py",
+    "layer": "migrations",
+    "lines": 117,
+    "sha256": "8c8c63e86a1c76c1a7adb74a0882a9604e83ca5fd147fe07a27d36d6022a8ed1",
+    "candidate_counts": {
+      "explicit_hardcode": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m16_bannerlord_class_powers.py",
+    "layer": "migrations",
+    "lines": 144,
+    "sha256": "f8633c90a508ccbbd87e01ecb33434baa675a42b0e9a282f4e181045ffb6a399",
+    "candidate_counts": {
+      "explicit_hardcode": 1,
+      "catalog_identity": 17,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m17_eventsub_dedupe.py",
+    "layer": "migrations",
+    "lines": 69,
+    "sha256": "ee39e5147e9b8d3d64bd0d1aeeb6b94923586e0b4f8f445ccc81b7ca501cb82c",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m18_bannerlord_active_powers.py",
+    "layer": "migrations",
+    "lines": 106,
+    "sha256": "b2cfa4a089443d89cd6c75378dbb65c8b742cf85577fdff371dc878b4b0b10b1",
+    "candidate_counts": {
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m19_bannerlord_hero_meta.py",
+    "layer": "migrations",
+    "lines": 72,
+    "sha256": "f4575162826ff683469f3be518d37483334528f9aab48167fb737cda6a09999a",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m1_multitenant.py",
+    "layer": "migrations",
+    "lines": 557,
+    "sha256": "aa3ce05874603a5b1196ccea8f0877597733f02e4ebb8234f33878d0791ff180",
+    "candidate_counts": {
+      "closed_sets": 2,
+      "catalog_identity": 11,
+      "limits_rules": 6
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m20_bannerlord_gear_tier.py",
+    "layer": "migrations",
+    "lines": 63,
+    "sha256": "c3f64aa2266e372067fbf289bc09bbe7aa4cb81966e9f2a83eb237cc02bc342a",
+    "candidate_counts": {
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m21_bannerlord_equipment_stats.py",
+    "layer": "migrations",
+    "lines": 71,
+    "sha256": "516b231c6541ab40b9b28d0954765300be48ab0ec0d9010505578e2cc358cbb3",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m22_bannerlord_channel_state.py",
+    "layer": "migrations",
+    "lines": 66,
+    "sha256": "ffd3741b02247ba20268207a89de045416144e1edbd851f1bc8b12fe74e7e167",
+    "candidate_counts": {
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m23_bannerlord_retinue.py",
+    "layer": "migrations",
+    "lines": 73,
+    "sha256": "256fab2b31234572d92a71f23b6002a3e0df525f8690660eb052cf6111f0d33d",
+    "candidate_counts": {
+      "catalog_identity": 3,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m24_bannerlord_tournament.py",
+    "layer": "migrations",
+    "lines": 87,
+    "sha256": "e04e88e797ed814b233e675d6d31db7d4d57882c9f6b70c5af1633caa1b34a28",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m25_bannerlord_tournament_bets.py",
+    "layer": "migrations",
+    "lines": 73,
+    "sha256": "405ba817f6e4b926c45c4f3f486daed1aee4f5dc30bae8fc78a63bb02b0c0fbf",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m26_bannerlord_focus.py",
+    "layer": "migrations",
+    "lines": 54,
+    "sha256": "3089c563562f2e735b9a1742d1b169b0efe01dbf2da7b27cabf57f1cef0840a3",
+    "candidate_counts": {
+      "catalog_identity": 6
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m27_bannerlord_clan_kingdom_info.py",
+    "layer": "migrations",
+    "lines": 56,
+    "sha256": "dd74208b03c0fee7f04c2cc58e7259d86ef0ef9e7076324a4f6776072f4aeb63",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m28_bannerlord_retinue_elite.py",
+    "layer": "migrations",
+    "lines": 52,
+    "sha256": "8b8d4d6e9ff1440dfa7fb0393f4b76218900bd51f5688de4fbedd9b69eb24580",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m29_pets_slots_v2.py",
+    "layer": "migrations",
+    "lines": 131,
+    "sha256": "aad772d23e773889483c62b641aaba67924d97ce8564029c1c73a85991edd328",
+    "candidate_counts": {
+      "fallback": 1,
+      "catalog_identity": 7,
+      "limits_rules": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m30_pets_catalog_expand.py",
+    "layer": "migrations",
+    "lines": 90,
+    "sha256": "5cfa97facf452e61b06581b075987f1ac43f0d1cc95528a6557b3b83464b546b",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m31_pets_deprecate_misfits.py",
+    "layer": "migrations",
+    "lines": 71,
+    "sha256": "e9e08eb7ce24ffe00a75aad00f45bb7f3d7d2504dd6bc3f2c8f8ca59fdf38161",
+    "candidate_counts": {
+      "catalog_identity": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m32_pets_delete_misfits.py",
+    "layer": "migrations",
+    "lines": 85,
+    "sha256": "47f0ff2d37b5b54edfd18812f555647575d68ddfb030b43dc3e17569eee80e28",
+    "candidate_counts": {
+      "catalog_identity": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m33_tts_messages.py",
+    "layer": "migrations",
+    "lines": 86,
+    "sha256": "d47534e61592ae21f8c63955c2442a2c61051029b883a8ea5a542a51078125dd",
+    "candidate_counts": {
+      "limits_rules": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m34_tts_audio_blob.py",
+    "layer": "migrations",
+    "lines": 67,
+    "sha256": "0a41652d0b34e41dbf4603a8dacc50fe35dc607ec03c62707b5b3b862e45f364",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m35_clan_upgrades.py",
+    "layer": "migrations",
+    "lines": 172,
+    "sha256": "dbefcc3952c6a1442d6d47d1d169486b5c91649bffe7f54ee649c6a65005afd9",
+    "candidate_counts": {
+      "limits_rules": 8,
+      "catalog_identity": 2,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m36_bannerlord_family.py",
+    "layer": "migrations",
+    "lines": 57,
+    "sha256": "287118ab489da6b340113f8c01b7dc681207e7bbc865c900fccdcb24e7847c63",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m37_pets_v3_clean_slate.py",
+    "layer": "migrations",
+    "lines": 111,
+    "sha256": "b40eedaa9a774209db76b458fb238ccb6d750b7fd339c02e5bd3f5d37dea9e6e",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m38_hero_iteration.py",
+    "layer": "migrations",
+    "lines": 52,
+    "sha256": "0fdddacd60e2385f193c5aee7c411fe3ae73069c6209e4d6f48f416fe0e7d8a7",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m39_bannerlord_achievements.py",
+    "layer": "migrations",
+    "lines": 89,
+    "sha256": "4d7300265d1a0fdc86c80e973e6dff42a130c4e8ab7a62fdaf73a9ea8a3e71bd",
+    "candidate_counts": {
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m40_custom_items.py",
+    "layer": "migrations",
+    "lines": 83,
+    "sha256": "fdd7cfd1bb12d614a80affcaf85e30060670b9236294ce6e77147544604c9abe",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m41_auctions.py",
+    "layer": "migrations",
+    "lines": 108,
+    "sha256": "61eeb688b137ec282d9f192a9af77b2d4087b00720262484ab628fd72719368e",
+    "candidate_counts": {
+      "limits_rules": 3,
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m42_boosty_subscribers.py",
+    "layer": "migrations",
+    "lines": 75,
+    "sha256": "012a1f2a1fcf213b710ccdfd31b7fe99fc4c543ffd5591efa7a6bb453a4667b7",
+    "candidate_counts": {
+      "limits_rules": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m43_hero_wounded.py",
+    "layer": "migrations",
+    "lines": 62,
+    "sha256": "da8eaa8cf32dddf487ddddb8c36f6a36ecacfc31b5c883d46030613a923d6036",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m44_class_actives_for_all.py",
+    "layer": "migrations",
+    "lines": 81,
+    "sha256": "fd28a3480516b7d07639a403b0dd2dd40844a2a5ec518c54bc0f7566f79e5b1b",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m45_daily_claims.py",
+    "layer": "migrations",
+    "lines": 63,
+    "sha256": "d23987ad6fbc01097522bb2e593742456a0d8c80903ac5b1e2aa359b2d708a70",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m46_client_action_id.py",
+    "layer": "migrations",
+    "lines": 76,
+    "sha256": "c1d72113cd8643a623dc5e1f07ee3982fc2f9c7c66b16268eb6fb3359639cd6c",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m47_tournament_wins.py",
+    "layer": "migrations",
+    "lines": 67,
+    "sha256": "f515c1438c401182bf46b89fb8122c721afc7eaa6332917d9f712e78e830f532",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m48_heir_queue.py",
+    "layer": "migrations",
+    "lines": 81,
+    "sha256": "efb3d5c119f25f58bb439261a2331cfda13c07502c40f6f63209eec59cbf1fdf",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m49_marriage_proposals.py",
+    "layer": "migrations",
+    "lines": 93,
+    "sha256": "4e089e9f387827023e02d3973644fa1a8ad524f2dd145493ebadc4266251c2b6",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m4_channels.py",
+    "layer": "migrations",
+    "lines": 99,
+    "sha256": "4913a7bf174591c1df34d70fc75ca973b53d72996a6c2ed0287471f8cb60f4ae",
+    "candidate_counts": {
+      "fallback": 1,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m50_character_effects.py",
+    "layer": "migrations",
+    "lines": 71,
+    "sha256": "bc0e5ae8109daa02f5b50bc2296c0e8bd7f23f1fbfd3811036d4a75a54cc8c00",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m51_custom_item_stats.py",
+    "layer": "migrations",
+    "lines": 78,
+    "sha256": "ef2b486213a7ea79a57b9cfa76a0c638d188eaa7cfa0c783c16c24d2a8ff5e2d",
+    "candidate_counts": {
+      "limits_rules": 1,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m52_vassals.py",
+    "layer": "migrations",
+    "lines": 84,
+    "sha256": "03c7f04e7f52d64a4f4801392713d6e9f1062a9684af8e1e85961ca1220b4c20",
+    "candidate_counts": {
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m53_party_orders.py",
+    "layer": "migrations",
+    "lines": 88,
+    "sha256": "0166237bbbc116b9a6b035a10f5133b03135a6373952e094103af83d7ffff1c3",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m54_diplomacy.py",
+    "layer": "migrations",
+    "lines": 155,
+    "sha256": "cbbc7a327ff083dc8e7da08c62479b18c4bbdd29cbec3574a4f3aa6a2d00f1c8",
+    "candidate_counts": {
+      "catalog_identity": 19,
+      "limits_rules": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m55_workshops.py",
+    "layer": "migrations",
+    "lines": 90,
+    "sha256": "32c9a563f8e9d96691447ceae43f87b082762cfdaba8ceb3ff66d2d8cd754f0e",
+    "candidate_counts": {
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m56_fiefs.py",
+    "layer": "migrations",
+    "lines": 79,
+    "sha256": "80004937d45fcef03bee0320f45cd0fc7ab49102e8203586ebb2bde9ef1c66e2",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m57_caravans.py",
+    "layer": "migrations",
+    "lines": 117,
+    "sha256": "00776d9189fac4f5b8e2801ad4898a90c23f0652d6cce2a99034e4d6a4f12793",
+    "candidate_counts": {
+      "limits_rules": 1,
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m58_inheritance.py",
+    "layer": "migrations",
+    "lines": 85,
+    "sha256": "119ec092099fa07c6b8dbaa9bf718644ffbfed60073eadac301c57b4ee8b417b",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m59_kingdom_tax.py",
+    "layer": "migrations",
+    "lines": 55,
+    "sha256": "fe81087f6896609a0ad3f255e97cc688c07a5a30a35dbfb90bb509dc3d2a3aa4",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m5_module_actions.py",
+    "layer": "migrations",
+    "lines": 84,
+    "sha256": "499e2b82b7d76cc45613167ad4856be5226ddff0c67557f4529d3f9ff64af13a",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m60_custom_items_source.py",
+    "layer": "migrations",
+    "lines": 53,
+    "sha256": "a9d711f23619f44a59a785cfe557bf75ef223ffbdc20a7644df11a60f6ac6fdb",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m61_combat_powers.py",
+    "layer": "migrations",
+    "lines": 94,
+    "sha256": "a2d28171e10e86b6f226d893c58b881362d22adc7377b0a1f4ea9acadbe6a1b4",
+    "candidate_counts": {
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m62_combat_powers_ranged.py",
+    "layer": "migrations",
+    "lines": 76,
+    "sha256": "a7180a5cd9b9bea967334b0c98c084af1f9734aeec4295f2ae539f03d0d6c734",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m63_explosive_arrows.py",
+    "layer": "migrations",
+    "lines": 68,
+    "sha256": "e042438a8546d2dd7b1ef47b9e3bc174f9867684200d249d0ea8abec121a2dd0",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m64_ranged_loadout_quivers.py",
+    "layer": "migrations",
+    "lines": 82,
+    "sha256": "8fd5f82fe2ff5f316028e31680b5503cfa12e3fbbf8954a825a8b81c74780f0f",
+    "candidate_counts": {
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m65_power_boost.py",
+    "layer": "migrations",
+    "lines": 104,
+    "sha256": "df5263081ec8b0127f940146a0ea10d58d26df8e1b32c7a33dd3c0198f32ea82",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m66_party_info.py",
+    "layer": "migrations",
+    "lines": 46,
+    "sha256": "da41a0ffd859aab8ce727705506de2d83abf0c52828a21625c190d55c1f4e031",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m67_melee_balance.py",
+    "layer": "migrations",
+    "lines": 99,
+    "sha256": "624eae9ebe7e717e8452aa9092506247fcf6d72a052890e1263c55b04b50055b",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m68_stagger_buff.py",
+    "layer": "migrations",
+    "lines": 65,
+    "sha256": "6e06b4251652946784336000417107df8953cf0ea2704c406e2cf7fa5bd0dcbb",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m69_combat_ai.py",
+    "layer": "migrations",
+    "lines": 83,
+    "sha256": "b24cd13e107123af8d8903c5141e44e8b943b5eca309d45ba57df9c40704f887",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m6_module_catalogs.py",
+    "layer": "migrations",
+    "lines": 73,
+    "sha256": "63ef91db1591367507e1d07918f637221512dde530f4120b0828b87f426a4d00",
+    "candidate_counts": {
+      "catalog_identity": 4,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m70_combat_stance.py",
+    "layer": "migrations",
+    "lines": 53,
+    "sha256": "c0176f006eb34cbfcacaa4e7e7a72c476bb62ea817311028fd24fcb344c07d53",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m71_hp_rebalance.py",
+    "layer": "migrations",
+    "lines": 71,
+    "sha256": "6bdfdfbc3ae830e4ff057e894399479a33c7095cc7cbeb41a6bad096fd52c1d3",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m72_feature_usage.py",
+    "layer": "migrations",
+    "lines": 75,
+    "sha256": "842f2a43450f6586a93dd53dd65c657672a3ecff9aac02f723292ccf05cd372f",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m73_bug_reports.py",
+    "layer": "migrations",
+    "lines": 55,
+    "sha256": "9c6b2d1cce1f176901691e9878332f9fd8aefdc8fba846c44dbfd98eeac1dd55",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m74_sub_greet_settings.py",
+    "layer": "migrations",
+    "lines": 61,
+    "sha256": "d7d1c97fc06ccb6bae6432048ed9a1214fc8381757e2e1d242f19d23ebb22095",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m75_watch_streaks.py",
+    "layer": "migrations",
+    "lines": 63,
+    "sha256": "8a08380f83474920c2e8109150f6c9ba12b79de09ccec5c0f911ba6de43ac785",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m76_drop_caravan_rescue_pool.py",
+    "layer": "migrations",
+    "lines": 45,
+    "sha256": "a55d787123409338d1cd17898881e8a426a7290854c96a04a40d5762baae1b03",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m77_equipment_quality.py",
+    "layer": "migrations",
+    "lines": 56,
+    "sha256": "1a5466c0aecd6d40561e64e0022908aed5ce071c1b8a5fb04aeb4a845ba811c3",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m78_cleave_active.py",
+    "layer": "migrations",
+    "lines": 79,
+    "sha256": "1662dd8f21d04339c7f9e9ae9e2ffc05409eaf8a76fd98cd08eb21fe469e08ff",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m79_class_balance.py",
+    "layer": "migrations",
+    "lines": 105,
+    "sha256": "b76aaa807a8d7cf3df8b8592b4e1befbf6c4c46453fbfbda1c1ec911c8962538",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m7_drop_active_metrics.py",
+    "layer": "migrations",
+    "lines": 73,
+    "sha256": "b9db395bc997fefdb5b90e3ac938bc5e488ac4c3acfaabd498555db92fcfcef6",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m80_class_overhaul.py",
+    "layer": "migrations",
+    "lines": 162,
+    "sha256": "8da0f1ac835f69886a840c9a10fe5e277f13e4ca0f44dd0021e7d5c6cccadaa7",
+    "candidate_counts": {
+      "catalog_identity": 10
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m81_drop_disarm.py",
+    "layer": "migrations",
+    "lines": 49,
+    "sha256": "3ae532d56e32aa7cc99eea42ae6cf1bd97c9914c0fc75e7891b088e6b787f17f",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m82_lifesteal_baseline.py",
+    "layer": "migrations",
+    "lines": 59,
+    "sha256": "84be8b0c13e85ffd1bc9dce1ed855d3241fcbac5b704e681f5803448ba11a5b6",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m83_shedcolony.py",
+    "layer": "migrations",
+    "lines": 79,
+    "sha256": "95d2073fea2cd4f499823620a6940848b4d5464e9aabaa7b32b423b3d0251c8a",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m84_shedcolony_capacity.py",
+    "layer": "migrations",
+    "lines": 62,
+    "sha256": "d1f82c4b282f736fdf242dc943c0a6389c86896a7906abbf8a55332b3b71be7d",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m85_shedcolony_state_json.py",
+    "layer": "migrations",
+    "lines": 49,
+    "sha256": "07cb6f3eff3568b9fb706f70d02cea1a6770606960674fd328d23dc3daff54fc",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m86_pets_reseed_crustics.py",
+    "layer": "migrations",
+    "lines": 88,
+    "sha256": "5ea762a0468d3a65933100611fe5e53e7808532c555770809517fb5308000245",
+    "candidate_counts": {
+      "limits_rules": 4,
+      "catalog_identity": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m87_pets_skins_only.py",
+    "layer": "migrations",
+    "lines": 74,
+    "sha256": "737f8b8f3a0fd09980a5ef4e3102f420497e5152b32f4a4f27b37c7dd174a28e",
+    "candidate_counts": {
+      "catalog_identity": 7,
+      "explicit_hardcode": 1,
+      "limits_rules": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m88_game_vote_proposals.py",
+    "layer": "migrations",
+    "lines": 85,
+    "sha256": "e95d2408fdea94d8ed29f4a26fa30ad5c1b00df93741245a83c98e586e43fc7c",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m89_attendance_first_seen.py",
+    "layer": "migrations",
+    "lines": 59,
+    "sha256": "25f5070a8cce2b88fc6bc9295ea69e87a5c5b9acd105e46559e267d23d81ce44",
+    "candidate_counts": {
+      "limits_rules": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m8_compliance_cleanup.py",
+    "layer": "migrations",
+    "lines": 149,
+    "sha256": "aa84d767bec2be5f521dbab37bf09b2428fd2bec944507c9f94320f4fc90ed80",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m90_shedcolony_targets.py",
+    "layer": "migrations",
+    "lines": 50,
+    "sha256": "d6a83b7e5af84cb3e04b4fa8257d8ba0fcca04083754eba4e22f36ee5f0fc259",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m91_shedcolony_world.py",
+    "layer": "migrations",
+    "lines": 51,
+    "sha256": "4a1eb100192c3750d022398226361bc6c2bbb4758b771da1f08f52d4c7df3171",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m92_classes_v2.py",
+    "layer": "migrations",
+    "lines": 195,
+    "sha256": "c0e5c27ac13890b804fc33c9011f17d4565afaf9bef4d3b1624afcaa92779e53",
+    "candidate_counts": {
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m93_classes_v2_balance.py",
+    "layer": "migrations",
+    "lines": 88,
+    "sha256": "81c427e7673a084217d2f7fa13ca61ac9f668dfeb2145c4acc531d1ddafe9827",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m94_assassin_return.py",
+    "layer": "migrations",
+    "lines": 136,
+    "sha256": "14302c97eba73d2641355382fcb124fbc37c4695947b5bcfdf452369f239e1ca",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m95_passives_audit.py",
+    "layer": "migrations",
+    "lines": 111,
+    "sha256": "4d1c0a286598545c195383fe5b0b16832ffd0692abd455b31dfcbfd32e7d70b2",
+    "candidate_counts": {
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m96_policy_requests_unstick.py",
+    "layer": "migrations",
+    "lines": 83,
+    "sha256": "257367a1d4a302ea6d4108075e3d1568383344d6649d2569d264a3b4e16c9931",
+    "candidate_counts": {
+      "catalog_identity": 13
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m97_rimworld_tenant_scope.py",
+    "layer": "migrations",
+    "lines": 195,
+    "sha256": "4a079c34544584e335022b98bd21d42f8a6776249f0f3c48ec6aae2b5343ae09",
+    "candidate_counts": {
+      "limits_rules": 9,
+      "closed_sets": 2,
+      "catalog_identity": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m98_rimworld_dedup_key.py",
+    "layer": "migrations",
+    "lines": 63,
+    "sha256": "bc4e940b408783600f9732dd77cff87438c64df4cdff0f635854ff3b202a5fb6",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m99_channel_approval.py",
+    "layer": "migrations",
+    "lines": 69,
+    "sha256": "b48ede6777f492c511d0206db581cc4068e033e4ea5dc98e054afdbc84cf0379",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/migrations/m9_cases.py",
+    "layer": "migrations",
+    "lines": 115,
+    "sha256": "44872b9620024bd99ad199469dda43d4df18715bd71308c23459b35d97299e6c",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/models.py",
+    "layer": "backend",
+    "lines": 54,
+    "sha256": "15ce3b734670ef6f1f5982c603d94967ef688b47a262c812a5669dc0f44820c8",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/module_liveness.py",
+    "layer": "backend",
+    "lines": 153,
+    "sha256": "1064a9f24e3869d28617d3be88392a8cb0b80364e0b0b0cc0565df5cc791e7fd",
+    "candidate_counts": {
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/__init__.py",
+    "layer": "backend",
+    "lines": 12,
+    "sha256": "2272b8281af71b7178b27785e1ccdcb07947a5cd4a1e42e4fbe8525016ce2cde",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/_base.py",
+    "layer": "backend",
+    "lines": 197,
+    "sha256": "c46c2b439afe2db10d4de736f13eb89f275aa119c93e9cadbe984fa090405195",
+    "candidate_counts": {
+      "closed_sets": 7,
+      "catalog_identity": 2,
+      "fallback": 1,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/_loader.py",
+    "layer": "backend",
+    "lines": 216,
+    "sha256": "1e4d736c45a2bd6b64efd24ac2589b7dd1c30ed3aaa3c8d423b22c1444092566",
+    "candidate_counts": {
+      "fallback": 13,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/bannerlord/__init__.py",
+    "layer": "backend",
+    "lines": 17,
+    "sha256": "5623c4c646d15a563b1d1c263f4fd9938bdcd466728715003f4ecc41d145d324",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/bannerlord/_adapter.py",
+    "layer": "backend",
+    "lines": 2999,
+    "sha256": "65a0f633da0d475322d809c64e65d48e450486e12704b58cebbacbb96db18705",
+    "candidate_counts": {
+      "catalog_identity": 98,
+      "limits_rules": 86,
+      "explicit_hardcode": 1,
+      "fallback": 47,
+      "dynamic_discovery": 5,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/bannerlord/builds.py",
+    "layer": "backend",
+    "lines": 107,
+    "sha256": "f6ffec9565e29ee141750e90937350f0fa4aeab2f6aa5bb525092d08e360a0da",
+    "candidate_counts": {
+      "closed_sets": 4,
+      "limits_rules": 8,
+      "fallback": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/bannerlord/equipment_shop.py",
+    "layer": "backend",
+    "lines": 244,
+    "sha256": "732992557be459be2e97abc7bf03092268d3195e026e2e9f5d7eee8bccfbdd06",
+    "candidate_counts": {
+      "closed_sets": 3,
+      "limits_rules": 14,
+      "fallback": 20,
+      "catalog_identity": 12
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/bannerlord/manifest.yaml",
+    "layer": "backend",
+    "lines": 219,
+    "sha256": "5c8850fad2c4211c0714546dd9ae311bc0346197ac8b017d482c87995965f677",
+    "candidate_counts": {
+      "dynamic_discovery": 1,
+      "catalog_identity": 15,
+      "explicit_hardcode": 2,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/bannerlord/refusals.py",
+    "layer": "backend",
+    "lines": 295,
+    "sha256": "bf9c13408d2f989da8d1ded62cecdba144d69dd7e31fdeacb1eaac82d82a41d4",
+    "candidate_counts": {
+      "limits_rules": 14,
+      "closed_sets": 2,
+      "catalog_identity": 14,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/bannerlord/tournament_queue.py",
+    "layer": "backend",
+    "lines": 48,
+    "sha256": "afd43b226684687d75dc1463cddae8081f607a2b9091bfb6106a8078c55899d9",
+    "candidate_counts": {
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/bannerlord/ui_config.py",
+    "layer": "backend",
+    "lines": 77,
+    "sha256": "8b9f91c78d18b351513d4729c2bf86f6f32e450db13fc25bb1d304dc54aa36cc",
+    "candidate_counts": {
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/rimworld/__init__.py",
+    "layer": "backend",
+    "lines": 17,
+    "sha256": "fdd36d62318400e86bee627eddec1af267b8f89c511406a48c8cd094e1285792",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/rimworld/_adapter.py",
+    "layer": "backend",
+    "lines": 386,
+    "sha256": "472f4866f39a45ea1efaf39b11cff4800880d447ae6d7dd0143db45ac0b0b205",
+    "candidate_counts": {
+      "fallback": 24,
+      "dynamic_discovery": 8,
+      "catalog_identity": 40,
+      "limits_rules": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/rimworld/manifest.yaml",
+    "layer": "backend",
+    "lines": 64,
+    "sha256": "026bb76f210213f5a09574ec3e1700c187eb6022bdbc66c2cef562c03f30f7c7",
+    "candidate_counts": {
+      "dynamic_discovery": 2,
+      "catalog_identity": 9
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/rimworld/refusals.py",
+    "layer": "backend",
+    "lines": 66,
+    "sha256": "b47518b5851a6b5897bbfd2416c8b8f43400207948c575e8d11550aef76848b9",
+    "candidate_counts": {
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/shedcolony/__init__.py",
+    "layer": "backend",
+    "lines": 3,
+    "sha256": "7d26fcd1480ec7f8729437a86b76970be5160dd1568eef54dc8b7026abeb5939",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/shedcolony/_adapter.py",
+    "layer": "backend",
+    "lines": 462,
+    "sha256": "f02c06ddaf57844a12cac2e2dc7a3e47f9aa0c434efd4e24de1213c6890941f8",
+    "candidate_counts": {
+      "limits_rules": 14,
+      "catalog_identity": 6,
+      "fallback": 6,
+      "closed_sets": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/shedcolony/manifest.yaml",
+    "layer": "backend",
+    "lines": 76,
+    "sha256": "f83ed1749b0c8db613434343d33a60e732748505ba9f75c1159324416302bfdc",
+    "candidate_counts": {
+      "limits_rules": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/modules/shedcolony/refusals.py",
+    "layer": "backend",
+    "lines": 116,
+    "sha256": "3abb65b2501bce7d4cf7503e2948ee84d50c9c2462edb82bf359637a6400c1e6",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/notices.py",
+    "layer": "backend",
+    "lines": 118,
+    "sha256": "8bb271bc43cee1609d11bbd1d71abecf07f32af0ddbd054268db1e195f1c08fe",
+    "candidate_counts": {
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/notifications.py",
+    "layer": "backend",
+    "lines": 134,
+    "sha256": "6c8acb915f8f0d57215aab0d400b2e280969c36a10b668cdba50a406a51a9544",
+    "candidate_counts": {
+      "limits_rules": 6,
+      "closed_sets": 3,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/onboarding.py",
+    "layer": "backend",
+    "lines": 139,
+    "sha256": "1e549cf078c0d28be071b3c6e210375deef5c697aedc9512536f5a6fe59d3d79",
+    "candidate_counts": {
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/pet_collection.py",
+    "layer": "backend",
+    "lines": 42,
+    "sha256": "9269aea507c4e4a1276e45fb908a81356e2986e6452ccdbd97f2da7f856d45ca",
+    "candidate_counts": {
+      "limits_rules": 9,
+      "catalog_identity": 5,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/pubsub.py",
+    "layer": "backend",
+    "lines": 373,
+    "sha256": "2221293a64ad6141da84fabfc53357c6e0a6206f6f89dcebc69c200eb20dd683",
+    "candidate_counts": {
+      "fallback": 6,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/rimworld.py",
+    "layer": "backend",
+    "lines": 2970,
+    "sha256": "2d42a6e5dbbbb9ce807cc47c95c740dad5acc7acee1f95dc261511080e73009a",
+    "candidate_counts": {
+      "catalog_identity": 300,
+      "explicit_hardcode": 3,
+      "limits_rules": 183,
+      "fallback": 122
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/rotate_eventsub.py",
+    "layer": "backend",
+    "lines": 112,
+    "sha256": "77597af2805ef910a3985b62b9299c92f72bfea39bda46f4ba484438fc450c02",
+    "candidate_counts": {
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/__init__.py",
+    "layer": "backend",
+    "lines": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/_mod_queue.py",
+    "layer": "backend",
+    "lines": 76,
+    "sha256": "bf3c584e9c2ee677311441510c8ea8afe194e9cf61efb79067c1844a3ce4f0d9",
+    "candidate_counts": {
+      "limits_rules": 5,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/admin.py",
+    "layer": "backend",
+    "lines": 724,
+    "sha256": "42b1e773361556c5a8af12c3a3b1b6905209305f089c289f843215b0338269c1",
+    "candidate_counts": {
+      "limits_rules": 31,
+      "closed_sets": 4,
+      "fallback": 3,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord.py",
+    "layer": "backend",
+    "lines": 3695,
+    "sha256": "57f1f52ed5f9cf8e1bbe3034724c4b8f88c0416b8e813255796f986ed9511650",
+    "candidate_counts": {
+      "catalog_identity": 142,
+      "fallback": 36,
+      "limits_rules": 320,
+      "explicit_hardcode": 13,
+      "closed_sets": 6,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_achievements.py",
+    "layer": "backend",
+    "lines": 257,
+    "sha256": "6c028bd1a6093c14529cdff4da6ac771eb723ec82145f14e68091283c0e8c3ad",
+    "candidate_counts": {
+      "explicit_hardcode": 1,
+      "limits_rules": 2,
+      "fallback": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_admin.py",
+    "layer": "backend",
+    "lines": 258,
+    "sha256": "66b1a5529ab89c7c547c3fd21f9c2b2e7b8809fd8ebb39517da70e9be35d4241",
+    "candidate_counts": {
+      "catalog_identity": 5,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_auctions.py",
+    "layer": "backend",
+    "lines": 496,
+    "sha256": "fca70cf6fd4c8030590adeeabaad3b37e4925b9e10b803d4c1165136e71b39de",
+    "candidate_counts": {
+      "limits_rules": 25,
+      "closed_sets": 2,
+      "catalog_identity": 17,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_boosty.py",
+    "layer": "backend",
+    "lines": 246,
+    "sha256": "05efe966d560d8d43c1a10e9cb848ad955cb23041c05d166918ed0f4b8ad519c",
+    "candidate_counts": {
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_caravans.py",
+    "layer": "backend",
+    "lines": 314,
+    "sha256": "61a8be63f902d51754b8ca7909518ba06c6d52b62d5486df46c2f1ec8fd2c3ba",
+    "candidate_counts": {
+      "limits_rules": 7,
+      "catalog_identity": 2,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_custom_items.py",
+    "layer": "backend",
+    "lines": 276,
+    "sha256": "6a34024b02c24aed8ff8dd0b70f71590afe900664f3c88f66ff81fd58f59687c",
+    "candidate_counts": {
+      "limits_rules": 8,
+      "catalog_identity": 10,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_diplomacy.py",
+    "layer": "backend",
+    "lines": 560,
+    "sha256": "f9676b601ce54b97acd9edfeb4b4eaa159189a4970957183da4f628aa0b5cb70",
+    "candidate_counts": {
+      "catalog_identity": 40,
+      "limits_rules": 17
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_family.py",
+    "layer": "backend",
+    "lines": 369,
+    "sha256": "6f2f82ba5252b5bf9dbfc97d669016502f6b906211ddd636d1626ce92b07c209",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "limits_rules": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_fiefs.py",
+    "layer": "backend",
+    "lines": 241,
+    "sha256": "b85b59018f537b3f1bb5a87cf1b65f96bc2f604fa760db898ec1f05d4d55e632",
+    "candidate_counts": {
+      "dynamic_discovery": 1,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_party_orders.py",
+    "layer": "backend",
+    "lines": 225,
+    "sha256": "5a3be54e6dea418c97e6f292dbfce78d5e1c5e8b09cbade7a53f09733469a698",
+    "candidate_counts": {
+      "closed_sets": 3,
+      "limits_rules": 2,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_settlements.py",
+    "layer": "backend",
+    "lines": 79,
+    "sha256": "b27f96c74a01cd82f51a285dfe596a58191a50df2cb18556931ceb85548b65c1",
+    "candidate_counts": {
+      "catalog_identity": 1,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_vassals.py",
+    "layer": "backend",
+    "lines": 323,
+    "sha256": "f6a3a41e5939d38a56b917b5924814b85f123555b1d0224855e55d40e6575bdb",
+    "candidate_counts": {
+      "limits_rules": 8
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/bannerlord_workshops.py",
+    "layer": "backend",
+    "lines": 294,
+    "sha256": "653df1285897f37c2e9a5e99cd26a2dade63ddd4d5194ef305cdb25b33b37c56",
+    "candidate_counts": {
+      "limits_rules": 6,
+      "catalog_identity": 1,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/cases.py",
+    "layer": "backend",
+    "lines": 239,
+    "sha256": "b85f3bb9abf0a30419c4fb73ce621fa3ca22a1553727da1786da87e93f2bd430",
+    "candidate_counts": {
+      "fallback": 3,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/compat.py",
+    "layer": "backend",
+    "lines": 26,
+    "sha256": "9483ad0ad8035a09ad16ef8b566750e049a315275f4fbd80323c5f5b4ee65f47",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/dev_login.py",
+    "layer": "backend",
+    "lines": 343,
+    "sha256": "565dfd92657778828ec0420610f7354a5c4fa3e2db9dfda109bcf0b2572b1f59",
+    "candidate_counts": {
+      "fallback": 12,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/dice.py",
+    "layer": "backend",
+    "lines": 961,
+    "sha256": "33fb0ecd31cecd260b314b52fa81e17e253e0a6873fdb4ece90b606c4a028b44",
+    "candidate_counts": {
+      "catalog_identity": 3,
+      "limits_rules": 1,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/duel.py",
+    "layer": "backend",
+    "lines": 546,
+    "sha256": "438150e0444e25667fc5104baed61f51249789287da4055a61a4696cc990c806",
+    "candidate_counts": {
+      "closed_sets": 4,
+      "limits_rules": 2,
+      "fallback": 4,
+      "catalog_identity": 1,
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/guilds.py",
+    "layer": "backend",
+    "lines": 331,
+    "sha256": "b74c8ac83dc158324bf67ce8b06214fef12b84557d526f160f7c9936f9a84dc4",
+    "candidate_counts": {
+      "limits_rules": 19,
+      "catalog_identity": 21,
+      "closed_sets": 2,
+      "fallback": 22
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/manager.py",
+    "layer": "backend",
+    "lines": 572,
+    "sha256": "2a394abf914c861c9426097731502e5434ede54a7f4eb1f5a58882d30b6d8c6f",
+    "candidate_counts": {
+      "closed_sets": 13,
+      "fallback": 15,
+      "limits_rules": 1,
+      "catalog_identity": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/marriage.py",
+    "layer": "backend",
+    "lines": 302,
+    "sha256": "fa7013db17306236fcd3860d2195c2daea74e4ee6315c3c9d33f590722f5b388",
+    "candidate_counts": {
+      "limits_rules": 5,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/match.py",
+    "layer": "backend",
+    "lines": 147,
+    "sha256": "6b530c46c5b72c88fa06b2d0c47df149939ac148ff72b07326f76812a9bac108",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "closed_sets": 3,
+      "fallback": 3,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/misc.py",
+    "layer": "backend",
+    "lines": 294,
+    "sha256": "fa4ac4fddfe609f07efc0a9de3225f0c36e6a755bbf28b752ea4e0a12845440d",
+    "candidate_counts": {
+      "limits_rules": 12,
+      "fallback": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/module_api.py",
+    "layer": "backend",
+    "lines": 745,
+    "sha256": "1e0d1ba8c44e57196ae0193abc91e4b5159afa2b07b9dce563100c544b6c47d8",
+    "candidate_counts": {
+      "dynamic_discovery": 3,
+      "fallback": 20,
+      "limits_rules": 16,
+      "closed_sets": 1,
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/notices.py",
+    "layer": "backend",
+    "lines": 50,
+    "sha256": "90096c05857117a21f0943606172e42494fd763461c898c5c034197dde0eb8f2",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/pets.py",
+    "layer": "backend",
+    "lines": 248,
+    "sha256": "fe281b1a6506c909d365f53e1d4b0350248fc9d48eb79ffa0e86323c926cf72c",
+    "candidate_counts": {
+      "catalog_identity": 17,
+      "limits_rules": 7,
+      "fallback": 9,
+      "closed_sets": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/promo.py",
+    "layer": "backend",
+    "lines": 180,
+    "sha256": "e9daf64ae04d023671223477eae9030aa77e418e851480e71376e00f84f2d4ff",
+    "candidate_counts": {
+      "limits_rules": 14,
+      "fallback": 4,
+      "catalog_identity": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/rps.py",
+    "layer": "backend",
+    "lines": 464,
+    "sha256": "4311d22a2fcc0d46d772dd665354e03959bc393a449e3ad8ff03ffde02cf95ea",
+    "candidate_counts": {
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/shedcolony.py",
+    "layer": "backend",
+    "lines": 680,
+    "sha256": "76af4b50276164ac81a621bbba821518fd0648f8591509c7ecbbb8fdbd84bbc5",
+    "candidate_counts": {
+      "limits_rules": 80,
+      "catalog_identity": 7,
+      "fallback": 5,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/streamer.py",
+    "layer": "backend",
+    "lines": 1239,
+    "sha256": "9c343632318f6ec39ba868b77bc86c381a7b72cf1eb522599785dc6f14b6a50d",
+    "candidate_counts": {
+      "fallback": 33,
+      "limits_rules": 16,
+      "closed_sets": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/tictactoe.py",
+    "layer": "backend",
+    "lines": 787,
+    "sha256": "e141c02b9459b7fa1ecd066d60c95926173c6f8d007e43c3fae598afca1b997c",
+    "candidate_counts": {
+      "catalog_identity": 3,
+      "limits_rules": 1,
+      "fallback": 2,
+      "closed_sets": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/tts.py",
+    "layer": "backend",
+    "lines": 678,
+    "sha256": "dbcd4d763b39734c940915238a56e91c3cb73e5dabdadcfead8693fbb0a3ca23",
+    "candidate_counts": {
+      "limits_rules": 27,
+      "fallback": 9,
+      "catalog_identity": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/tugofwar.py",
+    "layer": "backend",
+    "lines": 446,
+    "sha256": "80b229265ba01543ee309db01a78857021cabda16138f88ab41cdb1faf0c4c84",
+    "candidate_counts": {
+      "limits_rules": 9,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/viewer.py",
+    "layer": "backend",
+    "lines": 662,
+    "sha256": "f10b4c9f56510128dbde5652715bb0776f82400bcad2b0edfddf143c393c8449",
+    "candidate_counts": {
+      "limits_rules": 25,
+      "fallback": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/routes/voting.py",
+    "layer": "backend",
+    "lines": 430,
+    "sha256": "bfe42196d325d09f0ee37a1046289b6f6686cbec90731c47b4dd1ade9ac14933",
+    "candidate_counts": {
+      "limits_rules": 3,
+      "closed_sets": 2,
+      "fallback": 26
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/templates/streamer_dashboard.html",
+    "layer": "backend",
+    "lines": 1206,
+    "sha256": "1cb1e05925eaa7b857c69683a98f74567823b375fb9479668988271ab2c7e73e",
+    "candidate_counts": {
+      "limits_rules": 23,
+      "closed_sets": 91,
+      "catalog_identity": 8
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/backend/twitch_subs.py",
+    "layer": "backend",
+    "lines": 191,
+    "sha256": "5a3199f63af0f392ee4c688d8de19927f08db503a51059a7e59d8441e8a5203c",
+    "candidate_counts": {
+      "limits_rules": 2,
+      "fallback": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/_overlay-strip-test.html",
+    "layer": "frontend",
+    "lines": 788,
+    "sha256": "21ea582e9394ecc7858ac1f8ab5f834fc7732e8c0ca5298d09c62a6cce73439c",
+    "candidate_counts": {
+      "limits_rules": 2,
+      "closed_sets": 7,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/_pet-stage-test.html",
+    "layer": "frontend",
+    "lines": 140,
+    "sha256": "06f4bf23cf577e794ac8682591e23197bd5eaa8dd9a8df4c9e032d6bd4db91ff",
+    "candidate_counts": {
+      "catalog_identity": 2,
+      "closed_sets": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/cases.js",
+    "layer": "frontend",
+    "lines": 356,
+    "sha256": "5aef2421a7b1ed4f1d1722a7b5a2896a4676c21957c9e556b9d066fac12c7adf",
+    "candidate_counts": {
+      "closed_sets": 36,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/config.html",
+    "layer": "frontend",
+    "lines": 114,
+    "sha256": "9b5419ea18af514163f9fa4c497be7044b962d432c028eb842efbd419da827c4",
+    "candidate_counts": {
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/config.js",
+    "layer": "frontend",
+    "lines": 76,
+    "sha256": "9fa0197cdcb22c7c03c3f6240e775917ade2af68f1e979d1beb12cb796409daf",
+    "candidate_counts": {
+      "closed_sets": 9,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/dice.js",
+    "layer": "frontend",
+    "lines": 598,
+    "sha256": "0dc506287806bd6a563c5172f19082d174c3306f2612d355f568a8bcb2c2ed66",
+    "candidate_counts": {
+      "closed_sets": 84,
+      "fallback": 3,
+      "catalog_identity": 1,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/duels.js",
+    "layer": "frontend",
+    "lines": 551,
+    "sha256": "128c8f3ca4d742a35a4c2d13df9f537f65772499a365001c4e33d7cb976f5791",
+    "candidate_counts": {
+      "closed_sets": 71,
+      "dynamic_discovery": 1,
+      "limits_rules": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/extension.html",
+    "layer": "frontend",
+    "lines": 654,
+    "sha256": "41f27d36fc53a5d2d8d351bfe564de802432cf2476229063cfd9e6e9abd7ed59",
+    "candidate_counts": {
+      "catalog_identity": 5,
+      "limits_rules": 10,
+      "fallback": 1,
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/family.js",
+    "layer": "frontend",
+    "lines": 133,
+    "sha256": "262c2c511fd35eb6b3f3777dce82944e09d7ad24b65de3d27ebfc2138ae8f855",
+    "candidate_counts": {
+      "closed_sets": 17,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/guilds.js",
+    "layer": "frontend",
+    "lines": 369,
+    "sha256": "60793b6a5d7ae054333f6bcbaf69677c4d65de34a43ac728872fe8c49a087950",
+    "candidate_counts": {
+      "catalog_identity": 19,
+      "closed_sets": 45,
+      "limits_rules": 13
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/index.html",
+    "layer": "frontend",
+    "lines": 149,
+    "sha256": "5430b8092b80880353a46f98e268f9bf31c661ac7a623fa9d35f2ee31a858106",
+    "candidate_counts": {
+      "limits_rules": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/mobile.html",
+    "layer": "frontend",
+    "lines": 640,
+    "sha256": "753768c9cb489be75adfa30de936cfee6968ac35772e3bdbd92bb1a4096d7148",
+    "candidate_counts": {
+      "catalog_identity": 5,
+      "limits_rules": 9,
+      "fallback": 1,
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/overlay.html",
+    "layer": "frontend",
+    "lines": 1432,
+    "sha256": "17f3c8b272b23a816880f82eecf4a84ed0d100e571e4a26c20e6e041fc114857",
+    "candidate_counts": {
+      "limits_rules": 6,
+      "closed_sets": 83,
+      "fallback": 2,
+      "catalog_identity": 12
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pawn.js",
+    "layer": "frontend",
+    "lines": 588,
+    "sha256": "c3fcee734359ee823629eee547362e3fb4334f47d29eed0e13359e63c9d79c0d",
+    "candidate_counts": {
+      "closed_sets": 85,
+      "limits_rules": 23,
+      "catalog_identity": 55,
+      "fallback": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/companions-v1/manifest.json",
+    "layer": "frontend",
+    "lines": 320,
+    "sha256": "d207548c9711719909638dc12685445116a47cdb374e6535083bea6d686b0972",
+    "candidate_counts": {
+      "limits_rules": 6
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/companions-v1/overlay-pets.js",
+    "layer": "frontend",
+    "lines": 87,
+    "sha256": "dfdf7a9f9100a402b367200dc8adc5e78cd1fed7817f2f5cecb1fa29ae313cb0",
+    "candidate_counts": {
+      "closed_sets": 23,
+      "limits_rules": 5,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/companions-v1/preview.html",
+    "layer": "frontend",
+    "lines": 43,
+    "sha256": "14bb14e3899da6f1eb47e58525ca40a94bab24ae17a6f0c325f8d6aa219de64f",
+    "candidate_counts": {
+      "limits_rules": 5,
+      "closed_sets": 11,
+      "catalog_identity": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/fantasy-v1/manifest.json",
+    "layer": "frontend",
+    "lines": 320,
+    "sha256": "d1abf4da2c90fb051a716c5dbacad3ffc4eb702707b6de73f6e6ab34e31bd829",
+    "candidate_counts": {
+      "limits_rules": 6
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/fantasy-v1/preview.html",
+    "layer": "frontend",
+    "lines": 43,
+    "sha256": "cea9ee463cd99d0c626c2c9fe8eff7a246c998329f9aa7760fd574067b164f16",
+    "candidate_counts": {
+      "limits_rules": 5,
+      "closed_sets": 11,
+      "catalog_identity": 4
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/living-pets-v1/animator.js",
+    "layer": "frontend",
+    "lines": 43,
+    "sha256": "68a8c06c25869e897c08f0bff75fab09257736c34c6e24ef4405ed77bf95b3a8",
+    "candidate_counts": {
+      "closed_sets": 5,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/living-pets-v1/manifest.json",
+    "layer": "frontend",
+    "lines": 396,
+    "sha256": "b6ddd3c9c2bb4cc5ed5f77b9eab018443c6ffb2bf64801a51aa9aa7ddfd05797",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/living-pets-v1/obs-living.js",
+    "layer": "frontend",
+    "lines": 149,
+    "sha256": "19381f27f525577d7d9e241e2cce3a1459fff3613c047e06a259ef6260e27eb9",
+    "candidate_counts": {
+      "closed_sets": 24,
+      "limits_rules": 6,
+      "fallback": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/living-pets-v1/preview.html",
+    "layer": "frontend",
+    "lines": 14,
+    "sha256": "c6c7df32a26ae6d7cdcd8462dfea07234b5245283a9e16c5f6dae949a90dfbf2",
+    "candidate_counts": {
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/living-pets-v1/preview.js",
+    "layer": "frontend",
+    "lines": 83,
+    "sha256": "dcc42001068ac967c04901a0015ff958682e0faa67aeb3295cc6665dfc72a6b5",
+    "candidate_counts": {
+      "closed_sets": 17,
+      "catalog_identity": 9,
+      "limits_rules": 4,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/living-pets-v1/profiles.json",
+    "layer": "frontend",
+    "lines": 75,
+    "sha256": "ec553cde5d7d651f023a5eff77c1252998db9caf8a2397aece4a6fa7839b87c5",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/mage-behaviour-v1/animator.js",
+    "layer": "frontend",
+    "lines": 43,
+    "sha256": "04fe7e8b4e1b59058a868e95c9cf617ff2ef9a64e0c66915601ad580b9128c08",
+    "candidate_counts": {
+      "closed_sets": 5,
+      "limits_rules": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/mage-behaviour-v1/manifest.json",
+    "layer": "frontend",
+    "lines": 96,
+    "sha256": "c2b07d6bb7ee416d0454465432c6f52a76b4ae924cc1922e4fd2fd4354ca53fb",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/mage-behaviour-v1/preview.html",
+    "layer": "frontend",
+    "lines": 13,
+    "sha256": "b993a963f5769405f4c1cb16d3571cbd98d34fad5462563cf9f06bd0e17427b1",
+    "candidate_counts": {
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/mage-behaviour-v1/preview.js",
+    "layer": "frontend",
+    "lines": 51,
+    "sha256": "e58e157deb7af0494ef50c17fbe2c5921a22a0c32e7efa88a529a3907ebc88d5",
+    "candidate_counts": {
+      "closed_sets": 9,
+      "catalog_identity": 5,
+      "limits_rules": 6,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/mage-walk-study-v1/manifest.json",
+    "layer": "frontend",
+    "lines": 58,
+    "sha256": "73109016185d9d91b874a25a4bf40f4f97b065c3dbc4a9fe8d8a272df3240b42",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/mage-walk-study-v1/preview.html",
+    "layer": "frontend",
+    "lines": 19,
+    "sha256": "829df9008789a1fa28037ac3c537b6419c1c63251de6e5799d8af321f799967a",
+    "candidate_counts": {
+      "closed_sets": 6,
+      "catalog_identity": 3,
+      "limits_rules": 2,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/scenes-v1/manifest.json",
+    "layer": "frontend",
+    "lines": 542,
+    "sha256": "7d33f1729247d158cf86d5c42ecfa815f23a6ba03d59026f7c73baee8839e91b",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-assets/v2/metadata.json",
+    "layer": "frontend",
+    "lines": 65,
+    "sha256": "6ffeb3dd944065721df05f9f369a14ee837cf8dc230182ddf589a54a4c1d411a",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-layout.js",
+    "layer": "frontend",
+    "lines": 145,
+    "sha256": "d144430fd82727c2828ea47e1701d6432d1b79be3f55c3f6d04f8718822655ce",
+    "candidate_counts": {
+      "limits_rules": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pet-stage.js",
+    "layer": "frontend",
+    "lines": 193,
+    "sha256": "7918a206903de7dc2ae59843a8be05d3cde8cefaea0c943fa89f0d05fa7829bc",
+    "candidate_counts": {
+      "closed_sets": 25,
+      "fallback": 1,
+      "catalog_identity": 6,
+      "explicit_hardcode": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/pets.js",
+    "layer": "frontend",
+    "lines": 434,
+    "sha256": "e4528be5113dec2f695a6f3d782716c09b56db547ea96e1d5da543b7f1b5fcad",
+    "candidate_counts": {
+      "catalog_identity": 8,
+      "closed_sets": 47,
+      "dynamic_discovery": 1,
+      "limits_rules": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/privacy.html",
+    "layer": "frontend",
+    "lines": 101,
+    "sha256": "f5a53fc8c881e99eb8224d9a894a6db87487969725ca59c1b96d7dc02319b57d",
+    "candidate_counts": {
+      "catalog_identity": 5,
+      "limits_rules": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/realtime.js",
+    "layer": "frontend",
+    "lines": 133,
+    "sha256": "ae455ca1deb67cf88c55fe61219bdab7d046efc10d1df5c4343fd94529184b93",
+    "candidate_counts": {
+      "closed_sets": 7
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/shop.js",
+    "layer": "frontend",
+    "lines": 343,
+    "sha256": "f6343781fd30680da449f2a1bd686829c09ec3b57e30f83acc0a033b7781ab46",
+    "candidate_counts": {
+      "closed_sets": 47,
+      "catalog_identity": 32,
+      "limits_rules": 14
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/terms.html",
+    "layer": "frontend",
+    "lines": 71,
+    "sha256": "5a6707cc53ebc01e79cdef6cb101a604bb4c5e3217e94c433abf5af35762120e",
+    "candidate_counts": {
+      "limits_rules": 2,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/tictactoe.js",
+    "layer": "frontend",
+    "lines": 468,
+    "sha256": "1cf7c0b5cb2656e86a69f6e3b2446c77042a0482feb5b033845ad733b9314f67",
+    "candidate_counts": {
+      "closed_sets": 63,
+      "limits_rules": 6,
+      "catalog_identity": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/tugofwar.js",
+    "layer": "frontend",
+    "lines": 290,
+    "sha256": "11ea0edaf06b68e59df4e765d6af56152fb409eff7b028640f1a26fb600380eb",
+    "candidate_counts": {
+      "closed_sets": 26,
+      "dynamic_discovery": 1,
+      "limits_rules": 5
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer-actions.js",
+    "layer": "frontend",
+    "lines": 224,
+    "sha256": "7f514595d071fbe05893069857e44ced77423e056db38f4d98605f244c84ab91",
+    "candidate_counts": {
+      "fallback": 1,
+      "limits_rules": 14
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer-bannerlord-builds.js",
+    "layer": "frontend",
+    "lines": 154,
+    "sha256": "6d083443b0ca276ee45ba38b7e6106ecb8ee11307b0ea06c9c567cacaceec172",
+    "candidate_counts": {
+      "limits_rules": 10,
+      "closed_sets": 30,
+      "catalog_identity": 9,
+      "fallback": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer-bannerlord-equipment.js",
+    "layer": "frontend",
+    "lines": 295,
+    "sha256": "26a4e750bc8f5f01ea4233d5f3e7800067e128201944ac7fbc785ac037d0832c",
+    "candidate_counts": {
+      "limits_rules": 11,
+      "closed_sets": 76,
+      "catalog_identity": 19,
+      "fallback": 3
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer-bannerlord-ui-config.js",
+    "layer": "frontend",
+    "lines": 93,
+    "sha256": "1e145d3086235fa1b6b4baa332d7e61eb248fa68f31528cfb43fc35b37000a4d",
+    "candidate_counts": {
+      "closed_sets": 15,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer-bannerlord.js",
+    "layer": "frontend",
+    "lines": 5682,
+    "sha256": "40bf38d29e3bc944128dd17ad75c7e4c55d3ecc0bc231817b196a703aeb02a4e",
+    "candidate_counts": {
+      "limits_rules": 303,
+      "closed_sets": 643,
+      "catalog_identity": 157,
+      "fallback": 33,
+      "explicit_hardcode": 15,
+      "dynamic_discovery": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer-registry.js",
+    "layer": "frontend",
+    "lines": 118,
+    "sha256": "d73cacb7c3cbe6df4cc6f79135874059fca4f03a7c3038e7c3584cb7e271b8f9",
+    "candidate_counts": {},
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer-rimworld.js",
+    "layer": "frontend",
+    "lines": 467,
+    "sha256": "f9c1319b21e770cc5ea97ef000a1af8955b3053267c93fb7d5ba3043bad3d358",
+    "candidate_counts": {
+      "fallback": 5,
+      "limits_rules": 45,
+      "closed_sets": 57,
+      "catalog_identity": 24
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer-shedcolony.js",
+    "layer": "frontend",
+    "lines": 842,
+    "sha256": "a34f0b94871b7b9d8d67caa84c241bf1d5a31845a85aa4d20a454b80cfe079ff",
+    "candidate_counts": {
+      "limits_rules": 127,
+      "fallback": 10,
+      "catalog_identity": 25,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer.css",
+    "layer": "frontend",
+    "lines": 1850,
+    "sha256": "a6a5f338be9126ebe0a44220a8ca277868e09437f01f136a7fe8bca745d7957b",
+    "candidate_counts": {
+      "limits_rules": 14,
+      "catalog_identity": 2
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/viewer.js",
+    "layer": "frontend",
+    "lines": 1779,
+    "sha256": "7f0d15fd063d26494f650e5c11aac83d75e044981d8a07f6bca8814537d8bc94",
+    "candidate_counts": {
+      "closed_sets": 189,
+      "catalog_identity": 13,
+      "limits_rules": 35,
+      "fallback": 6,
+      "dynamic_discovery": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/voting.js",
+    "layer": "frontend",
+    "lines": 429,
+    "sha256": "6376f4a8938136a3b09b7168c7f2d4f0ea7efb2041a61a6625c2883fb1125ab7",
+    "candidate_counts": {
+      "fallback": 3,
+      "closed_sets": 48,
+      "limits_rules": 10
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  },
+  {
+    "path": "Расширение/frontend/xenotype.js",
+    "layer": "frontend",
+    "lines": 366,
+    "sha256": "d40e5dfb6d2041ea141be7f969ef23930b57cc4b406c0ffff5cc1be18824b292",
+    "candidate_counts": {
+      "catalog_identity": 44,
+      "closed_sets": 59,
+      "limits_rules": 29,
+      "explicit_hardcode": 2,
+      "fallback": 1
+    },
+    "coverage": "automated lexical scan; not semantic review"
+  }
+]

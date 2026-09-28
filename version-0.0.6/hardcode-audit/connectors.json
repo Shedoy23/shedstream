@@ -1,0 +1,1099 @@
+{
+  "findings": [
+    {
+      "id": "MOD-001",
+      "title": "Bannerlord: каталог магазина одновременно используется как модель всех вещей",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Behaviors/EquipmentShopBehavior.cs",
+          "line": 111,
+          "end_line": 147,
+          "detail": "Category — закрытый switch 16 типов; неизвестный тип => null; Sellable исключает NotMerchandise, невьючных/неездовых лошадей."
+        }
+      ],
+      "problem": "Category — закрытый switch 16 типов; неизвестный тип => null; Sellable исключает NotMerchandise, невьючных/неездовых лошадей.",
+      "impact": "Новые предметы знакомых типов подхватятся. Баннеры, ресурсы, прочие типы не станут видимыми каталогом магазина.",
+      "desired_source": "Все ItemObject + независимые display/purchase/equip capabilities",
+      "recommendation": "Разделить полный каталог и доступные действия; неизвестный тип показывать общей карточкой.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-002",
+      "title": "Bannerlord: имущество партии также отфильтровано категориями магазина",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Behaviors/EquipmentShopBehavior.cs",
+          "line": 199,
+          "end_line": 214,
+          "detail": "Party inventory пропускает Category == null, хотя NotMerchandise не отсекает."
+        }
+      ],
+      "problem": "Party inventory пропускает Category == null, хотя NotMerchandise не отсекает.",
+      "impact": "Нельзя обещать показать все реальные вещи партии; часть имущества теряется при сериализации.",
+      "desired_source": "Полный ItemRoster",
+      "recommendation": "Сериализовать все записи, обозначать unsupported equip отдельно.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-003",
+      "title": "Bannerlord: фиксированные слоты и только BattleEquipment",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Behaviors/EquipmentShopBehavior.cs",
+          "line": 31,
+          "end_line": 31,
+          "detail": "AllSlots содержит weapon0..3, head/body/leg/gloves/cape/horse/horseharness; Read 72-80 читает BattleEquipment."
+        }
+      ],
+      "problem": "AllSlots содержит weapon0..3, head/body/leg/gloves/cape/horse/horseharness; Read 72-80 читает BattleEquipment.",
+      "impact": "Дополнительные слоты/отдельная гражданская экипировка не описываются контрактом.",
+      "desired_source": "Поддерживаемые адаптером наборы экипировки и слоты",
+      "recommendation": "Экспортировать slot descriptors, набор экипировки и ограничения; специальные слоты адаптировать явно.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-004",
+      "title": "Bannerlord: статблок предмета закрыт и берёт PrimaryWeapon",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Util/EquipmentSync.cs",
+          "line": 172,
+          "end_line": 249,
+          "detail": "Switch возвращает {} для неизвестного типа, BuildWeaponStats читает PrimaryWeapon и фиксированный набор статов."
+        }
+      ],
+      "problem": "Switch возвращает {} для неизвестного типа, BuildWeaponStats читает PrimaryWeapon и фиксированный набор статов.",
+      "impact": "Режимы оружия и сторонние эффекты модов не появятся автоматически.",
+      "desired_source": "Игровые данные предмета, компоненты и descriptors от адаптера",
+      "recommendation": "Передавать список известных характеристик/режимов и расширяемые дополнительные поля; не обещать произвольные эффекты.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-005",
+      "title": "Bannerlord: магазин использует собственную лестницу тиров/уровней/цен",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Util/EquipmentShopPolicy.cs",
+          "line": 9,
+          "end_line": 25,
+          "detail": "PublicTier зажимается 1..6, уровни 1/10/15/25/30/35, цена Item.Value ×10."
+        }
+      ],
+      "problem": "PublicTier зажимается 1..6, уровни 1/10/15/25/30/35, цена Item.Value ×10.",
+      "impact": "Это баланс ShedLink, не штатная игровая цена или ограничение; модовые высокие тиры схлопываются.",
+      "desired_source": "Именованная политика магазина ShedLink + native_tier отдельно",
+      "recommendation": "Сохранить как политику, экспортировать причины блокировки и происхождение цены; не выдавать за vanilla rule.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-006",
+      "title": "Bannerlord: покупка повторно валидируется в игре — полезная основа",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/EquipmentShopHandlers.cs",
+          "line": 58,
+          "end_line": 73,
+          "detail": "Игра заново разрешает ID, Sellable, уровень, цену и слот; проверяет mount compatibility."
+        }
+      ],
+      "problem": "Игра заново разрешает ID, Sellable, уровень, цену и слот; проверяет mount compatibility.",
+      "impact": "Backend не может считать каталог окончательным подтверждением покупки.",
+      "desired_source": "Runtime game validation",
+      "recommendation": "Сохранить эту границу, расширить reason/availability; не переносить окончательную проверку во frontend.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-007",
+      "title": "Bannerlord: выбранная культура молча заменяется случайной",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/AdoptHeroHandler.cs",
+          "line": 108,
+          "end_line": 142,
+          "detail": "При отсутствии Wanderer выбранной культуры pool остаётся allWanderers."
+        }
+      ],
+      "problem": "При отсутствии Wanderer выбранной культуры pool остаётся allWanderers.",
+      "impact": "Созданный герой не соответствует выбору зрителя; любая новая культура без Wanderer особенно уязвима.",
+      "desired_source": "Список CultureObject + пригодные шаблоны и доступность",
+      "recommendation": "Публиковать создание по культуре; при невозможности явный отказ вместо другой культуры.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-008",
+      "title": "Bannerlord: возраст создания частично учитывает AgeModel, верхняя граница 35",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/AdoptHeroHandler.cs",
+          "line": 159,
+          "end_line": 176,
+          "detail": "minAge=22 повышается HeroComesOfAge, maxAge=35 остаётся; исключение RNG только логируется."
+        }
+      ],
+      "problem": "minAge=22 повышается HeroComesOfAge, maxAge=35 остаётся; исключение RNG только логируется.",
+      "impact": "При модовой взрослости выше 35 возрастной override не сработает; выбранный шаблон останется со своим возрастом.",
+      "desired_source": "AgeModel и явно заданная стартовая политика",
+      "recommendation": "Согласовать обе границы с моделью; возвращать ошибки создания, не глотать нарушение диапазона.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-009",
+      "title": "Bannerlord: создание сбрасывает шаблон и даёт только 8 vanilla combat skills",
+      "classification": "platform_policy_ok",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/AdoptHeroHandler.cs",
+          "line": 185,
+          "end_line": 203,
+          "detail": "ClearHero затем фиксированные DefaultSkills по 25."
+        }
+      ],
+      "problem": "ClearHero затем фиксированные DefaultSkills по 25.",
+      "impact": "Новые combat skills модов не включены; это равный старт ShedLink, не данные исходного шаблона.",
+      "desired_source": "Настройки starting build с отображением участнику",
+      "recommendation": "Сделать стартовую политику явной; расширять навыки через skill categories адаптера.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-010",
+      "title": "Bannerlord: состояния навыков и атрибутов уже динамические, метаданные неполны",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Util/HeroStateSync.cs",
+          "line": 211,
+          "end_line": 242,
+          "detail": "Все SkillObject публикуются с level/focus/name; атрибуты 435-453 все CharacterAttribute, но только ID->value."
+        }
+      ],
+      "problem": "Все SkillObject публикуются с level/focus/name; атрибуты 435-453 все CharacterAttribute, но только ID->value.",
+      "impact": "UI способен получить новые значения, но не имя атрибута, описание, cap, группы и доступные действия.",
+      "desired_source": "Текущие SkillObject/CharacterAttribute и модели развития",
+      "recommendation": "Расширить существующий snapshot метаданными; не заменять уже динамический источник фиксированным manifest.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-011",
+      "title": "Bannerlord: XP action ограничен DefaultSkills, классовые веса являются политикой",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/AddSkillXpHandler.cs",
+          "line": 85,
+          "end_line": 103,
+          "detail": "Reflection идёт по typeof(DefaultSkills), а не зарегистрированным SkillObject."
+        },
+        {
+          "path": "BannerlordLink/src/Actions/AddSkillXpHandler.cs",
+          "line": 155,
+          "end_line": 186,
+          "detail": "Непустой skill_key ищется только среди DefaultSkills properties/fields."
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2009,
+          "end_line": 2023,
+          "detail": "Платный hero.add_skill разрешён; skill_key optional. Daily reward 595-603 специально отправляет пустой skill_key."
+        }
+      ],
+      "problem": "hero.add_skill выбирает random DefaultSkills с авторскими CLASS_PRIMARY_SKILLS weights; если skill_key задан, lookup также только по DefaultSkills property/field. Это не касается динамических AddFocus/AddAttribute.",
+      "impact": "Добавленный SkillObject получает snapshot и может получить focus, но адресный XP через hero.add_skill не разрешит его. Random reward pool может быть сознательной политикой, а не ошибкой.",
+      "desired_source": "MBObjectManager SkillObject по StringId",
+      "recommendation": "Отделить авторский random reward pool от resolver адресного skill_key. Опубликовать поддерживаемые XP targets; решение расширять random pool принимать как изменение баланса.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-012",
+      "title": "Bannerlord: legacy ModifyAttribute resolver закрыт backend gate",
+      "classification": "legacy_inactive",
+      "priority": "INFO",
+      "status": "inactive",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/ModifyAttributeHandler.cs",
+          "line": 62,
+          "end_line": 90,
+          "detail": "Reflection по статическим полям/properties, lookup по имени property."
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2084,
+          "end_line": 2092,
+          "detail": "Явный return success:false для player.modify_attribute; также отсутствует в _PURCHASABLE_ACTIONS."
+        }
+      ],
+      "problem": "Handler использует DefaultCharacterAttributes и зарегистрирован, но player.modify_attribute исключён из покупаемых и явно отклоняется backend.",
+      "impact": "Не активная проблема viewer P1. Законный hero.add_attribute разрешает CharacterAttribute динамически. Нельзя возрождать legacy путь при автоматическом discovery handlers.",
+      "desired_source": "Registry CharacterAttribute StringId",
+      "recommendation": "Сохранить отказ; retired capability не публиковать как доступную. Удаление handler обсуждать отдельно от миграции игровых каталогов.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-013",
+      "title": "Bannerlord: caps развития 330/5/10 встроены в handlers",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/AddFocusHandler.cs",
+          "line": 103,
+          "end_line": 114,
+          "detail": "Focus >=5 отказ, random выбирает <5; AddAttribute 95-120 cap10; AddSkillXp 201-208 cap330."
+        }
+      ],
+      "problem": "Focus >=5 отказ, random выбирает <5; AddAttribute 95-120 cap10; AddSkillXp 201-208 cap330.",
+      "impact": "Каталоги динамические, границы остаются фиксированными. При изменении игровых моделей расходятся ожидания.",
+      "desired_source": "Проверенные модели игры либо явно названная политика ShedLink",
+      "recommendation": "Разделить native limit и platform limit; передавать remaining/availability.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-014",
+      "title": "Bannerlord: семейные действия используют возраст 18",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/MarryHandler.cs",
+          "line": 75,
+          "end_line": 105,
+          "detail": "Возраст 18 и противоположный пол; preferred NPC pool <50; MakeBaby 71 и FamilyHandlers 122 также 18."
+        }
+      ],
+      "problem": "Возраст 18 и противоположный пол; preferred NPC pool <50; MakeBaby 71 и FamilyHandlers 122 также 18.",
+      "impact": "AgeModel уже учитывается при создании, но не здесь; модовые семейные правила не отражены.",
+      "desired_source": "Модели и проверки конкретной кампании плюс явно продуктовые фильтры",
+      "recommendation": "Discovery доступности на героя; проверять применимые игровые правила и раскрывать platform restrictions.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-015",
+      "title": "Bannerlord: законы разрешаются по runtime ID, но каталог не публикуется",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/DiplomacyHandlers.cs",
+          "line": 87,
+          "end_line": 105,
+          "detail": "EnactPolicy GetObject<PolicyObject>(policyId), HasPolicy/AddPolicy/RemovePolicy; поиск по src не выявил экспорта списка PolicyObject."
+        }
+      ],
+      "problem": "EnactPolicy GetObject<PolicyObject>(policyId), HasPolicy/AddPolicy/RemovePolicy; поиск по src не выявил экспорта списка PolicyObject.",
+      "impact": "Исполнитель способен принять модовый закон, интерфейс не получает список/описания/текущее состояние из игры.",
+      "desired_source": "Runtime PolicyObject + kingdom policy state",
+      "recommendation": "Добавить session-scoped catalog policies и state доступности; не считать текст policy_name из запроса источником правды.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-016",
+      "title": "Bannerlord: fallback recruit угадывает элиту по жалованью",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/RecruitTroopsHandler.cs",
+          "line": 350,
+          "end_line": 384,
+          "detail": "Основной путь 174 берёт culture.BasicTroop/EliteBasicTroop; fallback ограничивает tier<=1, сортирует wage и расслабляет IsBasicTroop."
+        }
+      ],
+      "problem": "Основной путь 174 берёт culture.BasicTroop/EliteBasicTroop; fallback ограничивает tier<=1, сортирует wage и расслабляет IsBasicTroop.",
+      "impact": "При отсутствии правильного template элита может стать обычным юнитом, модовые стартовые tier>1 не найдутся.",
+      "desired_source": "Ссылки культуры/дерево UpgradeTargets и явная недоступность",
+      "recommendation": "Не гадать по цене; fallback делать явным адаптерным решением с reason.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-017",
+      "title": "Bannerlord: классовый подбор ослабляет фильтры до чужого оружия/маунта",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/ClassLoadout.cs",
+          "line": 186,
+          "end_line": 239,
+          "detail": "Empty rideable/name/WeaponClass/material pool сохраняет прежний pool."
+        }
+      ],
+      "problem": "Empty rideable/name/WeaponClass/material pool сохраняет прежний pool.",
+      "impact": "Нет гарантии класса/ездового животного при необычном модпаке.",
+      "desired_source": "Согласованные требования loadout и runtime item metadata",
+      "recommendation": "Возвращать отсутствие совместимого предмета или видимый fallback; классы не путать с native game classes.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-018",
+      "title": "Bannerlord: legacy equipment handlers зарегистрированы, но gated на backend",
+      "classification": "adapter_constraint",
+      "priority": "P3",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/ActionRegistry.cs",
+          "line": 32,
+          "end_line": 57,
+          "detail": "SetClass, EquipItem, UpgradeGear, ReequipGear вместе с новым equipment/build handlers."
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2870,
+          "end_line": 2877,
+          "detail": "Equipment session запрещает legacy set_class/upgrade/reequip."
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 937,
+          "end_line": 954,
+          "detail": "player.equip_item и player.modify_attribute удалены из покупаемых."
+        }
+      ],
+      "problem": "SetClass/UpgradeGear/Reequip зарегистрированы, однако viewer route блокирует их при существующей equipment session. player.equip_item исключён из покупаемых.",
+      "impact": "Это legacy fallback для совместимости, а не доказательство обхода нового магазина. Список handlers не равен актуальным viewer capabilities.",
+      "desired_source": "Реально разрешённые actions текущей версии",
+      "recommendation": "Discovery должен учитывать session и retirement policy backend; не рекламировать legacy handler просто потому, что он зарегистрирован.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-019",
+      "title": "Bannerlord: Echo registrations не являются доступными viewer actions",
+      "classification": "legacy_inactive",
+      "priority": "INFO",
+      "status": "inactive",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/ActionRegistry.cs",
+          "line": 115,
+          "end_line": 127,
+          "detail": "echoTypes регистрируются EchoHandler, комментарии называют stub."
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/manifest.yaml",
+          "line": 114,
+          "end_line": 114,
+          "detail": "set_culture/set_faction сняты как dead/drift."
+        },
+        {
+          "path": "BannerlordLink/src/Actions/EchoHandler.cs",
+          "line": 33,
+          "end_line": 38,
+          "detail": "PostFailed и return false/not_implemented."
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 3312,
+          "end_line": 3312,
+          "detail": "Viewer route проверяет membership _PURCHASABLE_ACTIONS; respawn отсутствует."
+        }
+      ],
+      "problem": "set_culture/set_faction сняты из manifest, player.respawn исключён из покупаемых. EchoHandler реально возвращает false/not_implemented и PostFailed.",
+      "impact": "Не оплачиваемая кнопка и не текущий ложный успех. Registry discovery в 0.0.6 не должен возвращать устаревшие handlers как возможности.",
+      "desired_source": "Реальная capability с implementation status",
+      "recommendation": "Сохранить gates; discovery строить по реализованным разрешённым capabilities, не всем registrations.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-020",
+      "title": "RimWorld: генератор предметов динамический, фильтры не равны любым вещам",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/ShopManager.cs",
+          "line": 39,
+          "end_line": 57,
+          "detail": "Одежда: value>0<=50000, recipeMaker!=null, blacklist, tech; оружие 82-110 аналогично + equipmentType, verbs/tools, Bladelink exception."
+        }
+      ],
+      "problem": "Одежда: value>0<=50000, recipeMaker!=null, blacklist, tech; оружие 82-110 аналогично + equipmentType, verbs/tools, Bladelink exception.",
+      "impact": "Купленные/лутовые вещи без рецепта, дорогие и нестандартные модовые предметы исключаются ещё в игре.",
+      "desired_source": "Полный DefDatabase ThingDef + sellability отдельно",
+      "recommendation": "Каталог display не отсеивать ценой/рецептом; доступность покупки отдельным reason.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-021",
+      "title": "RimWorld: строковый blacklist широких префиксов",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/ShopManager.cs",
+          "line": 26,
+          "end_line": 31,
+          "detail": "GoldenCube/MysteriousCargo/VoidMonolith/Shard/WarpedObelisk/Obelisk/FleshMass/Revenant; IsBlacklisted использует StartsWith 384-386."
+        }
+      ],
+      "problem": "GoldenCube/MysteriousCargo/VoidMonolith/Shard/WarpedObelisk/Obelisk/FleshMass/Revenant; IsBlacklisted использует StartsWith 384-386.",
+      "impact": "Любое модовое оружие с таким префиксом исчезает независимо от свойств.",
+      "desired_source": "Точные совместимости и безопасные типовые проверки",
+      "recommendation": "Сохранить причины защиты, сузить известные problematic definitions; исключения публиковать в диагностике.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-022",
+      "title": "RimWorld: tech-era фильтр и misleading research_unlocked schema",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/ShopManager.cs",
+          "line": 839,
+          "end_line": 879,
+          "detail": "IsThingResearched просто item.tech<=Faction.OfPlayer.def.techLevel, Undefined false; fallback Industrial. Recipe проверяет один researchPrerequisite."
+        }
+      ],
+      "problem": "IsThingResearched просто item.tech<=Faction.OfPlayer.def.techLevel, Undefined false; fallback Industrial. Recipe проверяет один researchPrerequisite.",
+      "impact": "Tech-era фильтр реально исключает записи из каталога. Но research_unlocked сейчас не найден как потребляемое поле в frontend/backend literal scan: неверная надпись «исследовано» или current UI rejection этим полем не доказаны. Риск семантики контракта и будущей интеграции.",
+      "desired_source": "Реальные условия исследования/получения от игры",
+      "recommendation": "Отделить текущую platform tech policy от факта исследования; назвать поле точно. Не считать удаление неиспользуемого флага исправлением самого каталожного фильтра.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-023",
+      "title": "RimWorld: имплант идентифицируется hediff, рецепт и допустимые тела теряются",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/PawnManager.cs",
+          "line": 912,
+          "end_line": 961,
+          "detail": "Первый RecipeDef с addsHediff и fixed body parts, затем только appliedOnFixedBodyParts[0], AddHediff напрямую."
+        }
+      ],
+      "problem": "Первый RecipeDef с addsHediff и fixed body parts, затем только appliedOnFixedBodyParts[0], AddHediff напрямую.",
+      "impact": "Несколько рецептов одного hediff, иные цели/спецэффекты RecipeWorker не представлены.",
+      "desired_source": "Recipe ID + реальные target BodyPartRecord + поддерживаемый способ выполнения",
+      "recommendation": "Catalog имплантов привязать к recipe и цели; отдельно отметить unsupported custom workers вместо обещания любой операции.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-024",
+      "title": "RimWorld: парность рассчитывается по Human и одной части рецепта",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/ShopManager.cs",
+          "line": 901,
+          "end_line": 915,
+          "detail": "GetNamed(\"Human\"), appliedOnFixedBodyParts[0], count>=2."
+        },
+        {
+          "path": "RimLink/Source/PriceSettings.cs",
+          "line": 137,
+          "end_line": 157,
+          "detail": "Вторая auto-paired эвристика по Human, first recipe/part. Ручной override не используется exported is_paired builder."
+        },
+        {
+          "path": "RimLink/Source/Managers/ShopManager.cs",
+          "line": 370,
+          "end_line": 372,
+          "detail": "После BuildCatalogRaw копируется запись и заменяется только price."
+        },
+        {
+          "path": "RimLink/Source/RimLinkMod.cs",
+          "line": 326,
+          "end_line": 331,
+          "detail": "Prices.IsPaired используется checkbox UI настроек."
+        }
+      ],
+      "problem": "Экспорт is_paired строится ShopManager.IsPairedImplantRecipe по Human и первой fixed части. PriceSettings дублирует такую эвристику с ручным override, но BuildCatalogWithPrices меняет только price, не is_paired.",
+      "impact": "Для другого тела экспортируемая парность может быть неверна. Ручной PairedImplants override применяется UI настроек RimLinkMod328, но не подтверждён как исправление экспортируемого флага; по текущему builder не влияет на него.",
+      "desired_source": "Тело выбранной пешки",
+      "recommendation": "Публиковать конкретные target IDs из pawn, а не общий is_paired.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-025",
+      "title": "RimWorld: left/right эвристика имён и индекса",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/PawnDataBuilder.cs",
+          "line": 39,
+          "end_line": 60,
+          "detail": "Left/Right/лев/прав в def/customLabel, иначе индекс>0 => left."
+        }
+      ],
+      "problem": "Left/Right/лев/прав в def/customLabel, иначе индекс>0 => left.",
+      "impact": "Для нестандартных тел все части после первой становятся left; InstallImplant выбирает по этой эвристике.",
+      "desired_source": "Стабильный путь BodyPartRecord в теле пешки",
+      "recommendation": "Передавать target part ID/path; left/right оставить декоративными метками.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-026",
+      "title": "RimWorld: neurotrainer discovery по точному имени comp",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/ShopManager.cs",
+          "line": 193,
+          "end_line": 202,
+          "detail": "compClass.Name == CompUseEffect_LearnSkill; ExtractNeurotrainerSkill 886-894 exact type затем первое слово label."
+        }
+      ],
+      "problem": "compClass.Name == CompUseEffect_LearnSkill; ExtractNeurotrainerSkill 886-894 exact type затем первое слово label.",
+      "impact": "Наследники с другим именем не попадут; fallback может отправить слово вместо SkillDef ID.",
+      "desired_source": "Runtime comp type hierarchy и SkillDef",
+      "recommendation": "Использовать подтверждённые совместимые type checks, отсутствие skill metadata явным unknown.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-027",
+      "title": "RimWorld: магазин намеренно не перечисляет Baseliner и custom-save xenotypes",
+      "classification": "adapter_constraint",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/ShopManager.cs",
+          "line": 303,
+          "end_line": 315,
+          "detail": "modContentPack == null или defName Baseliner => skip."
+        }
+      ],
+      "problem": "BuildCatalogRaw пропускает modContentPack==null и Baseliner. Это явная область предложения магазина, не доказанный дефект игрового состояния.",
+      "impact": "Допустимая UX/commerce политика. Нельзя выдавать эту выборку за полный каталог всех ксенотипов сейва; необходимость продажи Baseliner не следует из требования поддержать моды.",
+      "desired_source": "Defs и сохранённые custom xenotypes + purchase policy",
+      "recommendation": "Разделить display discovery и sellable choices. Сохранить deliberate exclusions пока нет решения расширить магазин; для просмотра реальной пешки использовать её runtime state.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-028",
+      "title": "RimWorld: создание пешки жёстко выбирает Colonist",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Actions/PawnCommands.cs",
+          "line": 35,
+          "end_line": 64,
+          "detail": "PawnKindDefOf.Colonist, Faction.OfPlayer, player PrimaryIdeo."
+        }
+      ],
+      "problem": "PawnKindDefOf.Colonist, Faction.OfPlayer, player PrimaryIdeo.",
+      "impact": "Нет выбора доступных рас/pawnkind/идеологий через runtime каталог.",
+      "desired_source": "Разрешённые стартовые варианты текущего сценария",
+      "recommendation": "Discovery создания + безопасный adapter generation; не просто перечислять все PawnKindDef.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-029",
+      "title": "RimWorld: apparel body slots фиксированы",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/PawnDataBuilder.cs",
+          "line": 159,
+          "end_line": 170,
+          "detail": "FullHead/UpperHead/Eyes/Torso/Legs/Hands/Feet/Waist/Neck => фиксированные slot names."
+        }
+      ],
+      "problem": "FullHead/UpperHead/Eyes/Torso/Legs/Hands/Feet/Waist/Neck => фиксированные slot names.",
+      "impact": "Новые группы тела будут fallback; полноценная анатомия не представлена.",
+      "desired_source": "BodyPartGroupDef descriptors и actual covered parts",
+      "recommendation": "Передавать raw groups/labels/relationships; UI использует generic fallback.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-030",
+      "title": "RimWorld: psylink discovery зависит от Royalty/PsychicAmplifier/имён psy cast",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/PawnDataBuilder.cs",
+          "line": 508,
+          "end_line": 544,
+          "detail": "RoyaltyActive gate, exact Hediff PsychicAmplifier; способности фильтруются requiredPsyfocus или строкой psy/cast."
+        }
+      ],
+      "problem": "RoyaltyActive gate, exact Hediff PsychicAmplifier; способности фильтруются requiredPsyfocus или строкой psy/cast.",
+      "impact": "Иные системы магии не станут автоматически psylink; возможны false positives.",
+      "desired_source": "Ability descriptors поддерживаемого адаптера",
+      "recommendation": "Общий список abilities отдельно; psylink subtype и отдельные integration adapters.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-031",
+      "title": "RimWorld: события дедуплицируются по переведённому названию",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/EventManager.cs",
+          "line": 438,
+          "end_line": 447,
+          "detail": "seenLabels удаляет второй IncidentDef с тем же LabelCap при разных ID."
+        }
+      ],
+      "problem": "seenLabels удаляет второй IncidentDef с тем же LabelCap при разных ID.",
+      "impact": "Разные модовые события с одинаковым названием исчезают.",
+      "desired_source": "Stable defName + source mod",
+      "recommendation": "Не удалять по label; при совпадении показывать источник/ID.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-032",
+      "title": "RimWorld: event tiers/цены и threat — словари и fixed numbers",
+      "classification": "platform_policy_ok",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/EventManager.cs",
+          "line": 388,
+          "end_line": 411,
+          "detail": "TierByDef затем category fallback T1; catalog 464-470 fixed 800/2000/4000/6000."
+        }
+      ],
+      "problem": "TierByDef затем category fallback T1; catalog 464-470 fixed 800/2000/4000/6000.",
+      "impact": "Неизвестное событие автоматически названо лёгким, хотя реальная опасность неизвестна.",
+      "desired_source": "Платформенная ценовая политика и unknown risk",
+      "recommendation": "Не выдавать fallback T1 за факт о модовом событии; policy override + unknown classification.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-033",
+      "title": "RimWorld: каталог обещает threat 4000/6000, executor ограничивает 3000",
+      "classification": "duplicated_platform_policy",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Actions/EventCommands.cs",
+          "line": 256,
+          "end_line": 272,
+          "detail": "FireIncident customPoints clamped 35..3000, каталог T4/T5 отправляет 4000/6000."
+        }
+      ],
+      "problem": "FireIncident customPoints clamped 35..3000, каталог T4/T5 отправляет 4000/6000.",
+      "impact": "Параметры описания и выполнения расходятся уже без модов.",
+      "desired_source": "Единая версия policy effective threat",
+      "recommendation": "Один источник cap/tiers; публиковать фактически выполняемые параметры.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-034",
+      "title": "RimWorld: event blacklist и name conventions ограничивают discovery",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/EventManager.cs",
+          "line": 418,
+          "end_line": 428,
+          "detail": "Нет category/worker/label>=2 => skip; blacklist, *_Internal,*_Test, Debug*, GiveQuest/QuestGive исключены."
+        }
+      ],
+      "problem": "Нет category/worker/label>=2 => skip; blacklist, *_Internal,*_Test, Debug*, GiveQuest/QuestGive исключены.",
+      "impact": "Технические защиты полезны, но эвристики могут скрыть пользовательское событие.",
+      "desired_source": "Supported incident target/worker + explicit exclusion metadata",
+      "recommendation": "Не удалять защиту вслепую; диагностировать excluded reason, discovery не равно can execute now.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-035",
+      "title": "RimWorld: предмет выдаётся с default stuff без выбора материала",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/PawnManager.cs",
+          "line": 740,
+          "end_line": 780,
+          "detail": "ThingMaker.MakeThing(def, GenStuff.DefaultStuffFor(def)); handler принимает только defName."
+        }
+      ],
+      "problem": "ThingMaker.MakeThing(def, GenStuff.DefaultStuffFor(def)); handler принимает только defName.",
+      "impact": "Любые варианты материалов/качества не описаны предметным action contract.",
+      "desired_source": "Допустимые материалы и параметры item instance",
+      "recommendation": "Передавать экземпляр или recipe/options, validate выбранные параметры.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-036",
+      "title": "RimWorld: passion фиксирован в enum диапазоне 0..2",
+      "classification": "adapter_constraint",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/PawnManager.cs",
+          "line": 1068,
+          "end_line": 1077,
+          "detail": "Clamping 0..2 + fixed labels."
+        }
+      ],
+      "problem": "Clamping 0..2 + fixed labels.",
+      "impact": "Моды с иной моделью passions не поддерживаются автоматически; SkillDef ID при этом динамический.",
+      "desired_source": "Supported passion descriptors",
+      "recommendation": "Сохранить enum boundary для поддерживаемой версии, опубликовать limits и adapter extension point.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-037",
+      "title": "RimWorld: catalogue updates привязаны к session init и ручному UI",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "uncertain",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Components/RimLinkGameComponent.cs",
+          "line": 39,
+          "end_line": 106,
+          "detail": "SyncCatalogsInBackground вызывается в TryInitializeSession. Иные найденные builders в RimLinkMod ручные пути settings."
+        }
+      ],
+      "problem": "SyncCatalogsInBackground вызывается в TryInitializeSession. Иные найденные builders в RimLinkMod ручные пути settings.",
+      "impact": "Изменение доступности в середине сейва нельзя считать автоматически свежим из комментария пересчёта при каждой синхронизации.",
+      "desired_source": "Catalog version + availability revision/session",
+      "recommendation": "Добавить инвалидирование при релевантном изменении и проверку freshness; полный lifecycle parent проверить отдельно.",
+      "verification": "Статическое чтение текущего исходника; игровой прогон и DLL не проверялись."
+    },
+    {
+      "id": "MOD-038",
+      "title": "RimWorld: traits/psi оружия reflection по известным именам",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/PawnDataBuilder.cs",
+          "line": 175,
+          "end_line": 276,
+          "detail": "GetWeaponTraits ищет WeaponTraits/weaponTraits и прекращает после первого непустого comp. Psi выбирает первый comp с Psychic/Psycast и один из четырёх известных members."
+        }
+      ],
+      "problem": "GetWeaponTraits ищет WeaponTraits/weaponTraits и прекращает после первого непустого comp. Psi выбирает первый comp с Psychic/Psycast и один из четырёх известных members.",
+      "impact": "Граница поддержки модового содержимого должна быть явно описана; это не гарантия всех сторонних механик.",
+      "desired_source": "Runtime descriptors и явная политика адаптера",
+      "recommendation": "Объединять поддерживаемые descriptors с source/type; unknown fields не угадывать и не терять молча.",
+      "verification": "Статическое чтение; игровой прогон не выполнялся."
+    },
+    {
+      "id": "MOD-039",
+      "title": "RimWorld: краткий tooltip не равен потере полного description",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Managers/ShopManager.cs",
+          "line": 718,
+          "end_line": 718,
+          "detail": "Tooltip для hediff до120 символов; trait/gene описания также 776/818 до120. MakeItem 402 хранит desc отдельно."
+        },
+        {
+          "path": "Расширение/frontend/shop.js",
+          "line": 163,
+          "end_line": 179,
+          "detail": "Полное description и tooltip объединены в раскрываемые details; кнопка Подробнее существует."
+        }
+      ],
+      "problem": "Некоторые tooltip descriptions сокращаются до120, но MakeItem сохраняет desc отдельно; backend сохраняет description, shop.js details объединяет description и tooltip.",
+      "impact": "Не обнаружена общая потеря длинного описания и не нужна новая кнопка раскрытия: она уже есть. Ограничена полнота краткого tooltip.",
+      "desired_source": "Runtime descriptors и явная политика адаптера",
+      "recommendation": "Сохранить существующий полный description/details путь. При изменении схемы проверить оба поля; не включать как текущий UX gap.",
+      "verification": "Статическое чтение; игровой прогон не выполнялся."
+    },
+    {
+      "id": "MOD-040",
+      "title": "Bannerlord: собственные специализации и powers не являются ошибочным vanilla каталогом",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Util/HeroBuildPolicy.cs",
+          "line": 28,
+          "end_line": 31,
+          "detail": "Cooldown90, duration45, 4 Specializations и статические Powers — механики ShedLink. HeroBuildRuntime связывает их с известными DefaultSkills."
+        }
+      ],
+      "problem": "Cooldown90, duration45, 4 Specializations и статические Powers — механики ShedLink. HeroBuildRuntime связывает их с известными DefaultSkills.",
+      "impact": "Граница поддержки модового содержимого должна быть явно описана; это не гарантия всех сторонних механик.",
+      "desired_source": "Runtime descriptors и явная политика адаптера",
+      "recommendation": "Публиковать definitions и costs этой политики из одного места; не ожидать, что базовая игра сама определит кастомные powers ShedLink.",
+      "verification": "Статическое чтение; игровой прогон не выполнялся."
+    },
+    {
+      "id": "MOD-041",
+      "title": "RimWorld: Anomaly event classification по словам в ID",
+      "classification": "legacy_inactive",
+      "priority": "INFO",
+      "status": "inactive",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Actions/CommandFactory.cs",
+          "line": 70,
+          "end_line": 81,
+          "detail": "IsAnomalyEvent содержит строковый список, но полный поиск имени по RimLink/Source нашёл только определение и ни одного вызова."
+        }
+      ],
+      "problem": "IsAnomalyEvent содержит строковый список, но полный поиск имени по RimLink/Source нашёл только определение и ни одного вызова.",
+      "impact": "Не доказан действующий gate; этот helper нельзя учитывать как блокировку живого каталога.",
+      "desired_source": "Runtime descriptors и явная политика адаптера",
+      "recommendation": "При уборке удалить либо документировать; не переносить неиспользуемую эвристику в новый manifest.",
+      "verification": "Статическое чтение; игровой прогон не выполнялся."
+    },
+    {
+      "id": "MOD-042",
+      "title": "RimWorld: параметры произвольного incident угадываются по ID/worker name",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/Actions/EventCommands.cs",
+          "line": 274,
+          "end_line": 301,
+          "detail": "Join/Trader => allied faction, ThreatBig или workerName Raid => hostile humanlike faction; ShipPart/Siege/Crash/Raid => random spawn center."
+        }
+      ],
+      "problem": "Универсальный fire_incident меняет параметры по строковой эвристике.",
+      "impact": "Новый модовый IncidentDef может получить неподходящую фракцию/точку или вообще не получить требуемый контекст.",
+      "desired_source": "Проверенные descriptors target/parameters конкретного worker + adapter",
+      "recommendation": "DefaultParmsNow сохранить; специфические overrides включать подтверждёнными адаптерами, доступность показывать отдельно.",
+      "verification": "Прочитан полный FireIncident execution fragment 235-310; TryExecute result возвращается, это полезная окончательная проверка."
+    },
+    {
+      "id": "MOD-043",
+      "title": "Караван: fallback культуры и поиск template по словам",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/CaravanHandlers.cs",
+          "line": 210,
+          "end_line": 247,
+          "detail": "Основной CaravanHelper текущей культуры, затем home/MainHero/любая non-bandit. Последний fallback StringId содержит caravan и не содержит elite/bandit."
+        }
+      ],
+      "problem": "Основной CaravanHelper текущей культуры, затем home/MainHero/любая non-bandit. Последний fallback StringId содержит caravan и не содержит elite/bandit.",
+      "impact": "Модовый template с другим naming не найдётся; fallback может выдать чужую культуру.",
+      "desired_source": "Runtime IDs/state + явная adapter/platform policy",
+      "recommendation": "Явный template descriptor и reason отсутствия; не подменять заявленные свойства молча.",
+      "verification": "Статический второй проход релевантных участков; live не проверялся."
+    },
+    {
+      "id": "MOD-044",
+      "title": "Мастерские: fuzzy name fallback после runtime ID",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/WorkshopHandlers.cs",
+          "line": 248,
+          "end_line": 267,
+          "detail": "ResolveWorkshopType сначала exact runtime ID, затем substring имени >=3; settlement fallback 99-108 аналогичный."
+        }
+      ],
+      "problem": "ResolveWorkshopType сначала exact runtime ID, затем substring имени >=3; settlement fallback 99-108 аналогичный.",
+      "impact": "Сходные локализованные имена модовых сущностей могут выбрать не запрошенный объект.",
+      "desired_source": "Runtime IDs/state + явная adapter/platform policy",
+      "recommendation": "Использовать session-scoped stable IDs; неоднозначный/пропавший ID даёт отказ, не первый name match.",
+      "verification": "Статический второй проход релевантных участков; live не проверялся."
+    },
+    {
+      "id": "MOD-045",
+      "title": "Создание вассала: шаблон чужой культуры и возраст28..45",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Actions/VassalHandlers.cs",
+          "line": 340,
+          "end_line": 376,
+          "detail": "Lord своей культуры -> Wanderer своей -> любой Lord. NPC получает rng28..45 без AgeModel; клан затем Culture=запрошенная."
+        }
+      ],
+      "problem": "Lord своей культуры -> Wanderer своей -> любой Lord. NPC получает rng28..45 без AgeModel; клан затем Culture=запрошенная.",
+      "impact": "Культура шаблона и клана расходится; возраст взрослости модпака не учитывается этим путём.",
+      "desired_source": "Runtime IDs/state + явная adapter/platform policy",
+      "recommendation": "Экспортировать supported creation templates и взрослость из модели; явно обозначить fallback.",
+      "verification": "Статический второй проход релевантных участков; live не проверялся."
+    },
+    {
+      "id": "MOD-046",
+      "title": "Имущество зрителя ещё определяется по маркеру имени",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Behaviors/WorkshopProfitSyncBehavior.cs",
+          "line": 146,
+          "end_line": 180,
+          "detail": "IsBLinkHero читает HeroNaming.IsAdopted(Name), ownerLogin извлекается из имени. CaravanTracker133-146 также name gate; HeroIdentityBehavior119-148 уже имеет stable mapping."
+        }
+      ],
+      "problem": "IsBLinkHero читает HeroNaming.IsAdopted(Name), ownerLogin извлекается из имени. CaravanTracker133-146 также name gate; HeroIdentityBehavior119-148 уже имеет stable mapping.",
+      "impact": "Переименованный модом зарегистрированный герой может выпасть из property snapshot, хотя stable identity сохранена.",
+      "desired_source": "Runtime IDs/state + явная adapter/platform policy",
+      "recommendation": "HeroIdentityBehavior authoritative mapping; name fallback только миграция.",
+      "verification": "Статический второй проход релевантных участков; live не проверялся."
+    },
+    {
+      "id": "MOD-047",
+      "title": "RimWorld catalog transport не несёт session revision в envelope",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "RimLink/Source/API/RimLinkAPI.cs",
+          "line": 339,
+          "end_line": 364,
+          "detail": "SyncShopCatalog/SyncEventCatalog отправляют только serialized list. SessionStart121-123 отправляет пустой объект."
+        }
+      ],
+      "problem": "SyncShopCatalog/SyncEventCatalog отправляют только serialized list. SessionStart121-123 отправляет пустой объект.",
+      "impact": "По payload каталога нельзя доказать принадлежность конкретному сейву/поколению. Это schema gap, не доказанная гонка сервера.",
+      "desired_source": "Runtime IDs/state + явная adapter/platform policy",
+      "recommendation": "Версия каталога, world/session ID, revision и ack; отдельно проверить backend ordering.",
+      "verification": "Статический второй проход релевантных участков; live не проверялся."
+    },
+    {
+      "id": "MOD-048",
+      "title": "Награды/налоги/турнир/приказы — механики ShedLink, не потерянные native каталоги",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "BannerlordLink/src/Behaviors/KingdomTaxBehavior.cs",
+          "line": 40,
+          "end_line": 46,
+          "detail": "KingdomTax хранит собственные ставки с buffer500; KillReward27-117 own reward constants; TournamentMission51-110 own handicap/rewards; PartyOrder493-508 known dispatch actions."
+        }
+      ],
+      "problem": "KingdomTax хранит собственные ставки с buffer500; KillReward27-117 own reward constants; TournamentMission51-110 own handicap/rewards; PartyOrder493-508 known dispatch actions.",
+      "impact": "Эти константы требуют декларации политики и единого UI, но не должны автоматически заменяться данными базовой игры.",
+      "desired_source": "Runtime IDs/state + явная adapter/platform policy",
+      "recommendation": "Сохранять продуктовые правила; generic capabilities должны описывать их параметры/доступность.",
+      "verification": "Статический второй проход релевантных участков; live не проверялся."
+    }
+  ],
+  "reviewed_files": [
+    "Расширение/backend/routes/bannerlord.py",
+    "BannerlordLink/src/Actions/ActionRegistry.cs",
+    "BannerlordLink/src/Actions/ActivateHeirHandler.cs",
+    "BannerlordLink/src/Actions/AddAttributeHandler.cs",
+    "BannerlordLink/src/Actions/AddFocusHandler.cs",
+    "BannerlordLink/src/Actions/AddSkillXpHandler.cs",
+    "BannerlordLink/src/Actions/AdoptHeroHandler.cs",
+    "BannerlordLink/src/Actions/CaravanHandlers.cs",
+    "BannerlordLink/src/Actions/ClassLoadout.cs",
+    "BannerlordLink/src/Actions/DiplomacyHandlers.cs",
+    "BannerlordLink/src/Actions/EquipItemHandler.cs",
+    "BannerlordLink/src/Actions/EquipmentShopHandlers.cs",
+    "BannerlordLink/src/Actions/FamilyHandlers.cs",
+    "BannerlordLink/src/Actions/MakeBabyHandler.cs",
+    "BannerlordLink/src/Actions/MarryHandler.cs",
+    "BannerlordLink/src/Actions/ModifyAttributeHandler.cs",
+    "BannerlordLink/src/Actions/RecruitTroopsHandler.cs",
+    "BannerlordLink/src/Actions/SummonHeroHandler.cs",
+    "BannerlordLink/src/Actions/TrainTroopsHandler.cs",
+    "BannerlordLink/src/Actions/VassalHandlers.cs",
+    "BannerlordLink/src/Actions/WorkshopHandlers.cs",
+    "BannerlordLink/src/BannerlordLink.csproj",
+    "BannerlordLink/src/BannerlordLinkModule.cs",
+    "BannerlordLink/src/Behaviors/CaravanTrackerBehavior.cs",
+    "BannerlordLink/src/Behaviors/EquipmentShopBehavior.cs",
+    "BannerlordLink/src/Behaviors/HeroIdentityBehavior.cs",
+    "BannerlordLink/src/Behaviors/KillRewardBehavior.cs",
+    "BannerlordLink/src/Behaviors/KingdomTaxBehavior.cs",
+    "BannerlordLink/src/Behaviors/MainCampaignBehavior.cs",
+    "BannerlordLink/src/Behaviors/PartyOrderBehavior.cs",
+    "BannerlordLink/src/Behaviors/TournamentMissionBehavior.cs",
+    "BannerlordLink/src/Behaviors/WorkshopProfitSyncBehavior.cs",
+    "BannerlordLink/src/Util/EquipmentShopPolicy.cs",
+    "BannerlordLink/src/Util/EquipmentSync.cs",
+    "BannerlordLink/src/Util/HeroBuildPolicy.cs",
+    "BannerlordLink/src/Util/HeroBuildRuntime.cs",
+    "BannerlordLink/src/Util/HeroStateSync.cs",
+    "RimLink/Source/Actions/CommandFactory.cs",
+    "RimLink/Source/Actions/EventCommands.cs",
+    "RimLink/Source/Actions/PawnCommands.cs",
+    "RimLink/Source/API/RimLinkAPI.cs",
+    "RimLink/Source/Components/RimLinkGameComponent.cs",
+    "RimLink/Source/Components/ViewerIdentity.cs",
+    "RimLink/Source/Managers/EventManager.cs",
+    "RimLink/Source/Managers/PawnDataBuilder.cs",
+    "RimLink/Source/Managers/PawnManager.cs",
+    "RimLink/Source/Managers/ShopManager.cs",
+    "RimLink/Source/PriceSettings.cs",
+    "RimLink/Source/RimLink.csproj",
+    "RimLink/Source/RimLinkMod.cs",
+    "BannerlordLink/src/Actions/EchoHandler.cs",
+    "Расширение/backend/modules/bannerlord/manifest.yaml",
+    "Расширение/frontend/shop.js"
+  ],
+  "limits": [
+    "Статический аудит выбранных путей; CodeGraph locked по проверке parent, использован rg и чтение исходников.",
+    "Не полная построчная вычитка всех файлов; reviewed_files означает прочитаны релевантные участки, а не весь файл.",
+    "Нет сборки, live-game экспериментов, подтверждения текущего modpack или production; active означает wiring в текущем исходнике, не подтверждённый live вызов.",
+    "BannerlordAutopilot, backend/frontend принадлежат отдельным частям аудита parent.",
+    "Не обещается универсальная поддержка произвольных игровых типов, Harmony overrides, workers и модовых механик; нужны явные adaptation boundaries.",
+    "P1 обозначает высокий приоритет относительно обещания game-as-source-of-truth, а не security/blocking-release severity. Отсутствие policy discovery — scoped search по BannerlordLink/src; parent должен связать с frontend каталогом."
+  ]
+}

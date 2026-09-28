@@ -1,0 +1,1301 @@
+{
+  "findings": [
+    {
+      "id": "FE-001",
+      "title": "Культуры создания героя: закрытый список шести ванильных культур",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 5128,
+          "end_line": 5136,
+          "detail": "CULTURES из 6 литералов становится кнопками"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 5168,
+          "end_line": 5173,
+          "detail": "Выбранный key уходит в hero.create"
+        }
+      ],
+      "problem": "Список доступных культур и описания рождаются в JS, не в каталоге активной кампании.",
+      "impact": "Модовая культура отсутствует в выборе; удалённая ванильная остаётся предложенной.",
+      "desired_source": "BannerLink: культуры реальной кампании с can_create/reason и подходящим шаблоном героя.",
+      "recommendation": "Передавать culture_id, label, description и доступность. Случайный выбор оформить отдельной игровой возможностью.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-002",
+      "title": "Законы: 12 ID и ручные описания эффектов",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 2356,
+          "end_line": 2381,
+          "detail": "_BNR_POLICIES с ID, именами и числовыми эффектами"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 2434,
+          "end_line": 2467,
+          "detail": "Список действий строится из _BNR_POLICIES, текущие enacted/pending только помечают строки"
+        }
+      ],
+      "problem": "Полученные из игры активные законы не служат каталогом доступных политик; каталог и эффекты написаны вручную.",
+      "impact": "Законы модов нельзя выбрать; изменения эффектов не отражаются, удалённые политики остаются.",
+      "desired_source": "PolicyObject и модели активной кампании; допустимые enact/repeal действия для конкретного героя.",
+      "recommendation": "Передавать полный каталог с игровыми описаниями и per-action availability. Не вычислять эффекты в JS.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-003",
+      "title": "Мастерские: ванильный закрытый список WorkshopType",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1256,
+          "end_line": 1268,
+          "detail": "11 ID _BNR_WORKSHOP_TYPES"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1422,
+          "end_line": 1431,
+          "detail": "Радиокнопки из локального массива"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1447,
+          "end_line": 1450,
+          "detail": "Города уже отдельно читаются из engine catalog"
+        }
+      ],
+      "problem": "Города динамические, типы мастерских остаются ручными, включая engine-specific wood_WorkshopType.",
+      "impact": "Новые производства не видны; старые переименованные типы ведут к отказам.",
+      "desired_source": "BannerLink: зарегистрированные WorkshopType, существующие/доступные производства в выбранном городе.",
+      "recommendation": "Каталог типов и условия покупки передавать из игры отдельно от платформенной платы.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-004",
+      "title": "Навыки и атрибуты Bannerlord: лишние теряются, отсутствующие выдумываются",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1093,
+          "end_line": 1119,
+          "detail": "Шесть атрибутов, 18 навыков, жёсткая карта skill→attribute"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1151,
+          "end_line": 1159,
+          "detail": "Lookup по реальным skills, но отсутствующий key заменяется level:0/focus:0"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1191,
+          "end_line": 1202,
+          "detail": "Рендер идёт по BNR_ATTRIBUTES и BNR_ATTR_TO_SKILLS"
+        }
+      ],
+      "problem": "Обход серверного массива подменён обходом ванильной карты.",
+      "impact": "Новый навык/атрибут не рисуется; удалённый появляется с 0 и кнопкой покупки. Даже label известного skill игнорируется.",
+      "desired_source": "Game state/schema: skill_id,label,attribute_id,current_value,focus,actions.",
+      "recommendation": "Итерировать полученные entries и отношения. Unknown entries показывать с label/ID, а не отбрасывать.",
+      "verification": "Изолированное исполнение текущего loadBannerlordProgression в Node vm с mock DOM: payload skills=[{skill_key:'ModMagic',label:'Mod Magic',level:99,focus:1}] дал renders=true, showsModSkill=false, showsVanillaOneHanded=true. HTML реального renderer; не browser/game."
+    },
+    {
+      "id": "FE-005",
+      "title": "Пределы focus=5 и attributes=10 способны сломать рендер",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1157,
+          "end_line": 1165,
+          "detail": "repeat(5-focus), maxed>=5"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1191,
+          "end_line": 1200,
+          "detail": "repeat(10-val), maxed>=10"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 5608,
+          "end_line": 5608,
+          "detail": "loadBannerlordProgression вызывается из загрузки героя"
+        }
+      ],
+      "problem": "Лимиты записаны в расчёте звёздочек, запрете кнопок и текстах.",
+      "impact": "При focus=6 либо attribute=11 String.repeat получает -1 и бросает RangeError; модовый расширенный предел также блокируется UI.",
+      "desired_source": "Игра: max_focus,max_value,next_upgrade,can_upgrade,cost.",
+      "recommendation": "Использовать предел и доступность из снимка; отдельно ограничить число декоративных значков безопасным UI-пределом.",
+      "verification": "Изолированное исполнение текущего loadBannerlordProgression в Node vm с mock DOM: OneHanded focus=6 и Vigor=11 оба дали RangeError Invalid count value: -1. Дополнительно exact expressions repeat(5-6)/repeat(10-11) дают тот же результат. Первый harness extraction ошибся ранним marker (ReferenceError), исправлен поиском marker после начала блока. Не full browser/game и не утверждение о текущем сохранении."
+    },
+    {
+      "id": "FE-006",
+      "title": "Свита: конец ветки выводится из T5/T6, а не из UpgradeTargets",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3935,
+          "end_line": 3946,
+          "detail": "Тренировка пропускает tier>=5 basic / >=6 elite"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3980,
+          "end_line": 3985,
+          "detail": "basicAllMax/eliteAllMax по числу тира"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 4012,
+          "end_line": 4019,
+          "detail": "Результат запрещает кнопки найма/тренировки"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 4067,
+          "end_line": 4073,
+          "detail": "Обработчики тоже возвращаются при локальном disabled"
+        }
+      ],
+      "problem": "JS дублирует предположение о максимальном ванильном тире.",
+      "impact": "Модовый T5 с дальнейшей веткой может быть объявлен maxed; низкотирный конечный юнит, наоборот, доступен для бесполезной заявки.",
+      "desired_source": "Игра: available_upgrades,can_upgrade,next_troop/cost для каждого слота.",
+      "recommendation": "Вернуть из игры quote тренировки/найма и результат доступности; не выводить конец ветки по tier.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-007",
+      "title": "Свита: расчёт цены и доступности покупки в JS",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3923,
+          "end_line": 3933,
+          "detail": "Таблица стоимости + elite multiplier и min tier"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3940,
+          "end_line": 3945,
+          "detail": "Сумма тренировок вычисляется локально"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3987,
+          "end_line": 3991,
+          "detail": "Расчёт используется для нехватки золота"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 861,
+          "end_line": 864,
+          "detail": "Ценовая таблица гидрируется с backend"
+        }
+      ],
+      "problem": "Даже после загрузки серверных цен алгоритм quote остаётся во фронте; fallback таблица и 3× тоже живут здесь.",
+      "impact": "Разные правила upgrade/частичных тренировок/модовых веток дают неверный запрет либо неверную ожидаемую сумму.",
+      "desired_source": "Game action quote для Hero.Gold; платформенные надбавки из backend.",
+      "recommendation": "Отдавать стоимость применимого набора операций и can_afford. Цены платформы не объявлять игровым фактом.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-008",
+      "title": "Кузница: фиксированная лестница качества",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3836,
+          "end_line": 3856,
+          "detail": "Качества и переход fine→masterwork→legendary; unknown→fine"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 4385,
+          "end_line": 4394,
+          "detail": "nextQ определяет кнопку и обещание"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 5541,
+          "end_line": 5547,
+          "detail": "Кузница видна независимо от legacy-equipment"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 4415,
+          "end_line": 4417,
+          "detail": "Кнопка отправляет hero.reforge_quality, не retired smith_item"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 974,
+          "end_line": 980,
+          "detail": "Retired smith/equip_trophy явно отделены от активного reforge_quality"
+        },
+        {
+          "path": "BannerlordLink/src/Actions/ActionRegistry.cs",
+          "line": 71,
+          "end_line": 71,
+          "detail": "ReforgeQualityHandler зарегистрирован"
+        }
+      ],
+      "problem": "Игра может иметь другую группу модификаторов, но frontend назначает следующий результат самостоятельно.",
+      "impact": "Модовое качество не отображается или ему обещается неверная ступень; legendary всегда блокируется.",
+      "desired_source": "BannerLink: текущий ItemModifier label и конкретный следующий допустимый modifier/эффекты, can_reforge/reason.",
+      "recommendation": "Показать игровой preview результата. Не рассчитывать next quality по фиксированной строке.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-009",
+      "title": "Слоты экипировки и кузницы зашиты двумя разными списками",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-equipment.js",
+          "line": 3,
+          "end_line": 4,
+          "detail": "11 slotNames для нового инвентаря"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-equipment.js",
+          "line": 170,
+          "end_line": 170,
+          "detail": "Owned UI итерирует Object.keys(slotNames)"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 4362,
+          "end_line": 4373,
+          "detail": "В кузнице 10 слотов; horseharness отсутствует"
+        }
+      ],
+      "problem": "Новый item catalog не означает динамическую схему слотов; кузница и инвентарь имеют разные списки.",
+      "impact": "Новый слот нельзя выбрать в owned UI. Сбруя не представлена в кузнице даже если game handler поддержит её.",
+      "desired_source": "Игра/адаптер: schema equipment slots и per-slot actions.",
+      "recommendation": "Отдельный список слотов из game contract; наличие операции reforge определять по item actions. Native набор слотов допустим как версия адаптера, не как универсальная платформа.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-010",
+      "title": "Новый магазин вещей отбрасывает неизвестные характеристики",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-equipment.js",
+          "line": 9,
+          "end_line": 12,
+          "detail": "Whitelist statNames"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-equipment.js",
+          "line": 39,
+          "end_line": 54,
+          "detail": "stats и numericStats отфильтровывают ключи без statNames"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-equipment.js",
+          "line": 57,
+          "end_line": 66,
+          "detail": "Сравнение тоже только для известных ключей, >0, первые 8"
+        }
+      ],
+      "problem": "Предметы динамические, но данные о них ограничены набором JS-метрик.",
+      "impact": "Модовый damage/resistance/effect не отображается, даже если backend его передал; нули/отрицательные бонусы исчезают.",
+      "desired_source": "Игра: stats entries с label,value,unit,format,comparison_direction; descriptions для нечисловых свойств.",
+      "recommendation": "Рендерить безопасные типизированные неизвестные поля, подробности не обрезать молча. Краткую карточку и полный просмотр разделить.",
+      "verification": "Saved frontend-probe.cjs executed current stats()/numericStats() extracted from source in Node vm: swing_dmg=25 retained, mod_magic_damage=50 omitted from display and numeric comparison. Exit 0 means expected defect reproduced. Not browser/game."
+    },
+    {
+      "id": "FE-011",
+      "title": "Сравнение экипировки всегда считает больше лучше, кроме веса",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-equipment.js",
+          "line": 57,
+          "end_line": 66,
+          "detail": "usefulDelta = key === weight ? -delta : delta"
+        }
+      ],
+      "problem": "Смысл улучшения определяется именем weight; других правил метрики нет.",
+      "impact": "Модовая стоимость/штраф/время может получить неверную зелёную оценку; отсутствие baseline считается нулём.",
+      "desired_source": "Schema каждой игровой метрики: higher/lower/neutral, comparable и единицы.",
+      "recommendation": "Сравнивать только сопоставимые значения, направление брать из metadata; без него показывать нейтральную дельту.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-012",
+      "title": "Legacy equipment renderer: фиксированная типизация и набор статов",
+      "classification": "adapter_constraint",
+      "priority": "P3",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3872,
+          "end_line": 3904,
+          "detail": "Списки weapon/armor/horse и специальные наборы stat"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 917,
+          "end_line": 920,
+          "detail": "Щит угадывается по наличию hp+body"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 5529,
+          "end_line": 5532,
+          "detail": "Legacy блок скрывается при equipment_shop_ready"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-equipment.js",
+          "line": 278,
+          "end_line": 282,
+          "detail": "При ошибке нового магазина legacy снова показывается"
+        }
+      ],
+      "problem": "Запасной рендер использует старую схему и эвристику щита.",
+      "impact": "При деградации API новые характеристики/типы исчезают, тип вещи может быть угадан неверно.",
+      "desired_source": "Item category/subtype и stats schema из адаптера.",
+      "recommendation": "Либо общий data-driven renderer, либо явно versioned совместимый fallback без выдуманных сведений.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-013",
+      "title": "Новая система build: пороги 50/150 и смысл сил остались в JS",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-builds.js",
+          "line": 13,
+          "end_line": 24,
+          "detail": "strength switch: rage, cleave, shield_break etc"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-builds.js",
+          "line": 83,
+          "end_line": 92,
+          "detail": "Отображение rank/skill и следующий порог 50/150"
+        }
+      ],
+      "problem": "Список возможностей приходит из игры, но числовая интерпретация value и следующий порог выводятся локально.",
+      "impact": "Ребаланс силы или новая формула оставит неверную подпись и следующий unlock.",
+      "desired_source": "Build snapshot: effect descriptors и next_threshold/next_rank.",
+      "recommendation": "Использовать уже переданные description и добавить structured effects; убрать дублирование формул.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-014",
+      "title": "Приказы героя: возможность выводится из класса/оружия",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3230,
+          "end_line": 3237,
+          "detail": "Списки cavalry/ranged классов и BnrBuilds.detachment"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-builds.js",
+          "line": 145,
+          "end_line": 149,
+          "detail": "ranged означает weapon_type bow/crossbow + available"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3238,
+          "end_line": 3250,
+          "detail": "По этому результату кнопка существует или отсутствует"
+        }
+      ],
+      "problem": "Ни legacy, ни новый build не передают прямую доступность detach_raid/detach_skirmish.",
+      "impact": "Новый дальнобойный тип либо отдельное правило игры не откроет приказ; наличие power availability не равно availability приказа.",
+      "desired_source": "Игра: available_actions для конкретного героя/отряда и причины.",
+      "recommendation": "Не выводить возможность одной операции из возможности другой; game-side предикаты сохранить authoritative.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-015",
+      "title": "Карта приказов отряда и фильтрация целей по vanilla типам",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 2206,
+          "end_line": 2213,
+          "detail": "6 локальных вариантов приказов"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 2218,
+          "end_line": 2228,
+          "detail": "Siege excludes village, raid only village, defend/patrol only own"
+        }
+      ],
+      "problem": "Цели из игры, но допустимость цели для приказа пересчитывает JS.",
+      "impact": "Модовые отношения/типы поселений могут дать неверный список; новый поддержанный адаптером приказ не появится.",
+      "desired_source": "Game-side action descriptors + eligible targets.",
+      "recommendation": "Передавать targets по action_id; поддерживать известные безопасные input types для generic picker.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-016",
+      "title": "Стойки боя являются контрактом собственного мода, но не discoverable",
+      "classification": "adapter_constraint",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3325,
+          "end_line": 3346,
+          "detail": "defensive/balanced/aggressive и hero.set_combat_stance"
+        }
+      ],
+      "problem": "Собственная механика BannerLink описана в UI фиксированными вариантами.",
+      "impact": "Добавление/отключение стойки требует frontend release, хотя это не vanilla content ID.",
+      "desired_source": "BannerLink: supported stance options и описание эффектов.",
+      "recommendation": "Оставить стабильные action IDs; список вариантов/availability получать из capability. Не считать сам факт авторских stance ID ошибкой.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-017",
+      "title": "Династия: общий запрет по clan leader вместо возможностей механик",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 5459,
+          "end_line": 5477,
+          "detail": "Вкладка династии закрывается для !isClanLeader"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 5480,
+          "end_line": 5499,
+          "detail": "Сразу несколько разных механик живут за одним gate"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 4748,
+          "end_line": 4757,
+          "detail": "Создать отряд лишь если у клана вообще нет parties"
+        }
+      ],
+      "problem": "Фронтенд группирует разные game rules в один gate и трактует наличие любого clan party как запрет создать отряд.",
+      "impact": "Изменения правил кампании/модов не отражаются; интерфейс может запретить доступное действие.",
+      "desired_source": "Игра: capability/action availability отдельно для workshops,party,fiefs,kingdom,etc.",
+      "recommendation": "Навигацию показывать по capability; actions disable по серверной/game причине, а не единому is_leader.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-018",
+      "title": "Дети и вассалы: лимиты по 5 дублируются во фронте",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1880,
+          "end_line": 1896,
+          "detail": "Вассалы <5/max 5"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 4599,
+          "end_line": 4609,
+          "detail": "canMakeBaby aliveChildren<5, цена отдельно гидрируется"
+        }
+      ],
+      "problem": "Лимиты авторской механики зашиты независимо от backend/mod; другие условия семьи также вручную соединяются.",
+      "impact": "После изменения server/game policy UI продолжает ограничивать или ошибочно разрешать заявку.",
+      "desired_source": "Authoritative policy ownership (backend либо мод) + resolved availability от игры.",
+      "recommendation": "Передать max_count/current_count/actions, отделить лимит продукта от native условий возраста/брака.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-019",
+      "title": "Тексты старых сил и OBS имеют свои копии",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 152,
+          "end_line": 175,
+          "detail": "BNR_POWER_LABELS с +50HP/45с и описаниями"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3603,
+          "end_line": 3607,
+          "detail": "Новый build renderer обходит legacy active powers"
+        },
+        {
+          "path": "Расширение/frontend/overlay.html",
+          "line": 1273,
+          "end_line": 1289,
+          "detail": "Отдельная BNR_POWER_META, комментарий о второй копии"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 3635,
+          "end_line": 3637,
+          "detail": "Неизвестный power_key вообще отбрасывается legacy renderer"
+        }
+      ],
+      "problem": "Legacy силы используют локальные смысловые описания; OBS имеет отдельные labels.",
+      "impact": "Ребаланс BannerLink не обновляет эти утверждения. Сам OBS активен независимо от legacy build. Более существенно: legacy current_powers с неизвестным key отбрасывается. HUD/OBS имеют fallback raw key и не исчезают.",
+      "desired_source": "Power metadata из адаптера/серверного каталога, duration/value из события.",
+      "recommendation": "Отдать label/description/effects в payload и применять общий безопасный renderer; style/icon fallback допустим.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-020",
+      "title": "Цены и пресеты: fallback является второй истиной",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 851,
+          "end_line": 873,
+          "detail": "Гидратация конфига и catch сохраняющий defaults"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 890,
+          "end_line": 901,
+          "detail": "Price/gold helpers возвращают fallback"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 4089,
+          "end_line": 4097,
+          "detail": "Пресеты gold/XP"
+        },
+        {
+          "path": "Расширение/frontend/viewer-rimworld.js",
+          "line": 18,
+          "end_line": 37,
+          "detail": "Отдельные prices defaults/config"
+        }
+      ],
+      "problem": "При ошибке/задержке config отображаются цены, лимиты и конверсии вшитой версии.",
+      "impact": "Зритель может увидеть цену старого ZIP; это не доказательство неверного списания backend.",
+      "desired_source": "Backend economy policy с version/quote, без обязательного получения цены из игры.",
+      "recommendation": "До подтверждённого quote показывать unknown/disabled; last-known показывать как устаревшее. Платформенная цена вправе оставаться backend-owned.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-021",
+      "title": "Дипломатия: локальные 300 секунд вместо server cooldown",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 2383,
+          "end_line": 2383,
+          "detail": "_bnrDiploCd local timestamps"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 2528,
+          "end_line": 2531,
+          "detail": "_DIPLO_CD=300"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 2538,
+          "end_line": 2547,
+          "detail": "Disabled кнопки войны/мира по local remainder"
+        }
+      ],
+      "problem": "Даже при общей системе cooldown дипломатия хранит отдельное числовое правило.",
+      "impact": "Ребаланс кулдауна/другая сессия дают неверную доступность кнопок.",
+      "desired_source": "Backend cooldown remaining/expires_at для action_id.",
+      "recommendation": "Использовать общий cooldown contract; клиентская защита double click остаётся локальной.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-022",
+      "title": "RimWorld: hediff классифицируется по имени и severity",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/pawn.js",
+          "line": 359,
+          "end_line": 366,
+          "detail": "Имплант = подстроки имплант/протез/биони/архо/нано/synth или severity<=0.01"
+        },
+        {
+          "path": "Расширение/frontend/pawn.js",
+          "line": 410,
+          "end_line": 415,
+          "detail": "Тип раны по русским подстрокам, severity приводится к 0..1"
+        }
+      ],
+      "problem": "UI угадывает медицинскую семантику из локализованного текста и величины severity.",
+      "impact": "Модовая болезнь с малой severity попадёт в импланты; иной язык/название ломает группировку, severity не всегда процент.",
+      "desired_source": "RimLink: kind,is_implant,is_injury,severity display/range,description из HediffDef/класса.",
+      "recommendation": "Передавать тип/метрики явно. При unknown показывать нейтральный hediff, не объявлять имплантом.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-023",
+      "title": "RimWorld: имплантация ограничена человеческой парой left/right",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/shop.js",
+          "line": 248,
+          "end_line": 273,
+          "detail": "is_paired ведёт к occupiedLeft/Right"
+        },
+        {
+          "path": "Расширение/frontend/shop.js",
+          "line": 286,
+          "end_line": 307,
+          "detail": "Ровно две кнопки и part_hint left/right"
+        },
+        {
+          "path": "Расширение/frontend/pawn.js",
+          "line": 304,
+          "end_line": 352,
+          "detail": "Локальный словарь человеческих частей тела с text fallback"
+        }
+      ],
+      "problem": "Ни body-part instance IDs, ни число доступных конечностей из игры не участвуют в выборе.",
+      "impact": "Модовая анатомия с дополнительными руками/глазами либо неоднозначными парными частями не имеет точного выбора.",
+      "desired_source": "Игра: список допустимых BodyPartRecord targets со стабильными session IDs,label,occupied/replacement.",
+      "recommendation": "Заменить boolean paired на конкретные targets; окончательная совместимость импланта проверяется игрой.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-024",
+      "title": "RimWorld: шкала навыка 20 и passion 0→1→2",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/pawn.js",
+          "line": 132,
+          "end_line": 146,
+          "detail": "Passion icon только 1/2, уровень делится на 20"
+        },
+        {
+          "path": "Расширение/frontend/xenotype.js",
+          "line": 269,
+          "end_line": 281,
+          "detail": "Следующий passion считается +1, после 2 кнопки нет"
+        }
+      ],
+      "problem": "Игра передаёт навыки и цены, но максимумы/переходы остаются ванильными.",
+      "impact": "Сборка с extended skills/passions отображается неполно или блокируется клиентом.",
+      "desired_source": "RimLink: skill max/display range и возможные passion transitions.",
+      "recommendation": "Разделить visual progress и game limit; получить next action из игры, не вычислять passion+1.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-025",
+      "title": "RimWorld: локальная локализация переопределяет game labels",
+      "classification": "game_truth",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-rimworld.js",
+          "line": 418,
+          "end_line": 436,
+          "detail": "SKILL_LABELS_RU[def] прежде skill.label"
+        },
+        {
+          "path": "Расширение/frontend/pawn.js",
+          "line": 136,
+          "end_line": 137,
+          "detail": "Карточка вызывает localizeSkill"
+        }
+      ],
+      "problem": "Для известных defName клиент предпочитает ручное имя игровому label.",
+      "impact": "Мод заменяющий смысл/название vanilla skill не отражается; неизвестный skill при этом не теряется (есть fallback).",
+      "desired_source": "Game label как основной источник; curated localization только если label отсутствует.",
+      "recommendation": "Поменять приоритет источников и сохранять fallback, не удалять поддержку неизвестного.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-026",
+      "title": "RimWorld: здоровье определяется эвристикой масштаба",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/pawn.js",
+          "line": 80,
+          "end_line": 83,
+          "detail": "health>1 значит процент, иначе fraction*100"
+        },
+        {
+          "path": "Расширение/frontend/pawn.js",
+          "line": 105,
+          "end_line": 110,
+          "detail": "Полученное значение прямо становится процентом и шириной"
+        }
+      ],
+      "problem": "Контракт единиц заменён угадыванием по значению.",
+      "impact": "Значение 1 двусмысленно (1% или 100%); fractional значение >1 от модового масштаба ошибочно прочтётся как проценты.",
+      "desired_source": "Версионированное health current/max либо explicit normalized_percent из адаптера.",
+      "recommendation": "Одна documented единица; legacy conversion отделить по schema_version.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-027",
+      "title": "RimWorld: события используют локальный 5-минутный cooldown",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-rimworld.js",
+          "line": 202,
+          "end_line": 216,
+          "detail": "Disabled по EVENT_COOLDOWN_MS и _cmdCooldowns"
+        },
+        {
+          "path": "Расширение/frontend/viewer-rimworld.js",
+          "line": 230,
+          "end_line": 246,
+          "detail": "Константа 5*60*1000 и local cooldown helpers"
+        }
+      ],
+      "problem": "События из server catalog, но время блокировки вычисляется по константе клиента.",
+      "impact": "Ребаланс серверных правил остаётся невидим CDN-клиенту; новый сеанс теряет local clock.",
+      "desired_source": "Backend event-specific cooldown contract.",
+      "recommendation": "Применять remaining/expires_at из API, как уже делается для heal cooldown.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-028",
+      "title": "RimWorld: категории UI и маршрутизация покупки закрыты",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/extension.html",
+          "line": 343,
+          "end_line": 350,
+          "detail": "Ручные filter buttons apparel/weapon/implant/trait/gene"
+        },
+        {
+          "path": "Расширение/frontend/shop.js",
+          "line": 118,
+          "end_line": 140,
+          "detail": "Типовые подписи с fallback на raw type"
+        },
+        {
+          "path": "Расширение/frontend/shop.js",
+          "line": 228,
+          "end_line": 237,
+          "detail": "Покупка routed по item.type"
+        },
+        {
+          "path": "Расширение/frontend/shop.js",
+          "line": 33,
+          "end_line": 34,
+          "detail": "neurotrainer/xenotype исключены в отдельные UI"
+        }
+      ],
+      "problem": "Новый item внутри известного типа отображается, но новая операция/категория не discoverable.",
+      "impact": "Новая категория видна только в All либо отправлена по общему buy-item без специфичного выбора; это ограничение контракта, не запрет всех модовых вещей.",
+      "desired_source": "Catalog category metadata + action descriptor/parameter schema.",
+      "recommendation": "Строить фильтры из фактического каталога; использовать ограниченный registry renderer/actions по типам, unknown action не выполнять вслепую.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-029",
+      "title": "ShedColony: список 11 навыков отбрасывает новые",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 155,
+          "end_line": 161,
+          "detail": "SC_SKILLS список"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 433,
+          "end_line": 435,
+          "detail": "XP select из списка"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 501,
+          "end_line": 509,
+          "detail": "State skills обходятся через SC_SKILLS"
+        }
+      ],
+      "problem": "Полученный sk используется только lookup для известных ключей.",
+      "impact": "Новый навык исчезает и из просмотра, и из прокачки.",
+      "desired_source": "Мод Minecraft: skills entries labels,current и доступность прокачки.",
+      "recommendation": "Итерировать реальное состояние/каталог, использовать ID без локального whitelist.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-030",
+      "title": "ShedColony: guard/auto-work решается whitelist профессий",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 65,
+          "end_line": 69,
+          "detail": "4 job keys auto-work"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 402,
+          "end_line": 406,
+          "detail": "guard whitelist knight/ranger/archer/druid"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 539,
+          "end_line": 558,
+          "detail": "Все guard controls скрыты для других jobs"
+        }
+      ],
+      "problem": "Назначения идут из capacity, а набор возможностей определяется именем job.",
+      "impact": "Новая гвардейская профессия либо модовая автоматизация не получает кнопок.",
+      "desired_source": "Мод: job capabilities и action availability.",
+      "recommendation": "Передавать can_equip_weapon/can_guard_task/can_auto_work и описание текущего automation.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-031",
+      "title": "ShedColony: сытость=60 и health fallback=20",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 380,
+          "end_line": 384,
+          "detail": "HP max fallback20, saturation bar max60"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 420,
+          "end_line": 426,
+          "detail": "Feed запрещён при saturation>=60, heal по fallback20"
+        }
+      ],
+      "problem": "Максимум сытости не является данными; неизвестный HP max считается 20.",
+      "impact": "При модовом пределе 100 feed отключится в 60; при отсутствующем max_hp неверный gate.",
+      "desired_source": "Мод: needs current/max и can_feed/can_heal.",
+      "recommendation": "Не подменять отсутствие authoritative maxima ванильной истиной, показывать unknown.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-032",
+      "title": "ShedColony: каталоги Minecraft предметов имеют активный fallback",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 73,
+          "end_line": 79,
+          "detail": "min stock vanilla IDs"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 100,
+          "end_line": 116,
+          "detail": "supply/give_item vanilla IDs"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 814,
+          "end_line": 821,
+          "detail": "Успех config заменяет, catch сохраняет"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 824,
+          "end_line": 828,
+          "detail": "refresh начинается также до hydrate завершения"
+        }
+      ],
+      "problem": "Основной список берётся с backend, но при недоступном config используется копия vanilla.",
+      "impact": "Клиент может предложить отсутствующий предмет. Успешная hydration не доказывает полноту game registry: это задача producer.",
+      "desired_source": "Мод: реальные registered items + permissions политики продукта; backend выдаёт validated catalog.",
+      "recommendation": "Fail closed для покупаемых unknown catalog entries либо last-known с version/freshness. Не утверждать, что штатный путь всегда hardcoded в JS.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-033",
+      "title": "ShedColony: фиксированные комплекты брони вместо каталога вещей",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 38,
+          "end_line": 55,
+          "detail": "equip_leather/iron/diamond/netherite action IDs"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 520,
+          "end_line": 533,
+          "detail": "4 кнопки брони и фиксированное описание tool kit"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 542,
+          "end_line": 546,
+          "detail": "Обещание лучший меч+лук"
+        }
+      ],
+      "problem": "UI оперирует авторскими fixed-kit actions, а не предметами реального мира.",
+      "impact": "Модовые материалы/оружие нельзя выбрать без новой интеграционной механики; название/состав обещаний дублирует мод.",
+      "desired_source": "Game capabilities: kits catalog или item catalog с применимостью на colonist.",
+      "recommendation": "Сохранить kits как допустимый продукт, но их список/состав передавать из мода. Для цели любые вещи потребуется отдельная capability.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-034",
+      "title": "ShedColony: локальные названия профессий/зданий теряют namespace",
+      "classification": "game_truth",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 83,
+          "end_line": 98,
+          "detail": "SC_BUILDING_LABELS"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 163,
+          "end_line": 179,
+          "detail": "SC_JOB_LABELS"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 195,
+          "end_line": 207,
+          "detail": "Сначала отделяется base после двоеточия"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 637,
+          "end_line": 638,
+          "detail": "Upgrade picker использует _buildingLabel(type)"
+        }
+      ],
+      "problem": "Игра задаёт IDs, но подпись lookup по common registry path.",
+      "impact": "Модовый namespace:builder может стать обычным Строителем; новые названия остаются ID.",
+      "desired_source": "Game display_name для каждой сущности с namespace-preserving ID.",
+      "recommendation": "Использовать label от игры, локальные словари лишь как fallback для старого payload.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-035",
+      "title": "Все три UI знают список собственных действий; discovery ещё нет",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-registry.js",
+          "line": 39,
+          "end_line": 50,
+          "detail": "Регистрация игры только root/title/start/stop"
+        },
+        {
+          "path": "Расширение/frontend/extension.html",
+          "line": 224,
+          "end_line": 307,
+          "detail": "Отдельные оболочки Bannerlord/RimWorld/ShedColony"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 25,
+          "end_line": 63,
+          "detail": "SC table известных действий"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-ui-config.js",
+          "line": 4,
+          "end_line": 9,
+          "detail": "Лишь четыре существующих UI sections"
+        }
+      ],
+      "problem": "Registry устраняет if по игре при переключении, но не описывает capabilities/state/actions.",
+      "impact": "Четвёртая игра или новая механика требует нового JS/HTML; game manifest сам не создаёт UI.",
+      "desired_source": "Capability manifest с безопасными component types и action descriptors, adapter extension registry.",
+      "recommendation": "Generic by default поверх текущего registry. Это архитектурный предел, не требование присылать executable UI с сервера.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-036",
+      "title": "Платформенные мини-игры/питомцы/гильдии не обязаны читать игру",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/guilds.js",
+          "line": 36,
+          "end_line": 41,
+          "detail": "Guild skills config от платформы"
+        },
+        {
+          "path": "Расширение/frontend/pets.js",
+          "line": 238,
+          "end_line": 242,
+          "detail": "Питомцы платформенного каталога"
+        },
+        {
+          "path": "Расширение/frontend/tictactoe.js",
+          "line": 16,
+          "end_line": 21,
+          "detail": "Собственная игра 4×4"
+        },
+        {
+          "path": "Расширение/frontend/duels.js",
+          "line": 246,
+          "end_line": 247,
+          "detail": "Собственные RPS варианты"
+        }
+      ],
+      "problem": "Эти литералы относятся к продукту ShedLink, не к состоянию Bannerlord/RimWorld.",
+      "impact": "Их перенос в game catalog был бы ошибкой ownership; проверять только дрейф platform policy между backend/frontend.",
+      "desired_source": "Backend ShedLink для баланса/каталога; локальный renderer для визуальных правил.",
+      "recommendation": "Не включать в очередь game-truth migration лишь по наличию констант.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-037",
+      "title": "Мёртвый create-colonist modal и неиспользуемый BNR_SKILLS не считать активным каталогом",
+      "classification": "legacy_inactive",
+      "priority": "INFO",
+      "status": "inactive",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/extension.html",
+          "line": 590,
+          "end_line": 598,
+          "detail": "Legacy modal с комментарием о мёртвом входе"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 1088,
+          "end_line": 1092,
+          "detail": "BNR_SKILLS declaration без runtime consumer в текущем frontend"
+        },
+        {
+          "path": "Расширение/frontend/viewer.js",
+          "line": 113,
+          "end_line": 115,
+          "detail": "create-colonist-btn лишь вызывает closeModal"
+        }
+      ],
+      "problem": "Литералы существуют, но отдельно от реальных активных controls.",
+      "impact": "Завышение аудита: активный дефект навыков находится в BNR_ATTR_TO_SKILLS, не в самой BNR_SKILLS.",
+      "desired_source": "Удаление/документация legacy при будущей чистке.",
+      "recommendation": "Не выдавать эти строки за активную покупку. Реальную прогрессию рассматривать в FE-004/005.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-038",
+      "title": "Стримерский выбор модулей фиксирован тремя кнопками",
+      "classification": "adapter_constraint",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/templates/streamer_dashboard.html",
+          "line": 274,
+          "end_line": 283,
+          "detail": "Кнопки bannerlord/rimworld/shedcolony и массив для переключения"
+        }
+      ],
+      "problem": "Даже когда модуль зарегистрирован в backend, панель управления не discoverable.",
+      "impact": "Для четвёртой игры нужно менять dashboard.",
+      "desired_source": "Backend module registry с installed/available/enabled metadata.",
+      "recommendation": "Строить список модулей из registry, безопасно рендерить label/id; это не список игровых предметов.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-039",
+      "title": "ShedColony: параметры действий и enum guard task статичны",
+      "classification": "adapter_constraint",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 80,
+          "end_line": 81,
+          "detail": "MIN_STOCK_QTYS 1,2,4,8,16"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 548,
+          "end_line": 556,
+          "detail": "Guard task guard/patrol и retreat on/off"
+        },
+        {
+          "path": "Расширение/frontend/viewer-shedcolony.js",
+          "line": 707,
+          "end_line": 718,
+          "detail": "Ручная сборка payload per kind; XP fallback Strength"
+        }
+      ],
+      "problem": "Форма параметров повторяет контракт реализации, но не является schema-driven.",
+      "impact": "Новый допустимый режим не появляется; отсутствие skill selection silently выбирает Strength.",
+      "desired_source": "Action input schemas enum/options/min/max/default, выданные адаптером.",
+      "recommendation": "Постепенно перевести существующие controls на typed action schema; UI defaults должны быть явными.",
+      "verification": "Статический анализ текущей копии: декларация и вызывающий путь прочитаны; в игре и браузере не проверено."
+    },
+    {
+      "id": "FE-040",
+      "title": "Bannerlord: новые причины отказа теряются в локальном словаре",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 49,
+          "end_line": 95,
+          "detail": "BNR_REFUSE_REASON_RU, unknown→Действие не удалось"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 100,
+          "end_line": 105,
+          "detail": "recent_refunds.reason преобразуется только через локальный словарь"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord.js",
+          "line": 5039,
+          "end_line": 5039,
+          "detail": "Вызов notification из /my-hero"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1537,
+          "end_line": 1541,
+          "detail": "recent_refunds содержит reason и refunded, отдельного server message нет"
+        }
+      ],
+      "problem": "Игровая причина отказа кодируется набором известных клиенту строк; неизвестная теряет подробность.",
+      "impact": "Мод/новый backend передаст новую причину, старый Twitch ZIP покажет Действие не удалось вместо конкретного объяснения. Ограничение относится к recent_refunds toast; общий notices/API может отдельно передать более полное сообщение, все каналы уведомлений не объявляются сломанными.",
+      "desired_source": "Game result.reason_code + безопасный human-readable message из backend localization/game metadata.",
+      "recommendation": "Предпочитать серверный message с escape, локальный словарь оставить fallback. Причина не должна определять право выполнения на клиенте.",
+      "verification": "Статический путь /my-hero→_bnrNotifyRefunds→_bnrRefuseReasonRu подтверждён; live refusal не выполнялся."
+    }
+  ],
+  "reviewed_files": [
+    "Расширение/admin/admin.html",
+    "Расширение/backend/templates/streamer_dashboard.html",
+    "Расширение/frontend/config.js",
+    "Расширение/frontend/duels.js",
+    "Расширение/frontend/extension.html",
+    "Расширение/frontend/family.js",
+    "Расширение/frontend/guilds.js",
+    "Расширение/frontend/mobile.html",
+    "Расширение/frontend/overlay.html",
+    "Расширение/frontend/pawn.js",
+    "Расширение/frontend/pets.js",
+    "Расширение/frontend/shop.js",
+    "Расширение/frontend/tictactoe.js",
+    "Расширение/frontend/viewer-actions.js",
+    "Расширение/frontend/viewer-bannerlord-builds.js",
+    "Расширение/frontend/viewer-bannerlord-equipment.js",
+    "Расширение/frontend/viewer-bannerlord-ui-config.js",
+    "Расширение/frontend/viewer-bannerlord.js",
+    "Расширение/frontend/viewer-registry.js",
+    "Расширение/frontend/viewer-rimworld.js",
+    "Расширение/frontend/viewer-shedcolony.js",
+    "Расширение/frontend/viewer.js",
+    "Расширение/frontend/xenotype.js"
+  ],
+  "limits": [
+    "Read-only анализ копии 0.0.6; активность означает достижимый путь текущего source, не подтверждение production/игрового сеанса.",
+    "CodeGraph недоступен (parent сообщил database locked). Использован targeted rg/read; структурное полное покрытие не заявляется.",
+    "Просмотрены игровые JS, обе HTML оболочки, shared registry/actions, OBS игровые ветки, relevant admin/dashboard sections. Platform-only файлы проверены преимущественно targeted keyword pass; pet-assets/render assets не подвергались полному semantic review.",
+    "Producer/backend/mod implementation в этом подотчёте не аудировались полностью. desired_source указывает владельца истины, а не гарантирует наличие соответствующего API уже сейчас.",
+    "Runtime evidence: isolated progression and equipment stats renderers in Node vm. Saved frontend-probe.cjs exit 0 reproduced four expected current defects. Browser, Twitch CDN, production, game DLL, live game untouched.",
+    "Каждая finding — семейство мест, а не подсчёт всех literals. INFO/adapter constraints/fallback не являются подтверждёнными дефектами текущей vanilla игры.",
+    "Новый магазин Bannerlord уже получает items/tiers/categories и availability с сервера; RimWorld catalog/traits/genes/xenotypes тоже dynamic. Дефекты полноты upstream каталога требуется оценивать в моде и backend.",
+    "Исторический docs/MOD_COMPAT_AUDIT.md найден через docs-search и прочитан для контекста, но его старые выводы о production не использованы как текущие факты."
+  ]
+}

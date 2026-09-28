@@ -1,0 +1,18 @@
+{
+  "source_commit": "c5684483d11533bb9ef65e7d569177c6d214cb8a",
+  "files_scanned": 483,
+  "lines_scanned": 129290,
+  "candidate_lines": 9722,
+  "by_layer": {
+    "autopilot": 11,
+    "bannerlord_connector": 122,
+    "rimworld_connector": 18,
+    "manager": 49,
+    "installation_manifests": 12,
+    "admin": 1,
+    "backend": 86,
+    "migrations": 130,
+    "frontend": 54
+  },
+  "note": "Lexical matches are not findings. Review evidence and active paths separately."
+}

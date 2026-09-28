@@ -1,0 +1,135 @@
+{
+  "findings": [
+    {
+      "id": "SYS-001",
+      "title": "Manager уже получает список интеграций и параметры обнаружения из installation manifests",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {"path": "ShedLink.Manager/src/ShedLink.Manager.App/ReleaseConfiguration.cs", "line": 118, "end_line": 147, "detail": "TryListLatest читает каталог Release/*.json, а не перечисляет игры switch-ом."},
+        {"path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationReleaseCatalog.cs", "line": 12, "end_line": 29, "detail": "Каталог группируется по IntegrationId и названию из manifest."},
+        {"path": "ShedLink.Manager/src/ShedLink.Manager.Core/Detection/GameDetectionService.cs", "line": 20, "end_line": 82, "detail": "AppId, install_dir, required_paths, process names и hint приходят из ManifestGame."}
+      ],
+      "problem": "Здесь не найден закрытый список игрового контента: это положительный пример уже выполненного отделения данных от кода.",
+      "impact": "Не нужно включать переписывание Manager в исправление каталогов предметов/культур/законов.",
+      "desired_source": "Подписанный installation manifest издателя; этот источник отличается от runtime каталога мира.",
+      "recommendation": "Сохранить архитектуру; не смешивать installation manifest с discovery игровых сущностей.",
+      "verification": "Проверить неизвестный integration_id с валидным manifest в существующем Manager self-test, отдельно от игрового каталога. В этой задаче подтверждено чтением указанных путей."
+    },
+    {
+      "id": "SYS-002",
+      "title": "Поддерживаемые версии, пути и ключи доверия Manager — допустимые ограничения установки",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {"path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationReleaseSelector.cs", "line": 7, "end_line": 15, "detail": "Совместимый релиз выбирается по supported_versions из manifest."},
+        {"path": "ShedLink.Manager/src/ShedLink.Manager.Core/Detection/GameVersionDetector.cs", "line": 7, "end_line": 18, "detail": "Отсутствующая версия — unknown, совпадение проверяется с объявленной совместимостью."},
+        {"path": "manifests/installation/bannerlord-0.1.3.json", "line": 10, "end_line": 40, "detail": "Версия 1.4, имена процессов и обязательные файлы — контракт поставки данного артефакта."},
+        {"path": "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationManifestLoader.cs", "line": 24, "end_line": 94, "detail": "Ограничения schema/version/artifact/config kind валидируют поддерживаемый протокол."}
+      ],
+      "problem": "Это не дублирование законов или свойств игрового мира. Динамический каталог не доказывает бинарную совместимость новой версии игры.",
+      "impact": "Удаление этих ограничений ради любых модов может разрешить установку несовместимого или недоверенного артефакта.",
+      "desired_source": "Версионируемая политика выпуска и проверенный installation manifest.",
+      "recommendation": "Оставить проверки; новые версии/форматы добавлять осознанно. Разделить runtime modpack fingerprint и install compatibility.",
+      "verification": "Не объявлять новую игру поддерживаемой только потому, что она прислала каталог. Проверки подписи/установки остаются отдельными."
+    },
+    {
+      "id": "SYS-003",
+      "title": "Автопилот адресует меню и пункты по известным engine ID",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {"path": "BannerlordAutopilot/src/AutopilotOperations.cs", "line": 93, "end_line": 137, "detail": "Известные hideout/siege menu IDs и конкретные option IDs выбирают операцию."},
+        {"path": "BannerlordAutopilot/src/MenuDriver.cs", "line": 21, "end_line": 62, "detail": "TryInvoke ищет совпадающий optionId, затем проверяет игровые conditions и IsEnabled, вызывает native consequence."},
+        {"path": "BannerlordAutopilot/src/AutopilotBehavior.cs", "line": 1007, "end_line": 1036, "detail": "Ожидание выбирает village_wait/town_wait и wait_leave."}
+      ],
+      "problem": "Мод, заменивший меню или ID пункта, не станет автоматически совместимым. Это привязка игрового адаптера к API/меню, а не список контента во frontend.",
+      "impact": "Известная операция может не выполниться: MenuDriver сообщает отсутствие пункта вместо самостоятельного выбора неизвестного последствия.",
+      "desired_source": "Native menu availability плюс поддерживаемое семантическое сопоставление операций в адаптере.",
+      "recommendation": "Сохранить проверку native conditions. Не нажимать произвольные неизвестные пункты автоматически; отдельно диагностировать unsupported menu/operation и расширять адаптер при необходимости.",
+      "verification": "Сценарий изменённого menu ID должен дать явный unsupported/отказ, а не случайное действие. Native engine и живой модпак в этом аудите не запускались."
+    },
+    {
+      "id": "SYS-004",
+      "title": "Автопилот проверяет фиксированный контракт reflection и экранов движка",
+      "classification": "adapter_constraint",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {"path": "BannerlordAutopilot/src/EngineContract.cs", "line": 46, "end_line": 62, "detail": "MapWindows перечисляет известные признаки окон поверх карты."},
+        {"path": "BannerlordAutopilot/src/EngineContract.cs", "line": 65, "end_line": 101, "detail": "Verify проверяет ожидаемые типы и члены API."},
+        {"path": "BannerlordAutopilot/src/AutopilotLoot.cs", "line": 29, "end_line": 48, "detail": "Полные имена InventoryState/GauntletInventoryScreen/SPInventoryVM и приватные поля reflection ограничивают поддержку экрана."}
+      ],
+      "problem": "Полностью заменённый модом экран или новое перекрывающее окно может не соответствовать известному адаптеру. Перечень каталога вещей эту границу не устраняет.",
+      "impact": "Не следует обещать совместимость любых UI overhaul по факту универсального JSON-каталога.",
+      "desired_source": "Версионируемый engine adapter, runtime contract check и явная диагностика unsupported API.",
+      "recommendation": "Сохранить ABI checks и ограниченное исполнение. Рассматривать отдельным контуром совместимости, не переносить private-member names в зрительский capability payload.",
+      "verification": "Отдельные тесты адаптера и реальная проверка на поддерживаемой версии; данный аудит не является новой верификацией всех native вызовов."
+    },
+    {
+      "id": "SYS-005",
+      "title": "Бюджеты и желаемый состав автопилота — собственная политика, цены и товары берутся через игровые модели",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {"path": "BannerlordAutopilot/src/SettlementServices.cs", "line": 18, "end_line": 48, "detail": "ServiceLimits задаёт резерв, предел трат, число рекрутов и целевые пропорции войск."},
+        {"path": "BannerlordAutopilot/src/SettlementServices.cs", "line": 311, "end_line": 311, "detail": "Выбор еды делегируется PartyFoodBuyingModel.FindItemToBuy."},
+        {"path": "BannerlordAutopilot/src/SettlementServices.cs", "line": 454, "end_line": 454, "detail": "Стоимость рекрута берётся из PartyWageModel.GetTroopRecruitmentCost."},
+        {"path": "BannerlordAutopilot/src/SettlementServices.cs", "line": 562, "end_line": 579, "detail": "Состав сводится к четырём ролям по IsMounted/IsRanged — ограничение стратегии автопилота."}
+      ],
+      "problem": "Резерв 2000, лимиты 5000/30 и целевая доля лучников — заданная стратегия, не объявление ванильных игровых законов.",
+      "impact": "Не требуется автоматически удалять эти константы. Экзотические роли модов будут сведены к четырём категориям стратегии; это самостоятельное ограничение автопилота.",
+      "desired_source": "Настройки стратегии владельца плюс текущие native модели для цены/доступного контента.",
+      "recommendation": "Если нужна настройка состава — отдельный пользовательский config; не смешивать с каталогом товаров и не менять стратегию в рамках аудита.",
+      "verification": "Чтением подтверждён вызов игровых моделей. Поведение собственных лимитов и native модели на текущем сейве здесь не проверялось."
+    },
+    {
+      "id": "SYS-006",
+      "title": "Старый MOD_COMPAT_AUDIT утверждает отсутствие серверного blocklist RimWorld, но текущий код и тест его содержат",
+      "classification": "legacy_inactive",
+      "priority": "INFO",
+      "status": "inactive",
+      "evidence": [
+        {"path": "docs/MOD_COMPAT_AUDIT.md", "line": 141, "end_line": 151, "detail": "Историческое описание: чёрный список только в моде, серверного аналога нет."},
+        {"path": "Расширение/backend/tests/test_catalog_blocklist.py", "line": 81, "end_line": 137, "detail": "Текущий тест исполняет receive_shop_catalog с blocklist и проверяет сохранённый набор; проверки serve/buy здесь структурные."}
+      ],
+      "problem": "Старую документацию нельзя использовать как актуальный перечень отсутствующих возможностей.",
+      "impact": "Без перепроверки в roadmap появилась бы уже выполненная задача и ошибочный вывод о необходимости менять DLL для серверного фильтра.",
+      "desired_source": "Текущий runtime-код и отдельные доказательства исполнения.",
+      "recommendation": "Ссылаться на новый аудит; сохранить различие между dynamic game catalog и сознательным safety blocklist. Не удалять blocklist только потому, что он содержит конкретные mod IDs.",
+      "verification": "test_catalog_blocklist.py завершился exit 0 в изолированной временной БД при согласованном DB_PATH. Первый запуск использовал два разных временных файла и упал no such table; оба результата сохранены."
+    }
+  ],
+  "reviewed_files": [
+    "ShedLink.Manager/src/ShedLink.Manager.App/ReleaseConfiguration.cs",
+    "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationReleaseCatalog.cs",
+    "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationReleaseSelector.cs",
+    "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationManifest.cs",
+    "ShedLink.Manager/src/ShedLink.Manager.Core/Installation/InstallationManifestLoader.cs",
+    "ShedLink.Manager/src/ShedLink.Manager.Core/Detection/GameDetectionService.cs",
+    "ShedLink.Manager/src/ShedLink.Manager.Core/Detection/GameVersionDetector.cs",
+    "manifests/installation/v1.schema.json",
+    "manifests/installation/bannerlord-0.1.3.json",
+    "manifests/installation/shedcolony-0.1.4.json",
+    "BannerlordAutopilot/src/MenuDriver.cs",
+    "BannerlordAutopilot/src/EngineContract.cs",
+    "BannerlordAutopilot/src/AutopilotLoot.cs",
+    "BannerlordAutopilot/src/AutopilotOperations.cs",
+    "BannerlordAutopilot/src/AutopilotBehavior.cs",
+    "BannerlordAutopilot/src/BattleAutopilotMission.cs",
+    "BannerlordAutopilot/src/SettlementServices.cs",
+    "Расширение/backend/tests/test_catalog_blocklist.py",
+    "Расширение/backend/tests/test_rimworld_catalog_gate.py",
+    "Расширение/backend/tests/test_shedcolony_item_catalog.py",
+    "Расширение/backend/tests/test_shedcolony_catalog_check.py"
+  ],
+  "limits": [
+    "Manager и автопилот — дополнительный обзор границ интеграции, не полный аудит native engine/установки.",
+    "reviewed_files означает чтение релевантных участков; это не утверждение построчной проверки каждого файла.",
+    "Обнаружение игр и каталогов проверено по source, не по установленному приложению или живому сейву."
+  ]
+}

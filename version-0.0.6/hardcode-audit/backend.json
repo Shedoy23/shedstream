@@ -1,0 +1,1501 @@
+{
+  "findings": [
+    {
+      "id": "BE-001",
+      "title": "ShedColony: закрытые каталоги еды, ресурсов и запасов",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 155,
+          "end_line": 209,
+          "detail": "Три literal списка registry ID и русских названий"
+        },
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 421,
+          "end_line": 448,
+          "detail": "Покупка допускает только ID из списков"
+        },
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 624,
+          "end_line": 632,
+          "detail": "config выдаёт те же списки"
+        }
+      ],
+      "problem": "Новые зарегистрированные предметы сборки невозможно открыть одним игровым каталогом.",
+      "impact": "Еда и строительные ресурсы модов не появятся автоматически.",
+      "desired_source": "Реестр игры + разрешённые модом операции; backend отдельно применяет товарную/commerce политику.",
+      "recommendation": "Принимать полный session-scoped каталог с ID,label,tags,eligible_actions; ограничение еды/базовых ресурсов выражать политикой по проверяемой классификации.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-002",
+      "title": "ShedColony: catalog check умеет только вычитать",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/shedcolony/_adapter.py",
+          "line": 353,
+          "end_line": 383,
+          "detail": "colony.catalog хранит только missing и checked"
+        },
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 547,
+          "end_line": 569,
+          "detail": "Чтение missing без каталога новых записей"
+        }
+      ],
+      "problem": "Протокол подтверждает наличие серверного списка, но не публикует содержимое игры.",
+      "impact": "Даже полный список вещей от игры не расширит магазин.",
+      "desired_source": "Полный каталог реальной сборки с версиями/world_id.",
+      "recommendation": "Заменить negative-list check полным discovery; сохранить отдельный kill switch.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-003",
+      "title": "ShedColony: пустая сборка скрывается fallback-ом",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/shedcolony/_adapter.py",
+          "line": 366,
+          "end_line": 374,
+          "detail": "Если missing >= checked, снимок отклоняется"
+        },
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 572,
+          "end_line": 577,
+          "detail": "Если все записи удалены фильтром, возвращается полный список"
+        }
+      ],
+      "problem": "Результат игры ничего нет не представим; сервер предпочитает предыдущие/vanilla товары.",
+      "impact": "UI обещает предметы, отсутствующие в нестандартной сборке; покупка может отказать позже.",
+      "desired_source": "Явное valid empty / unknown / stale каталога игры.",
+      "recommendation": "Не подменять valid empty ванилью; errors и empty различать.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-004",
+      "title": "ShedColony: профессии ограничены backend allowlist",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 229,
+          "end_line": 240,
+          "detail": "29 ключей профессий + regex"
+        },
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 412,
+          "end_line": 416,
+          "detail": "Отказ незнакомому job"
+        },
+        {
+          "path": "Расширение/backend/modules/shedcolony/_adapter.py",
+          "line": 314,
+          "end_line": 328,
+          "detail": "Игровые jobs capacity сохраняются без этого списка"
+        }
+      ],
+      "problem": "Capacity принимает новую профессию, но покупка assign_job её отвергает.",
+      "impact": "Модовая профессия видна в состоянии, но недоступна для назначения.",
+      "desired_source": "Игровой каталог профессий и доступные назначения.",
+      "recommendation": "Проверять ID в свежем каталоге канала, а не глобальном set.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-005",
+      "title": "ShedColony: guard tasks и параметры покупки зафиксированы",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 211,
+          "end_line": 227,
+          "detail": "1..16 stacks, XP=1000"
+        },
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 410,
+          "end_line": 411,
+          "detail": "XP amount переписывается"
+        },
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 463,
+          "end_line": 467,
+          "detail": "Только guard/patrol"
+        }
+      ],
+      "problem": "Граница между продуктовым размером покупки и допустимыми игровыми операциями не описана контрактом.",
+      "impact": "Новый task/диапазон не подхватится, сервер и мод могут расходиться.",
+      "desired_source": "Игра сообщает поддерживаемые tasks/limits; backend задаёт offer amount и цену.",
+      "recommendation": "Вынести capability constraints отдельно от серверного offer; не принимать клиентский XP/price.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-006",
+      "title": "ShedColony: статическое меню действий и citizen requirements",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 51,
+          "end_line": 91,
+          "detail": "Закрытый purchasable actions"
+        },
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 250,
+          "end_line": 273,
+          "detail": "Статический NEEDS_CITIZEN"
+        },
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 368,
+          "end_line": 383,
+          "detail": "Backend gates actions и actor scope"
+        }
+      ],
+      "problem": "Действия не пересекаются с runtime capabilities конкретного мода.",
+      "impact": "Старый мод может не уметь кнопку, новый не может объявить поддерживаемую возможность без server deployment.",
+      "desired_source": "Negotiated actions + backend-approved policy/target scope.",
+      "recommendation": "Реестр предложений отделить от runtime availability; ownership оставить серверу.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-007",
+      "title": "RimWorld: категории магазина зашиты в category-to-command",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 160,
+          "end_line": 168,
+          "detail": "Семь категорий→семь команд"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1861,
+          "end_line": 1866,
+          "detail": "Неизвестная категория отклоняется"
+        }
+      ],
+      "problem": "Каталог расширяемый, но endpoint покупки знает только фиксированные категории.",
+      "impact": "Новая категория может отображаться в API, но купить её нельзя.",
+      "desired_source": "Action ID/тип выполнения в контракте каталога игры плюс серверное approval.",
+      "recommendation": "Привязать запись к разрешённому action contract; неизвестное показывать read-only с причиной.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-008",
+      "title": "RimWorld: label навыка теряется, затем применяется vanilla словарь",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 954,
+          "end_line": 966,
+          "detail": "Сохраняются ID,level,passion,xp,disabled; label отсутствует"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1300,
+          "end_line": 1313,
+          "detail": "То же bulk sync"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 2138,
+          "end_line": 2151,
+          "detail": "12 русских labels"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 2189,
+          "end_line": 2192,
+          "detail": "label из hardcoded map"
+        }
+      ],
+      "problem": "Название, описание и progression metadata навыка не сохраняются отдельно от ID.",
+      "impact": "Модовый навык показывается raw ID, локализация игры не проходит.",
+      "desired_source": "SkillDef labels/descriptions/limits из игры.",
+      "recommendation": "Хранить ID отдельно от display metadata; generic fallback ID только если label отсутствует.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-009",
+      "title": "RimWorld: закрытая модель passion 0/1/2",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 2190,
+          "end_line": 2200,
+          "detail": "passion>=2 означает max"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 2224,
+          "end_line": 2261,
+          "detail": "Разрешены 1/2 и повышение строго на один"
+        }
+      ],
+      "problem": "Backend самостоятельно задаёт существующие уровни passion и переходы.",
+      "impact": "Расширенные passion системы модов не поддерживаются.",
+      "desired_source": "Game skill capability с available transitions.",
+      "recommendation": "Вынести допустимые значения и причины в game quote; pricing переходов оставить backend.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-010",
+      "title": "RimWorld: whitelist полей экипировки обрезает mod metadata",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 921,
+          "end_line": 938,
+          "detail": "Фиксированное meta поле из восьми ключей"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1280,
+          "end_line": 1297,
+          "detail": "Повтор той же проекции в bulk"
+        }
+      ],
+      "problem": "Произвольные display stats от модов отбрасываются до UI.",
+      "impact": "Новые stats оружия/брони отсутствуют даже если мод их прислал.",
+      "desired_source": "Нормализованные game stat descriptors + bounded extension metadata.",
+      "recommendation": "Хранить validated descriptors, не только список известных ключей; не разрешать HTML/script.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-011",
+      "title": "RimWorld: hediff/implant payload проходит узкую проекцию",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 986,
+          "end_line": 1021,
+          "detail": "hediff: part,label,severity,age; implant: часть body metadata"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1193,
+          "end_line": 1203,
+          "detail": "Возврат ограниченного набора"
+        }
+      ],
+      "problem": "Game metadata типа/описания/эффектов не проходит целиком через sync-pawn.",
+      "impact": "Новая болезнь/часть тела получает неполное представление; точная функциональность требует richer schema.",
+      "desired_source": "Game hediff descriptor и stable body part identity.",
+      "recommendation": "Нормализовать болезнь и имплант одной schema, сохранять описания/статы; сохранить ограничения размера.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-012",
+      "title": "RimWorld Module API: player state узкий и feature-flagged",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "Расширение/backend/config.py",
+          "line": 133,
+          "end_line": 133,
+          "detail": "Default MODULE_API_PLAYER_EVENTS_ENABLED=false"
+        },
+        {
+          "path": "Расширение/backend/modules/rimworld/_adapter.py",
+          "line": 175,
+          "end_line": 228,
+          "detail": "Обрабатывает только character/alive/health; при flag false skip"
+        },
+        {
+          "path": "Расширение/backend/modules/rimworld/_adapter.py",
+          "line": 324,
+          "end_line": 330,
+          "detail": "xenotype event только log"
+        }
+      ],
+      "problem": "Generic event path не эквивалентен legacy полному snapshot.",
+      "impact": "Простое включение флага не переносит все данные; xenotype state теряется.",
+      "desired_source": "Единая game snapshot schema для всех транспортов.",
+      "recommendation": "Сначала parity matrix legacy↔generic, затем перевод; runtime env проверить отдельно.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-013",
+      "title": "RimWorld Module API: нулевое здоровье превращается в 1.0",
+      "classification": "game_truth",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/rimworld/_adapter.py",
+          "line": 213,
+          "end_line": 227,
+          "detail": "float(health_pct or 1.0)"
+        },
+        {
+          "path": "Расширение/backend/database.py",
+          "line": 4808,
+          "end_line": 4813,
+          "detail": "Alive получает minimum health 0.1"
+        }
+      ],
+      "problem": "Truthy fallback подменяет корректный ноль, alive event конструирует здоровье.",
+      "impact": "При активном flag возможен ложный 100%/10% health вместо сообщения игры.",
+      "desired_source": "health из игры либо unknown.",
+      "recommendation": "Различать None/0, death/alive и health как независимые поля.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-014",
+      "title": "RimWorld: generic каталоги отделены от рабочих legacy catalog routes",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/rimworld/_adapter.py",
+          "line": 332,
+          "end_line": 353,
+          "detail": "catalog_update пишет module_catalogs только shop/events"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1654,
+          "end_line": 1684,
+          "detail": "legacy ingestion пишет shop_catalog"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1742,
+          "end_line": 1745,
+          "detail": "Viewer читает shop_catalog"
+        }
+      ],
+      "problem": "Runtime generic catalog publication сама по себе не обновляет рабочий viewer shop.",
+      "impact": "Новая capability публикация может успешно сохраниться, а зритель её не увидит.",
+      "desired_source": "Один normalized каталог с compatibility projection.",
+      "recommendation": "Унифицировать storage/reader, не считать наличие module_catalogs завершённым discovery.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-015",
+      "title": "RimWorld: базовая progressive price продублирована",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 75,
+          "end_line": 76,
+          "detail": "BASE_GENE_PRICE/BASE_TRAIT_PRICE"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 2052,
+          "end_line": 2055,
+          "detail": "Локальный BASE_PRICES 1000"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 2082,
+          "end_line": 2085,
+          "detail": "Покупка из BASE_GENE_PRICE"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1781,
+          "end_line": 1786,
+          "detail": "catalog quote использует base_price от игры"
+        }
+      ],
+      "problem": "Три источника серверной цены расходятся при изменении политики/каталога.",
+      "impact": "Цена чтения может не совпасть с конкретным endpoint покупки.",
+      "desired_source": "Один backend pricing service; game metadata не определяет окончательный viewer charge.",
+      "recommendation": "Нормализовать quote и purchase через один прайс; не переносить crustics authority в игру.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-016",
+      "title": "RimWorld: server blocklist есть и оправдан как аварийный запрет",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/config.py",
+          "line": 576,
+          "end_line": 583,
+          "detail": "RIMWORLD_CATALOG_BLOCKLIST"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1583,
+          "end_line": 1585,
+          "detail": "Проверка literal/prefix"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1839,
+          "end_line": 1846,
+          "detail": "Отказ ДО списания"
+        }
+      ],
+      "problem": "Это не отсутствие game discovery: blacklist намеренно может снять сломанный предмет.",
+      "impact": "Не следует автоматически удалять при универсализации каталога.",
+      "desired_source": "Backend operational policy поверх game catalog.",
+      "recommendation": "Сохранить kill switch, сделать scope/reason/build fingerprint явными.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-017",
+      "title": "Core: hello capabilities — server manifest, не discovery от игры",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/_base.py",
+          "line": 109,
+          "end_line": 119,
+          "detail": "Возвращает events/actions server manifest"
+        },
+        {
+          "path": "Расширение/backend/routes/module_api.py",
+          "line": 121,
+          "end_line": 123,
+          "detail": "hello получает connector_version/manifest_digest"
+        },
+        {
+          "path": "Расширение/backend/routes/module_api.py",
+          "line": 380,
+          "end_line": 382,
+          "detail": "Необъявленное событие отвергается"
+        },
+        {
+          "path": "Расширение/backend/routes/module_api.py",
+          "line": 697,
+          "end_line": 702,
+          "detail": "catalog type должен быть в server manifest"
+        }
+      ],
+      "problem": "Нет capability instances с доступностью/схемой от запущенной сборки.",
+      "impact": "Новая игра/мод требует правки server manifests/adapters.",
+      "desired_source": "Negotiation server supported protocol × runtime advertised features.",
+      "recommendation": "Добавить runtime discovery с versioned schemas; не разрешать arbitrary privileged action только по заявлению игры.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-018",
+      "title": "Bannerlord: culture создания закрыта шестью vanilla ID",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1897,
+          "end_line": 1908,
+          "detail": "ALLOWED_CULTURES и reject"
+        }
+      ],
+      "problem": "Новая culture от overhaul-мода отклоняется backend до игры.",
+      "impact": "Выбрать модовую культуру нельзя даже при корректном запросе.",
+      "desired_source": "Игровой каталог create-character options.",
+      "recommendation": "Валидировать по свежему каталогу cultures для канала/save, game финально проверяет template.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-019",
+      "title": "Bannerlord: equipment catalog принимает только tiers 1..6",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/bannerlord/equipment_shop.py",
+          "line": 5,
+          "end_line": 5,
+          "detail": "TIER_LEVELS 1..6"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/equipment_shop.py",
+          "line": 224,
+          "end_line": 232,
+          "detail": "Незнакомый tier/неположительная цена пропускается; required_level переписывается"
+        }
+      ],
+      "problem": "Любой item с tier вне TIER_LEVELS отбрасывается целиком; это ограничение adapter protocol, не запрет существования вещи в игре.",
+      "impact": "При расширении connector на raw tier7 item исчезнет в backend. Текущий connector по отдельному game-side аудиту уже нормализует tier в 1..6; тест НЕ доказывает live потерю tier7 именно на этом участке.",
+      "desired_source": "Игра сообщает raw tier/category/stat metadata; backend отдельно определяет purchasability по одобренной progression policy.",
+      "recommendation": "Поддержать отображение unknown tiers; проверку server progression отделить от возможности хранения и показа вещи.",
+      "verification": "Изолированное выполнение реальных store_catalog+buy_reason через SQLite :memory:, exit 0: два входных item tier4/tier7; в storage только tier4. Production/игра не запускались. Payload tier7 синтетический: текущий publisher уже ограничивает public tier1..6. Это доказательство закрытого контракта, не текущего live incident."
+    },
+    {
+      "id": "BE-020",
+      "title": "Bannerlord: лидерство определяется префиксом имени клана",
+      "classification": "game_truth",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2241,
+          "end_line": 2246,
+          "detail": "startsWith [BLink] → уже лидер"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2275,
+          "end_line": 2281,
+          "detail": "Нет [BLink] → нельзя создать королевство"
+        }
+      ],
+      "problem": "Имя используется как признак игровой роли.",
+      "impact": "Переименованный/унаследованный/нативный клан может дать ложный отказ; префикс не гарантирует лидерство.",
+      "desired_source": "Game clan_id, leader_hero_id, can_create_kingdom.",
+      "recommendation": "Использовать authoritative role/availability snapshot; UI labels не проверяют разрешения.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-021",
+      "title": "Bannerlord: авторские цены BannerLink продублированы в backend",
+      "classification": "duplicated_platform_policy",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1031,
+          "end_line": 1045,
+          "detail": "gender/marriage/baby цены и max children"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1078,
+          "end_line": 1093,
+          "detail": "clan/kingdom/party/focus/attribute цены"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2151,
+          "end_line": 2200,
+          "detail": "Gold prechecks + max_alive_children injection"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2248,
+          "end_line": 2256,
+          "detail": "Clan gold precheck"
+        }
+      ],
+      "problem": "Цены marry/create clan/kingdom и других операций — авторские правила BannerLink/ShedLink, не автоматически цены ванильного движка. Backend хранит копии и заранее отказывает по зеркалу Hero.Gold.",
+      "impact": "Если настройка авторского правила или его реализация в BannerLink изменится, backend quote/precheck может устареть и дать неверный отказ. Не доказано, что эти операции сейчас должны использовать native engine price.",
+      "desired_source": "Один явно назначенный владелец авторского правила BannerLink/ShedLink; версия правила и актуальный quote из исполняющего его слоя. Child cap как отдельная продуктовая policy.",
+      "recommendation": "Убрать ручное зеркалирование цен между C# и Python, сохранив авторскую механику. Договориться о владельце и версии policy; если вычисление выполняет BannerLink, публиковать quote от него. Client price/cap не доверять.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-022",
+      "title": "Bannerlord: focus/attribute количество и key format статичны",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1113,
+          "end_line": 1116,
+          "detail": "Regex ASCII+underscore до 48"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2027,
+          "end_line": 2063,
+          "detail": "Amount 1..5 + cheapest-price precheck"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2094,
+          "end_line": 2128,
+          "detail": "Amount 1..10 + flat price"
+        }
+      ],
+      "problem": "Vanilla KNOWN sets НЕ запрещают новые ID, но format/amount/gold assumptions остаются.",
+      "impact": "Часть modded ID/диапазонов отсекается; cached price precheck может ошибаться.",
+      "desired_source": "Game stable ID contract + runtime action constraints.",
+      "recommendation": "Не возвращать allowlist vanilla; согласовать допустимый ID syntax, quote amount bounds от игры.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-023",
+      "title": "Bannerlord: авторская retinue policy повторно вычисляется backend",
+      "classification": "duplicated_platform_policy",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1162,
+          "end_line": 1164,
+          "detail": "Tier costs и elite multiplier"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1833,
+          "end_line": 1883,
+          "detail": "Base cap=5 + catalog buffs; lowest-tier решает needed"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1499,
+          "end_line": 1513,
+          "detail": "my-hero ещё раз вычисляет retinue_cap=5+bonus для UI"
+        }
+      ],
+      "problem": "Base cap5+clan upgrades, tier costs и elite multiplier относятся к авторской ShedLink/BLT-style свите. Backend повторяет их по DB snapshot; это не native PartySize model.",
+      "impact": "Изменение авторских правил в BannerLink или устаревший snapshot могут разойтись с backend показом capacity и precheck стоимости. Не утверждается, что текущая свита наследует произвольную native/mod-owned вместимость отряда.",
+      "desired_source": "Единая versioned policy авторской свиты и актуальный quote исполняющего слоя с учётом состояния; ownership проверяется backend.",
+      "recommendation": "Сохранить смысл авторской свиты, устранить дублирование её cap/cost/upgrade calculation. Не заменять её молча нативной моделью вместимости отряда.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-024",
+      "title": "Bannerlord: старые classes/gear всё ещё compatibility path",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "fallback",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 112,
+          "end_line": 151,
+          "detail": "Class→primary skill и thresholds 50/150"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1949,
+          "end_line": 1957,
+          "detail": "T6 ceiling и price table"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2870,
+          "end_line": 2877,
+          "detail": "Отключено при equipment_session"
+        }
+      ],
+      "problem": "Статические legacy схемы сохраняются для старых каналов; это не главный new equipment путь.",
+      "impact": "При старом моде новые class/tiers требуют server изменений.",
+      "desired_source": "Legacy compatibility policy или runtime game build.",
+      "recommendation": "Пометить fallback/retirement scope; не считать всё это текущим новым build UI.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-025",
+      "title": "Bannerlord: active power key pricing gate ограничивает runtime powers",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 809,
+          "end_line": 822,
+          "detail": "POWER_PRICES keys"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1782,
+          "end_line": 1797,
+          "detail": "Неизвестный power отвергается; effect params strip"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/builds.py",
+          "line": 59,
+          "end_line": 70,
+          "detail": "Новый build сверяет runtime power_options"
+        }
+      ],
+      "problem": "Runtime power_options уже есть, но ранее backend пускает только свой pricing map.",
+      "impact": "Новая способность из игры не исполнима до добавления approved offer на backend.",
+      "desired_source": "Runtime powers + approved backend price/policy registry.",
+      "recommendation": "Показывать capability отдельно от purchasability; новая power требует policy mapping, не нового hardcoded render.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-026",
+      "title": "Bannerlord: state projection теряет новые skill descriptors",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/bannerlord/_adapter.py",
+          "line": 1191,
+          "end_line": 1203,
+          "detail": "Фиксированные top-level fields; return если пусто"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/_adapter.py",
+          "line": 1227,
+          "end_line": 1260,
+          "detail": "Skills сохраняют только level/focus; attrs int"
+        }
+      ],
+      "problem": "Новые labels/descriptions/limits в skills не сохраняются; skills-only update без старых top-level полей вообще возвращается.",
+      "impact": "Расширенный snapshot не будет полностью показан, новые поля потребуют Python migration.",
+      "desired_source": "Versioned state sections и stat descriptors.",
+      "recommendation": "Сохранять validated extensible metadata; отдельно schema-aware projections для legacy UI.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-027",
+      "title": "Bannerlord: catalog_update whitelist shop/events/equipment",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/bannerlord/_adapter.py",
+          "line": 985,
+          "end_line": 1007,
+          "detail": "Иные catalog types отклоняются"
+        }
+      ],
+      "problem": "Даже declared новый каталог требует ручного adapter routing.",
+      "impact": "Cultures/laws/workshop types нельзя добавить лишь publisher-ом.",
+      "desired_source": "Registry/catalog schema + generic storage.",
+      "recommendation": "Общий routing для разрешённых schema types; specialized validators для equipment сохранить.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-028",
+      "title": "Bannerlord: party orders закрыты шестью ключами",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord_party_orders.py",
+          "line": 31,
+          "end_line": 31,
+          "detail": "VALID_ORDER_TYPES"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_party_orders.py",
+          "line": 105,
+          "end_line": 114,
+          "detail": "Allowlist + target rule"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_party_orders.py",
+          "line": 122,
+          "end_line": 139,
+          "detail": "Wall-clock expiry 30m"
+        }
+      ],
+      "problem": "Backend знает виды игровых приказов и требования target.",
+      "impact": "Новый order из мода требует backend; wall-clock deadline не равен game duration.",
+      "desired_source": "Game order definitions/target kinds/duration and result.",
+      "recommendation": "Разделить delivery TTL и game-order lifetime; runtime order catalog, auth remains server.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-029",
+      "title": "Bannerlord: workshops/caravans caps являются продуктовым ограничением",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord_workshops.py",
+          "line": 46,
+          "end_line": 47,
+          "detail": "MAX=3"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_workshops.py",
+          "line": 118,
+          "end_line": 120,
+          "detail": "Cap применяется"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_caravans.py",
+          "line": 39,
+          "end_line": 40,
+          "detail": "MAX=2"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_caravans.py",
+          "line": 108,
+          "end_line": 110,
+          "detail": "Cap применяется"
+        }
+      ],
+      "problem": "Это не native limit: server anti-snowball policy смешана с игровым владением.",
+      "impact": "Моды с иными native caps и продуктовый cap нельзя различить в UI.",
+      "desired_source": "Game native capacity + отдельно backend platform cap.",
+      "recommendation": "Не снимать молча; описать authority и показывать effective min с причинами.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-030",
+      "title": "Bannerlord: clan upgrades — server seed, не game discovery",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/migrations/m35_clan_upgrades.py",
+          "line": 33,
+          "end_line": 77,
+          "detail": "10 catalog seed upgrades effects/gold/prereqs"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 3411,
+          "end_line": 3441,
+          "detail": "Viewer читает active DB catalog"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 3466,
+          "end_line": 3469,
+          "detail": "Мод тоже получает server effects"
+        }
+      ],
+      "problem": "Каталог игровых buffs определён backend seed и затем DB; это ShedLink mechanic, не native registry.",
+      "impact": "Установленный мод не расширит этот список автоматически; возможен дрейф supported effects.",
+      "desired_source": "Владелец mechanics: game advertises supported effects/upgrade definitions; platform policy handles access.",
+      "recommendation": "При миграции явно решить ownership; seed не считать точным snapshot production DB.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-031",
+      "title": "Bannerlord: достижения фиксированы, stats engine частично универсален",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord_achievements.py",
+          "line": 29,
+          "end_line": 81,
+          "detail": "Fixed achievement definitions"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_achievements.py",
+          "line": 92,
+          "end_line": 109,
+          "detail": "stat_key хранится generic"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_achievements.py",
+          "line": 169,
+          "end_line": 180,
+          "detail": "Unlock по threshold"
+        }
+      ],
+      "problem": "Это авторские platform achievements, не каталог native игры.",
+      "impact": "Новые gameplay events не создают achievements автоматически.",
+      "desired_source": "Backend achievement rules + game declared events/metrics.",
+      "recommendation": "Сохранить backend authority наград; перевести на generic event schema и названия метрик из игры.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-032",
+      "title": "Bannerlord: старая trophy-smith/auction/passive crustic ветка не продаётся",
+      "classification": "legacy_inactive",
+      "priority": "INFO",
+      "status": "inactive",
+      "evidence": [
+        {
+          "path": "Расширение/backend/main.py",
+          "line": 141,
+          "end_line": 152,
+          "detail": "Custom item/auction routers отключены"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 974,
+          "end_line": 974,
+          "detail": "Smith/equip trophy убраны из purchasable list"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1019,
+          "end_line": 1020,
+          "detail": "Tribute boost убран"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_fiefs.py",
+          "line": 98,
+          "end_line": 108,
+          "detail": "Handler immediately refuses"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 974,
+          "end_line": 980,
+          "detail": "Старая smith_item заменена активной reforge_quality; разные механики"
+        }
+      ],
+      "problem": "Остались rarity/formulas/conversion constants старой hero.smith_item. Это НЕ действующая кузница hero.reforge_quality: она отдельный action, остаётся в purchasable list.",
+      "impact": "По одному grep можно ошибочно объявить существующей торговлю или passive payout.",
+      "desired_source": "История legacy, не game truth текущего UI.",
+      "recommendation": "Различать hero.smith_item (disabled) и hero.reforge_quality (active). Старый trophy generator пометить legacy; active reforge исследован frontend/game-side аудитом.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-033",
+      "title": "Рабочие динамические части уже существуют",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/bannerlord/_adapter.py",
+          "line": 2892,
+          "end_line": 2917,
+          "detail": "Поселения приходят от игры"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/builds.py",
+          "line": 83,
+          "end_line": 100,
+          "detail": "Specialization/starter options из game build"
+        },
+        {
+          "path": "Расширение/backend/modules/shedcolony/_adapter.py",
+          "line": 125,
+          "end_line": 152,
+          "detail": "Полный colonist state_json"
+        },
+        {
+          "path": "Расширение/backend/modules/shedcolony/_adapter.py",
+          "line": 338,
+          "end_line": 350,
+          "detail": "Полные researches/buildings targets"
+        }
+      ],
+      "problem": "Нельзя характеризовать весь backend как статический.",
+      "impact": "Эти механизмы можно переиспользовать для новых каталогов.",
+      "desired_source": "Игра плюс schema validation/identity on backend.",
+      "recommendation": "Сохранить working flow и расширять по одному vertical slice.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-034",
+      "title": "Backend points pricing/auth/ownership — правильная authority",
+      "classification": "platform_policy_ok",
+      "priority": "INFO",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/shedcolony.py",
+          "line": 368,
+          "end_line": 383,
+          "detail": "Server price override/citizen ownership"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 561,
+          "end_line": 563,
+          "detail": "Channel из токена"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 2555,
+          "end_line": 2573,
+          "detail": "Server price enforcement"
+        }
+      ],
+      "problem": "Game-as-source-of-truth не значит доверять viewer цене/target или отдавать identity/compliance в игру.",
+      "impact": "Удаление этих gates породит уязвимости и неверные начисления.",
+      "desired_source": "Backend/Twitch identity и approved commerce policy.",
+      "recommendation": "Сохранять, унифицировать contracts и отличать game quote от crustics checkout.",
+      "verification": "Статический проход активного пути; live game/production DB не проверялись."
+    },
+    {
+      "id": "BE-035",
+      "title": "Bannerlord: required_level игры заменяется server tier policy",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/bannerlord/equipment_shop.py",
+          "line": 5,
+          "end_line": 5,
+          "detail": "Таблица requirement по tier"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/equipment_shop.py",
+          "line": 232,
+          "end_line": 232,
+          "detail": "required_level перезаписывается после **entry"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/equipment_shop.py",
+          "line": 89,
+          "end_line": 95,
+          "detail": "buy_reason отказывает по required_level"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1584,
+          "end_line": 1598,
+          "detail": "API выдаёт gate и tiers"
+        },
+        {
+          "path": "Расширение/frontend/viewer-bannerlord-equipment.js",
+          "line": 103,
+          "end_line": 105,
+          "detail": "UI рисует required_level из API"
+        }
+      ],
+      "problem": "Это собственное progression правило ShedLink, а не извлечённое native item requirement. Сейчас поле с тем же именем незаметно переписывается.",
+      "impact": "Текущие game/backend таблицы по game-side аудиту согласованы. Доказано, что изменение game requirement в payload не повлияет на показ и отказ: backend переписывает его. Native skill requirement и platform level gate должны иметь разные поля.",
+      "desired_source": "Два явных пространства: game_requirements и platform_progression_policy.",
+      "recommendation": "Не удалять продуктовый gate молча; согласовать владельца tier policy, хранить исходное game requirement и reason provenance.",
+      "verification": "Изолированный запуск store_catalog/buy_reason: вход tier4 required_level1 → сохранён required_level25 → hero level24 получает level_locked; exit 0. Исходник UI показывает именно это поле."
+    },
+    {
+      "id": "BE-036",
+      "title": "Core: TTL возвратов перечисляет только три module_id",
+      "classification": "adapter_constraint",
+      "priority": "P1",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/main.py",
+          "line": 2115,
+          "end_line": 2133,
+          "detail": "SQL IN shedcolony/bannerlord/rimworld перед get_module dispatch"
+        }
+      ],
+      "problem": "Новый зарегистрированный мод не попадает в generic queued expiration.",
+      "impact": "Четвёртая игра может не получить штатный refund просроченной очереди через этот sweeper.",
+      "desired_source": "Реестр адаптеров с обязательным action result/refund contract.",
+      "recommendation": "Итерировать зарегистрированные refund-capable adapters или весь outbox с явным fallback; не переносить ledger в игру.",
+      "verification": "Статическое чтение достижимого пути; live use не проверялся."
+    },
+    {
+      "id": "BE-037",
+      "title": "Core: onboarding карточка имеет game-specific SQL и жизненный цикл",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/viewer.py",
+          "line": 56,
+          "end_line": 91,
+          "detail": "FIRST_STEP для трёх игр"
+        },
+        {
+          "path": "Расширение/backend/routes/viewer.py",
+          "line": 127,
+          "end_line": 145,
+          "detail": "Цена по module if/import"
+        }
+      ],
+      "problem": "Правила exists/alive/respawn и marketing metadata зашиты в core viewer.",
+      "impact": "Новый мод не получает onboarding автоматически; модовый lifecycle нельзя выразить capability.",
+      "desired_source": "Adapter discovery character entrypoints + game availability, server quote.",
+      "recommendation": "Вынести descriptor и ownership lookup в adapter interface; identity SQL не получать снаружи.",
+      "verification": "Статическое чтение достижимого пути; live use не проверялся."
+    },
+    {
+      "id": "BE-038",
+      "title": "Bannerlord: выделение вассала cap 5 и mirror price 250k",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord_vassals.py",
+          "line": 29,
+          "end_line": 32,
+          "detail": "Mirror VASSAL_GOLD_COST"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_vassals.py",
+          "line": 218,
+          "end_line": 242,
+          "detail": "Literal cap5 и gold precheck"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_vassals.py",
+          "line": 249,
+          "end_line": 254,
+          "detail": "income_share_pct25 placeholder"
+        }
+      ],
+      "problem": "Cap/цена/процент содержатся в backend, game поддерживает собственную механику; M35 max_vassals_bonus не участвует в этом cap check.",
+      "impact": "Runtime изменения game/settings не меняют availability; наличие бонуса в seed не гарантирует влияние на этот путь.",
+      "desired_source": "Game actual capabilities и quotes; platform cap отдельной политикой.",
+      "recommendation": "Проверить намерение cap и процента; не считать это native Bannerlord limit; согласовать game source до миграции.",
+      "verification": "Статическое чтение достижимого пути; live use не проверялся."
+    },
+    {
+      "id": "BE-039",
+      "title": "Bannerlord: law IDs не закрыты backend списком, но нет game quote",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord_diplomacy.py",
+          "line": 232,
+          "end_line": 257,
+          "detail": "policy_id свободный ≥3; role из game mirror"
+        },
+        {
+          "path": "Расширение/backend/routes/bannerlord_diplomacy.py",
+          "line": 268,
+          "end_line": 284,
+          "detail": "Название закона сохраняется из viewer payload"
+        }
+      ],
+      "problem": "Backend не ограничивает законы шестью/vanilla списком, но принимает display name от клиента и не предлагает runtime definitions/availability.",
+      "impact": "Frontend hardcoded law catalog не заменяется самим этим route; предложение может иметь устаревшую подпись и поздний game отказ.",
+      "desired_source": "Game policy registry name/effects/current enact/repeal availability.",
+      "recommendation": "Создать laws catalog и action quote; backend ownership/role auth сохранить, названия брать из catalogue.",
+      "verification": "Статическое чтение достижимого пути; live use не проверялся."
+    },
+    {
+      "id": "BE-040",
+      "title": "Bannerlord: UI config ограничен известными sections и tiers",
+      "classification": "adapter_constraint",
+      "priority": "P3",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/bannerlord/ui_config.py",
+          "line": 12,
+          "end_line": 28,
+          "detail": "SECTIONS/LABELS/TIER_COLORS"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/ui_config.py",
+          "line": 53,
+          "end_line": 76,
+          "detail": "Принимает лишь эти keys"
+        }
+      ],
+      "problem": "Это bounded presentation override для уже shipped UI, а не capability renderer.",
+      "impact": "Новый section из runtime не появится через этот конфиг.",
+      "desired_source": "Generic block schema с client-supported component IDs.",
+      "recommendation": "Не пытаться протащить новую логику через ui_config; сохранить безопасный theme override, capabilities отдельно.",
+      "verification": "Статическое чтение достижимого пути; live use не проверялся."
+    },
+    {
+      "id": "BE-041",
+      "title": "RimWorld: shop и events используют mod-сообщённые crustic prices",
+      "classification": "duplicated_platform_policy",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1668,
+          "end_line": 1681,
+          "detail": "price/base_price из item payload"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 1856,
+          "end_line": 1875,
+          "detail": "buy-item берёт storage price"
+        },
+        {
+          "path": "Расширение/backend/rimworld.py",
+          "line": 2703,
+          "end_line": 2715,
+          "detail": "cost из game event catalogue"
+        }
+      ],
+      "problem": "Здесь game metadata смешана с платформенной ценой; это существующая граница authority, не рекомендация расширять доверие.",
+      "impact": "Смена connector balance меняет viewer price; несовместимые defaults/progressive endpoints могут дать расходящиеся quotes.",
+      "desired_source": "Game сообщает native value/capabilities, backend pricing policy принимает финальный crustic charge.",
+      "recommendation": "Разнести native_value, suggested_platform_price и approved_price; viewer цена никогда не authority.",
+      "verification": "Статическое чтение достижимого пути; live use не проверялся."
+    },
+    {
+      "id": "BE-042",
+      "title": "Bannerlord: ID характеристик меняет регистр, skills events используют другую нормализацию",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/routes/bannerlord.py",
+          "line": 1453,
+          "end_line": 1455,
+          "detail": "ID attribute превращается в Firstletterlowerrest"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/_adapter.py",
+          "line": 1516,
+          "end_line": 1534,
+          "detail": "skill_changed lowercases ID"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/_adapter.py",
+          "line": 1228,
+          "end_line": 1245,
+          "detail": "state_update хранит исходный skill_key"
+        }
+      ],
+      "problem": "Backend не сохраняет opaque game ID одинаково на всех путях.",
+      "impact": "Для CamelCase/modded names может измениться возвращаемый ID; skills updates потенциально создают два differently-cased keys.",
+      "desired_source": "Канонический ID от игры, label отдельно.",
+      "recommendation": "Не выводить canonical ID из human casing; определить контракт сравнения и migration legacy keys.",
+      "verification": "Статическое чтение; модовые сценарии live не прогонялись."
+    },
+    {
+      "id": "BE-043",
+      "title": "Причины отказа — server dictionaries, различающиеся между играми",
+      "classification": "adapter_constraint",
+      "priority": "P2",
+      "status": "active",
+      "evidence": [
+        {
+          "path": "Расширение/backend/modules/rimworld/refusals.py",
+          "line": 59,
+          "end_line": 66,
+          "detail": "Unknown reason превращается в общий fallback"
+        },
+        {
+          "path": "Расширение/backend/modules/bannerlord/refusals.py",
+          "line": 258,
+          "end_line": 295,
+          "detail": "Suffix inference и generic fallback"
+        },
+        {
+          "path": "Расширение/backend/modules/shedcolony/refusals.py",
+          "line": 96,
+          "end_line": 116,
+          "detail": "Exact/prefix/сырой detail fallback"
+        }
+      ],
+      "problem": "Новый игровой reason требует словаря backend для точного объяснения; доступность до запроса остаётся отдельной задачей.",
+      "impact": "Зритель получает общую фразу вместо причины нового мода; suffix _missing может быть классифицирован как наш сбой без structured category.",
+      "desired_source": "Action result {reason_code,category,localized_message,parameters}, sanitized trusted connector data.",
+      "recommendation": "Сохранить generic fallback и server override; добавить безопасный game message/structured reason contract, не произвольную разметку.",
+      "verification": "Статическое чтение; модовые сценарии live не прогонялись."
+    }
+  ],
+  "reviewed_files": [
+    "Расширение/backend/config.py",
+    "Расширение/backend/database.py",
+    "Расширение/backend/main.py",
+    "Расширение/backend/migrations/m35_clan_upgrades.py",
+    "Расширение/backend/module_liveness.py",
+    "Расширение/backend/modules/_base.py",
+    "Расширение/backend/modules/_loader.py",
+    "Расширение/backend/modules/bannerlord/_adapter.py",
+    "Расширение/backend/modules/bannerlord/builds.py",
+    "Расширение/backend/modules/bannerlord/equipment_shop.py",
+    "Расширение/backend/modules/bannerlord/manifest.yaml",
+    "Расширение/backend/modules/bannerlord/refusals.py",
+    "Расширение/backend/modules/bannerlord/ui_config.py",
+    "Расширение/backend/modules/rimworld/_adapter.py",
+    "Расширение/backend/modules/rimworld/manifest.yaml",
+    "Расширение/backend/modules/rimworld/refusals.py",
+    "Расширение/backend/modules/shedcolony/_adapter.py",
+    "Расширение/backend/modules/shedcolony/manifest.yaml",
+    "Расширение/backend/modules/shedcolony/refusals.py",
+    "Расширение/backend/rimworld.py",
+    "Расширение/backend/routes/bannerlord.py",
+    "Расширение/backend/routes/bannerlord_achievements.py",
+    "Расширение/backend/routes/bannerlord_admin.py",
+    "Расширение/backend/routes/bannerlord_auctions.py",
+    "Расширение/backend/routes/bannerlord_caravans.py",
+    "Расширение/backend/routes/bannerlord_custom_items.py",
+    "Расширение/backend/routes/bannerlord_diplomacy.py",
+    "Расширение/backend/routes/bannerlord_family.py",
+    "Расширение/backend/routes/bannerlord_fiefs.py",
+    "Расширение/backend/routes/bannerlord_party_orders.py",
+    "Расширение/backend/routes/bannerlord_settlements.py",
+    "Расширение/backend/routes/bannerlord_vassals.py",
+    "Расширение/backend/routes/bannerlord_workshops.py",
+    "Расширение/backend/routes/module_api.py",
+    "Расширение/backend/routes/shedcolony.py",
+    "Расширение/backend/routes/viewer.py",
+    "Расширение/backend/tests/test_bannerlord_equipment_shop.py",
+    "Расширение/frontend/viewer-bannerlord-equipment.js"
+  ],
+  "limits": [
+    "Статический аудит копии 0.0.6; окружение production, сохранение игры и внешняя ShedColony Java codebase не читались.",
+    "active означает маршрут достижим в исходниках; не утверждает live use на текущем канале.",
+    "CodeGraph locked подтверждён координатором; fallback literal rg + focused file reads.",
+    "reviewed_files означает focused sections, не сплошное чтение каждой строки всего файла.",
+    "Миграционные seeds не доказывают актуальные DB строки.",
+    "Equipment probe использует синтетические tier7/required_level1. Текущий connector нормализует public tier в1..6 и имеет согласованную таблицу levels; live потеря mod items этим тестом не доказана."
+  ],
+  "coverage_method": "AST scan всех backend Python вне tests/migrations на literal containers >=6 entries; целевое чтение найденных игровых мест и активных call paths. Regex scan всех backend gameplay routes/modules; focused чтение schema/migrations. Не является доказательством отсутствия любого hardcode в каждой строке.",
+  "execution_evidence": [
+    {
+      "name": "equipment store_catalog + buy_reason",
+      "method": "реальные функции, SQLite :memory:, минимальная schema",
+      "exit_code": 0,
+      "input": [
+        {
+          "item_id": "mod_sword",
+          "tier": 4,
+          "price_gold": 100,
+          "required_level": 1
+        },
+        {
+          "item_id": "mod_tier7",
+          "tier": 7,
+          "price_gold": 100,
+          "required_level": 1
+        }
+      ],
+      "stored": [
+        {
+          "item_id": "mod_sword",
+          "tier": 4,
+          "price_gold": 100,
+          "required_level": 25
+        }
+      ],
+      "hero_level": 24,
+      "result": "level_locked",
+      "limitations": "Не game run и не production test; не проверяет C# execution.",
+      "reproduction_script": "version-0.0.6/hardcode-audit/backend-probe.py",
+      "log": "version-0.0.6/hardcode-audit/backend-probe.log"
+    }
+  ],
+  "scanned_files": [
+    "Расширение/backend/actions_pause.py",
+    "Расширение/backend/activity_policy.py",
+    "Расширение/backend/auth.py",
+    "Расширение/backend/backup_loop.py",
+    "Расширение/backend/bot_core.py",
+    "Расширение/backend/bug_reports.py",
+    "Расширение/backend/config.py",
+    "Расширение/backend/database.py",
+    "Расширение/backend/db_pool.py",
+    "Расширение/backend/dependencies.py",
+    "Расширение/backend/eventsub.py",
+    "Расширение/backend/feature_usage.py",
+    "Расширение/backend/get_broadcaster_id.py",
+    "Расширение/backend/http_session.py",
+    "Расширение/backend/logging_setup.py",
+    "Расширение/backend/main.py",
+    "Расширение/backend/manager_auth.py",
+    "Расширение/backend/models.py",
+    "Расширение/backend/module_liveness.py",
+    "Расширение/backend/modules/__init__.py",
+    "Расширение/backend/modules/_base.py",
+    "Расширение/backend/modules/_loader.py",
+    "Расширение/backend/modules/bannerlord/__init__.py",
+    "Расширение/backend/modules/bannerlord/_adapter.py",
+    "Расширение/backend/modules/bannerlord/builds.py",
+    "Расширение/backend/modules/bannerlord/equipment_shop.py",
+    "Расширение/backend/modules/bannerlord/refusals.py",
+    "Расширение/backend/modules/bannerlord/tournament_queue.py",
+    "Расширение/backend/modules/bannerlord/ui_config.py",
+    "Расширение/backend/modules/rimworld/__init__.py",
+    "Расширение/backend/modules/rimworld/_adapter.py",
+    "Расширение/backend/modules/rimworld/refusals.py",
+    "Расширение/backend/modules/shedcolony/__init__.py",
+    "Расширение/backend/modules/shedcolony/_adapter.py",
+    "Расширение/backend/modules/shedcolony/refusals.py",
+    "Расширение/backend/notices.py",
+    "Расширение/backend/notifications.py",
+    "Расширение/backend/onboarding.py",
+    "Расширение/backend/pet_collection.py",
+    "Расширение/backend/pubsub.py",
+    "Расширение/backend/rimworld.py",
+    "Расширение/backend/rotate_eventsub.py",
+    "Расширение/backend/routes/__init__.py",
+    "Расширение/backend/routes/_mod_queue.py",
+    "Расширение/backend/routes/admin.py",
+    "Расширение/backend/routes/bannerlord.py",
+    "Расширение/backend/routes/bannerlord_achievements.py",
+    "Расширение/backend/routes/bannerlord_admin.py",
+    "Расширение/backend/routes/bannerlord_auctions.py",
+    "Расширение/backend/routes/bannerlord_boosty.py",
+    "Расширение/backend/routes/bannerlord_caravans.py",
+    "Расширение/backend/routes/bannerlord_custom_items.py",
+    "Расширение/backend/routes/bannerlord_diplomacy.py",
+    "Расширение/backend/routes/bannerlord_family.py",
+    "Расширение/backend/routes/bannerlord_fiefs.py",
+    "Расширение/backend/routes/bannerlord_party_orders.py",
+    "Расширение/backend/routes/bannerlord_settlements.py",
+    "Расширение/backend/routes/bannerlord_vassals.py",
+    "Расширение/backend/routes/bannerlord_workshops.py",
+    "Расширение/backend/routes/cases.py",
+    "Расширение/backend/routes/compat.py",
+    "Расширение/backend/routes/dev_login.py",
+    "Расширение/backend/routes/dice.py",
+    "Расширение/backend/routes/duel.py",
+    "Расширение/backend/routes/guilds.py",
+    "Расширение/backend/routes/manager.py",
+    "Расширение/backend/routes/marriage.py",
+    "Расширение/backend/routes/match.py",
+    "Расширение/backend/routes/misc.py",
+    "Расширение/backend/routes/module_api.py",
+    "Расширение/backend/routes/notices.py",
+    "Расширение/backend/routes/pets.py",
+    "Расширение/backend/routes/promo.py",
+    "Расширение/backend/routes/rps.py",
+    "Расширение/backend/routes/shedcolony.py",
+    "Расширение/backend/routes/streamer.py",
+    "Расширение/backend/routes/tictactoe.py",
+    "Расширение/backend/routes/tts.py",
+    "Расширение/backend/routes/tugofwar.py",
+    "Расширение/backend/routes/viewer.py",
+    "Расширение/backend/routes/voting.py",
+    "Расширение/backend/twitch_subs.py"
+  ],
+  "deliberate_non_gaps": [
+    "pets/pet_collection, guild skills, loyalty rewards, quests, TTS: platform-authored content/economy, не справочник реальной запущенной игры. Не требуют переноса в мод.",
+    "bannerlord_admin RESETTABLE_TABLES/PRESERVED_TABLES: явная schema ownership для безопасной очистки; не game entity catalog. При новой schema поддерживать миграциями/контрактом.",
+    "manager.py и Manager integration registry проверяются координатором; здесь не заявляется полный audit Manager.",
+    "Backend templates layout проверяются frontend-аудитом, не дублируются здесь.",
+    "Шестёрка KNOWN_ATTRIBUTES и 18 KNOWN_SKILLS уже не allowlist: неизвестный ключ допустимого формата проходит.",
+    "В family backend дети берутся из heir state, а не вычисляются локальным возрастом 18. Комментарий >18 не доказательство hardcoded age gate."
+  ]
+}

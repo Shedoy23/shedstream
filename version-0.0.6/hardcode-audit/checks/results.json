@@ -1,0 +1,37 @@
+[
+  {
+    "command": "python Расширение/backend/tests/test_catalog_blocklist.py",
+    "cwd": "isolated temporary directory",
+    "exit_code": 1,
+    "log": "test_catalog_blocklist.py.log",
+    "note": "Existing test; does not prove future dynamic game catalog contract."
+  },
+  {
+    "command": "python Расширение/backend/tests/test_rimworld_catalog_gate.py",
+    "cwd": "isolated temporary directory",
+    "exit_code": 0,
+    "log": "test_rimworld_catalog_gate.py.log",
+    "note": "Existing test; does not prove future dynamic game catalog contract."
+  },
+  {
+    "command": "python Расширение/backend/tests/test_shedcolony_item_catalog.py",
+    "cwd": "isolated temporary directory",
+    "exit_code": 0,
+    "log": "test_shedcolony_item_catalog.py.log",
+    "note": "Existing test; does not prove future dynamic game catalog contract."
+  },
+  {
+    "command": "python Расширение/backend/tests/test_shedcolony_catalog_check.py",
+    "cwd": "isolated temporary directory",
+    "exit_code": 0,
+    "log": "test_shedcolony_catalog_check.py.log",
+    "note": "Existing test; does not prove future dynamic game catalog contract."
+  },
+  {
+    "command": "python Расширение/backend/tests/test_catalog_blocklist.py",
+    "cwd": "isolated temporary directory",
+    "exit_code": 0,
+    "log": "catalog-blocklist-aligned.log",
+    "note": "DB_PATH aligned with the existing test explicit Database(viewers.db); initial run used two different isolated files, causing missing shop_catalog."
+  }
+]

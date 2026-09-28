@@ -1,0 +1,40 @@
+{
+  "kind": "isolated_current_source_reproduction",
+  "meaning": "exit 0 means expected current defects reproduced, not fixed",
+  "source": "Расширение/frontend/viewer-bannerlord.js and viewer-bannerlord-equipment.js",
+  "network": false,
+  "full_browser": false,
+  "live_game": false,
+  "results": [
+    {
+      "scenario": "unknown_skill",
+      "expected_defect_reproduced": true,
+      "shows_mod_skill": false,
+      "shows_absent_vanilla_skill": true
+    },
+    {
+      "scenario": "focus_6",
+      "expected_defect_reproduced": true,
+      "error": {
+        "name": "RangeError",
+        "message": "Invalid count value: -1"
+      }
+    },
+    {
+      "scenario": "attribute_11",
+      "expected_defect_reproduced": true,
+      "error": {
+        "name": "RangeError",
+        "message": "Invalid count value: -1"
+      }
+    },
+    {
+      "scenario": "unknown_item_stat",
+      "expected_defect_reproduced": true,
+      "rendered": "Урон руб. 25",
+      "retained_keys": [
+        "swing_dmg"
+      ]
+    }
+  ]
+}

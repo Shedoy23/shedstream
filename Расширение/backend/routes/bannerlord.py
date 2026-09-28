@@ -1456,16 +1456,16 @@ async def bannerlord_my_hero(request: Request):
         ]
 
         # Attributes
-        # Sprint 5.27v: нормализуем keys к PascalCase в response, чтобы
-        # frontend получал стабильный shape независимо от того, как mod
-        # их сохранил (engine StringId был lowercase → frontend ожидал
-        # PascalCase → 0/10 для всех). Single source of truth: response.
+        # Historical vanilla spelling aliases remain compatible with 0.0.5;
+        # other attribute IDs retain the game's exact spelling.
         cur = await conn.execute(
             "SELECT attribute, value FROM bannerlord_attributes "
             "WHERE channel_id=? AND username=?",
             (channel_id, username))
         def _to_pascal(k: str) -> str:
-            return (k[0].upper() + k[1:].lower()) if k else k
+            # Keep the old six spelling aliases for the frozen client. New game
+            # IDs are opaque: ArcanePower must remain ArcanePower.
+            return next((known for known in KNOWN_ATTRIBUTES if known.lower() == k.lower()), k) if k else k
         attributes = {_to_pascal(r[0]): r[1] for r in await cur.fetchall()}
 
         # Equipment + M21 stats
@@ -1598,13 +1598,27 @@ async def bannerlord_my_hero(request: Request):
     }
 
 
+@router.get("/api/bannerlord/content-catalogs")
+async def bannerlord_content_catalogs(request: Request):
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    _, channel_id = auth
+    from modules.bannerlord.content_catalogs import read_catalogs
+    async with get_db()._connect() as conn:
+        await conn.execute('BEGIN')
+        result = await read_catalogs(conn, channel_id)
+        await conn.rollback()
+    return result
+
+
 @router.get("/api/bannerlord/equipment-shop")
 async def bannerlord_equipment_shop(request: Request):
     auth = require_jwt_user(request)
     if not auth:
         return _AUTH_FAIL
     username, channel_id = auth
-    from modules.bannerlord.equipment_shop import context, catalog, buy_reason, purchase_options, refusal, TIER_LEVELS
+    from modules.bannerlord.equipment_shop import context, catalog, buy_reason, purchase_options, refusal
     db = get_db()
     async with db._connect() as conn:
         await conn.execute("BEGIN")
@@ -1638,7 +1652,8 @@ async def bannerlord_equipment_shop(request: Request):
     # который обходил каждую из ~1000 вещей и стоил ~67 мс на проде (25.09).
     return JSONResponse({"success": True, "items": items, "inventory": inventory,
             "party_inventory": ctx["party_inventory"],
-            "tiers": [{"tier": t, "required_level": lv} for t, lv in TIER_LEVELS.items()],
+            "tiers": [{"tier": tier, "required_level": min(i['required_level'] for i in items if i['tier'] == tier)}
+                      for tier in sorted({i['tier'] for i in items})],
             "hero_level": hero[1] if hero else 0, "gold": hero[2] if hero else 0,
             "has_hero": bool(hero), "ready": ctx["ready"], "pending": ctx["pending"],
             "can_manage": ctx["reason"] is None, "reason": ctx["reason"],
@@ -1938,18 +1953,13 @@ async def _prepare_action(username, channel_id, action_type, data):
             # snapshot уже приложен выше. Крустиков 0.
             data["price"] = 0
 
-    # hero.create: culture choice (empire/sturgia/vlandia/aserai/khuzait/battania).
-    # Validate whitelist; null/empty = mod выберет random wanderer.
+    # Culture IDs and template availability belong to the loaded game.
     if action_type == "hero.create":
-        ALLOWED_CULTURES = {"empire", "sturgia", "vlandia", "aserai", "khuzait", "battania"}
-        culture = (data.get("culture") or "").strip().lower()
-        if culture and culture not in ALLOWED_CULTURES:
-            return {
-                "success": False,
-                "message": f"Культура '{culture}' не разрешена "
-                           f"(допустимо: {sorted(ALLOWED_CULTURES)})",
-            }
-        data["culture"] = culture  # mod resolve'ит '' → random
+        from modules.bannerlord.content_catalogs import validate_create
+        async with get_db()._connect() as conn:
+            content_refusal = await validate_create(conn, channel_id, data)
+        if content_refusal:
+            return content_refusal
 
         # Defense-in-depth: ещё один guard против opaque-ID adoption.
         # Если username длинный (>25) ИЛИ выглядит как opaque (u_xxx, длинная
@@ -2910,6 +2920,13 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                         "action_id":        prev_action_id,
                         "idempotent_replay": True,
                     }
+
+            if action_type == 'hero.create':
+                from modules.bannerlord.content_catalogs import validate_create
+                content_refusal = await validate_create(conn, channel_id, data, prepared=True)
+                if content_refusal:
+                    await conn.rollback()
+                    return content_refusal
 
             if action_type in ("hero.set_class", "hero.upgrade_gear", "hero.reequip_gear"):
                 cur = await conn.execute(

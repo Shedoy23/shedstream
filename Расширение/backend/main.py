@@ -1595,6 +1595,8 @@ async def run_migrations():
 
         from migrations import m133_pet_legacy_common
         await m133_pet_legacy_common.apply(conn)
+        from migrations import m134_bannerlord_content_catalogs
+        await m134_bannerlord_content_catalogs.apply(conn)
 
         print("✅ Migrations complete")
 

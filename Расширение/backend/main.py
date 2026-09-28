@@ -1597,6 +1597,9 @@ async def run_migrations():
         await m133_pet_legacy_common.apply(conn)
         from migrations import m136_bannerlord_content_catalogs
         await m136_bannerlord_content_catalogs.apply(conn)
+        # 02.10: m135 занят skillgames в ветке мини-игр — прокачка получила m137.
+        from migrations import m137_bannerlord_progression
+        await m137_bannerlord_progression.apply(conn)
 
         print("✅ Migrations complete")
 

@@ -228,6 +228,7 @@ async def validate_tx(conn, channel_id, username, action_type, data):
 
 
 async def store_inventory(db, channel_id, env):
+    from .progression import normalize
     data = env.data
     username = str(data.get("username") or "").lower()
     items = data.get("items")
@@ -251,14 +252,15 @@ async def store_inventory(db, channel_id, env):
             await conn.rollback()
             return
         await conn.execute(
-            "INSERT INTO bannerlord_inventory_snapshots(channel_id,username,save_id,session_id,hero_id,inventory_seq,items_json,build_json,inventory_state_json) VALUES(?,?,?,?,?,?,?,?,?) "
+            "INSERT INTO bannerlord_inventory_snapshots(channel_id,username,save_id,session_id,hero_id,inventory_seq,items_json,build_json,inventory_state_json,progression_json) VALUES(?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT(channel_id,username) DO UPDATE SET save_id=excluded.save_id,session_id=excluded.session_id,hero_id=excluded.hero_id,"
-            "inventory_seq=excluded.inventory_seq,items_json=excluded.items_json,build_json=excluded.build_json,inventory_state_json=excluded.inventory_state_json "
+            "inventory_seq=excluded.inventory_seq,items_json=excluded.items_json,build_json=excluded.build_json,inventory_state_json=excluded.inventory_state_json,progression_json=excluded.progression_json "
             "WHERE excluded.inventory_seq>bannerlord_inventory_snapshots.inventory_seq OR excluded.save_id!=bannerlord_inventory_snapshots.save_id "
             "OR excluded.hero_id!=bannerlord_inventory_snapshots.hero_id OR excluded.session_id!=bannerlord_inventory_snapshots.session_id",
             (channel_id, username, data["save_id"], data["equipment_session_id"], data["hero_id"], seq,
              json.dumps(items, ensure_ascii=False), json.dumps(data.get('build') if 'build' in data and (data['build'] is None or isinstance(data['build'], dict)) else {}, ensure_ascii=False),
-             json.dumps(data.get('inventory_state') if isinstance(data.get('inventory_state'), dict) else {}, ensure_ascii=False)))
+             json.dumps(data.get('inventory_state') if isinstance(data.get('inventory_state'), dict) else {}, ensure_ascii=False),
+             json.dumps(normalize(data.get('progression')), ensure_ascii=False)))
         await conn.commit()
 
 

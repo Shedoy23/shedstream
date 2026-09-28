@@ -1,3 +1,17 @@
+## 28.09 — персональная прокачка, только локальная 0.0.6
+
+Scope владельца: пока только Bannerlord. HeroProgressionRuntime публикует
+progression внутри inventory snapshot; M135 хранит отдельный progression_json,
+GET /api/bannerlord/progression возвращает предложения текущего героя.
+Backend не рассчитывает игровые цены/лимиты покупок фокуса и атрибутов;
+проверяет показанный контекст/quote в prepare и внутри charge transaction.
+XP сохраняет серверные крустики, роль и бонус; мод решает доступность по
+runtime skills и native learning factor. UI не имеет fallback цен/лимитов.
+Одна покупка focus/attribute = +1, как текущий интерфейс; старый запрос без
+контекста не принимается. Daily XP отдельным внутренним путём сохранён.
+Локальные тесты и сборка — не доказательство живой кампании; установки не было.
+[Подробности и ограничения](../../docs/BANNERLORD_PROGRESSION_0_0_6.md).
+
 ## 28.09 — runtime content catalogs, только локальная 0.0.6
 
 Мод публикует cultures/policies/skills/attributes из текущей игры через

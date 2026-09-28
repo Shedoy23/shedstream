@@ -96,7 +96,7 @@ test('equipment includes unknown stats, zero and negative values with escaped na
 });
 test('hero equipment rows retain stats from unknown slots and mod keys', ()=>{
     const h=harness();
-    const html=h.context._renderEquipRow('mod_charm', {name:'Charm',stats:{'mod_<magic>':17,zero:0,curse:-5}}, {});
+    const html=h.context._renderEquipRow('mod_charm', {item_id:'charm',name:'Charm',stats:{'mod_<magic>':17,zero:0,curse:-5}}, {});
     assert.match(html,/mod_&lt;magic&gt;/);
     assert.match(html,/17/);
     assert.match(html,/zero/);

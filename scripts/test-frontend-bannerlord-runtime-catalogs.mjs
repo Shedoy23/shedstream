@@ -156,3 +156,30 @@ test('game names resolve legacy vanilla attribute casing without losing unknown 
     assert.match(html,/Game Magic/);
     assert.match(html,/data-attr="ArcanePower"/);
 });
+test('legacy vanilla skill aliases deduplicate while explicit runtime and custom case IDs stay distinct', async()=>{
+    const state={has_hero:true,skills:[{skill_key:'onehanded',level:1,focus:0},{skill_key:'OneHanded',level:101,focus:1},{skill_key:'Magic',level:44,focus:1},{skill_key:'magic',level:55,focus:1}],attributes:{}};
+    const h=harness({skills:catalog([{id:'OneHanded',name:'Sword'}])});
+    await h.context.loadBannerlordHero();
+    h.context.state=state;
+    vm.runInContext('_bannerlordLastHero=state;loadBannerlordProgression();',h.context);
+    const html=h.element('bnr-progression-slot').innerHTML;
+    assert.doesNotMatch(html,/data-skill="onehanded"/);
+    assert.match(html,/data-skill="OneHanded"/);
+    assert.match(html,/101/);
+    assert.match(html,/data-skill="Magic"/);
+    assert.match(html,/data-skill="magic"/);
+    vm.runInContext('_bnrContentCatalogs.skills.entries.push({id:"onehanded",name:"Separate Mod Skill"});loadBannerlordProgression();',h.context);
+    assert.match(h.element('bnr-progression-slot').innerHTML,/data-skill="onehanded"/);
+});
+test('reset during a catalog request discards its late payload and permits a fresh request', async()=>{
+    const h=harness();
+    let release;
+    h.context.fetch=()=>new Promise(resolve=>{release=resolve;});
+    const old=h.context._loadBnrContentCatalogs();
+    h.context._resetBnrContentCatalogs();
+    h.context.fetch=async()=>({ok:true,json:async()=>({success:true,cultures:catalog([{id:'new',name:'New'}])})});
+    await h.context._loadBnrContentCatalogs();
+    release({ok:true,json:async()=>({success:true,cultures:catalog([{id:'old',name:'Old'}])})});
+    await old;
+    assert.equal(h.context._bnrContentCatalog('cultures').entries[0].id,'new');
+});

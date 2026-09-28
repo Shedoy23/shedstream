@@ -1,0 +1,30 @@
+{
+  "source_files_checked": 1313,
+  "source_drift": [],
+  "snapshot_files_changed_by_audit": [
+    "DEFERRED.md",
+    "RUNBOOK.md",
+    "STATUS.md"
+  ],
+  "runtime_source_changes": 0,
+  "lint_final_exit_code": 0,
+  "checks_run_earlier": [
+    {
+      "command": "python scripts/verify-candidate.py --version 0.0.5",
+      "exit_code": 0
+    },
+    {
+      "command": "python tests/test_frozen_client_0_0_5.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python tests/test_module_action_races.py",
+      "exit_code": 0
+    }
+  ],
+  "limits": [
+    "No production or live-game validation",
+    "CodeGraph database locked",
+    "Game policy assembly unavailable to lint"
+  ]
+}

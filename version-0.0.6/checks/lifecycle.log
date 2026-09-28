@@ -1,0 +1,18 @@
+  OK   core auth-init не грузит RimWorld без active_module
+  OK   RimWorld имеет €вный start lifecycle
+  OK   RimWorld имеет €вный stop lifecycle
+  OK   status polling запускаетс€ lifecycle-функцией
+  OK   локальный UI tick тоже gated по активному модулю
+  OK   €дро переключает игры через реестр, а не через свой if/else
+  OK   €дро больше не знает имЄн игр внутри переключател€
+  OK   Bannerlord объ€вл€ет себ€ реестру и называет свой корневой блок
+  OK   RimWorld объ€вл€ет себ€ реестру и называет свой корневой блок
+  OK   ShedColony объ€вл€ет себ€ реестру и называет свой корневой блок
+  OK   обе оболочки груз€т один и тот же набор viewer-модулей (ext=['viewer-actions.js', 'viewer-bannerlord-builds.js', 'viewer-bannerlord-equipment.js', 'viewer-bannerlord-ui-config.js', 'viewer-bannerlord.js', 'viewer-registry.js', 'viewer-rimworld.js', 'viewer-shedcolony.js', 'viewer.js'] mobile=['viewer-actions.js', 'viewer-bannerlord-builds.js', 'viewer-bannerlord-equipment.js', 'viewer-bannerlord-ui-config.js', 'viewer-bannerlord.js', 'viewer-registry.js', 'viewer-rimworld.js', 'viewer-shedcolony.js', 'viewer.js'])
+  OK   верси€ каждого viewer-модул€ одинакова в extension и mobile (расход€тс€: [])
+  OK   cache-bust всех viewer-модулей Ч одна метка
+  OK   каждый viewer*.js с диска подключЄн в оболочках (не подключены: [])
+  OK   платные active powers выключены, пока герой не на поле бо€
+======================================================================
+PASSED: 15   FAILED: 0
+ALL GREEN Ч неактивный RimWorld молчит.

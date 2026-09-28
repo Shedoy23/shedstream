@@ -1,0 +1,26 @@
+[
+  {
+    "check": "delivery",
+    "command": "python tests/test_module_delivery_gaps.py",
+    "exit_code": 0,
+    "log": "delivery.log"
+  },
+  {
+    "check": "lifecycle",
+    "command": "python tests/test_frontend_module_lifecycle.py",
+    "exit_code": 0,
+    "log": "lifecycle.log"
+  },
+  {
+    "check": "ledger",
+    "command": "python tests/test_points_ledger.py",
+    "exit_code": 0,
+    "log": "ledger.log"
+  },
+  {
+    "check": "lint",
+    "command": "python scripts/lint_consistency.py",
+    "exit_code": 1,
+    "log": "lint.log"
+  }
+]

@@ -91,6 +91,33 @@ async def run(db):
     progression['skills'][0]['xp_available']=False; progression['skills'][0]['xp_reason']='skill_capped'
     await publish()
     assert (await buy('hero.add_skill',skill_key='Mod.Skill',price=500,expected_platform_price=500,progression_context=context))['reason']=='skill_capped'
+    # Broadcaster pricing is quoted and charged consistently; retry/refund use actual 250.
+    progression['skills'][0]['xp_available']=True
+    await publish()
+    import auth
+    old_verify=auth.verify_twitch_jwt
+    auth.verify_twitch_jwt=lambda request:dict(status='valid',role='broadcaster',user_id=str(CHANNEL_ID),channel_id=str(CHANNEL_ID))
+    try:
+        response=await route.bannerlord_progression(_make_anon_request())
+        assert response['xp_offers'][0]['price']==250 and response['xp_offers'][0]['crusticov']==500
+        before=(await sql("SELECT points FROM viewers WHERE channel_id=? AND username='alice'",(CHANNEL_ID,)))[0][0]
+        args=dict(skill_key='Mod.Skill',price=500,expected_platform_price=250,progression_context=context,client_action_id='xp-role')
+        result=await buy('hero.add_skill',**args)
+        assert result['success'] and result['charged']==250,result
+        out=json.loads((await sql('SELECT data FROM module_actions WHERE action_id=?',(result['action_id'],)))[0][0])
+        assert out['xp']==50 and out['reward_boost']==2 and out['price']==250,out
+        # Do not clear cooldown or finish the queued action for this real retry.
+        replay=await route._bannerlord_buy_action_locked(_make_anon_request(),'alice',CHANNEL_ID,'hero.add_skill',args.copy())
+        assert replay.get('idempotent_replay') and replay['action_id']==result['action_id'],replay
+        from modules.bannerlord._adapter import BannerlordAdapter
+        env=ModuleEnvelope(id=result['action_id'],kind='event',type='action.failed',ts=0,data=dict(action_id=result['action_id'],reason='test_refuse'))
+        await BannerlordAdapter(None).handle_event(CHANNEL_ID,env)
+        await BannerlordAdapter(None).handle_event(CHANNEL_ID,env)
+        after=(await sql("SELECT points FROM viewers WHERE channel_id=? AND username='alice'",(CHANNEL_ID,)))[0][0]
+        assert after==before,(before,after)
+    finally:
+        auth.verify_twitch_jwt=old_verify
+    await finish()
     # Full replacement does not retain stale permission; old/wrong-session snapshots do not replace.
     await publish(progression={})
     await publish(equipment_session_id='old',progression=progression)

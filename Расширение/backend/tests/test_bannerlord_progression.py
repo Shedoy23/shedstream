@@ -109,6 +109,11 @@ async def run(db):
         # Do not clear cooldown or finish the queued action for this real retry.
         replay=await route._bannerlord_buy_action_locked(_make_anon_request(),'alice',CHANNEL_ID,'hero.add_skill',args.copy())
         assert replay.get('idempotent_replay') and replay['action_id']==result['action_id'],replay
+        stale=dict(args,progression_context={**context,'hero_id':'stale'},expected_platform_price=0)
+        assert (await route._bannerlord_buy_action_locked(_make_anon_request(),'alice',CHANNEL_ID,'hero.add_skill',stale))['idempotent_replay']
+        fresh=dict(args,client_action_id='new-id')
+        assert (await buy('hero.add_skill',**fresh))['reason']=='pending'
+        assert (await route._bannerlord_buy_action_locked(_make_anon_request(),'carol',CHANNEL_ID,'hero.add_skill',args.copy()))['reason']=='client_action_conflict'
         from modules.bannerlord._adapter import BannerlordAdapter
         env=ModuleEnvelope(id=result['action_id'],kind='event',type='action.failed',ts=0,data=dict(action_id=result['action_id'],reason='test_refuse'))
         await BannerlordAdapter(None).handle_event(CHANNEL_ID,env)
@@ -118,6 +123,11 @@ async def run(db):
     finally:
         auth.verify_twitch_jwt=old_verify
     await finish()
+    # Old sequence and wrong actor/save cannot replace the current quote.
+    await publish(inventory_seq=1,progression={})
+    await publish(hero_id='wrong-hero',progression={})
+    await publish(save_id='wrong-save',progression={})
+    assert (await route.bannerlord_progression(_make_anon_request()))['ready']
     # Full replacement does not retain stale permission; old/wrong-session snapshots do not replace.
     await publish(progression={})
     await publish(equipment_session_id='old',progression=progression)

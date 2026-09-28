@@ -143,5 +143,5 @@ test('outer hero response cannot render the previous viewer after token changes'
 test('XP price is exact even when compact formatting would round it',async()=>{
     const response=snapshot();response.xp_offers[0].price=1234;
     const h=harness(response);await h.render();
-    assert.match(h.element('bannerlord-shop-list').innerHTML,/1[\s\u00a0\u202f]?234/);
+    assert.match(h.element('bannerlord-shop-list').innerHTML,/>1[\s\u00a0\u202f]?234💎</);
 });

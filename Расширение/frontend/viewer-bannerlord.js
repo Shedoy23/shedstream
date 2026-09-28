@@ -2433,10 +2433,10 @@ async function loadBannerlordDiplomacy() {
                                 ${pending ? '<span style="color:#fbbf24;font-size:9px;"> (на обсуждении)</span>' : ''}
                                 <div style="font-size:10px;color:var(--muted);margin-top:2px;">
                                     ${escapeHtml(p.description || '')}
-                                    ${p.available === false ? escapeHtml(p.unavailable_reason || 'Недоступно') : ''}
+                                    ${p.available === false ? 'Игра пока не разрешает выбрать этот закон.' : ''}
                                 </div>
                             </div>`;
-                        }).join('') : `<div>${policyCatalog.available ? 'Игра передала пустой список законов.' : `Каталог законов недоступен: ${escapeHtml(policyCatalog.reason || 'игра не передала законы')}`}</div>`}
+                        }).join('') : `<div>${policyCatalog.available ? 'Игра передала пустой список законов.' : 'Каталог законов пока недоступен. Дождись связи с игрой.'}</div>`}
                     </div>
                 </details>`;
         }
@@ -5121,10 +5121,10 @@ async function loadBannerlordHero() {
             const cultureBtns = cultureCatalog.entries.map(c => `
                 <button class="extra-btn" data-bnr-culture="${escapeHtml(c.id)}"
                         ${c.available === false ? 'disabled' : ''}
-                        title="${escapeHtml(c.available === false ? c.unavailable_reason || 'Недоступно' : c.description || '')}"
+                        title="${escapeHtml(c.available === false ? 'Игра пока не позволяет создать героя этой культуры.' : c.description || '')}"
                         style="font-size:12px;padding:6px 8px;min-width:78px;">
                     ${escapeHtml(c.name || c.id)}
-                </button>`).join('') || `<div>${cultureCatalog.available ? 'Игра передала пустой список культур.' : `Каталог культур недоступен: ${escapeHtml(cultureCatalog.reason || 'игра не передала культуры')}`}</div>`;
+                </button>`).join('') || `<div>${cultureCatalog.available ? 'Игра передала пустой список культур.' : 'Каталог культур пока недоступен. Дождись связи с игрой.'}</div>`;
 
             body.innerHTML = `
                 <div style="text-align:center;padding:14px;color:#adadb8;font-size:13px;">

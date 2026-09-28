@@ -1,3 +1,16 @@
+## 28.09 — runtime content catalogs, только локальная 0.0.6
+
+Мод публикует cultures/policies/skills/attributes из текущей игры через
+module.catalog_update; M134 хранит полные снимки по каналу/save/session/revision.
+Новый viewer endpoint /api/bannerlord/content-catalogs. Создание героя проверяет
+контекст показанного каталога, затем повторяет проверку внутри транзакции;
+мод отказывает явной недоступной культуре без случайной подмены.
+UI показывает новые ключи и характеристики предметов, не выдумывает отсутствующие
+ванильные строки. Backend сохраняет переданный required_level предмета.
+Это изменения только C:\Users\Edward\Desktop\work\0.0.6; не установка и не выкат.
+Подробности, совместимость старого мода и оставшиеся ограничения:
+[BANNERLORD_RUNTIME_CONTENT_0_0_6](../../docs/BANNERLORD_RUNTIME_CONTENT_0_0_6.md).
+
 ## 21.09 — tournament queue snapshot (локально, не выкачено)
 
 Игра публикует полную очередь tournament.queue_snapshot: текущий save/session,

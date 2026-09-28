@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\src\MainThreadDispatcher.cs" Link="MainThreadDispatcher.cs" />
+    <Compile Include="..\..\src\Net\ActionOutcomeStore.cs" Link="ActionOutcomeStore.cs" />
+    <Compile Include="..\..\src\Net\DurableEventOutbox.cs" Link="DurableEventOutbox.cs" />
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>X:\SteamLibrary\steamapps\common\Mount &amp; Blade II Bannerlord\bin\Win64_Shipping_Client\Newtonsoft.Json.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

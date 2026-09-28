@@ -1,0 +1,1850 @@
+/* ===== Дизайн-токены (2026-08-20, решение владельца) =====
+   До этого в панели жили 103 hex-цвета, 12 размеров шрифта, 11 радиусов и 36
+   значений padding — каждый элемент получал свои числа в момент написания.
+   Глаз читает это как «собрано из кусков», хотя назвать причину трудно.
+
+   Шкала СОБРАНА ИЗ УЖЕ ИСПОЛЬЗУЕМЫХ мелких значений: ничего не выросло,
+   исчезли только промежуточные варианты. Плотность панели — свойство, а не
+   случайность: панель узкая, чем больше влезает без прокрутки, тем лучше.
+
+   Новые значения брать ОТСЮДА. Понадобилось не из шкалы — сначала обсудить,
+   а не добавлять втихую: так она и расползлась в прошлый раз.            */
+:root {
+    /* шрифт: было 9,10,11,12,13,14,15 */
+    --fs-xs: 10px;   /* подсказки            */
+    --fs-sm: 11px;   /* подписи, вторичное   */
+    --fs-md: 12px;   /* основной текст       */
+    --fs-lg: 14px;   /* заголовок блока      */
+
+    /* отступы: было 2,4,5,6,7,8,9 */
+    --s1: 2px; --s2: 4px; --s3: 6px; --s4: 8px; --s5: 12px;
+
+    /* скругления: было 2,3,4,6,7,8 */
+    --r: 4px; --r-lg: 6px; --r-pill: 999px;
+
+    /* цвет: одна палитра вместо смеси Twitch и Tailwind */
+    --bg:        #18181b;
+    --surface:   #1f1f23;
+    --surface-2: #26262c;
+    --border:    #3a3a3d;
+    --text:      #efeff1;   /* основной текст          */
+    --muted:     #adadb8;   /* подписи (был серый Tailwind 9ca3af)   */
+    --dim:       #7d7d85;   /* третьестепенное (был Tailwind 6b7280) */
+    --accent:    #9147ff;   /* фиолетовый Twitch       */
+    --ok:        #4ade80;
+    --danger:    #f87171;
+    --gem:       #a970ff;   /* 💎 крустики  */
+    --gold:      #f0b232;   /* 💰 динары    */
+}
+
+/* viewer.css — компактный дизайн в стиле admin-панели */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ===== OVERLAY MODE ===== */
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: transparent !important;
+    overflow: hidden;
+    color: #efeff1;
+}
+
+/* ===== ПАНЕЛЬ ===== */
+#overlay-toggle { display: none; }
+
+#overlay-panel {
+    --panel-width: min(420px, 100vw);
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: var(--panel-width);
+    height: 100%;
+    background: #0e0e10;
+    border-left: 1px solid #2d2d2f;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 9998;
+    padding: 0 0 24px 0;
+    box-shadow: -6px 0 32px rgba(0,0,0,0.7);
+    isolation: isolate;
+}
+
+#overlay-panel.open { right: 0; }
+
+#overlay-panel::-webkit-scrollbar { width: 3px; }
+#overlay-panel::-webkit-scrollbar-thumb { background: #2d2d2f; border-radius: 2px; }
+
+/* ===== ШАПКА ПАНЕЛИ ===== */
+#panel-close {
+    position: sticky;
+    top: 0;
+    background: rgba(14, 14, 16, 0.97);
+    border-bottom: 1px solid #2d2d2f;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+}
+
+#panel-close-btn {
+    background: #2d2d2f;
+    border: none;
+    color: #adadb8;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+}
+#panel-close-btn:hover { background: #f87171; color: white; }
+
+#panel-hide-btn {
+    background: transparent;
+    border: none;
+    color: #555;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+    margin-left: auto;
+}
+#panel-hide-btn:hover { color: #adadb8; background: #2d2d2f; }
+
+#panel-restore-tab {
+    display: none;
+    position: fixed;
+    top: 35%;
+    right: 0;
+    transform: translateY(-50%);
+    background: #1f1f23;
+    border: 1px solid #3d3d3f;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    color: #9147ff;
+    font-size: 18px;
+    width: 28px;
+    height: 52px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 9997;
+    transition: background 0.15s, color 0.15s;
+    box-shadow: -3px 0 12px rgba(0,0,0,0.5);
+}
+#panel-restore-tab:hover { background: #2d1a4a; color: #bf94ff; }
+
+/* 2026-07-29 (багрепорт #20): «сделать язычок скрытия расширения как и у
+   открытия». Открывалась панель заметным вертикальным язычком у края экрана,
+   а пряталась крестиком в шапке — жест несимметричный, и его надо было
+   искать. Этот язычок — зеркало #panel-restore-tab: та же форма и размер,
+   но у ЛЕВОГО края панели и со стрелкой «убрать вправо».
+   Ширина панели повторена выражением, а не переменной: --panel-width
+   объявлена внутри #overlay-panel и снаружи не видна. */
+#panel-hide-tab {
+    display: flex;
+    position: fixed;
+    top: 35%;
+    right: min(420px, 100vw);
+    transform: translateY(-50%);
+    background: #1f1f23;
+    border: 1px solid #3d3d3f;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    color: #9147ff;
+    font-size: 14px;
+    width: 28px;
+    height: 52px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 9997;
+    transition: background 0.15s, color 0.15s;
+    box-shadow: -3px 0 12px rgba(0,0,0,0.5);
+}
+#panel-hide-tab:hover { background: #2d1a4a; color: #bf94ff; }
+
+.panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #9147ff;
+    letter-spacing: 0.02em;
+}
+
+/* Приглашение к первому шагу — единственное, что видит зритель без персонажа.
+   Разбор воронки 2026-08-05: из 86 зрителей персонажа завели 18, и НИ ОДИН
+   из заведших не бросил. Барьер ровно один — первый шаг, поэтому он выделен
+   из общего ряда кнопок. */
+.first-step {
+    background: linear-gradient(135deg, rgba(145,71,255,0.18), rgba(145,71,255,0.06));
+    border: 1px solid rgba(145,71,255,0.45);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+}
+.first-step h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #efeff1;
+}
+.first-step p {
+    margin: 0 0 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #adadb8;
+}
+.first-step button {
+    width: 100%;
+    background: #9147ff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.first-step button:hover { background: #a970ff; }
+.first-step button:disabled {
+    background: #3a3a3e;
+    color: #8a8a94;
+    cursor: default;
+}
+.first-step button:disabled:hover { background: #3a3a3e; }
+
+/* Тот же блок для зрителя, у которого персонаж уже есть: это не приглашение,
+   а постоянный вход на вкладку интеграции — поэтому одна строка, а не плашка
+   в пол-экрана. */
+.first-step-compact {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+}
+.first-step-compact h3 {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.first-step-compact button {
+    width: auto;
+    flex: none;
+    padding: 7px 14px;
+    font-size: 12px;
+}
+
+/* Шапка: название расширения + версия, активная игра — подписью снизу.
+   До 2026-08-05 название игры ЗАТИРАЛО .panel-title, и при переключении
+   интеграции расширение переставало называть себя. */
+.panel-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+.panel-brand-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+.panel-version {
+    font-size: 10px;
+    font-weight: 500;
+    color: #6b6b73;
+    letter-spacing: 0.02em;
+}
+.panel-subtitle {
+    font-size: 11px;
+    line-height: 1.2;
+    color: #adadb8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.panel-subtitle:empty { display: none; }
+
+/* ===== КОНТЕНТ ===== */
+#panel-content {
+    padding: 12px;
+    padding-bottom: 60px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#panel-content * {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* ===== ШАПКА (баланс/пользователь) ===== */
+.header {
+    background: #1f1f23;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #2d2d2f;
+    gap: 8px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    background: #2d2d2f;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    border: 1.5px solid #9147ff;
+    flex-shrink: 0;
+}
+
+.username {
+    font-size: 13px;
+    font-weight: 700;
+    color: #efeff1;
+    margin-bottom: 1px;
+}
+
+.badge {
+    font-size: 10px;
+    color: #adadb8;
+    background: #2d2d2f;
+    padding: 2px 6px;
+    border-radius: 10px;
+    display: inline-block;
+}
+
+.balance-info {
+    display: flex;
+    gap: 16px;
+}
+
+.balance-item { text-align: right; }
+
+.balance-label {
+    font-size: 10px;
+    color: #adadb8;
+    margin-bottom: 1px;
+}
+
+.balance-value {
+    font-size: 16px;
+    font-weight: 800;
+    color: #9147ff;
+}
+
+.balance-value.income { color: #4ade80; }
+
+/* ===== ВКЛАДКИ ===== */
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+    background: #1f1f23;
+    padding: 5px;
+    border-radius: 10px;
+    border: 1px solid #2d2d2f;
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 6px;
+    background: transparent;
+    border: none;
+    color: #adadb8;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.tab:hover { background: #2d2d2f; color: #efeff1; }
+
+.tab.active {
+    background: #9147ff;
+    color: white;
+}
+
+.tab-icon { font-size: 14px; }
+.tab-text { }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ===== КАРТОЧКИ ДЕЙСТВИЙ ===== */
+.actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.action-card {
+    background: #1f1f23;
+    border: 1px solid #2d2d2f;
+    border-radius: 10px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-card:hover {
+    transform: translateY(-1px);
+    border-color: #9147ff;
+    box-shadow: 0 4px 12px rgba(145, 71, 255, 0.15);
+}
+
+.action-icon { font-size: 26px; margin-bottom: 5px; }
+.action-title { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+
+.action-desc {
+    font-size: 10px;
+    color: #adadb8;
+    margin-bottom: 6px;
+}
+
+.action-min {
+    font-size: 10px;
+    color: #9147ff;
+    background: #2d2d2f;
+    padding: 2px 6px;
+    border-radius: 10px;
+    display: inline-block;
+}
+
+/* ===== PET-STAGE (Sprint 5.21, 2026-05-20) =====
+   Универсальный creature (SVG) с 6 absolutely-positioned slots.
+   Pre-hatch (egg) — только яичко + bg/aura.
+   Layer z-index: bg(1) → aura(2) → creature/egg(3) → body(5) → face(6) →
+   head(7) → accessory(6).
+   Размер контролируется через --pet-stage-size CSS-переменную. */
+
+.pet-stage {
+    position: relative;
+    width: var(--pet-stage-size, 180px);
+    aspect-ratio: 1;
+    margin: 0 auto;
+    border-radius: 18px;
+    overflow: hidden;
+    /* Body color вариативность через CSS-переменные. Дефолтная палитра
+       — фиолетовая. Конкретные background items переопределяют их.
+       --pet-stage-bg-glow контролирует backdrop-glow stage'а. */
+    --pet-body-light:  #d8b4fe;
+    --pet-body-mid:    #a855f7;
+    --pet-body-dark:   #6b21a8;
+    --pet-body-stroke: #4c1d95;
+    --pet-stage-bg-glow: rgba(168,85,247,.18);
+    background: radial-gradient(ellipse at 50% 60%,
+                var(--pet-stage-bg-glow), transparent 70%);
+    transition: --pet-body-light .35s, --pet-body-mid .35s,
+                --pet-body-dark .35s, background .35s;
+}
+
+/* ── Background presets — переопределяют palette ────────────────────────── */
+.pet-stage--bg_violet {
+    /* Bright violet — насыщеннее default'а */
+    --pet-body-light:  #f3e8ff;
+    --pet-body-mid:    #c084fc;
+    --pet-body-dark:   #7e22ce;
+    --pet-body-stroke: #581c87;
+    --pet-stage-bg-glow: rgba(192,132,252,.22);
+}
+.pet-stage--bg_rainbow {
+    /* Радужный градиент — тёплый → холодный */
+    --pet-body-light:  #fef3c7;
+    --pet-body-mid:    #f472b6;
+    --pet-body-dark:   #8b5cf6;
+    --pet-body-stroke: #be185d;
+    --pet-stage-bg-glow: rgba(244,114,182,.24);
+}
+.pet-stage--bg_stars {
+    /* Звёздно-синяя ночная палитра */
+    --pet-body-light:  #93c5fd;
+    --pet-body-mid:    #3b82f6;
+    --pet-body-dark:   #1e3a8a;
+    --pet-body-stroke: #1e40af;
+    --pet-stage-bg-glow: rgba(59,130,246,.22);
+}
+
+/* Sprint 5.22 patch: aura — 6 маленьких particles на clock-позициях
+   вокруг pet'а, каждая со staggered pulse animation. Создаёт эффект
+   «вихря» вокруг creature'а. */
+.pet-stage__aura {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+.pet-stage__aura-particle {
+    position: absolute;
+    font-size: calc(var(--pet-stage-size, 180px) * 0.18);
+    line-height: 1;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+    animation: pet-stage-aura-particle 1.8s ease-in-out infinite;
+    filter: drop-shadow(0 0 4px rgba(255,255,255,0.45));
+}
+@keyframes pet-stage-aura-particle {
+    0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.85); }
+    50%      { opacity: 1.00; transform: translate(-50%, -50%) scale(1.15); }
+}
+/* 6 позиций по часовой стрелке от 12 часов:
+   12 → 2 → 4 → 6 → 8 → 10. Staggered delay'и создают «бегущий» вихрь. */
+.pet-stage__aura-particle--n0 { top:  -2%; left: 50%; animation-delay: 0s;     }
+.pet-stage__aura-particle--n1 { top:  22%; left: 95%; animation-delay: 0.30s;  }
+.pet-stage__aura-particle--n2 { top:  72%; left: 95%; animation-delay: 0.60s;  }
+.pet-stage__aura-particle--n3 { top: 100%; left: 50%; animation-delay: 0.90s;  }
+.pet-stage__aura-particle--n4 { top:  72%; left:  5%; animation-delay: 1.20s;  }
+.pet-stage__aura-particle--n5 { top:  22%; left:  5%; animation-delay: 1.50s;  }
+
+.pet-stage__base {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    animation: pet-stage-breathe 4s ease-in-out infinite;
+}
+
+/* Sprint 5.28 (2026-05-24): creature теперь <img> с PNG-спрайтом
+   (PixelLab pixel-art chibi). image-rendering: pixelated сохраняет
+   chunky pixels при upscaling 104px source → 64-180px DOM render. */
+.pet-stage__creature {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+}
+
+@keyframes pet-stage-breathe {
+    0%, 100% { transform: translateY(0)    scale(1); }
+    50%      { transform: translateY(-2px) scale(1.015); }
+}
+
+.pet-stage__egg {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--pet-stage-size, 180px) * 0.55);
+    line-height: 1;
+    animation: pet-stage-wobble 3.2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes pet-stage-wobble {
+    0%, 100% { transform: rotate(-3deg); }
+    50%      { transform: rotate( 3deg); }
+}
+
+/* Sprint 5.28 (2026-05-24): slot rendering пересобран под pixel-art items.
+   Старая система: каждый slot — small frame в %-позиции (head вверху,
+   face в центре, body внизу), внутри рендерилось emoji.
+   Новая система: каждый slot — FULL OVERLAY (104×104 / 180×180). Item
+   sprite сам внутри своего frame правильно позиционирован — slot CSS
+   даёт только z-stack. Items от Claude Design / PixelLab включают anchor
+   point в сам PNG/SVG. */
+.pet-stage__slot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+.pet-stage__slot svg,
+.pet-stage__slot .pet-stage__item-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+}
+.pet-stage__slot--body      { z-index: 5; }
+.pet-stage__slot--face      { z-index: 6; }
+.pet-stage__slot--accessory { z-index: 6; }
+.pet-stage__slot--head      { z-index: 7; }
+
+/* Small variant (для overlay strip) — все размеры наследуются из
+   --pet-stage-size, ничего не надо переопределять. */
+
+/* ===== СЕКЦИИ «БОТ» (Sprint 5.19, 2026-05-20) =====
+   4 семантические группы: 🎮 Игры / 🤝 Социалка / 🎁 Награды / 📺 Канал.
+   Header — компактный, всегда виден, на mobile увеличенные tap targets.
+   .bot-grid auto-fit подгоняет 2–3 колонки в зависимости от ширины. */
+.bot-section {
+    margin-bottom: 14px;
+}
+
+.bot-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #adadb8;
+    padding: 0 2px 6px;
+    border-bottom: 1px solid #2d2d2f;
+    margin-bottom: 8px;
+}
+
+.bot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+    gap: 6px;
+}
+
+.bot-grid--two {
+    grid-template-columns: 1fr 1fr;
+}
+
+/* Компактный вариант .action-card — горизонтальный layout (иконка слева, текст справа) */
+.action-card.bot-card {
+    padding: 10px 10px;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 56px;
+}
+
+.bot-card-icon {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.bot-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.bot-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #efeff1;
+    margin-bottom: 2px;
+    line-height: 1.15;
+    /* До 2 строк max — длинные слова («Крестики-нолики», «Голосование»)
+       перетекут на вторую строку вместо обрезания эллипсисом. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.bot-card-sub {
+    font-size: 11px;
+    color: #adadb8;
+    line-height: 1.2;
+    /* Sub — одна строка с эллипсисом (компактно) */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Mobile / Twitch panel — горизонтальный icon+text не помещается в 3-col grid
+   (cards ~100-110px). Переключаем на вертикальный stack: icon сверху центр,
+   текст снизу. Title получает всю ширину карточки → длинные слова
+   («Крестики», «Промокод») умещаются в 1-2 строки. */
+@media (max-width: 480px) {
+    .action-card.bot-card {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 4px;
+        padding: 10px 6px;
+        min-height: 76px;
+    }
+    .bot-card-icon {
+        font-size: 22px;
+    }
+    .bot-card-body {
+        width: 100%;
+    }
+    .bot-section-title {
+        font-size: 12px;
+    }
+}
+
+/* Канал-секция (2-col) на mobile — оставляем horizontal, там карточки ~165px
+   широкие, длинные слова («Голосование», «Реклама») умещаются. */
+@media (max-width: 480px) {
+    .bot-grid--two .action-card.bot-card {
+        flex-direction: row;
+        align-items: center;
+        text-align: left;
+        gap: 9px;
+        padding: 12px 10px;
+        min-height: 60px;
+    }
+}
+
+/* ===== БАЗОВЫЕ КАРТОЧКИ ===== */
+.card {
+    background: #1f1f23;
+    border: 1px solid #2d2d2f;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.card-header h3 {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.card-badge {
+    background: #2d2d2f;
+    color: #adadb8;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* ===== СПЛИТ-ВЬЮ ===== */
+.split-view {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+/* ===== ИНВЕНТАРЬ ===== */
+.inventory-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.inventory-item {
+    background: #2d2d2f;
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.item-icon {
+    width: 28px;
+    height: 28px;
+    background: #3d3d3f;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.item-info { flex: 1; min-width: 0; overflow: hidden; }
+.item-name { font-weight: 600; font-size: 12px; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-bonus { font-size: 10px; color: #4ade80; }
+.item-quantity { font-weight: 700; font-size: 12px; color: #9147ff; white-space: nowrap; }
+.item-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+/* ===== КВЕСТЫ ===== */
+.quests-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.quest-item {
+    background: #2d2d2f;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.quest-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.quest-progress {
+    height: 4px;
+    background: #3d3d3f;
+    border-radius: 2px;
+    margin-bottom: 4px;
+    overflow: hidden;
+}
+
+.quest-progress-fill {
+    height: 100%;
+    background: #9147ff;
+    border-radius: 2px;
+    transition: width 0.3s;
+}
+
+.quest-reward { font-size: 10px; color: #4ade80; }
+
+/* ===== ДОПОЛНИТЕЛЬНЫЕ КНОПКИ ===== */
+.extra-actions { display: flex; gap: 6px; }
+
+.extra-btn {
+    flex: 1;
+    background: #2d2d2f;
+    border: 1px solid #3d3d3f;
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: #efeff1;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.extra-btn:hover { background: #3d3d3f; border-color: #9147ff; }
+
+/* ===== МОДАЛЬНЫЕ ОКНА ===== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    right: 0;
+    /* Точно совпадает с шириной #overlay-panel */
+    width: min(420px, 100vw);
+    height: 100%;
+    background: rgba(0, 0, 0, 0.88);
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+    padding: 14px;
+    box-sizing: border-box;
+}
+
+.modal.active { display: flex; }
+
+.modal-content {
+    background: #1f1f23;
+    border: 1px solid #2d2d2f;
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: calc(min(420px, 100vw) - 28px);
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalAppear 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    margin: auto;
+}
+
+@keyframes modalAppear {
+    from { transform: scale(0.92); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+}
+
+.modal-content h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    text-align: center;
+}
+
+.modal-input {
+    width: 100%;
+    padding: 9px 12px;
+    background: #2d2d2f;
+    border: 1px solid #3d3d3f;
+    border-radius: 8px;
+    color: #efeff1;
+    font-size: 14px;
+    margin-bottom: 10px;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.modal-input:focus { border-color: #9147ff; }
+
+.modal-btn {
+    width: 100%;
+    padding: 10px;
+    background: #9147ff;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 6px;
+    font-family: inherit;
+}
+
+.modal-btn:hover { background: #7c3aed; }
+
+.modal-btn.cancel {
+    background: #2d2d2f;
+    color: #adadb8;
+}
+
+.modal-btn.cancel:hover { background: #3d3d3f; }
+
+/* ===== БЫСТРЫЙ ВКЛАД В ГОЛОСОВАНИЕ ===== */
+.quick-votes {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.quick-vote {
+    background: #2d2d2f;
+    border: 1px solid #3d3d3f;
+    border-radius: 7px;
+    padding: 6px;
+    color: #efeff1;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.quick-vote:hover { background: #9147ff; border-color: #9147ff; }
+
+/* ===== ЗАГРУЗКА ===== */
+.loading {
+    text-align: center;
+    color: #555;
+    padding: 16px;
+    font-size: 12px;
+}
+
+.coming-soon {
+    text-align: center;
+    color: #adadb8;
+    padding: 16px;
+    background: #2d2d2f;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+/* ===== УВЕДОМЛЕНИЯ ===== */
+.notification {
+    position: fixed;
+    bottom: 12px;
+    right: 10px;
+    /* Не выходит за панель — вписывается в её ширину с отступами */
+    width: calc(min(420px, 100vw) - 20px);
+    background: #1f1f23;
+    border: 1px solid #2d2d2f;
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: #efeff1;
+    font-size: 12.5px;
+    z-index: 9999999;
+    animation: slideIn 0.2s ease;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.65);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    box-sizing: border-box;
+    line-height: 1.4;
+}
+
+.notif-icon { font-size: 14px; flex-shrink: 0; }
+
+.notification.success { border-left: 3px solid #4ade80; }
+.notification.error   { border-left: 3px solid #f87171; }
+.notification.warning { border-left: 3px solid #fbbf24; }
+.notification.info    { border-left: 3px solid #60a5fa; }
+
+@keyframes slideIn {
+    from { transform: translateY(12px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Casino/jackpot/slots/coin анимации удалены 2026-05-10 (Phase 1.I lexicon scrub) */
+
+/* Накрутка счётчика — fade-in снизу (используется в overlay/прочих) */
+@keyframes countUp {
+    from { transform: translateY(8px); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* ===== AUTH STATUS ===== */
+.auth-status {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-size: 11px;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+    background: #1f1f23;
+    border: 1px solid #2d2d2f;
+}
+
+.auth-status.info    { color: #60a5fa; border-color: #60a5fa; }
+.auth-status.success { color: #4ade80; border-color: #4ade80; }
+.auth-status.warning { color: #fbbf24; border-color: #fbbf24; }
+.auth-status.error   { color: #f87171; border-color: #f87171; }
+
+/* ===== ПЕШКА ===== */
+.pawn-stats {
+    background: #2d2d2f;
+    border-radius: 8px;
+    padding: 10px;
+    margin: 8px 0;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.stat-label { color: #adadb8; font-size: 12px; }
+.stat-value { font-weight: 700; font-size: 12px; }
+
+/* ===== ПРОКРУТКА ===== */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #1f1f23; }
+::-webkit-scrollbar-thumb { background: #3d3d3f; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #9147ff; }
+
+/* ===== МАЛЕНЬКИЕ КНОПКИ ===== */
+.small-btn {
+    background: transparent;
+    border: 1px solid #3d3d3f;
+    border-radius: 6px;
+    padding: 3px 8px;
+    color: #adadb8;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.small-btn:hover { border-color: #9147ff; color: #9147ff; }
+
+/* ===== КУЛДАУН НА КНОПКЕ (data-bnr-cd) ===== */
+/* Кнопка действия, на которой тикает отсчёт перезарядки. Гасим цвет и hover
+   чтобы было очевидно что она временно недоступна. */
+.bnr-on-cd {
+    opacity: 0.55 !important;
+    cursor: not-allowed !important;
+    color: var(--muted) !important;
+    border-color: #3d3d3f !important;
+}
+.bnr-on-cd:hover { border-color: #3d3d3f !important; color: var(--muted) !important; }
+
+/* ===== ДУЭЛИ ===== */
+.duel-item {
+    background: #2d2d2f;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 6px;
+    border: 1px solid #3d3d3f;
+}
+
+.duel-creator { font-weight: 700; color: #9147ff; font-size: 12px; }
+.duel-target  { color: #4ade80; font-size: 12px; }
+/* .duel-amount удалён 2026-05-10 (Phase 1.F — ставки в дуэлях вырезаны) */
+
+/* ===== ДОСТИЖЕНИЯ ===== */
+.achievement {
+    background: #2d2d2f;
+    border-radius: 7px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.achievement-icon {
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    background: #3d3d3f;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.achievement-info { flex: 1; }
+.achievement-name { font-weight: 700; font-size: 12px; margin-bottom: 1px; }
+.achievement-desc { font-size: 10px; color: #adadb8; }
+.achievement.completed { border-left: 2px solid #4ade80; }
+
+/* ===== МАГАЗИН ===== */
+.shop-filters {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.filter-btn {
+    background: #2d2d2f;
+    border: 1px solid #3d3d3f;
+    border-radius: 16px;
+    padding: 3px 8px;
+    color: #adadb8;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.filter-btn:hover { border-color: #9147ff; color: #efeff1; }
+
+.filter-btn.active {
+    background: #9147ff;
+    border-color: #9147ff;
+    color: white;
+}
+
+.shop-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+}
+
+.shop-item {
+    background: #2d2d2f;
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+}
+
+.shop-item:hover {
+    border-color: #9147ff;
+    background: #252529;
+}
+
+/* ── Тултип при наведении ── */
+.shop-item { position: relative; }
+
+.shop-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: #1a1a1e;
+    border: 1px solid #9147ff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    min-width: 200px;
+    max-width: 280px;
+    width: max-content;
+    font-size: 11px;
+    line-height: 1.55;
+    color: #efeff1;
+    white-space: pre-line;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+}
+
+/* Стрелка вниз */
+.shop-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #9147ff;
+}
+
+.shop-item:hover .shop-tooltip {
+    display: block;
+}
+
+/* Если тултип у элемента в начале списка — показывать вниз */
+.shop-item:first-child .shop-tooltip,
+.shop-item:nth-child(2) .shop-tooltip {
+    bottom: auto;
+    top: calc(100% + 6px);
+}
+.shop-item:first-child .shop-tooltip::after,
+.shop-item:nth-child(2) .shop-tooltip::after {
+    top: auto;
+    bottom: 100%;
+    border-top-color: transparent;
+    border-bottom-color: #9147ff;
+}
+
+.shop-item-icon {
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    background: #1f1f23;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.shop-item-info { flex: 1; min-width: 0; }
+
+/* RimWorld catalog: touch/keyboard disclosure, separate from the paid action. */
+#shop-list .rw-shop-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 0;
+    gap: 0;
+    background: #202024;
+    border-color: #343039;
+    border-radius: 10px;
+}
+#shop-list .rw-shop-item.is-expanded { border-color: #985adb; }
+#shop-list .rw-shop-inspect {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    padding: 11px 8px 11px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #efeff1;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+#shop-list .rw-shop-inspect:focus-visible { outline: 2px solid #bf94ff; outline-offset: -3px; }
+#shop-list .rw-shop-inspect .shop-item-name { display: block; font-size: 13px; }
+#shop-list .rw-shop-inspect .shop-item-desc { display: block; white-space: normal; font-size: 11px; color: #bdb5c8; }
+#shop-list .rw-shop-more { display: block; margin-top: 5px; font-size: 11px; color: #c8a0ff; }
+#shop-list .rw-shop-item .shop-item-buy { padding: 11px 10px 11px 0; align-self: start; }
+#shop-list .rw-shop-item .shop-item-price { color: #c49aff; }
+#shop-list .rw-shop-item .shop-buy-btn { min-width: 60px; font-size: 11px; }
+#shop-list .rw-shop-item .shop-buy-btn:disabled { color: #b9b0c3; }
+#shop-list .rw-shop-details {
+    grid-column: 1 / -1;
+    padding: 12px;
+    background: #261f30;
+    border-top: 1px solid #3d304d;
+    border-radius: 0 0 9px 9px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #e3ddea;
+    overflow-wrap: anywhere;
+}
+#shop-list .rw-shop-details[hidden] { display: none; }
+#shop-list .rw-shop-details p { margin: 0; white-space: pre-line; }
+#shop-list .rw-shop-details p + p { margin-top: 10px; padding-top: 10px; border-top: 1px solid #403448; }
+#shop-list .rw-shop-note { margin-top: 10px; color: #efc185; }
+#shop-list .rw-shop-empty { color: #bbb2c7; }
+@media (pointer: coarse) {
+    #shop-list .rw-shop-item .shop-buy-btn { min-height: 44px; }
+    #shop-filters .filter-btn { min-height: 44px; min-width: 44px; }
+    #shop-search { font-size: 16px !important; }
+}
+
+.shop-item-name {
+    font-weight: 700;
+    font-size: 12px;
+    white-space: normal;
+    word-break: break-word;
+    margin-bottom: 2px;
+    line-height: 1.3;
+}
+
+.shop-item-desc {
+    font-size: 10px;
+    color: #adadb8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.shop-item-buy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.shop-item-price {
+    font-size: 12px;
+    font-weight: 800;
+    color: #9147ff;
+    white-space: nowrap;
+}
+
+.buy-btn {
+    background: #9147ff;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 9px;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.buy-btn:hover { background: #7c3aed; }
+
+.buy-btn:disabled {
+    background: #2d2d2f;
+    border: 1px solid #3d3d3f;
+    color: #555;
+    cursor: not-allowed;
+}
+
+/* Бейджи типов */
+.type-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+.type-apparel     { background: #1a2d42; color: #60a5fa; }
+.type-weapon      { background: #2d1a1a; color: #f87171; }
+.type-implant     { background: #1a2d20; color: #4ade80; }
+.type-neurotrainer { background: #231a2d; color: #c084fc; }
+.type-trait       { background: #2d251a; color: #fbbf24; }
+.type-gene        { background: #1a2d2d; color: #67e8f9; }
+
+/* ===== КНОПКИ ПЕШКИ ===== */
+#pawn-actions {
+    display: flex !important;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+/* ===== OVERFLOW FIXES ===== */
+.tab-content, .card, .actions-grid,
+.shop-list, .shop-filters {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+/* ===== РЫНОК ===== */
+.sell-btn {
+    background: #1f1f23;
+    border: 1px solid #3d3d3f;
+    color: #9147ff;
+    border-radius: 6px;
+    padding: 3px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.sell-btn:hover {
+    background: #2d1a4a;
+    border-color: #9147ff;
+}
+
+.craft-btn {
+    background: #1a2d1a;
+    border: 1px solid #2d4d2d;
+    color: #4ade80;
+    border-radius: 6px;
+    padding: 3px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.craft-btn:hover:not(:disabled) {
+    background: #1f3d1f;
+    border-color: #4ade80;
+}
+
+.craft-btn--dim,
+.craft-btn:disabled {
+    background: #1a1a1c;
+    border-color: #2d2d2f;
+    color: #444;
+    cursor: default;
+}
+
+/* ===== ИНПУТЫ ===== */
+input[type="number"],
+input[type="text"] {
+    font-family: inherit;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* ===== АДАПТИВНОСТЬ ===== */
+@media (max-width: 420px) {
+    .header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .balance-info { width: 100%; justify-content: space-between; }
+    .split-view { grid-template-columns: 1fr; }
+    .tab-text { display: none; }
+    .tab { padding: 7px 4px; }
+    .tab-icon { font-size: 16px; }
+}
+
+/* ===== РУЛЕКЦИОН ===== */
+.rulection-hint {
+    font-size: 11px;
+    color: #adadb8;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.rulection-progress {
+    margin-bottom: 8px;
+}
+
+.rulection-progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #adadb8;
+    margin-bottom: 3px;
+}
+
+.rulection-bar-bg {
+    background: #2d2d2f;
+    border-radius: 3px;
+    height: 5px;
+}
+
+.rulection-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    width: 0%;
+    transition: width .5s;
+}
+
+.rulection-bar-pts  { background: linear-gradient(90deg, #9147ff, #a855f7); }
+.rulection-bar-don  { background: linear-gradient(90deg, #f72585, #ff6b6b); }
+
+.rulection-sub {
+    font-size: 10px;
+    color: #adadb8;
+    margin-top: 2px;
+}
+
+.rulection-top {
+    font-size: 10px;
+    color: #adadb8;
+    margin-bottom: 8px;
+}
+
+.rulection-input-row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.rulection-input {
+    flex: 3;
+    background: #2d2d2f;
+    border: 1px solid #3d3d3f;
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: #efeff1;
+    font-size: 13px;
+    outline: none;
+    min-width: 0;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.rulection-input:focus { border-color: #9147ff; }
+
+.rulection-btn {
+    flex: 1;
+    background: #9147ff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: background 0.2s;
+}
+
+.rulection-btn:hover { background: #7c3aed; }
+
+/* Активный ивент */
+.rulection-event-header {
+    text-align: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #2d2d2f;
+    margin-bottom: 8px;
+}
+
+.rulection-event-type {
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.rulection-event-desc {
+    font-size: 11px;
+    color: #adadb8;
+    margin-top: 3px;
+}
+
+.rulection-prize-row {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #adadb8;
+}
+
+.rulection-prize-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: #ffd700;
+}
+
+.rulection-timer-wrap {
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.rulection-timer {
+    font-size: 24px;
+    font-weight: 900;
+    color: #f72585;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+.rulection-timer-label {
+    font-size: 10px;
+    color: #adadb8;
+}
+
+.rulection-bids-label {
+    font-size: 11px;
+    color: #adadb8;
+    margin-bottom: 4px;
+}
+
+.rulection-bids-list {
+    max-height: 110px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    font-size: 11px;
+}
+
+/* ===== СТАТИСТИКА ===== */
+.stats-block {
+    background: #2d2d2f;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+}
+
+.stats-row-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.stats-row-item:last-child { margin-bottom: 0; }
+
+.stats-row-label { color: #adadb8; font-size: 12px; }
+.stats-row-value { font-weight: 700; font-size: 12px; }
+.stats-row-value.purple { color: #9147ff; }
+.stats-row-value.green  { color: #4ade80; }
+
+/* ===== RIMWORLD STATUS ===== */
+.rimworld-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0 6px 0;
+}
+
+.rimworld-status-label { color: #adadb8; font-size: 11px; }
+
+/* ===== ИВЕНТЫ — прокрутка с разумным ограничением ===== */
+#events-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* Slot-machine CSS блок целиком удалён 2026-05-10 (Phase 1.I lexicon scrub) */
+/* Sprint 5.5: pulse animation для battle banner */
+@keyframes bnr-battle-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(220,38,38,0.3); }
+    50%      { box-shadow: 0 0 14px rgba(220,38,38,0.7); }
+}
+
+/* ===== BANNERLORD INNER TABS (Sprint 5.32 — UI refactor) =====
+   4 вкладки внутри Bannerlord: Герой / Инвентарь / Бой / Прокачка.
+   Раньше всё было в одной длинной колонке — теперь логические группы. */
+.bnr-tab-strip {
+    display: flex;
+    gap: 2px;
+    margin: 8px 0 4px 0;
+    border-bottom: 1px solid #2d2d2f;
+    padding-bottom: 0;
+}
+.bnr-tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #adadb8;
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    line-height: 1.2;
+}
+.bnr-tab-btn:hover { color: #efeff1; }
+.bnr-tab-btn.active {
+    color: #fbbf24;
+    border-bottom-color: #fbbf24;
+}
+.bnr-tab-pane { display: none; }
+.bnr-tab-pane.active { display: block; }
+.bnr-tab-icon { font-size: 14px; }
+@media (max-width: 360px) {
+    .bnr-tab-btn { font-size: 10px; padding: 6px 2px; }
+    .bnr-tab-icon { font-size: 12px; }
+}
+
+/* ===== BANNERLORD — ЕДИНАЯ СВОРАЧИВАЕМАЯ КАРТОЧКА СЕКЦИИ (2026-06-15) =====
+   Один стиль для всех секций «Династии» вместо per-секционной радуги.
+   Карточка = <details class="bnr-card" data-bnr-section="KEY">, заголовок =
+   <summary class="bnr-hdr"> (золото + шеврон), действия = .bnr-btn-primary
+   (синий) / .bnr-btn-danger (красный). Цвет несёт смысл: красный = разрушительное
+   (покинуть/война/распустить), синий = действие. */
+.bnr-card {
+    background: #18181b;
+    border: 1px solid #2e2e33;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.bnr-card > summary.bnr-hdr {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #fbbf24;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 12px;
+    user-select: none;
+}
+.bnr-card > summary.bnr-hdr::-webkit-details-marker { display: none; }
+.bnr-card > summary.bnr-hdr::after {
+    content: "\25B8";              /* ▸ */
+    margin-left: auto;
+    color: #6b6b72;
+    font-size: 12px;
+    transition: transform 0.15s;
+}
+.bnr-card[open] > summary.bnr-hdr::after { transform: rotate(90deg); }
+.bnr-card-body {
+    padding: 0 12px 12px 12px;
+    font-size: 11px;
+    color: #adadb8;
+}
+.bnr-retinue-card {
+    border-color: #5a4725;
+    background: #211d18;
+}
+.bnr-retinue-card[open] > summary.bnr-hdr {
+    border-bottom: 1px solid #3d3323;
+    margin-bottom: 10px;
+}
+.bnr-btn-primary, .bnr-btn-danger {
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 8px;
+}
+.bnr-btn-primary { background: #1e3a5f; color: #93c5fd; }
+.bnr-btn-primary:hover { background: #244a78; }
+.bnr-btn-danger  { background: #7f1d1d; color: #fca5a5; }
+.bnr-btn-danger:hover  { background: #991b1b; }
+
+/* Bannerlord: deterministic shop inside the lower Inventory tab. */
+#bnr-equipment-shop { padding: 12px; min-width: 0; }
+#bnr-equipment-shop:empty { display: none; }
+.bnr-eq-summary { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #adadb8; }
+.bnr-eq-summary strong { color: #fbbf24; }
+.bnr-eq-unlocks { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0; }
+.bnr-eq-unlocks span { background: #161618; color: #92929e; border: 1px solid #363639; border-radius: 4px; padding: 3px 5px; font-size: 10px; }
+.bnr-eq-unlocks .unlocked { color: var(--tier-color); border-color: var(--tier-border); background: var(--tier-bg); }
+.bnr-eq-tabs { display: flex; gap: 5px; }
+.bnr-eq-tabs button { flex: 1; padding: 8px 4px; border: 1px solid #424247; border-radius: 6px; background: #29292d; color: #efeff1; font-size: 12px; cursor: pointer; }
+.bnr-eq-tabs button[aria-pressed="true"] { background: #7432ad; border-color: #a970ff; color: #fff; }
+.bnr-eq-help { font-size: 11px; line-height: 1.5; color: #adadb8; margin: 9px 0; }
+.bnr-eq-notice { padding: 8px; margin: 8px 0; background: #302711; border: 1px solid #6e5926; border-radius: 5px; color: #f4d785; font-size: 11px; line-height: 1.5; }
+.bnr-eq-filters { display: grid; gap: 6px; margin-bottom: 10px; }
+.bnr-eq-filters > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .7fr); gap: 6px; }
+.bnr-eq-filters input, .bnr-eq-filters select, .bnr-eq-equip-controls select { box-sizing: border-box; width: 100%; min-width: 0; background: #141416; color: #efeff1; border: 1px solid #45454a; border-radius: 5px; padding: 8px; font: inherit; font-size: 11px; }
+.bnr-eq-results { display: grid; gap: 7px; }
+.bnr-eq-item, .bnr-eq-candidate, .bnr-eq-unlocks [data-tier="1"] { --tier-color: #c0c3ca; --tier-border: #5b5e66; --tier-bg: #2b2d31; }
+.bnr-eq-item[data-tier="2"], .bnr-eq-candidate[data-tier="2"], .bnr-eq-unlocks [data-tier="2"] { --tier-color: #89dba1; --tier-border: #467457; --tier-bg: #203127; }
+.bnr-eq-item[data-tier="3"], .bnr-eq-candidate[data-tier="3"], .bnr-eq-unlocks [data-tier="3"] { --tier-color: #87c6fa; --tier-border: #426c91; --tier-bg: #202d3a; }
+.bnr-eq-item[data-tier="4"], .bnr-eq-candidate[data-tier="4"], .bnr-eq-unlocks [data-tier="4"] { --tier-color: #c7a0f5; --tier-border: #785398; --tier-bg: #30253b; }
+.bnr-eq-item[data-tier="5"], .bnr-eq-candidate[data-tier="5"], .bnr-eq-unlocks [data-tier="5"] { --tier-color: #f2b17f; --tier-border: #966139; --tier-bg: #3b2b20; }
+.bnr-eq-item[data-tier="6"], .bnr-eq-candidate[data-tier="6"], .bnr-eq-unlocks [data-tier="6"] { --tier-color: #f5d174; --tier-border: #aa8436; --tier-bg: #39311e; }
+.bnr-eq-item { padding: 9px; min-width: 0; background: linear-gradient(110deg, var(--tier-bg), #262628 70%); border: 1px solid var(--tier-border); border-radius: 7px; }
+.bnr-eq-item-top { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.bnr-eq-item-top strong { min-width: 0; color: var(--tier-color); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.bnr-eq-tier { flex-shrink: 0; padding: 1px 5px; border: 1px solid var(--tier-border); border-radius: 4px; color: var(--tier-color); background: var(--tier-bg); font-size: 11px; }
+.bnr-eq-meta, .bnr-eq-stats { color: #adadb8; font-size: 10px; line-height: 1.6; margin-top: 4px; overflow-wrap: anywhere; }
+.bnr-eq-action { box-sizing: border-box; width: 100%; border: 1px solid #815139; border-radius: 5px; background: #533421; color: #ffe1a6; padding: 8px; margin-top: 8px; cursor: pointer; font-size: 11px; font-weight: 600; }
+.bnr-eq-action.secondary { background: #2e2442; color: #e0bdff; border-color: #645079; }
+.bnr-eq-action.discard { background: #432326; color: #ffb6bb; border-color: #8a454b; }
+.bnr-eq-action:disabled { background: #303034; border-color: #48484d; color: #a0a0a9; cursor: not-allowed; }
+.bnr-eq-reason { color: #c7b78c; font-size: 10px; margin-top: 5px; }
+.bnr-eq-equipped { color: #7cddab; font-size: 11px; margin-top: 7px; }
+.bnr-eq-equip-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .7fr); gap: 6px; align-items: center; margin-top: 8px; }
+.bnr-eq-equip-controls .bnr-eq-action { margin-top: 0; }
+.bnr-eq-empty { padding: 18px 6px; color: #adadb8; font-size: 12px; line-height: 1.6; text-align: center; }
+.bnr-eq-pages { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; }
+.bnr-eq-pages button { background: #303034; border: 1px solid #48484d; border-radius: 4px; color: #efeff1; padding: 7px 10px; cursor: pointer; }
+.bnr-eq-pages button:disabled { opacity: .45; cursor: not-allowed; }
+.bnr-eq-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+.bnr-eq-slot { min-width: 0; padding: 7px; border: 1px solid #45454a; border-radius: 6px; background: #202023; color: #adadb8; text-align: left; cursor: pointer; }
+.bnr-eq-slot span, .bnr-eq-slot strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bnr-eq-slot span { font-size: 10px; }
+.bnr-eq-slot strong { margin-top: 3px; color: #efeff1; font-size: 11px; }
+.bnr-eq-slot.active { border-color: #a970ff; background: #35234a; box-shadow: 0 0 0 1px #7432ad inset; }
+.bnr-eq-slot-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0 7px; color: #efeff1; font-size: 12px; }
+.bnr-eq-slot-title span { color: #adadb8; font-size: 10px; }
+.bnr-eq-current { padding: 9px; margin-bottom: 8px; border: 1px solid #48765a; border-radius: 7px; background: #1f3026; }
+.bnr-eq-current > div:first-child span, .bnr-eq-current > div:first-child strong { display: block; }
+.bnr-eq-current > div:first-child span { color: #7cddab; font-size: 10px; }
+.bnr-eq-current > div:first-child strong { margin-top: 2px; color: #effff4; font-size: 12px; overflow-wrap: anywhere; }
+.bnr-eq-current.empty { color: #92929e; border-style: dashed; border-color: #45454a; background: #202023; font-size: 11px; text-align: center; }
+.bnr-eq-current-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.bnr-eq-candidates { display: grid; gap: 7px; }
+.bnr-eq-candidate { padding: 9px; min-width: 0; border: 1px solid var(--tier-border, #5b5e66); border-radius: 7px; background: linear-gradient(110deg, var(--tier-bg, #2b2d31), #262628 70%); }
+.bnr-eq-candidate .bnr-eq-item-top strong { color: var(--tier-color, #c0c3ca); }
+.bnr-eq-compare { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 6px; color: #adadb8; font-size: 10px; line-height: 1.45; }
+.bnr-eq-delta { margin-left: 2px; font-weight: 700; }
+.bnr-eq-delta.better { color: #62d98f; }
+.bnr-eq-delta.worse { color: #ff7b83; }
+.bnr-eq-source { margin-top: 3px; color: #7cddab; font-size: 9px; }
+#bnr-equipment-shop :focus-visible { outline: 2px solid #bd88ff; outline-offset: 2px; }
+
+.bnr-build-heading { color: #e2c1ff; font-size: 12px; font-weight: 700; margin: 12px 0 6px; }
+.bnr-build-choices { display: grid; gap: 6px; min-width: 0; }
+.bnr-build-choice { display: grid; gap: 4px; text-align: left; width: 100%; min-width: 0; box-sizing: border-box; padding: 9px; background: #272729; color: #efeff1; border: 1px solid #444449; border-radius: 6px; font-family: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.bnr-build-choice strong { font-size: 12px; }
+.bnr-build-choice span { font-size: 10px; color: #b8b8c2; line-height: 1.5; }
+.bnr-build-choice[aria-pressed="true"] { border-color: #ad70eb; background: #352244; }
+.bnr-build-choice:disabled { cursor: default; }
+.bnr-build-choice:disabled:not([aria-pressed="true"]) { opacity: .6; }
+.bnr-build-choice:focus-visible { outline: 2px solid #bd88ff; outline-offset: 2px; }

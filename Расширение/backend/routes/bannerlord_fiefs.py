@@ -1,0 +1,241 @@
+"""
+Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income.
+
+Pure passive ⦷ loop, parallel to SHOP но kingdom-scale:
+  - Mod каждый game-day diff'ит owned-fief gold/hearth, push event.
+  - Backend конвертирует net dinars → крустики (200:1 ratio — fiefs дают
+    меньше per dinar чем workshops чтобы кланы-leaders не overpower'или
+    обычных viewers).
+  - Optional active: hero.tribute_boost (2000⦷) — 7-day +50% multiplier.
+
+Mod responsibility:
+  - OnDailyTick scan Settlement.All:
+      town → если town.OwnerClan?.Leader is [BLink] hero → diff Gold
+      castle → same pattern
+      village → diff Hearth (proxy для prosperity gains)
+  - Push event hero.fief_tribute_sync с {owner, fief_id, fief_type, net_dinars}.
+  - Backend ensures row existence (auto-INSERT при first sync), apply boost,
+    convert + credit.
+"""
+from __future__ import annotations
+
+import logging
+import json as _json
+import uuid as _uuid
+
+from fastapi import APIRouter, Request
+
+from dependencies import require_jwt_user
+from dependencies import get_db
+
+log = logging.getLogger(__name__)
+router = APIRouter()
+
+_AUTH_FAIL = {"success": False, "message": "auth required"}
+
+# Conversion ratio для fiefs — half rate of workshops (SHOP = 100:1, FIEF = 200:1).
+# Reasoning: владение fief = engine-natural perk (heritage of becoming lord);
+# не должен полностью overpower обычных viewers без fief'ов.
+DINAR_TO_CRUSTIC_FIEF = 200
+
+# Boost duration + multiplier.
+TRIBUTE_BOOST_DAYS = 7
+TRIBUTE_BOOST_MULT = 1.5
+
+
+# ─── GET endpoint ─────────────────────────────────────────────────────────────
+
+
+@router.get("/api/bannerlord/my-fiefs")
+async def my_fiefs(request: Request):
+    """Список моих fiefs + cumulative ⦷."""
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    async with get_db()._connect() as conn:
+        cur = await conn.execute(
+            "SELECT id, fief_id, fief_name, fief_type, total_collected_dinars, "
+            "       boost_until, last_synced_at, opened_at "
+            "FROM bannerlord_fiefs "
+            "WHERE channel_id=? AND owner_username=? "
+            "ORDER BY opened_at ASC",
+            (channel_id, username))
+        rows = await cur.fetchall()
+
+    fiefs = []
+    for r in rows:
+        boost_until = r[5]
+        # boost active = boost_until > now (SQLite stores ISO format).
+        boost_active = False
+        if boost_until:
+            cur2 = await conn.execute("SELECT datetime('now') < ?", (boost_until,))
+            boost_active = bool((await cur2.fetchone())[0])
+        fiefs.append({
+            "id":                      r[0],
+            "fief_id":                 r[1],
+            "fief_name":               r[2],
+            "fief_type":               r[3],
+            "total_collected_dinars":  r[4] or 0,
+            "estimated_crustic":       0,  # DECOUPLE-1: passive ⦷ disabled
+            "boost_until":             boost_until,
+            "boost_active":            boost_active,
+            "last_synced_at":          r[6],
+            "opened_at":               r[7],
+        })
+    return {
+        "success":         True,
+        "fiefs":           fiefs,
+        "boost_mult":      TRIBUTE_BOOST_MULT,
+        "boost_days":      TRIBUTE_BOOST_DAYS,
+    }
+
+
+# ─── Action handler ───────────────────────────────────────────────────────────
+
+
+async def handle_tribute_boost(conn, channel_id: int, owner: str, data: dict) -> dict:
+    """Sprint 5.33 DECOUPLE-1 (2026-05-28) — DEPRECATED.
+
+    Раньше boost'ил ⦷-output на fief tribute. Теперь tribute не даёт ⦷
+    (passive income decoupled), поэтому boost бессмыслен. Отказываем
+    с понятным сообщением вместо silent fail.
+    """
+    return {
+        "success": False,
+        "message": "Tribute Boost больше не доступен — пассивный ⦷-доход с владений отключён "
+                   "(динары накапливаются в Hero.Gold для in-game трат).",
+    }
+    # Dead code ниже сохранён ради DB schema awareness — boost_until column
+    # остаётся в bannerlord_fiefs (harmless), новые boost'ы не выдаются.
+    raw = data.get("fief_id_internal")
+    log.info("[FIEF-BOOST ENTRY] ch=%s @%s fief_id_internal=%s",
+             channel_id, owner, raw)
+    try:
+        fief_row_id = int(raw or 0)
+    except (TypeError, ValueError):
+        fief_row_id = 0
+    if fief_row_id <= 0:
+        log.info("[FIEF-BOOST REFUSE] invalid fief_id_internal raw=%r", raw)
+        return {"success": False, "message": "fief_id_internal required"}
+
+    # Validate ownership.
+    cur = await conn.execute(
+        "SELECT fief_name, boost_until FROM bannerlord_fiefs "
+        "WHERE id=? AND channel_id=? AND owner_username=?",
+        (fief_row_id, channel_id, owner))
+    row = await cur.fetchone()
+    if not row:
+        return {"success": False, "message": "Fief не твой или не найден"}
+    fief_name, existing_boost = row[0], row[1]
+
+    # Cooldown: нельзя boost'ать пока active.
+    if existing_boost:
+        cur = await conn.execute("SELECT datetime('now') < ?", (existing_boost,))
+        if bool((await cur.fetchone())[0]):
+            return {"success": False,
+                    "message": f"Boost уже активен до {existing_boost}"}
+
+    # Apply +TRIBUTE_BOOST_DAYS days.
+    await conn.execute(
+        "UPDATE bannerlord_fiefs SET "
+        "  boost_until = datetime('now', ?) "
+        "WHERE id=? AND channel_id=?",
+        (f"+{TRIBUTE_BOOST_DAYS} days", fief_row_id, channel_id))
+
+    log.info("[FIEF-BOOST] ch=%s @%s fief=%s boosted +%d days x%.2f",
+             channel_id, owner, fief_name, TRIBUTE_BOOST_DAYS, TRIBUTE_BOOST_MULT)
+    return {
+        "success": True,
+        "message": f"⚡ Boost +{int((TRIBUTE_BOOST_MULT-1)*100)}% на «{fief_name}» "
+                   f"({TRIBUTE_BOOST_DAYS} дней)",
+    }
+
+
+# ─── Sync helper (called from adapter event handler) ──────────────────────────
+
+
+async def credit_fief_tribute(channel_id: int, owner: str, fief_id: str,
+                               fief_name: str, fief_type: str,
+                               net_dinars: int) -> int:
+    """Sprint 5.33 DECOUPLE-1 (2026-05-28) — passive ⦷ payout REMOVED.
+
+    Лорд получает динары через engine native tax/tariff flow → Hero.Gold —
+    тратятся на gear/smith/marriage/clan-upgrades. Платформенные ⦷ остаются
+    «watching/chat» currency: viewer должен заработать их активностью,
+    не AFK-владением fief'ами (anti-snowball + cleaner ToS).
+
+    Tribute_boost (фичу purchase boost'а) можно deprecate'нуть — он boost'ил
+    ⦷ output, теперь ⦷ output = 0.
+
+    Эта функция продолжает tracking total_collected_dinars для UI ("сколько
+    твой fief заработал"). add_points removed.
+    """
+    if net_dinars <= 0:
+        return 0
+    db = get_db()
+    async with db._connect() as conn:
+        # Auto-UPSERT row (channel + fief_id UNIQUE).
+        await conn.execute(
+            "INSERT INTO bannerlord_fiefs "
+            "(channel_id, owner_username, fief_id, fief_name, fief_type, last_synced_at) "
+            "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(channel_id, fief_id) DO UPDATE SET "
+            "  owner_username = excluded.owner_username, "
+            "  fief_name = excluded.fief_name, "
+            "  fief_type = excluded.fief_type, "
+            "  last_synced_at = CURRENT_TIMESTAMP",
+            (channel_id, owner, fief_id, fief_name, fief_type))
+        # Stat tracking — net dinars (no boost — boost feature deprecated).
+        await conn.execute(
+            "UPDATE bannerlord_fiefs SET "
+            "  total_collected_dinars = total_collected_dinars + ? "
+            "WHERE channel_id=? AND fief_id=?",
+            (net_dinars, channel_id, fief_id))
+        await conn.commit()
+
+    log.info("[FIEF-SYNC] ch=%s @%s fief=%s +%d dinars (engine; ⦷ payout disabled)",
+             channel_id, owner, fief_name, net_dinars)
+    return 0   # 0 ⦷ credited — passive income decoupled from platform currency
+
+
+async def reconcile_fiefs(conn, channel_id: int, items: list) -> dict:
+    """PROPERTIES-MIRROR (2026-06-02) — зеркалим snapshot владений из игры.
+
+    items: [{owner, fief_id, fief_name, fief_type}, ...] — ПОЛНЫЙ список фьефов
+    [BLink]-героев СЕЙЧАС. Upsert присутствующих (НЕ трогая total_collected_dinars/
+    opened_at), DELETE отсутствующих. owner → lowercase (heal casing).
+
+    conn — shared transaction; коммитит вызывающий (_on_properties_snapshot).
+    """
+    snapshot_ids = []
+    for it in items:
+        fief_id = (it.get("fief_id") or "").strip()
+        if not fief_id:
+            continue
+        owner = (it.get("owner") or "").strip().lower()
+        fief_name = (it.get("fief_name") or fief_id).strip()
+        fief_type = (it.get("fief_type") or "fief").strip()
+        snapshot_ids.append(fief_id)
+        await conn.execute(
+            "INSERT INTO bannerlord_fiefs "
+            "(channel_id, owner_username, fief_id, fief_name, fief_type, last_synced_at) "
+            "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(channel_id, fief_id) DO UPDATE SET "
+            "  owner_username = excluded.owner_username, "
+            "  fief_name = excluded.fief_name, "
+            "  fief_type = excluded.fief_type, "
+            "  last_synced_at = CURRENT_TIMESTAMP",
+            (channel_id, owner, fief_id, fief_name, fief_type))
+    if snapshot_ids:
+        ph = ",".join("?" * len(snapshot_ids))
+        cur = await conn.execute(
+            f"DELETE FROM bannerlord_fiefs "
+            f"WHERE channel_id=? AND fief_id NOT IN ({ph})",
+            [channel_id] + snapshot_ids)
+    else:
+        cur = await conn.execute(
+            "DELETE FROM bannerlord_fiefs WHERE channel_id=?", (channel_id,))
+    removed = cur.rowcount or 0
+    return {"n": len(snapshot_ids), "removed": removed}

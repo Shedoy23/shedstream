@@ -1,0 +1,118 @@
+name: CI
+
+# Cheap, fast safety net for a solo dev: compile-check, consistency lints,
+# and the canonical backend suite are blocking gates.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Полная история: линтер сверяет дату «Последняя ревизия» в RUNBOOK
+          # с датой коммита, который его тронул. При depth=1 этого не узнать,
+          # и проверка либо врёт, либо молча отключается.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Locate extension dir
+        run: |
+          for d in */; do [ -d "${d}backend" ] && echo "EXT=${d%/}" >> "$GITHUB_ENV" && break; done
+          echo "Extension dir: $(grep EXT= "$GITHUB_ENV")"
+
+      # ── Blocking gates (deterministic) ──────────────────────────────────
+      - name: Python compile (backend)
+        run: python -m compileall -q "$EXT/backend"
+
+      - name: JS syntax check (frontend)
+        run: |
+          for f in "$EXT"/frontend/*.js; do
+            echo "node --check $f"
+            node --check "$f"
+          done
+
+      # pyflakes питает check_undefined_names (см. scripts/README.md). Без него
+      # проверка мягко пропускается — в CI ставим явно, чтобы она реально шла.
+      - name: Install lint deps
+        run: pip install pyflakes
+
+      - name: Consistency lints (version sync / migrations wired / drift / undefined names)
+        run: python scripts/lint_consistency.py
+
+      - name: Validate complete installation catalog and rejection cases
+        run: |
+          pip install -r scripts/requirements-manifest.txt
+          python scripts/validate-installation-manifests.py
+          python scripts/test-installation-manifests.py
+
+      - name: Install backend deps
+        run: |
+          if [ -f "$EXT/backend/requirements.txt" ]; then
+            pip install -r "$EXT/backend/requirements.txt"
+          fi
+
+      - name: Backend standalone tests (blocking)
+        run: python scripts/run-backend-tests.py
+
+  # NOTE: C# mod (BannerlordLink) is NOT built in CI — it needs the Bannerlord
+  # game DLLs which aren't available on the runner. Build it locally via
+  # scripts/deploy.ps1 -Mod. (Future: Bannerlord.ReferenceAssemblies NuGet.)
+
+  manager-core:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build Manager WPF app
+        run: dotnet build ShedLink.Manager/src/ShedLink.Manager.App/ShedLink.Manager.App.csproj -c Release
+
+      - name: Build offline release signer
+        run: dotnet build ShedLink.Manager/tools/ShedLink.Manager.SignArtifact/ShedLink.Manager.SignArtifact.csproj -c Release
+
+      - name: Build Manager lifecycle verifier
+        run: dotnet build ShedLink.Manager/tools/ShedLink.Manager.VerifyLifecycle/ShedLink.Manager.VerifyLifecycle.csproj -c Release
+
+      - name: Manager security, detection and restart self-test
+        run: dotnet run --project ShedLink.Manager/tests/ShedLink.Manager.Core.SelfTest/ShedLink.Manager.Core.SelfTest.csproj -c Release
+
+      - name: RimLink paused game synchronization regression
+        run: dotnet run --project RimLink/tests/PausedSyncHarness -c Release
+
+      - name: RimLink writes its own log even when the engine log is silenced
+        run: dotnet run --project RimLink/tests/LogFileHarness -c Release
+
+      # 2026-09-09 — гейты фронта запускаются ЦЕЛИКОМ, а не перечислением.
+      # Раньше каждый был отдельным шагом, и добавленный гейт молча не попадал
+      # в CI: test-frontend-state-race.mjs пролежал вне проверок с момента
+      # написания (нашла внешняя проверка). Список, который надо не забыть
+      # дополнить, — это тот же класс, что спящий линтер: выглядит настроенным,
+      # но не держит. Цикл подхватывает новые файлы сам.
+      - name: Frontend behaviour gates (all scripts/test-frontend-*.mjs)
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(scripts/test-frontend-*.mjs scripts/test-viewer-*.mjs)
+          if [ ${#files[@]} -eq 0 ]; then echo "нет гейтов фронта — это ошибка"; exit 1; fi
+          for f in "${files[@]}"; do
+            echo "── $f"
+            node "$f" || exit 1
+          done
+          echo "гейтов пройдено: ${#files[@]}"
+
+      - name: Bannerlord state mirror is confirmed before it is cached
+        run: dotnet run --project BannerlordLink/tests/StateSyncHarness -c Release

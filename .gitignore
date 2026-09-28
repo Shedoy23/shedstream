@@ -1,0 +1,97 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Databases (live data со зрителями и токенами)
+*.db
+*.db-shm
+*.db-wal
+*.db.bak*
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C# / .NET
+bin/
+obj/
+*.pdb
+*.user
+*.suo
+
+# Runtime caches
+tooltip_cache.json
+
+# Backups & temp
+*.bak
+*.tmp
+*.old
+*.log
+
+# Node (на будущее)
+node_modules/
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code служебка
+.agents/
+.claude/
+memory/
+skills-lock.json
+
+# CodeGraph index (binary SQLite, regen via codegraph init)
+.codegraph/
+
+# External reference repos (BLT-RC22 etc) — local clones for audit, not part of project
+reference/
+
+# Build artifacts (BLT-RC22 audit housekeeping)
+BannerlordLink/src/obj/
+BannerlordLink/src/bin/
+
+# локальная песочница автотест-прогонов (не для репо)
+_autotest/
+
+# журнал обходов заморозки деплоя — локальный
+scripts/deploy-freeze-overrides.log
+
+# выжимка для внешнего аудита — генерируется скриптом
+audit-extract.md
+
+# собранные архивы расширения — пересобираются скриптом
+dist/
+# Local Claude <-> Codex coordination state.
+.agent-loop/
+
+# Munder Difflin (E:\MunderDiffin) — рабочее состояние харнесса агентов.
+# Пишется приложением прямо в корень проекта; в репо не место (hive/ — вообще
+# свой отдельный git-репозиторий, palace/ — векторная БД на мегабайты).
+hive/
+palace/
+roster.json
+roster-backups/
+hallways.json
+
+# Рабочие копии агентов. 28.08 планировщик поднял их прямо в основном дереве;
+# каждая — вложенный git-репозиторий, и `git add -A` утаскивает их в коммит.
+worktrees/
+
+# Сборочный вывод прототипа автопилота (DLL кладётся в игру вручную)
+BannerlordAutopilot/bin/
+BannerlordAutopilot/obj/
+BannerlordAutopilot/src/obj/
+BannerlordAutopilot/tests/**/obj/
+BannerlordAutopilot/tests/**/bin/
+
+# Журналы прогонов автопилота — это доказательства, их надо хранить (правило *.log выше их молча выкидывало)
+!BannerlordAutopilot/evidence/*.log

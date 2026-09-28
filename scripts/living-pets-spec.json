@@ -1,0 +1,79 @@
+[
+  {
+    "id": "wayfarer",
+    "name": "Странник",
+    "identity": "Small chibi boy wayfarer, olive-green hood and flowing green cloak, brown boots and brown-gray trousers, leather backpack with rolled bedroll, wooden mug carried in near hand. Near trouser leg LIGHT warm gray-brown, far leg DARK brown.",
+    "sleep": "takes a tiny last sip, sits on backpack with mug safely on ground at RIGHT, curls into green cloak with backpack as pillow. On wake stretches and picks up mug and backpack.",
+    "motion": "cloak hem and bedroll lag, mug stays level, calm purposeful hiking stride"
+  },
+  {
+    "id": "crimson_knight",
+    "name": "Багряный рыцарь",
+    "identity": "Small chibi boy knight, shiny silver segmented armor, open helmet shows face, red cape, red shield with gold lion on RIGHT/forward side, sheathed sword at waist. Near leg BRIGHT silver foreground plate, far leg DARK steel shadow plate.",
+    "sleep": "yawns behind gauntlet, sits with red shield propped beside him at RIGHT and helmet visor lowered, naps upright leaning on shield. Wakes lifting visor, rises lifting shield.",
+    "motion": "solid heavy armored stride with subtle weight compression, red cape trails, shield moves little"
+  },
+  {
+    "id": "colony_engineer",
+    "name": "Инженер",
+    "identity": "Small chibi young engineer with spiky brown hair, orange goggles on forehead, orange vest over cream shirt, teal-blue work pants with tan knee patch, brown gloves and boots, compact backpack, large steel wrench held in near hand. Near leg lighter TEAL with tan patch, far leg DARK navy teal.",
+    "sleep": "rubs eyes with free glove, sits using toolbag/backpack as cushion, puts wrench beside him, sleeps with goggles lowered, wakes adjusting goggles and picking up wrench.",
+    "motion": "springy work boots, backpack and wrench respond subtly to steps"
+  },
+  {
+    "id": "shadow_rogue",
+    "name": "Разбойник",
+    "identity": "Small chibi hooded rogue boy, charcoal black hood, red scarf and short red cape, gray pants brown boots, small curved dagger held down and BACK in near hand, leather pouches. Near leg LIGHT gray foreground, far leg DARK charcoal.",
+    "sleep": "looks around sleepily, sheathes dagger, crouches then sits curled in cloak with hood down over eyes, sleeps cautiously. Wakes peeking from hood, rises and draws the same small dagger downward.",
+    "motion": "quiet soft cautious footfalls, scarf trails, dagger points safely down/back"
+  },
+  {
+    "id": "rain_fisher",
+    "name": "Рыбак",
+    "identity": "Small chibi fisher boy in yellow rain hat and yellow coat, dark olive green trousers and brown boots, fishing rod with redwhite bobber in forward hand, small blue silver fish carried in rear/near hand. Near leg LIGHT moss olive, far leg DARK olive.",
+    "sleep": "yawns, settles seated with fishing rod leaned beside him at RIGHT and fish resting in a small bucket at his feet, hat over eyes while sleeping. Wakes lifting hat and picking up same rod and fish.",
+    "motion": "easy strolling stride, coat hem and bobber sway with delayed small motion, always keeps rod and fish"
+  },
+  {
+    "id": "necro_cat",
+    "name": "Кот-некромант",
+    "identity": "Cute small upright walking black cat necromancer, lime green eyes, purple hood and cloak, tiny satchel with glowing green vial, skull-topped wooden staff held forward RIGHT, skeletal mouse familiar stays near feet. Near hind leg LIGHT charcoal fur with visible paw, far leg nearly BLACK. Keep cat feline feet, no human boots.",
+    "sleep": "cat yawns, sets skull staff beside him at RIGHT, curls into purple cloak with skeletal mouse tucked against paws. Sleeps tail curled, wakes cat stretching front paw then stands and retrieves staff.",
+    "motion": "feline bipedal padding stride, tail curls and sways, staff carried consistently, skeletal mouse trots near feet"
+  },
+  {
+    "id": "chest_mimic",
+    "name": "Сундук-мимик",
+    "identity": "Cute wooden treasure chest mimic, gold metal bands and central latch, hinged partly open lid, big ivory teeth, one amber eye in dark mouth, long red tongue, two brown clawed monster legs under chest. No arms. Near leg LIGHT warm brown with ivory claws in foreground, far leg DARK brown shadow. Both feet remain physically attached to bottom of chest.",
+    "sleep": "lid yawns wide with tongue, knees fold and chest rests on ground, lid closes nearly shut and tongue tucked, sleeps closed with tiny breathing lid movement. Wakes by opening lid and one eye, legs extend to stand.",
+    "motion": "comical heavy waddle using two alternating attached legs, chest rocks subtly, tongue and lid lag; no detached extra feet"
+  },
+  {
+    "id": "mushroom_grandpa",
+    "name": "Грибной дедушка",
+    "identity": "Tiny elderly woodland mushroom grandpa, large red mushroom cap with cream spots and little sprout, white mustache long white beard, mossy green hair, brown bark cloak, rootlike brown feet and green hands, copper watering can held forward RIGHT. Near root leg LIGHT golden bark and green moss cuff, far leg DARK brown bark.",
+    "sleep": "yawns into beard, places copper watering can beside him at RIGHT, settles crosslegged into bark cloak under mushroom cap, beard rests on lap asleep. Wakes stretching mossy arms, rises and picks up can.",
+    "motion": "slow gentle creaky root steps, beard and cap softly respond; cap design same spots"
+  },
+  {
+    "id": "baker_dragon",
+    "name": "Дракончик-пекарь",
+    "identity": "Cute plump orange baby dragon standing on two hind legs, cream horns and belly, small turquoise wings, white baker apron with bread emblem, holds round baked loaf in both small front paws, orange tail with cream tip extends BACK LEFT. Near hind leg BRIGHT orange foreground with pale claws, far hind leg DARK burnt orange. Feline-like chunky haunch shape, no human pants or boots.",
+    "sleep": "yawns showing tiny teeth, sets loaf safely on folded apron beside him, curls into tail with wings folded and loaf hugged to belly asleep, wakes stretching little wings, rises cradling loaf.",
+    "motion": "cheerful plump dragon waddle with true alternating hind legs, tail and wings lag, loaf held in same front paws"
+  },
+  {
+    "id": "blanket_ghost",
+    "name": "Призрак в пледе",
+    "identity": "Cute cream-white little ghost with two dark oval eyes, wrapped in teal navy checkered fringed blanket, holds small brown hot tea mug forward RIGHT with faint curl of steam. NO legs, NO feet, NO knees, floats on softly scalloped ghost hem.",
+    "sleep": "eyes droop, lowers floating body near ground and puts tea mug beside him at RIGHT, wraps blanket around himself like a little sleeping mound with closed eyes, breaths subtly; wakes peeking out of plaid blanket and picks up tea, floats up.",
+    "motion": "smooth8frame hover loop, rise/crest/fall/trough spread across8 frames, blanket fringe and steam gently trail; no walking feet"
+  },
+  {
+    "id": "frog_samurai",
+    "name": "Лягушка-самурай",
+    "identity": "Cute upright green frog samurai, huge bright eye, broad straw conical hat, navy kimono tied with orange-red belt, sheathed katana extends BACK LEFT at waist, bare webbed frog feet. Near leg BRIGHT lime green foreground, far leg DARK olive green. Keep webbed toes and bent frog anatomy, no human shoes.",
+    "sleep": "closes eyes to meditate, sits crosslegged and rests sheathed katana beside him, nods asleep beneath straw hat, breathes gently, wakes with attentive blink and stretch, stands and takes sheathed katana.",
+    "motion": "disciplined soft bipedal frog stride, webbed toes flex, knees pass clearly, straw hat and sheathed sword maintain size"
+  }
+]

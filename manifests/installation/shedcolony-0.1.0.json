@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "integration_id": "shedcolony",
+  "release_version": "0.1.0",
+  "game": {
+    "id": "minecraft",
+    "display_name": "Minecraft 1.21.1 (NeoForge)",
+    "supported_versions": [
+      "1.21.1"
+    ],
+    "process_names": [
+      "MinecraftLauncher"
+    ],
+    "version": {
+      "kind": "file_name",
+      "path": "mods/minecolonies-*.jar",
+      "compatibility_pattern": "(?<![\\d.])(1\\.21\\.1)(?!\\d)(?!\\.\\d)"
+    },
+    "detection": [
+      {
+        "kind": "manual",
+        "hint": "Укажи папку инстанса игры, внутри которой лежит mods. У Prism и MultiMC это .minecraft внутри папки инстанса.",
+        "required_paths": [
+          "mods"
+        ]
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "id": "minecolonies",
+      "path_pattern": "mods/minecolonies-*.jar",
+      "message": "Сначала установи MineColonies для Minecraft 1.21.1 (NeoForge). Manager не устанавливает этот мод.",
+      "help_url": "https://www.curseforge.com/minecraft/mc-mods/minecolonies/files/all"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "shedcolony_mod",
+      "source": {
+        "kind": "https",
+        "url": "https://shedoy23.ru/releases/ShedColony-0.1.0.zip"
+      },
+      "size_bytes": 49366,
+      "sha256": "e1b270492c0bace8eefee8b871b9f49b9f39c95c2098df5cbdb5600b44cd9786",
+      "format": "zip",
+      "archive_root": "shedcolony-0.1.0.jar",
+      "signature": {
+        "algorithm": "rsa-pss-sha256",
+        "key_id": "shedlink-release-2026",
+        "value": "aGnIPvaqQp6aoEjoBUMpeMhKEaibsMm1qbHsKDuRbWbsFwESW8hx4gzKFy4otaPTGcqzPXGj6vJF+Jhkc7/m72+2osA3zYOMV/Q39Z58ZatOuGjAeugstopOxvLe3I/Z++BlgXqaHn1kVqN1l/Y/8ny3vHPKDEnsaozmS442DKvfFpKpP2iSeDaFKxQ+o8Iq2DllwpY6DLz+FnWpgrfQbK8UBP/psp0C4MQJJPzrvduIHlwM5BBLuVIsQVVPKZOfAyL/KQ6ZMAmYOtyijxEvsZlKdvHASgsFjoI427ex7Iibt3Wh0POBtTAnel6eeVyRszidn5Gk0lOezI2uhUM8mnnKC8gHQSAgIu3fZzCqKxdWRuXsO+sdtO354AfTG1Wg+MZmEJ6L7DtHqYxSdQYnQhj9y6JdBbWsVrqvMrYBZd5d54IOMkrgf2bQ5p15XXJKw8eB9DVgQoRJIOLT+OMJPQ9WeTVV11Jg2JcSUi8HESjSFZXM5z3ch48LB7hvXrx6YwOwxdYg05NZt4iYvyGStLknkMimZL+/3+jMeeQF8crik3coiaPQWebDS8kUtRSZP+S5uFtTcq6s/7yaGyF04s4Z/eh6qPs3J2RVsJOREeWTuDkFx5DXX7Ygin1zTLP/2m3RUMdOms8L8Rjt2l+0uvxImi6dqolCpED59r1phWA="
+      }
+    }
+  ],
+  "installation": {
+    "target": {
+      "base": "game_root",
+      "relative_path": "mods/shedcolony-0.1.0.jar",
+      "kind": "file"
+    },
+    "staging": {
+      "base": "manager_temp",
+      "verify_before_replace": true
+    },
+    "replace": {
+      "mode": "atomic_file_swap",
+      "require_game_stopped": true
+    },
+    "rollback": {
+      "enabled": true,
+      "preserve": [
+        "configuration_store"
+      ]
+    },
+    "update": {
+      "mode": "verify_then_replace",
+      "preserve": [
+        "configuration_store"
+      ]
+    },
+    "repair": {
+      "mode": "verify_then_replace",
+      "preserve": [
+        "configuration_store"
+      ]
+    },
+    "uninstall": {
+      "enabled": true,
+      "preserve": [
+        "configuration_store"
+      ]
+    }
+  },
+  "configuration": {
+    "store": {
+      "kind": "json",
+      "base": "game_root",
+      "relative_path": "config/shedcolony.json"
+    },
+    "managed_fields": [
+      {
+        "name": "backend_url",
+        "selector": "/backend_url",
+        "value_source": "backend_url",
+        "secret": false
+      },
+      {
+        "name": "module_token",
+        "selector": "/module_token",
+        "value_source": "channel_module_token",
+        "secret": true
+      },
+      {
+        "name": "channel_id",
+        "selector": "/channel_id",
+        "value_source": "channel_id",
+        "secret": false
+      }
+    ],
+    "create_if_missing": true,
+    "preserve_unmanaged": true
+  },
+  "health": [
+    {
+      "id": "jar_present",
+      "kind": "path_exists",
+      "path": ".",
+      "required": true
+    }
+  ],
+  "security": {
+    "publisher": "shedoy23",
+    "signature_status": "signed",
+    "allowed_write_roots": [
+      "game_root",
+      "manager_temp"
+    ],
+    "redact_fields": [
+      "module_token",
+      "authorization",
+      "cookie"
+    ]
+  },
+  "runtime": {
+    "manifest_version": "0.1.0",
+    "core_api_version": ">=1.0.0,<2.0.0"
+  },
+  "compatibility_messages": {
+    "invalid_game_path": "Выбери папку инстанса Minecraft с каталогом mods.",
+    "unsupported_game_version": "Нужна Minecraft 1.21.1 с MineColonies для NeoForge.",
+    "game_running": "Закрой игру перед изменением установки."
+  }
+}

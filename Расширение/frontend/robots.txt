@@ -1,0 +1,16 @@
+# shedstream / ShedLink — shedoy23.ru
+#
+# Заведён 2026-09-01. Повод: из десяти последних скачиваний Manager девять
+# сделали краулеры, каждый тянул 67-мегабайтный архив целиком. Записка
+# добровольная: приличные роботы её слушаются, сканеры игнорируют — поэтому
+# рядом стоит отсев по подписи в scripts/ingest-download-events.py.
+#
+# Страница-визитка остаётся открытой намеренно: пусть индексируется.
+
+User-agent: *
+Disallow: /releases/
+Disallow: /downloads/
+Disallow: /api/
+Disallow: /streamer
+Disallow: /admin
+Disallow: /overlay.html

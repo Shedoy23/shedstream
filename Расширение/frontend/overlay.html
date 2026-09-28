@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShedLink Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: transparent;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+    position: relative;
+}
+
+/* ══════════════════════════════════════════
+   ОБЩИЕ СТИЛИ КАРТОЧЕК
+══════════════════════════════════════════ */
+.notification {
+    position: absolute;
+    bottom: 40px;
+    right: 40px;
+    width: 480px;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.card {
+    width: 100%;
+    border-radius: 16px;
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    transform: translateX(540px);
+    opacity: 0;
+    transition: none;
+}
+
+.card.show {
+    animation: slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.card.hide {
+    animation: slideOut 0.4s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(540px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0);     opacity: 1; }
+    to   { transform: translateX(540px); opacity: 0; }
+}
+
+/* прогресс-бар внизу карточки — сколько осталось показывать */
+.card-timer {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    width: 100%;
+    transform-origin: left;
+}
+
+.card-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    opacity: 0.7;
+}
+
+.card-title {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.card-sub {
+    font-size: 12px;
+    opacity: 0.75;
+    line-height: 1.5;
+}
+
+.card-icon {
+    font-size: 36px;
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    filter: drop-shadow(0 0 12px currentColor);
+    opacity: 0.9;
+}
+
+/* ДЖЕКПОТ CSS-блок целиком удалён 2026-05-10 (Phase 1.I lexicon scrub) */
+
+/* ══════════════════════════════════════════
+   ИВЕНТ — СТАРТ (фиолетовый)
+══════════════════════════════════════════ */
+.card-event-start {
+    background: linear-gradient(135deg, rgba(8,5,20,0.93) 0%, rgba(20,8,45,0.93) 100%);
+    border: 1px solid rgba(140, 80, 255, 0.5);
+    box-shadow:
+        0 0 0 1px rgba(140,80,255,0.1),
+        0 8px 40px rgba(100,40,200,0.35),
+        inset 0 1px 0 rgba(180,120,255,0.15);
+}
+.card-event-start .card-label { color: #b06aff; }
+.card-event-start .card-title { color: #f0e8ff; }
+.card-event-start .card-sub   { color: #c8a8ff; }
+.card-event-start .card-timer { background: linear-gradient(90deg, #9747ff, #e040fb); }
+
+/* анимированная рамка */
+.card-event-start::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 17px;
+    background: linear-gradient(90deg, #9747ff, #e040fb, #9747ff);
+    background-size: 200%;
+    animation: borderFlow 2s linear infinite;
+    z-index: -1;
+    opacity: 0.6;
+}
+@keyframes borderFlow {
+    0%   { background-position: 0%; }
+    100% { background-position: 200%; }
+}
+
+/* ══════════════════════════════════════════
+   ИВЕНТ — ТАЙМЕР (идёт ивент)
+══════════════════════════════════════════ */
+.card-event-live {
+    background: linear-gradient(135deg, rgba(5,15,20,0.93) 0%, rgba(5,25,35,0.93) 100%);
+    border: 1px solid rgba(0,200,160,0.4);
+    box-shadow:
+        0 0 0 1px rgba(0,200,160,0.1),
+        0 8px 40px rgba(0,160,130,0.25),
+        inset 0 1px 0 rgba(0,255,200,0.1);
+}
+.card-event-live .card-label { color: #00e8b8; }
+.card-event-live .card-title { color: #e0fff8; }
+.card-event-live .card-sub   { color: #80f0d8; }
+.card-event-live .card-timer { background: linear-gradient(90deg, #00e8b8, #00b8ff); }
+.card-event-live .card-icon  { color: #00e8b8; }
+
+/* пульс онлайн-точка */
+.live-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: #00e8b8;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    box-shadow: 0 0 0 0 rgba(0,232,184,0.5);
+    animation: livePulse 1.5s ease-out infinite;
+}
+@keyframes livePulse {
+    0%   { box-shadow: 0 0 0 0   rgba(0,232,184,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(0,232,184,0); }
+    100% { box-shadow: 0 0 0 0   rgba(0,232,184,0); }
+}
+
+/* вклады голосующих */
+.bids-list {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.bid-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+.bid-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.bid-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00e8b8, #00b8ff);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+.bid-name { color: #e0fff8; min-width: 80px; }
+.bid-amount { color: #80f0d8; min-width: 60px; text-align: right; }
+.bid-chance { color: #00e8b8; min-width: 40px; text-align: right; }
+
+/* ══════════════════════════════════════════
+   ИВЕНТ — ФИНАЛ (победитель)
+══════════════════════════════════════════ */
+.card-event-end {
+    background: linear-gradient(135deg, rgba(5,15,5,0.93) 0%, rgba(10,30,10,0.93) 100%);
+    border: 1px solid rgba(50,200,100,0.45);
+    box-shadow:
+        0 0 0 1px rgba(50,200,100,0.1),
+        0 8px 40px rgba(30,160,70,0.3),
+        inset 0 1px 0 rgba(80,255,120,0.12);
+}
+.card-event-end .card-label { color: #50e880; }
+.card-event-end .card-title { color: #e8ffe0; }
+.card-event-end .card-sub   { color: #90e8a8; }
+.card-event-end .card-timer { background: linear-gradient(90deg, #50e880, #00ff88); }
+
+.winner-name {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: #50e880;
+    text-shadow: 0 0 20px rgba(80,232,128,0.5);
+}
+.prize-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(80,232,128,0.12);
+    border: 1px solid rgba(80,232,128,0.3);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #50e880;
+    margin-top: 6px;
+}
+
+/* конфетти на победу */
+.confetti-wrap {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 16px;
+    pointer-events: none;
+}
+.confetti-piece {
+    position: absolute;
+    width: 6px;
+    height: 10px;
+    border-radius: 2px;
+    top: -10px;
+    animation: confettiFall var(--d, 1.2s) var(--delay, 0s) ease-in forwards;
+    left: var(--x, 50%);
+    background: var(--c, #50e880);
+    transform: rotate(var(--r, 0deg));
+}
+@keyframes confettiFall {
+    0%   { transform: rotate(var(--r)) translateY(0)   scaleX(1); opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: rotate(calc(var(--r) + 360deg)) translateY(120px) scaleX(0.5); opacity: 0; }
+}
+
+/* ДОНАТ CSS-блок удалён 2026-05-14 (Phase 8.F donate removal —
+   §5.2/§5.4 compliance, real-money flow вне Bits недопустим) */
+
+/* ══════════════════════════════════════════
+   ДРОП — янтарно-оранжевый
+══════════════════════════════════════════ */
+.card-drop {
+    background: linear-gradient(135deg, rgba(18,10,0,0.93) 0%, rgba(35,18,0,0.93) 100%);
+    border: 1px solid rgba(255,160,40,0.45);
+    box-shadow:
+        0 0 0 1px rgba(255,160,40,0.12),
+        0 8px 40px rgba(200,100,0,0.28),
+        inset 0 1px 0 rgba(255,200,80,0.14);
+}
+.card-drop .card-label { color: #ffaa30; }
+.card-drop .card-title { color: #fff4e0; }
+.card-drop .card-sub   { color: #ffd080; }
+.card-drop .card-timer { background: linear-gradient(90deg, #ffaa30, #ff6600); }
+.card-drop .card-icon  { color: #ffaa30; }
+
+.drop-item {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: #ffaa30;
+    text-shadow: 0 0 18px rgba(255,170,48,0.55);
+    margin: 3px 0;
+}
+
+.drop-rarity {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.drop-rarity.common   { background: rgba(180,180,180,0.12); border: 1px solid rgba(180,180,180,0.3); color: #d0d0d0; }
+.drop-rarity.uncommon { background: rgba(80,200,80,0.12);   border: 1px solid rgba(80,200,80,0.35);  color: #60e060; }
+.drop-rarity.rare     { background: rgba(80,140,255,0.12);  border: 1px solid rgba(80,140,255,0.35); color: #80aaff; }
+.drop-rarity.epic     { background: rgba(180,60,255,0.14);  border: 1px solid rgba(180,60,255,0.4);  color: #cc80ff; }
+
+
+/* legacy CSS блок целиком удалён 2026-05-10 (Phase 1.I lexicon scrub) */
+
+/* Стили панели ивента (#event-panel, .ep-*, #ep-announce) удалены
+   2026-07-29 вместе с механикой «рулекциона» и её разметкой. */
+/* ══════════════════════════════════════
+   PETS-STRIP — активные зрители с питомцами
+   (Phase 7, 2026-05-12; opt-out streamer'ом)
+══════════════════════════════════════ */
+/* Sprint 5.22 patch: pets гуляют по всей ширине overlay'а, а не сидят
+   фиксированным строем в нижнем левом углу. Strip занимает всю ширину;
+   каждая карточка — position:absolute со своим random walk-path. */
+/* 2026-07-27 (просьба владельца): питомцы ходят по САМОМУ низу кадра.
+   Было bottom:40px — они висели над нижней кромкой, будто в воздухе.
+   Высота поднята со 120 до 168px: подпись переехала НАД питомца, и при 120px
+   overflow:hidden срезал бы ей верх. */
+#pets-strip {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 168px;
+    /* Питомцы — фоновая жизнь кадра, они НИКОГДА не должны закрывать собой
+       информацию. Раньше z-index не был задан ни им, ни карточкам событий:
+       порядок решался тем, что позже добавилось в DOM, то есть случайностью.
+       Панель бойцов (z-index:6) и так была выше, а вот карточка события —
+       как повезёт. Теперь порядок задан явно. */
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity .4s ease;
+}
+#pets-strip.visible {
+    opacity: 1;
+}
+/* 2026-07-27 (решение владельца): в бою низ кадра принадлежит бойцам.
+   Карточки призванных живут по тому же низу (bottom:14px, z-index:6) и
+   вставали поверх питомцев — перекрытие ~100px по всей ширине. Прячем
+   питомцев на время боя, после боя они возвращаются сами (та же плавность
+   .4s, что и при появлении).
+   Селектор из ДВУХ классов специально: у `.visible` opacity:1, и правило с
+   одним классом её бы не перебило. */
+#pets-strip.visible.battle {
+    opacity: 0;
+}
+/* Pet-card frameless (background/border/shadow убраны). Position:absolute
+   с random --walk-start (left base). Анимация pet-walk oscillates
+   translateX от 0 до --walk-amp + лёгкий bob по Y. */
+.pet-card {
+    position: absolute;
+    /* Глубина (2026-08-23): ряд задаёт отступ снизу, масштаб и прозрачность.
+       Дальние мельче, выше и бледнее — сцена читается как перспектива, а не
+       как куча. Раньше все стояли в одной линии и налезали друг на друга. */
+    bottom: var(--depth-bottom, 0px);
+    opacity: 0;
+    left: var(--walk-start, 0vw);
+    min-width: 72px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity .35s ease;
+    animation: pet-walk var(--walk-duration, 22s) ease-in-out
+               var(--walk-delay, 0s) infinite;
+    will-change: transform;
+}
+.pet-card.in {
+    opacity: var(--depth-opacity, 1);
+}
+/* Масштаб живёт на внутреннем слое, а не на .pet-card: на карточке уже висит
+   transform от прогулки, и второй transform его бы затёр. */
+.pet-card .pet-card-visual {
+    transform: scale(var(--depth-scale, 1));
+    transform-origin: 50% 100%;
+}
+/* Sprint 5.28: walk cycle с idle phases. Pet большую часть времени стоит
+   в south, иногда делает поход вправо (с east sprite) → idle на новом месте
+   → возвращается влево (с west sprite). Direction sprites swapped через
+   stacked img'и с opacity-keyframes (см. .pet-walk-frame). */
+@keyframes pet-walk {
+    /* 0-30%: idle at start. */
+    0%, 30%    { transform: translateX(0)                                  translateY(0); }
+    /* 30-50%: walking right с 5 bob-up'ами (каждые ~2.5% = ~1.5-3.5s). */
+    32.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.125)) translateY(-5px); }
+    35%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.250)) translateY(0); }
+    37.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.375)) translateY(-5px); }
+    40%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.500)) translateY(0); }
+    42.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.625)) translateY(-5px); }
+    45%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.750)) translateY(0); }
+    47.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.875)) translateY(-5px); }
+    50%        { transform: translateX(var(--walk-amp, 30vw))               translateY(0); }
+    /* 50-80%: idle at right end. */
+    80%        { transform: translateX(var(--walk-amp, 30vw))               translateY(0); }
+    /* 80-100%: walking back left с 5 bob-up'ами. */
+    82.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.875)) translateY(-5px); }
+    85%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.750)) translateY(0); }
+    87.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.625)) translateY(-5px); }
+    90%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.500)) translateY(0); }
+    92.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.375)) translateY(-5px); }
+    95%        { transform: translateX(calc(var(--walk-amp, 30vw) * 0.250)) translateY(0); }
+    97.5%      { transform: translateX(calc(var(--walk-amp, 30vw) * 0.125)) translateY(-5px); }
+    100%       { transform: translateX(0)                                   translateY(0); }
+}
+
+/* Sprint 5.28: direction-aware sprite swap. Stacked east/west img'и поверх
+   south creature. Opacity-keyframes синхронизированы с pet-walk через
+   shared --walk-duration / --walk-delay. */
+.pet-walk-frame {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: var(--pet-stage-size, 128px);
+    height: var(--pet-stage-size, 128px);
+    transform: translateX(-50%);
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 4;
+    animation-duration: var(--walk-duration, 22s);
+    animation-delay: var(--walk-delay, 0s);
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+}
+.pet-walk-frame--east { animation-name: pet-walk-frame-east; }
+.pet-walk-frame--west { animation-name: pet-walk-frame-west; }
+
+/* East visible 30-50% cycle (walking right). Fast 0.1% switch для crisp swap. */
+@keyframes pet-walk-frame-east {
+    0%, 29.9%   { opacity: 0; }
+    30%, 49.9%  { opacity: 1; }
+    50%, 100%   { opacity: 0; }
+}
+/* West visible 80-100% cycle (walking back left). */
+@keyframes pet-walk-frame-west {
+    0%, 79.9%   { opacity: 0; }
+    80%, 99.9%  { opacity: 1; }
+    100%        { opacity: 0; }
+}
+/* Sway — качание creature'а в ритм шагов (на .pet-stage child).
+   --pet-card-sway-delay JS-staggered чтобы каждый качался не синхронно.
+   Sprint 5.28: south creature скрыт во время walking-фаз (30-50% и 80-100%)
+   чтобы не накладываться на east/west overlay sprites. Два анимации —
+   sway (transform) + visibility (opacity) одновременно. */
+.pet-card .pet-stage {
+    animation: pet-card-sway var(--pet-card-sway-dur, 2.8s) ease-in-out infinite,
+               pet-walk-south-visibility var(--walk-duration, 22s) steps(1, end) infinite;
+    animation-delay: var(--pet-card-sway-delay, 0s),
+                     var(--walk-delay, 0s);
+    transform-origin: 50% 90%;
+}
+@keyframes pet-walk-south-visibility {
+    0%, 29.9%   { opacity: 1; }
+    30%, 49.9%  { opacity: 0; }
+    50%, 79.9%  { opacity: 1; }
+    80%, 99.9%  { opacity: 0; }
+    100%        { opacity: 1; }
+}
+@keyframes pet-card-sway {
+    0%, 100% { transform: rotate(-5deg); }
+    50%      { transform: rotate( 5deg); }
+}
+.pet-card-visual {
+    line-height: 1.1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+    /* Sprint 5.28: anchor для absolute pet-walk-frame overlays (east/west sprites) */
+    position: relative;
+}
+.pet-card-visual .pc-head, .pet-card-visual .pc-acc {
+    font-size: 18px;
+}
+.pet-card-visual .pc-head { transform: translateY(-4px); }
+
+/* ===== PET-STAGE (Sprint 5.21) — inline копия для standalone overlay.html =====
+   Зеркало стилей из viewer.css. SVG creature + 6 anchored slots. */
+.pet-stage {
+    position: relative;
+    width: var(--pet-stage-size, 128px);
+    aspect-ratio: 1;
+    margin: 0 auto;
+    /* Sprint 5.22 patch: overlay = frameless (no border-radius/overflow/bg).
+       В extension.html сохраняется border-radius внутри pets-modal через viewer.css. */
+    overflow: visible;
+    --pet-body-light:  #d8b4fe;
+    --pet-body-mid:    #a855f7;
+    --pet-body-dark:   #6b21a8;
+    --pet-body-stroke: #4c1d95;
+}
+/* Body palette presets (зеркало viewer.css) */
+.pet-stage--bg_violet {
+    --pet-body-light: #f3e8ff; --pet-body-mid: #c084fc;
+    --pet-body-dark:  #7e22ce; --pet-body-stroke: #581c87;
+    --pet-stage-bg-glow: rgba(192,132,252,.22);
+}
+.pet-stage--bg_rainbow {
+    --pet-body-light: #fef3c7; --pet-body-mid: #f472b6;
+    --pet-body-dark:  #8b5cf6; --pet-body-stroke: #be185d;
+    --pet-stage-bg-glow: rgba(244,114,182,.24);
+}
+.pet-stage--bg_stars {
+    --pet-body-light: #93c5fd; --pet-body-mid: #3b82f6;
+    --pet-body-dark:  #1e3a8a; --pet-body-stroke: #1e40af;
+    --pet-stage-bg-glow: rgba(59,130,246,.22);
+}
+/* Sprint 5.22 patch: aura particles (overlay inline copy) */
+.pet-stage__aura { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.pet-stage__aura-particle {
+    position: absolute;
+    font-size: calc(var(--pet-stage-size, 128px) * 0.18);
+    line-height: 1;
+    transform: translate(-50%, -50%) scale(0.7);
+    animation: pet-stage-aura-particle 1.8s ease-in-out infinite;
+    filter: drop-shadow(0 0 3px rgba(255,255,255,0.45));
+}
+@keyframes pet-stage-aura-particle {
+    0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.85); }
+    50%      { opacity: 1.00; transform: translate(-50%, -50%) scale(1.15); }
+}
+.pet-stage__aura-particle--n0 { top:  -2%; left: 50%; animation-delay: 0s;    }
+.pet-stage__aura-particle--n1 { top:  22%; left: 95%; animation-delay: 0.30s; }
+.pet-stage__aura-particle--n2 { top:  72%; left: 95%; animation-delay: 0.60s; }
+.pet-stage__aura-particle--n3 { top: 100%; left: 50%; animation-delay: 0.90s; }
+.pet-stage__aura-particle--n4 { top:  72%; left:  5%; animation-delay: 1.20s; }
+.pet-stage__aura-particle--n5 { top:  22%; left:  5%; animation-delay: 1.50s; }
+.pet-stage__base {
+    position: absolute; inset: 0; z-index: 3;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    animation: pet-stage-breathe 4s ease-in-out infinite;
+}
+/* Sprint 5.28 (2026-05-24): PNG pixel-art creature вместо SVG blob.
+   image-rendering: pixelated сохраняет chunky pixels при upscale. */
+.pet-stage__creature {
+    width: 100%; height: 100%; display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+}
+@keyframes pet-stage-breathe {
+    0%, 100% { transform: translateY(0)    scale(1); }
+    50%      { transform: translateY(-1px) scale(1.015); }
+}
+.pet-stage__egg {
+    position: absolute; inset: 0; z-index: 3;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--pet-stage-size, 128px) * 0.55);
+    line-height: 1;
+    animation: pet-stage-wobble 3.2s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes pet-stage-wobble {
+    0%, 100% { transform: rotate(-3deg); }
+    50%      { transform: rotate( 3deg); }
+}
+.pet-stage__slot {
+    /* Sprint 5.28: slot = FULL OVERLAY. Item sprite внутри 104×104 viewBox
+       сам себя anchor'ит — slot CSS даёт только z-stack. */
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+.pet-stage__slot svg,
+.pet-stage__slot .pet-stage__item-img {
+    width: 100%; height: 100%; display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+}
+.pet-stage__slot--body      { z-index: 5; }
+.pet-stage__slot--face      { z-index: 6; }
+.pet-stage__slot--accessory { z-index: 6; }
+.pet-stage__slot--head      { z-index: 7; }
+/* 2026-07-27: подпись переехала ПОД питомца → НАД питомцем (просьба владельца).
+   margin-top:4px заменён на margin-bottom:2px — иначе подпись прилипала к
+   голове. Порядок в разметке тоже изменён: сначала подпись, потом визуал. */
+.pet-card-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: #efeff1;
+    margin-bottom: 2px;
+    /* --name-lift ставится из JS: соседние питомцы получают разную высоту
+       подписи, чтобы тексты не наложились при встрече (см. раскладку ниже). */
+    transform: translateY(calc(-1 * var(--name-lift, 0px)));
+    white-space: nowrap;
+    font-family: 'Unbounded', sans-serif;
+    /* Sprint 5.22 patch: без рамки текст должен читаться на любом фоне
+       стрима — text-shadow обводка по контуру. Длинные ники не режутся. */
+    text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.6);
+}
+/* Уровень зрителя — тот же, что расширение показывает ему самому («LVL 38»).
+   Отдельный цвет, чтобы ник читался как ник, а не как часть числа. */
+.pet-card-lvl {
+    color: #a970ff;
+    font-weight: 700;
+    margin-right: 5px;
+}
+.pet-card-user {
+    font-size: 9px;
+    color: #cccce0;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.85), 0 0 4px rgba(0,0,0,0.6);
+}
+
+/* ══════ Sprint 5.4: Bannerlord summoned heroes panel (BLT-style) ══════ */
+#bnr-summoned-panel {
+    position: fixed;
+    left: 14px;
+    bottom: 14px;
+    right: 14px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+    z-index: 6;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    max-height: 35vh;
+    overflow: hidden;
+}
+#bnr-summoned-panel.visible { opacity: 1; }
+
+/* ── Карточка героя (HP bar = фон, заливается слева направо) ── */
+.bnr-hero-card {
+    position: relative;
+    min-width: 110px;
+    max-width: 170px;
+    flex: 0 1 auto;
+    padding: 6px 10px;
+    border-radius: 6px;
+    overflow: hidden;
+    color: #fff;
+    font-family: 'Unbounded', sans-serif;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+}
+
+/* Side coloring — background + HP fill colors */
+.bnr-hero-card.side-player { background: #202050; }
+.bnr-hero-card.side-enemy  { background: #401122; }
+
+/* HP bar — absolute fill behind content */
+.bnr-hp-fill {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    transition: width 0.4s ease;
+    opacity: 0.85;
+}
+.bnr-hero-card.side-player .bnr-hp-fill { background: #6666CC; }
+.bnr-hero-card.side-enemy  .bnr-hp-fill { background: #AA3277; }
+
+/* State filters (по BLT) */
+.bnr-hero-card.state-routed .bnr-hero-name {
+    filter:
+        drop-shadow(0 0 1px black)
+        drop-shadow(0 0 2px black)
+        drop-shadow(0 0 5px #fbbf24)
+        drop-shadow(0 0 3px #fbbf24);
+}
+.bnr-hero-card.state-unconscious .bnr-hero-name {
+    filter:
+        drop-shadow(0 0 1px black)
+        drop-shadow(0 0 2px black)
+        drop-shadow(0 0 5px #fb923c)
+        drop-shadow(0 0 3px #fb923c);
+}
+.bnr-hero-card.state-killed .bnr-hero-name {
+    filter:
+        drop-shadow(0 0 1px black)
+        drop-shadow(0 0 2px black)
+        drop-shadow(0 0 5px #ef4444)
+        drop-shadow(0 0 3px #ef4444);
+}
+.bnr-hero-card.state-killed,
+.bnr-hero-card.state-unconscious {
+    opacity: 0.75;
+}
+
+.bnr-hero-card > * { position: relative; z-index: 1; }
+
+.bnr-hero-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    margin-bottom: 3px;
+    letter-spacing: 0.2px;
+}
+
+.bnr-hero-stats {
+    display: flex;
+    gap: 6px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+.bnr-hero-stats .stat-kills { color: #ffffff; font-weight: 700; }
+.bnr-hero-stats .stat-gold  { color: #fbbf24; margin-left: auto; }
+.bnr-hero-stats .stat-xp    { color: #FF7FB0; }
+
+</style>
+</head>
+<body>
+
+<!-- legacy div удалён 2026-05-10 (Phase 1.I lexicon scrub) -->
+
+<!-- ══════ PETS-STRIP (Phase 7, 2026-05-12) ══════ -->
+<div id="pets-strip"></div>
+
+<!-- ══════ BANNERLORD: SUMMONED HEROES (Sprint 5.4) ══════ -->
+<div id="bnr-summoned-panel"></div>
+
+<!-- Панель ивента («рулекцион») удалена 2026-07-29 вместе с механикой:
+     она переписана в голосование за игру, эндпоинты /api/event/* вырезаны.
+     Разметку, стили и функции сняли одним проходом — половина удалённой
+     механики опаснее целой: она выглядит рабочей. -->
+
+<!-- ══════ КАРТОЧКИ (правый нижний угол) ══════ -->
+<div class="notification" id="notif-stack"></div>
+
+<!-- pet-stage.js: PNG pixel-art creature renderer (Sprint 5.28).
+     Загружается ДО основного скрипта overlay чтобы window.PetStage был
+     доступен в renderPets(). -->
+<script src="pet-stage.js?v=20260524b"></script>
+<script src="pet-layout.js?v=20260823"></script>
+<script src="pet-assets/living-pets-v1/animator.js?v=20260927a"></script>
+<script src="pet-assets/living-pets-v1/obs-living.js?v=20260927a"></script>
+<script src="pet-assets/companions-v1/overlay-pets.js?v=20260927a"></script>
+
+<script>
+const SERVER = 'https://shedoy23.ru';
+const POLL_INTERVAL = 2000;  // опрос каждые 2 сек
+const PETS_POLL_INTERVAL = 12000;  // pets reshuffle каждые ~12 сек
+
+// legacy-константа удалена 2026-05-10 (Phase 1.I lexicon scrub)
+
+// channel_id из URL (?channel_id=NN), либо backend сам резолвит default
+const PETS_CHANNEL_ID = parseInt(new URLSearchParams(location.search).get('channel_id') || '0', 10);
+// A2 (2026-07-02): overlay-токен из URL — нужен для мутации tts/played (защита от грифа).
+const OVERLAY_TOKEN = new URLSearchParams(location.search).get('overlay_token') || '';
+
+// ══════════════════════════════════════════
+// ОЧЕРЕДЬ УВЕДОМЛЕНИЙ
+// ══════════════════════════════════════════
+let notifQueue = [];
+let isShowing = false;
+let currentCard = null;
+let currentTimer = null;
+
+function queueNotif(config) {
+    notifQueue.push(config);
+    if (!isShowing) processQueue();
+}
+
+function processQueue() {
+    if (notifQueue.length === 0) { isShowing = false; return; }
+    isShowing = true;
+    showCard(notifQueue.shift());
+}
+
+function showCard(config) {
+    const stack = document.getElementById('notif-stack');
+
+    // Создаём карточку
+    const card = document.createElement('div');
+    card.className = `card card-${config.type}`;
+    card.innerHTML = buildCardHTML(config);
+    stack.appendChild(card);
+    currentCard = card;
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            card.classList.add('show');
+        });
+    });
+
+    // Анимируем timer-bar
+    const timerBar = card.querySelector('.card-timer');
+    const duration = config.duration || 6000;
+    if (timerBar) {
+        timerBar.style.transition = `transform ${duration}ms linear`;
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                timerBar.style.transform = 'scaleX(0)';
+            });
+        });
+    }
+
+    // Убираем через duration
+    currentTimer = setTimeout(() => {
+        card.classList.remove('show');
+        card.classList.add('hide');
+        setTimeout(() => {
+            card.remove();
+            processQueue();
+        }, 450);
+    }, duration);
+}
+
+function buildCardHTML(cfg) {
+    switch (cfg.type) {
+        // legacy card type удалён 2026-05-10 (Phase 1.I lexicon scrub)
+        case 'event-start':
+            return buildEventStartCard(cfg);
+        case 'event-live':
+            return buildEventLiveCard(cfg);
+        case 'event-end':
+            return buildEventEndCard(cfg);
+        // 'donate' case удалён 2026-05-14 (Phase 8.F donate removal)
+        case 'drop':
+            return buildDropCard(cfg);
+        default:
+            return '';
+    }
+}
+
+// ══════════════════════════════════════════
+// ШАБЛОНЫ КАРТОЧЕК
+// ══════════════════════════════════════════
+// legacy-шаблон карточки удалён 2026-05-10 (Phase 1.I lexicon scrub)
+
+function buildEventStartCard(cfg) {
+    return `
+        <div class="card-label">✨ ИВЕНТ НАЧАЛСЯ</div>
+        <div class="card-title">${esc(cfg.type_name)}</div>
+        <div class="card-sub">${esc(cfg.prize_name)} • ${esc(cfg.type_desc)}</div>
+        <div class="card-icon">⚖️</div>
+        <div class="card-timer"></div>
+    `;
+}
+
+function buildEventLiveCard(cfg) {
+    const bidsHTML = (cfg.bids || []).slice(0, 5).map((b, i) => `
+        <div class="bid-row">
+            <span class="bid-name">${i + 1}. ${esc(b.username)}</span>
+            <div class="bid-bar-wrap"><div class="bid-bar" style="width:${b.chance}%"></div></div>
+            <span class="bid-amount">${formatNum(b.amount)}💎</span>
+            <span class="bid-chance">${b.chance}%</span>
+        </div>
+    `).join('');
+
+    return `
+        <div class="card-label"><span class="live-dot"></span>ИВЕНТ ИДЁТ</div>
+        <div class="card-title">${esc(cfg.type_name)} — 🏆 ${esc(cfg.prize_name)}</div>
+        <div class="card-sub">Осталось: <b>${cfg.time_left_fmt}</b> · ${cfg.participants} участников · ${formatNum(cfg.total_pool)}💎</div>
+        ${bidsHTML ? `<div class="bids-list">${bidsHTML}</div>` : ''}
+        <div class="card-timer"></div>
+    `;
+}
+
+function buildEventEndCard(cfg) {
+    const confetti = Array.from({length: 16}, (_, i) => {
+        const colors = ['#50e880','#00ff88','#ffd700','#ff6eb4','#60a5fa'];
+        const c = colors[i % colors.length];
+        const x = Math.random() * 100;
+        const d = 0.6 + Math.random() * 0.8;
+        const delay = Math.random() * 0.5;
+        const r = Math.random() * 360;
+        return `<div class="confetti-piece" style="--x:${x}%;--d:${d}s;--delay:${delay}s;--c:${c};--r:${r}deg"></div>`;
+    }).join('');
+
+    return `
+        <div class="confetti-wrap">${confetti}</div>
+        <div class="card-label">🏆 ПОБЕДИТЕЛЬ</div>
+        <div class="winner-name">${esc(cfg.winner)}</div>
+        <div class="prize-badge">🎁 ${esc(cfg.prize_name)}</div>
+        <div class="card-sub" style="margin-top:6px;">${esc(cfg.message)}</div>
+        <div class="card-timer"></div>
+    `;
+}
+
+function buildDropCard(cfg) {
+    const rarityLabels = { common: '⚪ Обычный', uncommon: '🟢 Необычный', rare: '🔵 Редкий', epic: '🟣 Эпический' };
+    const rarityLabel = rarityLabels[cfg.rarity] || rarityLabels.common;
+    return `
+        <div class="card-label">🎁 СЛУЧАЙНЫЙ ДРОП</div>
+        <div class="card-title">${esc(cfg.username)}</div>
+        <div class="drop-item">${esc(cfg.item_name)}</div>
+        <div class="drop-rarity ${esc(cfg.rarity)}">${rarityLabel}</div>
+        <div class="card-icon">🎁</div>
+        <div class="card-timer"></div>
+    `;
+}
+
+// buildDonateCard удалён 2026-05-14 (Phase 8.F donate removal —
+// §5.2/§5.4 compliance, real-money flow вне Bits недопустим)
+
+// legacy-анимация удалена 2026-05-10 (Phase 1.I lexicon scrub)
+
+// ══════════════════════════════════════════
+// ВСПОМОГАТЕЛЬНЫЕ
+// ══════════════════════════════════════════
+function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatNum(n) {
+    return Number(n).toLocaleString('ru-RU');
+}
+
+// ══════════════════════════════════════════
+// ПОЛЛИНГ СЕРВЕРА
+// ══════════════════════════════════════════
+// Функции панели ивента (showEventPanel / updateEventPanel / hideEventPanel /
+// announceEvent / updateEpBids / startEpTimer / stopEpTimer / fmtEpTime)
+// удалены 2026-07-29 вместе с механикой «рулекциона» — её переписали в
+// голосование за игру. Ни одна из них не вызывалась ниоткуда: ни отсюда, ни
+// из фронта, ни с бэкенда.
+
+// lastDonateTs удалён 2026-05-14 (Phase 8.F donate removal)
+// lastEventId / lastEventState / lastWinnerId / seenLiveEventBuckets удалены
+// 2026-07-29: остались от «рулекциона», после его вырезания к ним не было
+// ни одного обращения — только объявление.
+let lastDropId = null;
+
+async function poll() {
+    // Опрос ивента-«рулекциона» удалён 2026-07-29 вместе с механикой:
+    // она переписана в голосование за игру, а эндпоинты /api/event/* вырезаны.
+    // Хвосты (разметка, стили, функции панели) сняты в тот же день — механика
+    // ушла целиком, полу-удалённой не осталось (AUDIT_REGISTER §Трек D, D6).
+
+    try {
+        // 2. Drop notifications через /api/overlay/latest
+        // legacy-handlers удалены 2026-05-10/14 (Phase 1.I + Phase 8.F)
+        // Дроп своего канала (24.09.2026): раньше запрос шёл без канала.
+        const jp = await fetch(SERVER + '/api/overlay/latest'
+            + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '')).then(r => r.json());
+
+        if (jp.drop && jp.drop.id !== lastDropId) {
+            lastDropId = jp.drop.id;
+            queueNotif({
+                type: 'drop',
+                username: jp.drop.username,
+                item_name: jp.drop.item_name,
+                rarity: jp.drop.rarity || 'common',
+                duration: 6000
+            });
+        }
+
+    } catch(e) {}
+}
+
+// ══════════════════════════════════════════
+// ПРЕВЬЮ РЕЖИМ (для тестирования в браузере)
+// добавь ?preview=1 к URL чтобы увидеть все анимации
+// ══════════════════════════════════════════
+function runPreview() {
+    // Legacy previews удалены 2026-05-10/14 (Phase 1.E/1.I/8.F lexicon scrub —
+    // §6.2.4), заменены на voting events (Phase 4)
+
+    // Drop preview — для тестирования drop-card анимации
+    setTimeout(() => {
+        queueNotif({ type: 'drop', username: 'antitail1', item_name: '🎁 Обычный кейс', rarity: 'common', duration: 6000 });
+    }, 2000);
+
+    setTimeout(() => {
+        queueNotif({ type: 'drop', username: 'eliya', item_name: '👑 Легендарный кейс', rarity: 'legendary', duration: 6000 });
+    }, 8000);
+}
+
+// ══════════════════════════════════════════
+// PETS-STRIP (Phase 7, 2026-05-12)
+// Polls /api/overlay/pets и рендерит активных зрителей.
+// Streamer может отключить через toggle на /api/streamer/pets/overlay-toggle.
+// ══════════════════════════════════════════
+// Track which usernames мы уже отрисовали в strip — чтобы не дёргать
+// stagger-анимацию на каждом poll-tick (только новые карточки animate).
+let _lastPetsSnapshot = '';
+
+async function pollPets() {
+    try {
+        const url = SERVER + '/api/overlay/pets'
+            + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '');
+        const r = await fetch(url);
+        const data = await r.json();
+        const strip = document.getElementById('pets-strip');
+        if (!strip) return;
+
+        // 2026-07-27 (владелец, по скриншоту со стрима): на overlay пускаем
+        // ТОЛЬКО тех, у кого есть что показать — живого персонажа.
+        // Отсеиваются два вида «пустышек», которые на стриме читались как баг:
+        //   • яйцо (pet_type='egg') — просто эмодзи 🥚, гуляющее по кадру;
+        //   • вылупился, но скин НЕ куплен — pet-stage рисует пунктирный
+        //     кружок-заглушку (pet-stage.js: .pet-stage__empty). В панели это
+        //     приглашение купить скин и там уместно; на стриме это выглядит
+        //     как пустой круг с ником над ним.
+        // В расширении зритель по-прежнему видит и яйцо, и заглушку — правило
+        // только для overlay.
+        const shown = (data.viewers || []).filter(v => {
+            if (!v.pet_type || v.pet_type === 'egg') return false;
+            const b = (v.equipped || {}).body;
+            return !!(b && typeof b.item_id === 'string' && b.item_id.startsWith('skin_'));
+        });
+
+        if (!data.success || !data.enabled || shown.length === 0) {
+            strip.classList.remove('visible');
+            strip.innerHTML = '';
+            _lastPetsSnapshot = '';
+            return;
+        }
+
+        // Snapshot key: сортированный список (username|head|acc|bg|name)
+        const snapshot = shown.map(v => {
+            const eq = v.equipped || {};
+            return [
+                v.username || '?',
+                eq.head?.item_id || '',
+                eq.accessory?.item_id || '',
+                eq.background?.item_id || '',
+                eq.body?.item_id || '',
+                eq.face?.item_id || '',
+                eq.aura?.item_id || '',
+                v.name || '',
+                v.pet_type || 'egg',
+                v.level || '',      // 2026-07-27: иначе повышение уровня не перерисует подпись
+            ].join('|');
+        }).sort().join(';');
+
+        // Если контент не изменился — пропускаем перерисовку (нет flicker).
+        if (snapshot === _lastPetsSnapshot) {
+            strip.classList.add('visible');
+            return;
+        }
+        _lastPetsSnapshot = snapshot;
+
+        strip.innerHTML = shown.map(v => {
+            const eq = v.equipped || {};
+            const pet = {pet_type: v.pet_type, name: v.name};
+            // 2026-07-27: «собака» убрана — владелец задал формат «[38lvl] shedoy23».
+            const username = v.username || '?';
+            // Sprint 5.28: pet 2× размер (128px), direction-aware walking.
+            // Pet-stage рендерит south creature; на overlay поверх клеим
+            // east + west sprites через absolute positioning, opacity
+            // animations swap'ают их synchronized с pet-walk position.
+            // Variant detection для east/west PNG paths (mirror логики из pet-stage.js).
+            let variant = 'kimono';
+            if (eq.body && typeof eq.body.item_id === 'string' &&
+                eq.body.item_id.startsWith('skin_')) {
+                const v2 = eq.body.item_id.slice(5);
+                if (/^[a-z0-9_]+$/.test(v2)) variant = v2;
+            }
+            const animated = typeof PetCompanions !== 'undefined' && PetCompanions.supports(variant);
+            const stageHtml = animated ? PetCompanions.render(variant)
+                : (typeof PetStage !== 'undefined' ? PetStage.renderHtml(pet, eq, {size: 128})
+                    : `<span>${v.pet_type === 'egg' ? '🥚' : '🐣'}</span>`);
+            const isHatched = pet.pet_type && pet.pet_type !== 'egg';
+            const walkSprites = isHatched && !animated ? `
+                <img src="pet-assets/v2/${variant}/east.png"
+                     class="pet-walk-frame pet-walk-frame--east"
+                     alt="" draggable="false"/>
+                <img src="pet-assets/v2/${variant}/west.png"
+                     class="pet-walk-frame pet-walk-frame--west"
+                     alt="" draggable="false"/>
+            ` : '';
+            // 2026-07-27: подпись НАД питомцем, с уровнем зрителя: «[38lvl] shedoy23».
+            // Уровень приходит с бэка (тот же, что в расширении — из времени
+            // просмотра). Если его нет (старый бэк / нет записей) — показываем
+            // только ник, а не «[1lvl]»: соврать про уровень хуже, чем промолчать.
+            const lvl = Number(v.level) > 0 ? Number(v.level) : null;
+            const lvlHtml = lvl ? `<span class="pet-card-lvl">[${lvl}lvl]</span>` : '';
+            return `
+                <div class="pet-card">
+                    <div class="pet-card-name">${lvlHtml}${escapeHtmlOL(username)}</div>
+                    <div class="pet-card-visual">${stageHtml}${walkSprites}</div>
+                </div>
+            `;
+        }).join('');
+        strip.classList.add('visible');
+
+        // 2026-08-23. Раскладка вынесена в pet-layout.js и проверяется
+        // арифметикой (tests/test_pet_layout.js), а не глазами: наложение
+        // зависит от числа зрителей и случайных чисел, вылезает на людном
+        // стриме и на скриншоте выглядит комом.
+        //
+        // Было: полоса 88/N vw на каждого, но прогулка 15-30vw независимо от
+        // числа зрителей — при 13 питомцах ходили насквозь через чужие полосы.
+        // Стало: прогулка не покидает свою полосу, плюс три ряда по глубине —
+        // в ряду вдвое-втрое меньше соседей, и полосы шире.
+        const cards = strip.querySelectorAll('.pet-card');
+        const layout = PetLayout.layoutPets(cards.length);
+        cards.forEach((card, i) => {
+            const L = layout[i];
+            card.style.setProperty('--walk-start',    `${L.startVw.toFixed(2)}vw`);
+            card.style.setProperty('--walk-amp',      `${(L.dir * L.ampVw).toFixed(2)}vw`);
+            card.style.setProperty('--walk-duration', `${L.durationS}s`);
+            card.style.setProperty('--walk-delay',    `${L.delayS}s`);
+            card.style.setProperty('--pet-card-sway-delay', `${L.swayDelayS}s`);
+            card.style.setProperty('--name-lift',     `${L.nameLiftPx}px`);
+            card.style.setProperty('--depth-bottom',  `${L.bottomPx}px`);
+            card.style.setProperty('--depth-scale',   L.scale);
+            card.style.setProperty('--depth-opacity', L.opacity);
+            // Дальние ряды рисуются ПОД ближними.
+            card.style.zIndex = String(10 - L.row);
+            // Покачивание чуть разной длительности: одинаковый период у всех
+            // читается как строй роботов, а не как живая сцена.
+            card.style.setProperty('--pet-card-sway-dur', `${(2.4 + (i % 5) * 0.22).toFixed(2)}s`);
+            card.style.transitionDelay = `${i * 60}ms`;
+            const dir = L.dir;
+            // Sprint 5.28: если pet идёт первым leg'ом ВЛЕВО (dir=-1), свопаем
+            // east/west sprites — класс --east держит timing-slot 30-50% (первая
+            // нога путешествия), --west держит 80-100% (возврат). Sprite-src
+            // должен соответствовать НАПРАВЛЕНИЮ, а не времени.
+            if (dir === -1) {
+                const eastImg = card.querySelector('.pet-walk-frame--east');
+                const westImg = card.querySelector('.pet-walk-frame--west');
+                if (eastImg && westImg) {
+                    const tmp = eastImg.src;
+                    eastImg.src = westImg.src;
+                    westImg.src = tmp;
+                }
+            }
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => card.classList.add('in'));
+            });
+        });
+        if (typeof PetCompanions !== 'undefined') PetCompanions.attach(strip);
+    } catch (e) { /* silent */ }
+}
+
+function escapeHtmlOL(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+}
+
+// ══════════════════════════════════════════
+// СТАРТ
+// ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// BANNERLORD SUMMONED HEROES — Sprint 5.4 (BLT-style)
+// Polls /api/overlay/bannerlord/summoned каждые 1с.
+// Row-layout, HP bar = card background fill, side colors (blue/red),
+// state glow (active/routed/unconscious/killed), compact numbers.
+// ══════════════════════════════════════════
+const BNR_POLL_INTERVAL = 1000;
+
+// Compact number formatter ("1.2K" / "12M") — BLT pattern.
+const _bnrCompact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+function bnrFmt(n) { return _bnrCompact.format(Math.round(n || 0)); }
+
+function bnrPayoutGold(p) {
+    if (p.payout_version !== 2) return '+' + bnrFmt(p.gold_earned);
+    if (p.payout_status === 'paid') return '+' + bnrFmt(p.gold_earned);
+    if (p.payout_status === 'failed' || p.payout_status === 'unavailable') return '—';
+    const low = p.payout_estimate_min, high = p.payout_estimate_max;
+    if (!Number.isFinite(low) || !Number.isFinite(high) || low < 0 || high < low) return '—';
+    return '≈' + bnrFmt(Math.round(low / 2 + high / 2));
+}
+// Sort: player side first → больше kills сверху → alpha.
+function bnrSortParticipants(a, b) {
+    if (a.is_player_side !== b.is_player_side) return a.is_player_side ? -1 : 1;
+    if ((b.kills || 0) !== (a.kills || 0)) return (b.kills || 0) - (a.kills || 0);
+    return (a.username || '').localeCompare(b.username || '');
+}
+
+async function pollBannerlordSummoned() {
+    try {
+        const url = SERVER + '/api/overlay/bannerlord/summoned'
+            + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '');
+        const r = await fetch(url);
+        const data = await r.json();
+        const panel = document.getElementById('bnr-summoned-panel');
+        if (!panel) return;
+
+        const participants = (data.participants || []).slice().sort(bnrSortParticipants);
+
+        // 2026-07-27: питомцы прячутся на время боя — карточки бойцов стоят
+        // по тому же низу кадра и перекрывали их. Класс вешаем на полосу,
+        // а не на innerHTML: pollPets перерисовывает содержимое, но не классы.
+        const petsStrip = document.getElementById('pets-strip');
+        if (petsStrip) {
+            petsStrip.classList.toggle('battle', !!data.active && participants.length > 0);
+        }
+
+        const recentFinal = data.final === true && Number.isFinite(data.age_sec)
+            && data.age_sec >= 0 && data.age_sec < 30; // 26.09 владелец: итог боя 30 с вместо 120 (закрывал питомцев)
+        if ((!data.active && !recentFinal) || participants.length === 0) {
+            panel.classList.remove('visible');
+            panel.innerHTML = '';
+            return;
+        }
+
+        panel.innerHTML = participants.map(p => {
+            const username = escapeHtmlOL(p.username || '?');
+            const hp = Math.max(0, p.hp || 0);
+            const hpMax = Math.max(1, p.hp_max || 100);
+            const pct = Math.max(0, Math.min(100, (hp / hpMax) * 100));
+            const sideClass = p.is_player_side ? 'side-player' : 'side-enemy';
+            const stateClass = `state-${p.state || (p.alive ? 'active' : 'killed')}`;
+            const kills = p.kills || 0;
+            const gold = bnrPayoutGold(p);
+            const xp = bnrFmt(p.xp_earned);
+            const killsStr = kills > 0 ? `☠${kills}` : '';
+            return `
+                <div class="bnr-hero-card ${sideClass} ${stateClass}">
+                    <div class="bnr-hp-fill" style="width: ${pct.toFixed(1)}%;"></div>
+                    <div class="bnr-hero-name">${username}</div>
+                    <div class="bnr-hero-stats">
+                        <span class="stat-kills">${killsStr}</span>
+                        <span class="stat-gold">${gold}💰</span>
+                        <span class="stat-xp">+${xp}XP</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        panel.classList.add('visible');
+    } catch (e) { /* silent */ }
+}
+
+// ════════ TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) ════════
+// Polling /api/overlay/tts/pending каждые 3s. Получаем audio_url с
+// pre-generated mp3 (gTTS на бэке), играем через <audio>.
+//
+// Web Speech API использовался в начальной версии, но OBS Browser Source
+// (Chromium-CEF) этот API поддерживает плохо — speechSynthesis.speak()
+// часто не выводит звук. Переключение на серверный mp3 + Audio() намного
+// надёжнее (OBS воспроизводит обычные audio elements без проблем).
+//
+// One-at-a-time: пока активен audio, не делаем новый poll.
+//
+// ВАЖНО: блок объявлений идёт ДО if/else ниже, иначе initTts() вызывается
+// раньше чем const TTS_POLL_INTERVAL инициализирована (temporal dead zone).
+const TTS_POLL_INTERVAL = 3000;
+let _ttsBusy = false;
+let _ttsCurrentAudio = null;
+
+if (new URLSearchParams(location.search).get('preview') === '1') {
+    runPreview();
+} else {
+    poll();
+    setInterval(poll, POLL_INTERVAL);
+    pollPets();
+    setInterval(pollPets, PETS_POLL_INTERVAL);
+    pollBannerlordSummoned();
+    setInterval(pollBannerlordSummoned, BNR_POLL_INTERVAL);
+    pollBannerlordPowerEvents();
+    setInterval(pollBannerlordPowerEvents, 1000);   // Sprint 5.30 #41 every 1s
+    initTts();
+}
+
+// ════════ Sprint 5.30 #41 — Power activation broadcast ════════
+// Polls /api/overlay/bannerlord/power-events with last seq, renders
+// large floating banner per new event ~4s. Streamer + audience видят
+// сразу когда viewer купил heal/rage/retribution.
+let _bnrPowerSeq = 0;
+
+// ⚠️ ДЕРЖАТЬ В СИНХРОНЕ с BNR_POWER_LABELS в viewer.js — это ВТОРАЯ копия
+// названий сил (оверлей на стриме против панели зрителя). 2026-07-24 они уже
+// разъезжались: в панели «Невидимость», а на стриме всё ещё «Стойкость» —
+// зритель и чат видели РАЗНЫЕ имена одной активки.
+const BNR_POWER_META = {
+    heal_burst:         { icon: '💊', label: 'Лечение',  color: '#34d399', glow: 'rgba(52,211,153,0.55)' },
+    shield_break_burst: { icon: '🛡️', label: 'Ломать щиты', color: '#fb923c', glow: 'rgba(251,146,60,0.55)' },
+    rage:               { icon: '🔥', label: 'Ярость',   color: '#f87171', glow: 'rgba(248,113,113,0.65)' },
+    retribution_toggle: { icon: '🌫', label: 'Невидимость', color: '#a78bfa', glow: 'rgba(167,139,250,0.55)' },
+};
+
+async function pollBannerlordPowerEvents() {
+    try {
+        const url = SERVER + '/api/overlay/bannerlord/power-events'
+            + `?since_seq=${_bnrPowerSeq}`
+            + (PETS_CHANNEL_ID > 0 ? `&channel_id=${PETS_CHANNEL_ID}` : '');
+        const r = await fetch(url);
+        const data = await r.json();
+        if (data.cursor > _bnrPowerSeq) _bnrPowerSeq = data.cursor;
+        for (const ev of (data.events || [])) {
+            spawnBnrPowerBanner(ev);
+        }
+    } catch (e) { /* silent */ }
+}
+
+function spawnBnrPowerBanner(ev) {
+    const meta = BNR_POWER_META[ev.power_key] || {
+        icon: '✨', label: ev.power_key, color: '#fbbf24', glow: 'rgba(251,191,36,0.55)',
+    };
+    const container = document.getElementById('bnr-power-banner-host')
+                    || (() => {
+                        const d = document.createElement('div');
+                        d.id = 'bnr-power-banner-host';
+                        d.style.cssText = 'position:fixed;left:50%;top:18%;'
+                            + 'transform:translateX(-50%);z-index:99999;'
+                            + 'pointer-events:none;display:flex;'
+                            + 'flex-direction:column;gap:6px;align-items:center;';
+                        document.body.appendChild(d);
+                        return d;
+                    })();
+    const banner = document.createElement('div');
+    const duration = ev.duration_s ? ` · ${Math.round(ev.duration_s)}с` : '';
+    const value = ev.value ? ` ×${(+ev.value).toFixed(1)}` : '';
+    banner.style.cssText = `
+        background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(20,20,30,0.92) 100%);
+        border: 2px solid ${meta.color};
+        box-shadow: 0 0 24px ${meta.glow}, inset 0 0 12px ${meta.glow};
+        color: ${meta.color};
+        padding: 12px 22px;
+        border-radius: 12px;
+        font: 700 22px/1.2 'Inter', sans-serif;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        opacity: 0;
+        transform: scale(0.7) translateY(-12px);
+        transition: opacity .25s ease, transform .25s ease;
+        white-space: nowrap;
+    `;
+    banner.innerHTML = `
+        ${meta.icon} <span style="color:#fff;">@${escapeHtmlOL(ev.user || '?')}</span>
+        → ${meta.label}${value}${duration}
+    `;
+    container.appendChild(banner);
+    // Animate in
+    requestAnimationFrame(() => {
+        banner.style.opacity = '1';
+        banner.style.transform = 'scale(1) translateY(0)';
+    });
+    // Auto-fade after 4s, remove after 4.5s
+    setTimeout(() => {
+        banner.style.opacity = '0';
+        banner.style.transform = 'scale(0.9) translateY(-8px)';
+    }, 4000);
+    setTimeout(() => banner.remove(), 4500);
+}
+
+async function pollTts() {
+    if (_ttsBusy) return;
+    try {
+        const url = `${SERVER}/api/overlay/tts/pending`
+            + (PETS_CHANNEL_ID > 0 ? `?channel_id=${PETS_CHANNEL_ID}` : '');
+        const r = await fetch(url);
+        const d = await r.json();
+        if (!d.success || !d.message || !d.message.audio_url) return;
+        _playTts(d.message);
+    } catch (e) { /* silent */ }
+}
+
+function _playTts(msg) {
+    _ttsBusy = true;
+    _showTtsBanner(msg.username, msg.text);
+
+    const audio = new Audio(`${SERVER}${msg.audio_url}`);
+    audio.preload = 'auto';
+    audio.volume = 1.0;
+    _ttsCurrentAudio = audio;
+
+    const onDone = async () => {
+        if (_ttsCurrentAudio !== audio) return;
+        _ttsCurrentAudio = null;
+        _ttsBusy = false;
+        _hideTtsBanner();
+        try {
+            await fetch(`${SERVER}/api/overlay/tts/played`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: msg.id, channel_id: PETS_CHANNEL_ID, overlay_token: OVERLAY_TOKEN}),
+            });
+        } catch (e) { /* silent */ }
+    };
+    audio.onended = onDone;
+    audio.onerror = onDone;
+    setTimeout(onDone, 60000);  // safety если onended не сработает
+
+    audio.play().catch(onDone);  // autoplay-policy reject → пропускаем
+}
+
+function _showTtsBanner(username, text) {
+    let banner = document.getElementById('tts-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'tts-banner';
+        banner.style.cssText = `
+            position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
+            background: rgba(15, 10, 30, 0.92);
+            border: 2px solid rgba(168, 85, 247, 0.7);
+            border-radius: 14px;
+            padding: 14px 22px;
+            max-width: 70vw;
+            font-family: 'Unbounded', sans-serif;
+            color: #efeff1;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 24px rgba(168,85,247,0.3);
+            z-index: 99999;
+            opacity: 0;
+            transition: opacity .3s ease;
+        `;
+        document.body.appendChild(banner);
+    }
+    banner.innerHTML = `
+        <div style="font-size:13px;color:#a855f7;font-weight:700;margin-bottom:4px;">
+            🎤 @${escapeHtmlOL(username)}
+        </div>
+        <div style="font-size:18px;line-height:1.4;">
+            ${escapeHtmlOL(text)}
+        </div>
+    `;
+    requestAnimationFrame(() => { banner.style.opacity = '1'; });
+}
+
+function _hideTtsBanner() {
+    const banner = document.getElementById('tts-banner');
+    if (!banner) return;
+    banner.style.opacity = '0';
+}
+
+function initTts() {
+    setInterval(pollTts, TTS_POLL_INTERVAL);
+}
+</script>
+</body>
+</html>

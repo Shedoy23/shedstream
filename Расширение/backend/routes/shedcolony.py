@@ -1,0 +1,680 @@
+"""
+routes/shedcolony.py — viewer-facing endpoints для модуля ShedColony.
+
+  POST /api/shedcolony/action       — купить действие (списать крустики + enqueue в module_actions)
+  GET  /api/shedcolony/my-colonist  — состояние СВОЕГО колониста (link + state)
+  GET  /api/shedcolony/capacity      — свободные слоты колонии (для slot-availability UI)
+
+Зеркалит проверенный bannerlord buy-паттерн (routes/bannerlord.py):
+require_jwt_user → per-user lock → allowlist → server-side price → atomic charge + enqueue.
+Мод забирает action'ы через generic Module API (routes/module_api.py) long-poll'ом.
+
+БЕЗОПАСНОСТЬ: и username, и channel_id берутся ТОЛЬКО из JWT. citizen_id для действий над
+колонистом РЕЗОЛВИТСЯ на сервере из link-таблицы (клиентский citizen_id игнорируется), иначе
+зритель мог бы управлять чужим колонистом.
+
+COMPLIANCE: price+initiated_by кладутся в data → провал действия (ack success=false) авто-рефандит
+крустики через ShedColonyAdapter._on_action_failed. Цены — только тут (server-enforced).
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import re
+import uuid
+
+from fastapi import APIRouter, Request
+
+from dependencies import get_db, require_jwt_user, resolve_channel_id_or_default
+
+router = APIRouter()
+log = logging.getLogger("rimlink.shedcolony")
+
+_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
+
+# ── Per-(channel, user) asyncio lock — double-spend prevention (как в bannerlord) ──
+_user_action_locks: dict[tuple[int, str], asyncio.Lock] = {}
+_user_action_locks_meta_lock = asyncio.Lock()
+
+
+async def _get_user_lock(channel_id: int, username: str) -> asyncio.Lock:
+    key = (channel_id, (username or "").lower())
+    if key not in _user_action_locks:
+        async with _user_action_locks_meta_lock:
+            if key not in _user_action_locks:
+                _user_action_locks[key] = asyncio.Lock()
+    return _user_action_locks[key]
+
+
+# ── Allowlist — MUST match modules/shedcolony/manifest.yaml extensions.actions ──
+_PURCHASABLE_ACTIONS = (
+    "colonist.spawn",
+    "colonist.assign_job",
+    "colonist.assign_home",
+    "colonist.add_xp",
+    "colonist.fulfill_request",
+    # Phase 7 — colonist care (own colonist, deterministic, grief-safe)
+    "colonist.feed",
+    "colonist.cure_disease",
+    "colonist.heal",
+    "colonist.clear_mourn",
+    "colonist.give_item",
+    "colonist.set_gender",
+    "colonist.teleport",
+    "colonist.equip_leather",
+    "colonist.equip_iron",
+    "colonist.equip_diamond",
+    "colonist.happiness_boost",
+    # Phase 8 — colony-level sinks (colony-wide, grief-safe; NOT citizen-scoped)
+    "colony.spy_boost",
+    "colony.festival",
+    "colony.spawn_visitor",
+    "colony.quest_unlock",
+    "colony.supply",
+    # Phase A — colony development + warehouse (colony-wide, deterministic, grief-safe)
+    "colony.set_minimum_stock",
+    "colony.clear_backlog",
+    "colony.start_research",
+    "colony.finish_research",
+    # Phase C — gear cluster (own colonist, deterministic, best-usable-tier / guard-gated)
+    "colonist.equip_netherite",
+    "colonist.equip_weapon",
+    "colonist.give_shield",
+    "colonist.give_tools",
+    "colonist.set_guard_task",
+    "colonist.set_guard_retreat",
+    # Phase D — cheap engagement (own colonist workplace automation, only-ON, grief-safe)
+    "colonist.auto_work",
+    # Phase B — flagship: sponsor a real building upgrade (colony-scope, deterministic)
+    "colony.upgrade_building",
+)
+
+# Server-side prices — viewer-supplied price is IGNORED (frontend draws what backend sends).
+# Model (2026-06-25, SHEDCOLONY_PLAN §0b): care cheap (engagement), progression raised,
+# anchored ~1500 кр/hour passive earning.
+_ACTION_PRICES: dict[str, int] = {
+    "colonist.spawn":           1000,
+    "colonist.assign_job":       300,
+    "colonist.assign_home":      200,
+    "colonist.add_xp":           400,   # was 150 — +1000 XP is a real progression lever
+    "colonist.fulfill_request":  100,
+    "colonist.feed":              75,
+    "colonist.cure_disease":     100,
+    "colonist.heal":             100,
+    "colonist.clear_mourn":       50,
+    "colonist.give_item":        200,
+    "colonist.set_gender":       200,
+    "colonist.teleport":         150,
+    "colonist.equip_leather":    500,   # full armour set — visible, raid-survivable, prestige sink
+    "colonist.equip_iron":      1500,
+    "colonist.equip_diamond":   3000,
+    "colonist.happiness_boost":  400,   # personal mood boost (3 game days)
+    "colony.spy_boost":         1500,
+    "colony.festival":          3000,
+    "colony.spawn_visitor":     2000,
+    "colony.quest_unlock":      2000,
+    "colony.supply":            1000,   # a stack of a basic resource into the warehouse
+    # Phase A — high-tier "crustic sink" development actions (PROVISIONAL: owner may retune;
+    # backend is the single source of truth, not frozen. start_research fixed by owner §0b).
+    "colony.set_minimum_stock": 75000,
+    "colony.clear_backlog":     50000,
+    "colony.start_research":    75000,
+    "colony.finish_research":   37500,
+    # Phase C — gear cluster (PROVISIONAL prices; backend = source of truth, retune freely)
+    "colonist.equip_netherite": 4000,
+    "colonist.equip_weapon":    2500,
+    "colonist.give_shield":     1000,
+    "colonist.give_tools":      2500,
+    "colonist.set_guard_task":   500,
+    "colonist.set_guard_retreat": 300,
+    # Phase D — cheap engagement (PROVISIONAL price)
+    "colonist.auto_work":       1000,
+    # Phase B — flagship building upgrade (the aspirational-floor sink; owner-fixed 50k)
+    "colony.upgrade_building":  50000,
+}
+
+# ── КАТАЛОГИ ПРЕДМЕТОВ: id + подпись, ОДНА правда на бэкенде ────────────────
+# До 2026-09-06 каждый из этих списков существовал дважды: сет id здесь и массив
+# [id, подпись] во `frontend/viewer-shedcolony.js` с комментарием «MUST stay a
+# subset». Две копии одного списка расходятся молча при первой правке одной из
+# них, а фронт замерзает на CDN Twitch до следующего ревью — то есть снять или
+# добавить товар было нельзя без подачи новой версии расширения. Теперь список
+# едет отсюда (`/api/shedcolony/config` → `item_catalog`), а во фронте остаётся
+# запасная копия на случай недоступного конфига.
+#
+# Подписи русские: их показывает панель. Сеты для валидации выводятся из
+# каталога ниже — добавить товар = дописать строку СЮДА, и он появится и в
+# списке зрителя, и в разрешённых.
+#
+# Это подготовка к «каталог берётся из игры» (ROADMAP, принцип 06.09): когда мод
+# начнёт присылать реальный список сборки, он ляжет в эти же поля, и новой
+# подачи в Twitch уже не потребуется.
+
+# give_item — еда, которой зритель кормит колониста (без инструментов и эксплойтов).
+_GIVE_ITEM_CATALOG = [
+    ("minecraft:bread", "Хлеб"),
+    ("minecraft:cooked_beef", "Стейк"),
+    ("minecraft:cooked_chicken", "Жареная курица"),
+    ("minecraft:cooked_porkchop", "Свинина"),
+    ("minecraft:apple", "Яблоко"),
+    ("minecraft:golden_carrot", "Золотая морковь"),
+    ("minecraft:golden_apple", "Золотое яблоко"),
+    ("minecraft:cake", "Торт"),
+    ("minecraft:pumpkin_pie", "Тыквенный пирог"),
+    ("minecraft:cookie", "Печенье"),
+]
+
+# colony.supply — БАЗОВЫЕ строительные/пищевые материалы (БЕЗ железа/золота/алмазов),
+# чтобы помощь зрителя строила и кормила колонию, но не обесценивала добычу стримера.
+# (переименовано из colony.donate 29.06 — в лексиконе Twitch «донат» читается как реальные деньги.)
+_SUPPLY_CATALOG = [
+    ("minecraft:oak_log", "Брёвна"),
+    ("minecraft:oak_planks", "Доски"),
+    ("minecraft:cobblestone", "Булыжник"),
+    ("minecraft:stone", "Камень"),
+    ("minecraft:dirt", "Земля"),
+    ("minecraft:sand", "Песок"),
+    ("minecraft:gravel", "Гравий"),
+    ("minecraft:torch", "Факелы"),
+    ("minecraft:bread", "Хлеб"),
+    ("minecraft:wheat", "Пшеница"),
+    ("minecraft:carrot", "Морковь"),
+    ("minecraft:potato", "Картофель"),
+]
+
+# colony.set_minimum_stock — что зритель может закрепить как неснижаемый запас склада.
+# Только расходники и материалы (тот же дух, что у supply): пол из хлеба, досок и факелов
+# колонии помогает, а запас алмазов обесценил бы экономику стримера.
+# NB: земля/песок/гравий были в разрешённых, но панель их не показывала — при сведении
+# двух списков в один они убраны: закреплять их в запасе смысла нет.
+_MIN_STOCK_CATALOG = [
+    ("minecraft:bread", "Хлеб"),
+    ("minecraft:oak_planks", "Доски"),
+    ("minecraft:oak_log", "Брёвна"),
+    ("minecraft:cobblestone", "Булыжник"),
+    ("minecraft:stone", "Камень"),
+    ("minecraft:coal", "Уголь"),
+    ("minecraft:charcoal", "Древ. уголь"),
+    ("minecraft:torch", "Факелы"),
+    ("minecraft:stick", "Палки"),
+    ("minecraft:wheat", "Пшеница"),
+    ("minecraft:carrot", "Морковь"),
+    ("minecraft:potato", "Картофель"),
+    ("minecraft:apple", "Яблоки"),
+]
+
+_GIVE_ITEM_WHITELIST = {item for item, _ in _GIVE_ITEM_CATALOG}
+_SUPPLY_WHITELIST = {item for item, _ in _SUPPLY_CATALOG}
+_MIN_STOCK_WHITELIST = {item for item, _ in _MIN_STOCK_CATALOG}
+
+# set_minimum_stock quantity bounds — in STACKS (the MineColonies module multiplies by the item's
+# max stack size each tick, so 1 = keep one stack, 16 = keep 16 stacks). The mod clamps to 1..16 too.
+_MIN_STOCK_QTY_MIN = 1
+_MIN_STOCK_QTY_MAX = 16
+
+# colony.clear_backlog — the target building is identified by its BlockPos "x,y,z" (the mod's
+# colony.targets reporter emits it; the viewer picks one). Ints only; not security-sensitive
+# (the mod resolves the building by pos and never trusts it beyond that), just length-bounded.
+_BUILDING_POS_RE = re.compile(r"^-?\d{1,7},-?\d{1,4},-?\d{1,7}$")
+
+# colony.start_research / colony.finish_research — branch + research id are MineColonies
+# ResourceLocations like "minecolonies:technology" / "minecolonies:technology/higher_learning".
+# The mod parses them via ResourceLocation.parse (which validates); we only length/charset-bound.
+_RESEARCH_ID_RE = re.compile(r"^[a-z0-9_./:-]{1,120}$")
+
+# Fixed XP per add_xp purchase (viewer picks the skill, server fixes the amount).
+_XP_AMOUNT = 1000
+
+# colonist.assign_job — job key allowlist (must match what the frontend offers).
+# Validated against ^[a-z_]{1,40}$ as a belt-and-suspenders fallback if the set grows.
+_VALID_JOBS = {
+    "miner", "farmer", "lumberjack", "builder", "deliveryman",
+    "baker", "blacksmith", "cook", "fisherman", "guard",
+    "knight", "archer", "ranger", "druid", "healer",
+    "student", "researcher", "enchanter", "alchemist",
+    "composter", "dyer", "fletcher", "mechanic", "smelter",
+    "sawmill_worker", "stonemason", "concrete_mixer", "planter",
+    "courier",
+}
+_JOB_KEY_RE = re.compile(r"^[a-z_]{1,40}$")
+
+# fulfill_request — optional selector: which open request to close. The value is a MineColonies
+# request token AS THE MOD RENDERS IT, e.g. "StandardToken{id=<uuid>}" — NOT a bare UUID, so the
+# charset must allow letters/braces/'='. Not security-sensitive (only picks among the viewer's OWN
+# colonist's requests; the mod compares it as a string with .equals, never in SQL/shell), just
+# length-bounded so we don't store unbounded client junk. Absent → mod closes the top open request.
+_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9_.:{}=\-]{1,128}$")
+
+# Actions that operate on the viewer's EXISTING colonist (need a resolved citizen_id).
+_NEEDS_CITIZEN = (
+    "colonist.assign_job",
+    "colonist.assign_home",
+    "colonist.add_xp",
+    "colonist.fulfill_request",
+    "colonist.feed",
+    "colonist.cure_disease",
+    "colonist.heal",
+    "colonist.clear_mourn",
+    "colonist.give_item",
+    "colonist.set_gender",
+    "colonist.teleport",
+    "colonist.equip_leather",
+    "colonist.equip_iron",
+    "colonist.equip_diamond",
+    "colonist.happiness_boost",
+    # Phase C — gear cluster (all act on the viewer's own colonist)
+    "colonist.equip_netherite",
+    "colonist.equip_weapon",
+    "colonist.give_shield",
+    "colonist.give_tools",
+    "colonist.set_guard_task",
+    "colonist.set_guard_retreat",
+    "colonist.auto_work",
+)
+
+
+async def _resolve_citizen(conn, channel_id: int, viewer: str) -> str | None:
+    """The viewer's own active colonist id, from the link table. None if not linked."""
+    cur = await conn.execute(
+        "SELECT citizen_id FROM shedcolony_colony_link "
+        "WHERE channel_id=? AND viewer_id=? AND status='active'",
+        (channel_id, viewer))
+    row = await cur.fetchone()
+    return row[0] if row else None
+
+
+async def _charge_and_enqueue(action_type: str, data: dict, price: int,
+                              username: str, channel_id: int) -> tuple[str, None] | dict:
+    """BEGIN IMMEDIATE: idempotency + atomic charge + enqueue. Mirrors bannerlord.
+
+    Stores price + initiated_by + viewer_id in the enqueued data so the mod can act and so a
+    failed action auto-refunds. Returns (action_id, None) or a refusal-dict.
+    """
+    db = get_db()
+    async with db._connect() as conn:
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+
+            # ── Idempotency replay (client_action_id) ──
+            client_action_id = (data.get("client_action_id") or "").strip() or None
+            if client_action_id and len(client_action_id) > 128:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "client_action_id слишком длинный"}
+            if client_action_id:
+                cur = await conn.execute(
+                    "SELECT action_id FROM module_actions "
+                    "WHERE channel_id=? AND module_id='shedcolony' AND client_action_id=? LIMIT 1",
+                    (channel_id, client_action_id))
+                row = await cur.fetchone()
+                if row:
+                    await conn.execute("ROLLBACK")
+                    return {"success": True, "message": "Действие уже принято",
+                            "action_id": row[0], "idempotent_replay": True}
+
+            # ── Atomic charge ──
+            if price > 0:
+                cur = await conn.execute(
+                    "UPDATE viewers SET points = points - ? "
+                    "WHERE channel_id=? AND username=? AND points >= ?",
+                    (price, channel_id, username, price))
+                if cur.rowcount != 1:
+                    cur2 = await conn.execute(
+                        "SELECT points FROM viewers WHERE channel_id=? AND username=?",
+                        (channel_id, username))
+                    bal_row = await cur2.fetchone()
+                    balance = (bal_row[0] if bal_row else 0) or 0
+                    await conn.execute("ROLLBACK")
+                    return {"success": False,
+                            "message": f"Недостаточно крустиков: {balance} < {price}"}
+
+            # ── Enqueue (price + initiated_by → refund-on-failure; viewer_id → mod identity) ──
+            action_id = uuid.uuid4().hex
+            payload = dict(data)
+            payload["initiated_by"] = username
+            payload["viewer_id"] = username
+            payload["price"] = price
+            await conn.execute(
+                "INSERT INTO module_actions "
+                "(channel_id, module_id, action_id, type, data, status, client_action_id) "
+                "VALUES (?, 'shedcolony', ?, ?, ?, 'queued', ?)",
+                (channel_id, action_id, action_type,
+                 json.dumps(payload, ensure_ascii=False), client_action_id))
+
+            await conn.commit()
+        except Exception as ex:
+            try:
+                await conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            log.exception("[shedcolony buy] commit failed ch=%s user=%s action=%s: %s",
+                          channel_id, username, action_type, ex)
+            raise
+    return (action_id, None)
+
+
+async def _buy_action_locked(username: str, channel_id: int,
+                             action_type: str, data: dict) -> dict:
+    # 2026-09-01 — аварийная пауза стримера. Стоит ВНУТРИ кассы, а не во
+    # внешней HTTP-ручке: ручка не единственный вход, и тесты кассы бьют именно
+    # сюда. Проверка ДО списания — денег не взяли, значит и возвращать нечего.
+    # Второй затвор — выдача заданий моду (routes/module_api.py): без него уже
+    # стоящее в очереди уехало бы в игру.
+    from actions_pause import is_paused as _is_paused, PAUSED_MESSAGE as _PAUSED_MSG
+    async with get_db()._connect() as _conn_pause:
+        if await _is_paused(_conn_pause, channel_id):
+            return {"success": False, "message": _PAUSED_MSG, "paused": True}
+
+    # Allowlist + server-side price
+    if action_type not in _PURCHASABLE_ACTIONS:
+        return {"success": False, "message": f"Действие '{action_type}' не разрешено"}
+    price = _ACTION_PRICES.get(action_type)
+    if price is None:
+        return {"success": False, "message": f"У '{action_type}' нет server-side цены"}
+    data["price"] = price   # hard override
+
+    db = get_db()
+    # Resolve the viewer's own colonist server-side for colonist-targeted actions.
+    if action_type in _NEEDS_CITIZEN:
+        async with db._connect() as conn:
+            citizen_id = await _resolve_citizen(conn, channel_id, username)
+        if not citizen_id:
+            return {"success": False, "message": "У тебя ещё нет колониста — сначала создай его"}
+        data["citizen_id"] = citizen_id   # override any client-supplied value (security)
+
+    if action_type == "colonist.spawn":
+        # 1 viewer = 1 colonist: refuse a second spawn while one is alive (UI hides the
+        # button, but the request is craftable — without this a re-roll burns 1000💎).
+        pending_cid = None
+        async with db._connect() as conn:
+            existing = await _resolve_citizen(conn, channel_id, username)
+            if not existing:
+                # Аудит 2026-07-04: link-строка появляется только ПОСЛЕ исполнения модом — второй
+                # клик в этом окне списывал вторые 1000 и спавнил вечного сироту-колониста. Мы под
+                # per-user lock'ом, так что check-then-charge гонок не имеет. Совпавший
+                # client_action_id пропускаем дальше — им займётся идемпотентный replay.
+                cur = await conn.execute(
+                    "SELECT client_action_id FROM module_actions "
+                    "WHERE channel_id=? AND module_id='shedcolony' AND type='colonist.spawn' "
+                    "AND status IN ('queued','dispatched') AND data LIKE ? LIMIT 1",
+                    (channel_id, f'%"initiated_by": "{username}"%'))
+                row = await cur.fetchone()
+                if row:
+                    pending_cid = row[0] or ""
+        if existing:
+            return {"success": False, "message": "У тебя уже есть колонист в этой колонии"}
+        if pending_cid is not None and pending_cid != (data.get("client_action_id") or "").strip():
+            return {"success": False,
+                    "message": "Заявка на колониста уже в очереди — подожди пару секунд"}
+        data["name"] = username           # MVP: colonist named after the viewer
+    elif action_type == "colonist.add_xp":
+        data["amount"] = _XP_AMOUNT        # server-fixed XP per purchase
+    elif action_type == "colonist.assign_job":
+        job = (data.get("job") or "").strip()
+        if job not in _VALID_JOBS or not _JOB_KEY_RE.match(job):
+            return {"success": False, "message": "Недопустимая профессия"}
+        data["job"] = job
+    # colonist.set_gender — НЕТ валидации: мод ПЕРЕКЛЮЧАЕТ пол (ColonyOps.toggleGender flips,
+    # target-параметр игнорит), а фронт-кнопка «🔄 Сменить пол» его и не шлёт. Старое требование
+    # data.gender ∈ male/female давало вечный отказ «Пол должен быть male или female» (баг #29,
+    # 2026-07-13). Действие проходит как есть → мод флипает.
+    elif action_type == "colonist.give_item":
+        item = (data.get("item") or "").strip()
+        if item not in _GIVE_ITEM_WHITELIST:
+            return {"success": False, "message": "Этот предмет нельзя выдать"}
+        data["item"] = item                # whitelisted id → mod trusts it
+    elif action_type == "colony.supply":
+        item = (data.get("item") or "").strip()
+        if item not in _SUPPLY_WHITELIST:
+            return {"success": False, "message": "Этот ресурс нельзя отправить на склад"}
+        data["item"] = item                # whitelisted basic resource → mod trusts it
+    elif action_type == "colonist.fulfill_request":
+        rid = (data.get("request_id") or "").strip()
+        if rid:
+            if not _REQUEST_ID_RE.match(rid):
+                return {"success": False, "message": "Некорректная просьба"}
+            data["request_id"] = rid       # which open request to close; mod matches by token
+        else:
+            data.pop("request_id", None)   # absent → mod closes the top open request
+    elif action_type == "colony.set_minimum_stock":
+        item = (data.get("item") or "").strip()
+        if item not in _MIN_STOCK_WHITELIST:
+            return {"success": False, "message": "Этот предмет нельзя закрепить в запасе"}
+        try:
+            qty = int(data.get("qty"))
+        except (TypeError, ValueError):
+            return {"success": False, "message": "Некорректное количество"}
+        if not (_MIN_STOCK_QTY_MIN <= qty <= _MIN_STOCK_QTY_MAX):
+            return {"success": False, "message": f"Количество должно быть {_MIN_STOCK_QTY_MIN}–{_MIN_STOCK_QTY_MAX}"}
+        data["item"] = item
+        data["qty"] = qty
+    elif action_type in ("colony.clear_backlog", "colony.upgrade_building"):
+        building = (data.get("building") or "").strip()
+        if not _BUILDING_POS_RE.match(building):
+            return {"success": False, "message": "Выбери здание"}
+        data["building"] = building
+    elif action_type in ("colony.start_research", "colony.finish_research"):
+        branch = (data.get("branch") or "").strip()
+        research = (data.get("research") or "").strip()
+        if not _RESEARCH_ID_RE.match(branch) or not _RESEARCH_ID_RE.match(research):
+            return {"success": False, "message": "Выбери исследование"}
+        data["branch"] = branch
+        data["research"] = research
+    elif action_type == "colonist.set_guard_task":
+        task = (data.get("task") or "").strip().lower()
+        if task not in ("guard", "patrol"):   # FOLLOW omitted — no player to follow in a backend action
+            return {"success": False, "message": "Задача должна быть 'guard' или 'patrol'"}
+        data["task"] = task
+    elif action_type == "colonist.set_guard_retreat":
+        data["retreat"] = bool(data.get("retreat"))   # normalize to a real bool for the mod
+
+    # Товар, которого нет в СБОРКЕ стримера, отклоняем ДО списания. Панель его
+    # уже не показывает, но она могла быть открыта до сверки — а мод в ответ на
+    # такую покупку ответит отказом, и зритель получит списание с возвратом
+    # вместо честного «этого в игре нет». Нашёл внешний обзор 06.09: фильтр
+    # стоял только на выдаче каталога. Тот же класс, что 05.09 в RimWorld, где
+    # чёрный список сперва прикрыл лишь приём каталога, а покупку — нет.
+    item_for_build = (data.get("item") or "").strip()
+    if item_for_build and action_type in (
+            "colonist.give_item", "colony.supply", "colony.set_minimum_stock"):
+        if item_for_build in await _missing_in_build(channel_id):
+            return {"success": False,
+                    "message": "Этого предмета нет в сборке стримера — выдать нечем"}
+
+    result = await _charge_and_enqueue(action_type, data, price, username, channel_id)
+    if isinstance(result, dict):
+        return result
+    action_id, _ = result
+    log.info("[shedcolony ENQUEUE] action=%s user=@%s ch=%s price=%s id=%s",
+             action_type, username, channel_id, price, action_id)
+    return {"success": True, "action_id": action_id, "charged": price,
+            "message": f"Действие в очереди ({price}💎 списано)"}
+
+
+@router.post("/api/shedcolony/action")
+async def shedcolony_buy_action(request: Request):
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    body = await request.json()
+    action_type = (body.get("action_type") or "").strip()
+    data = body.get("data") or {}
+    if not isinstance(data, dict):
+        return {"success": False, "message": "data должен быть объектом"}
+
+    user_lock = await _get_user_lock(channel_id, username)
+    async with user_lock:
+        return await _buy_action_locked(username, channel_id, action_type, data)
+
+
+@router.get("/api/shedcolony/my-colonist")
+async def shedcolony_my_colonist(request: Request):
+    """Состояние СВОЕГО колониста зрителя (link + state). {linked:false} если нет."""
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT l.citizen_id, l.status, s.hp, s.job, s.skills_json, s.status, s.state_json "
+            "FROM shedcolony_colony_link l "
+            "LEFT JOIN shedcolony_colonist_state s "
+            "  ON s.channel_id = l.channel_id AND s.citizen_id = l.citizen_id "
+            "WHERE l.channel_id=? AND l.viewer_id=? AND l.status='active'",
+            (channel_id, username))
+        row = await cur.fetchone()
+    if not row:
+        return {"success": True, "linked": False}
+
+    citizen_id, link_status, hp, job, skills_json, state_status, state_json = row
+    try:
+        skills = json.loads(skills_json or "{}")
+    except Exception:
+        skills = {}
+    try:
+        state = json.loads(state_json) if state_json else None   # full rich blob from the mod
+    except Exception:
+        state = None
+    return {"success": True, "linked": True, "citizen_id": citizen_id,
+            "name": username, "job": job, "hp": hp, "skills": skills,
+            "status": state_status or link_status, "state": state}
+
+
+async def _missing_in_build(channel_id: int) -> set[str]:
+    """Товары, которых нет в реестре предметов ЭТОЙ сборки (мод сообщил сам).
+
+    Мод сверяет каталог с `BuiltInRegistries.ITEM` своей сборки и шлёт
+    `colony.catalog` со списком отсутствующих. Пустой ответ (мод молчит, старая
+    версия, игра не запускалась) = ничего не гасим: показать лишнее не так
+    дорого, как молча схлопнуть весь магазин.
+    """
+    from dependencies import get_db
+    try:
+        async with get_db()._connect() as conn:
+            cur = await conn.execute(
+                "SELECT data FROM shedcolony_catalog_check WHERE channel_id=?", (channel_id,))
+            row = await cur.fetchone()
+    except Exception:
+        return set()                       # таблицы ещё нет / БД занята — торгуем полным каталогом
+    if not row or not row[0]:
+        return set()
+    try:
+        blob = json.loads(row[0])
+        return {str(x) for x in (blob.get("missing") or []) if isinstance(x, str)}
+    except Exception:
+        return set()
+
+
+def _visible(catalog, missing: set[str]) -> list[list[str]]:
+    """Каталог минус отсутствующее в сборке. Если вычесть пришлось бы всё —
+    отдаём как есть: пустой список пикеров означал бы сломанную панель, а
+    причина такого совпадения скорее в кривом ответе мода, чем в игре."""
+    rows = [[item, label] for item, label in catalog if item not in missing]
+    return rows if rows else [[item, label] for item, label in catalog]
+
+
+@router.get("/api/shedcolony/config")
+async def shedcolony_config(request: Request = None, channel_id: int | None = None,
+                            full: bool = False):
+    """Цены действий и каталоги предметов ShedColony — единый источник для фронта.
+
+    ЗАЧЕМ. Тот же словарь, по которому бэкенд списывает крустики. До 2026-09-05
+    фронт держал свои копии (28 чисел в подписях кнопок), и поменять цену было
+    нельзя: расширение замерзает на CDN Twitch до следующего ревью, а бэкенд
+    деплоится за минуты. Публичный — числа не секретны, панель показывает их
+    всем зрителям. Отдаём словарь целиком: новое действие появится здесь само,
+    без правки этого эндпоинта и без новой подачи на ревью.
+
+    С 2026-09-06 сюда же переехали каталоги предметов (`item_catalog`) — те самые
+    списки, по которым валидируется покупка. Убрать испортившийся товар или
+    добавить новый теперь стоит деплоя бэкенда (минуты), а не релиза расширения
+    (недели). Это же поле примет каталог, присланный модом из реальной сборки.
+
+    С 2026-09-06 из каталога вычитается то, чего нет в реестре предметов сборки
+    стримера: мод сверяет список сам и присылает отсутствующее. Зритель не
+    увидит товар, который в его игре выдать нечем. JWT нужен только чтобы
+    понять, ЧЕЙ это канал — без него отдаём каталог канала по умолчанию.
+
+    `full=1` отдаёт каталог БЕЗ этого вычитания — и просить его должен только
+    мод. Причина найдена внешним обзором 06.09 и стоила бы всей затеи: мод
+    спрашивает каталог у этой же ручки, и если отдать ему уже отфильтрованный
+    список, он проверит лишь оставшееся, ответит «у меня всё есть», а полная
+    замена вернёт скрытые товары в продажу. Дальше они мигают: сверка — скрыли,
+    следующая — вернули. Сверять можно только полный исходный каталог;
+    фильтрация существует для зрителя, а не для того, кто её порождает.
+    """
+    # NB: mypy-заметка для будущего — параметр channel_id объявлен ПОСЛЕ request,
+    # FastAPI разбирает его как query. Порядок менять нельзя: Request без
+    # значения по умолчанию сломает вызовы из тестов.
+    # Канал: JWT зрителя → явный параметр → умолчание. Параметром пользуется САМ
+    # МОД: чтобы сверить каталог с реестром своей сборки, ему надо сперва этот
+    # каталог получить, а JWT зрителя у него нет. Секретов тут не отдаётся —
+    # цены и названия предметов и так видит каждый зритель панели.
+    jwt_channel = None
+    if request is not None:
+        auth = require_jwt_user(request)
+        if auth:
+            _, jwt_channel = auth
+    channel_id = resolve_channel_id_or_default(jwt_channel or channel_id)
+    missing = set() if full else await _missing_in_build(channel_id)
+    return {
+        "action_prices": _ACTION_PRICES,
+        # Каталоги предметов — те же списки, по которым валидируется покупка (см. выше).
+        # Пары [id, подпись]: панель рисует подпись, шлёт id.
+        "item_catalog": {
+            "give_item": _visible(_GIVE_ITEM_CATALOG, missing),
+            "supply": _visible(_SUPPLY_CATALOG, missing),
+            "min_stock": _visible(_MIN_STOCK_CATALOG, missing),
+        },
+    }
+
+
+@router.get("/api/shedcolony/capacity")
+async def shedcolony_capacity(request: Request):
+    """Свободные слоты колонии (для slot-availability UI). Мод пушит снимок (colony.capacity)."""
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    _, channel_id = auth
+
+    jobs: list[dict] = []
+    free_beds = None
+    targets = None
+    data_age_sec = None
+    db = get_db()
+    try:
+        async with db._connect() as conn:
+            cur = await conn.execute(
+                "SELECT job_key, free_slots, total_slots FROM shedcolony_capacity "
+                "WHERE channel_id=? ORDER BY job_key", (channel_id,))
+            jobs = [{"job": r[0], "free": r[1], "total": r[2]} for r in await cur.fetchall()]
+            # Freshness (аудит 2026-07-04): мод пушит capacity каждые ~5с — возраст этой строки =
+            # «жив ли игровой сервер». Без сигнала фронт рисовал протухшие кнопки против мёртвого
+            # сервера, и зритель покупал в вечную очередь.
+            cur = await conn.execute(
+                "SELECT free_beds, total_beds, "
+                "CAST((julianday('now') - julianday(updated_at)) * 86400 AS INTEGER) "
+                "FROM shedcolony_capacity_meta WHERE channel_id=?",
+                (channel_id,))
+            meta = await cur.fetchone()
+            if meta:
+                free_beds = meta[0]
+                data_age_sec = meta[2]
+            # Phase A picker targets (research / building-backlog / warehouse) — mod pushes colony.targets.
+            cur = await conn.execute(
+                "SELECT data FROM shedcolony_targets WHERE channel_id=?", (channel_id,))
+            trow = await cur.fetchone()
+            if trow and trow[0]:
+                try:
+                    targets = json.loads(trow[0])
+                except Exception:
+                    targets = None
+    except Exception as ex:
+        log.warning("[shedcolony capacity] read failed ch=%s: %s", channel_id, ex)
+    stale = data_age_sec is None or data_age_sec > 60   # no snapshot ever, or mod silent > 60s
+    return {"success": True, "jobs": jobs, "free_beds": free_beds, "targets": targets,
+            "stale": stale, "data_age_sec": data_age_sec}

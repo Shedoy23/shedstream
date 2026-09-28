@@ -1,0 +1,4 @@
+игра: X:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\bin\Win64_Shipping_Client
+версия CampaignSystem: 1.0.0.0
+КОНТРАКТ СОВПАЛ: структура движка совпала со всеми 350 ожиданиями
+автопилот в этой сборке включится

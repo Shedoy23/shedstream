@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>ShedLink — кабинет {{ display }}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0e0e10;color:#efeff1;margin:0;padding:20px;min-height:100vh;box-sizing:border-box}
+  /* 840px — ширина «под чтение текста абзацами», и она стояла здесь с тех пор,
+     когда страница была текстовой инструкцией. Сейчас это дашборд: карточки
+     просматривают, а не читают. На мониторе 1920 при 840px пустовала половина
+     экрана, а сетка карточек (`.grid`, auto-fit) умела развернуться шире и
+     просто не получала места. Расширено 2026-08-02 по замечанию владельца.
+     Абзацы текста при этом НЕ растягиваются — им ниже стоит свой потолок
+     (иначе строка в 1400px нечитаема, и лекарство было бы хуже болезни). */
+  .wrap{max-width:1400px;margin:40px auto}
+  /* Потолок строки для сплошного текста внутри секций. 78ch ≈ комфортная
+     длина строки; карточек, таблиц и полей ввода не касается. */
+  .section .sub,
+  .section ol,
+  .section ul,
+  .status .sub{max-width:78ch}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+  .header h1{margin:0;font-size:22px}
+  .nick{color:#9147ff}
+  .logout{background:transparent;color:#adadb8;border:1px solid #3a3a3d;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+  .logout:hover{color:#fff;border-color:#fff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px}
+  /* Состояние подключения — первое, что видит стример (2026-07-26).
+     Раньше страница начиналась с технических переключателей и не отвечала на
+     единственный вопрос новичка: «у меня вообще работает?» */
+  .status{border-radius:12px;padding:20px 24px;margin-bottom:24px;
+          border:1px solid #2d2d2f;background:#1f1f23}
+  .status.ok{border-color:#2f6f3f;background:linear-gradient(180deg,rgba(63,185,80,.10),transparent)}
+  .status.wait{border-color:#6b5a2a;background:linear-gradient(180deg,rgba(244,183,64,.10),transparent)}
+  .status .head{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700}
+  .status .why{color:#adadb8;font-size:14px;margin-top:8px;line-height:1.55}
+  .steps{list-style:none;padding:0;margin:16px 0 0}
+  .steps li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;
+            font-size:14px;color:#adadb8;border-top:1px solid #2d2d2f}
+  .steps li:first-child{border-top:0}
+  .steps li.done{color:#efeff1}
+  .steps .mark{flex:0 0 20px;text-align:center}
+  .steps .hint{display:block;color:#f4b740;font-size:13px;margin-top:3px}
+  .counts{display:flex;gap:22px;margin-top:14px;color:#6e6e73;font-size:13px}
+  /* Установка мода — пошагово (2026-07-26). Раньше дашборд показывал токен и
+     молчал о том, что с ним делать: путь до папки, имя файла и три поля JSON
+     стример должен был узнать у владельца. Каждый такой вопрос — сообщение
+     в личку. */
+  .install ol{margin:0;padding-left:22px;line-height:1.85}
+  .install li{margin-bottom:6px}
+  .install .path{background:#101013;border:1px solid #2d2d2f;border-radius:6px;
+                 padding:8px 12px;margin:6px 0;font-family:Consolas,monospace;
+                 font-size:12.5px;color:#e0d6ff;word-break:break-all}
+  .cfgbox{position:relative;margin-top:10px}
+  .cfgbox textarea{width:100%;box-sizing:border-box;height:132px;background:#101013;
+                   color:#9ef0c0;border:1px solid #2d2d2f;border-radius:8px;
+                   padding:12px;font-family:Consolas,monospace;font-size:12.5px;
+                   line-height:1.5;resize:vertical}
+  .cfgbox .cfgcopy{position:absolute;top:8px;right:8px;background:#3a3a3d;
+                   color:#efeff1;border:0;border-radius:6px;padding:6px 12px;
+                   cursor:pointer;font-size:12px}
+  .cfgbox .cfgcopy:hover{background:#4a4a4d}
+  .warnbox{background:rgba(244,183,64,.08);border:1px solid #6b5a2a;
+           border-radius:8px;padding:12px 14px;margin-top:12px;
+           font-size:13px;color:#d8cfa8;line-height:1.6}
+  .tile{background:#1f1f23;border-radius:10px;padding:20px}
+  .tile .lbl{color:#adadb8;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+  .tile .val{font-size:20px;font-weight:600}
+  .tier-badge{display:inline-block;padding:4px 12px;border-radius:6px;font-weight:700;font-size:14px;color:#fff;background:{{ tier_color }}}
+  .section{background:#1f1f23;border-radius:10px;padding:24px;margin-bottom:24px}
+  .section h2{margin:0 0 4px;font-size:18px;color:#c084fc}
+  .section .sub{color:#adadb8;font-size:13px;margin-bottom:16px}
+  .footnote{margin-top:28px;color:#6e6e73;font-size:13px;line-height:1.5}
+  code{background:#1f1f23;padding:2px 8px;border-radius:4px;color:#e0d6ff}
+  /* Boosty admin */
+  .boosty-tier-info{background:rgba(192,132,252,0.07);border:1px solid #3a2a5a;
+                     border-radius:6px;padding:10px 14px;font-size:13px;
+                     color:#adadb8;line-height:1.6;margin-bottom:14px}
+  .boosty-tier-info b{color:#c084fc}
+  .boosty-row{display:flex;align-items:center;gap:10px;padding:8px 12px;
+              background:rgba(192,132,252,0.05);border:1px solid #2d2d2f;
+              border-radius:6px;margin-bottom:6px;font-size:13px}
+  .boosty-row .u{flex:1;color:#efeff1;font-weight:700}
+  .boosty-row .t{color:#c084fc;font-size:12px}
+  .boosty-row .n{color:#9ca3af;font-style:italic;font-size:12px;flex:1;text-align:right}
+  .boosty-row button{background:#7f1d1d;color:#fca5a5;border:none;padding:4px 10px;
+                      border-radius:4px;cursor:pointer;font-size:12px}
+  .boosty-row button:hover{background:#991b1b;color:#fff}
+  .automsg-row{display:grid;grid-template-columns:1fr 110px auto 130px 32px;gap:8px;
+               align-items:center;margin-bottom:6px}
+  .automsg-row input.am-text,.automsg-row select{background:#0e0e10;color:#efeff1;
+       border:1px solid #3d3d3f;border-radius:5px;padding:8px;font-size:13px;min-width:0}
+  .automsg-row .am-on{color:#adadb8;font-size:12px;white-space:nowrap;
+                      display:flex;align-items:center;gap:5px}
+  .automsg-row .am-next{color:#9ca3af;font-size:12px;font-style:italic;
+                        text-align:right;white-space:nowrap;overflow:hidden;
+                        text-overflow:ellipsis}
+  .automsg-row .am-del{background:#7f1d1d;color:#fca5a5;border:none;border-radius:4px;
+                       cursor:pointer;font-size:12px;padding:6px 0}
+  .automsg-row .am-del:hover{background:#991b1b;color:#fff}
+  .automsg-actions{display:flex;gap:8px;margin-top:12px}
+  .automsg-actions button{background:#0e0e10;color:#efeff1;border:1px solid #3d3d3f;
+                          border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer}
+  .automsg-actions button.primary{background:#772ce8;border-color:#772ce8;font-weight:700}
+  .automsg-actions button:hover{border-color:#772ce8}
+  @media(max-width:720px){
+    .automsg-row{grid-template-columns:1fr 1fr;grid-auto-rows:auto}
+    .automsg-row input.am-text{grid-column:1 / -1}
+    .automsg-row .am-next{text-align:left}
+  }
+  .boosty-form{display:grid;grid-template-columns:1fr 90px 1fr auto;gap:8px;
+               margin-top:12px;margin-bottom:8px}
+  .boosty-form input,.boosty-form select{background:#0e0e10;color:#efeff1;
+       border:1px solid #3d3d3f;border-radius:5px;padding:8px;font-size:13px}
+  .boosty-form button{background:#7e22ce;color:#fff;border:none;
+                       padding:8px 16px;border-radius:5px;cursor:pointer;
+                       font-weight:700;font-size:13px}
+  .boosty-form button:hover{background:#9333ea}
+  .boosty-bulk{margin-top:16px;border-top:1px solid #2d2d2f;padding-top:14px}
+  .boosty-bulk textarea{width:100%;box-sizing:border-box;background:#0e0e10;
+      color:#efeff1;border:1px solid #3d3d3f;border-radius:5px;padding:8px;
+      font-family:monospace;font-size:12px;min-height:80px;resize:vertical}
+  .boosty-bulk button{background:#1f1a30;color:#c084fc;border:1px solid #5b21b6;
+       padding:8px 16px;border-radius:5px;cursor:pointer;font-size:13px;margin-top:8px}
+  .boosty-empty{color:#6e6e73;font-style:italic;text-align:center;padding:18px}
+  .boosty-msg{margin-top:10px;padding:8px 12px;border-radius:5px;font-size:13px;display:none}
+  .boosty-msg.ok{background:rgba(52,211,153,0.1);border:1px solid #34d399;color:#34d399;display:block}
+  .boosty-msg.err{background:rgba(248,113,113,0.1);border:1px solid #f87171;color:#f87171;display:block}
+  @media (max-width:640px){
+    .boosty-form{grid-template-columns:1fr;}
+    .boosty-row{flex-wrap:wrap}
+  }
+  /* Module tokens */
+  .tok-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+  .tok-name{width:90px;font-weight:700;color:#c084fc}
+  .tok-field{flex:1;min-width:180px;background:#0e0e10;color:#9ca3af;border:1px solid #3d3d3f;border-radius:5px;padding:8px;font-family:monospace;font-size:12px}
+  .tok-copy{background:#7e22ce;color:#fff;border:none;padding:8px 14px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:700}
+  .tok-copy:hover{background:#9333ea}
+  .tok-show{background:transparent;color:#adadb8;border:1px solid #3a3a3d;padding:8px 12px;border-radius:5px;cursor:pointer;font-size:13px}
+  .tok-show:hover{color:#fff;border-color:#fff}
+  /* Module switcher */
+  .mod-switch{display:flex;gap:10px}
+  .mod-btn{flex:1;background:#0e0e10;color:#adadb8;border:1px solid #3d3d3f;padding:12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600}
+  .mod-btn:hover{border-color:#9147ff;color:#fff}
+  .mod-btn.active{background:#7e22ce;color:#fff;border-color:#9147ff}
+
+  /* ShedLink control room: visual layer only; existing controls keep their IDs and handlers. */
+  :root{color-scheme:dark;--sl-bg:#090e1a;--sl-panel:#121c2d;--sl-border:#27364e;--sl-text:#edf3fb;--sl-muted:#9aabc2;--sl-lilac:#a899ff;--sl-mint:#6be5cc}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{position:relative;padding:0 24px 64px;background:radial-gradient(circle at 86% 2%,rgba(119,91,235,.2),transparent 28%),radial-gradient(circle at 5% 28%,rgba(33,151,160,.12),transparent 32%),var(--sl-bg);color:var(--sl-text);font-family:Manrope,"Segoe UI",sans-serif;line-height:1.5}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.2;background-image:linear-gradient(rgba(179,197,230,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(179,197,230,.1) 1px,transparent 1px);background-size:64px 64px;mask-image:linear-gradient(to bottom,#000,transparent 75%)}
+  .wrap{position:relative;max-width:1360px;margin:0 auto}
+  .header{min-height:90px;margin:0;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid rgba(151,174,213,.16)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{position:relative;display:grid;place-items:center;width:41px;height:41px;border-radius:13px;background:linear-gradient(145deg,#8171f8,#3eb6bd);box-shadow:0 10px 30px rgba(70,101,213,.3);color:white;font-family:"Space Grotesk",sans-serif;font-size:24px;font-weight:700;line-height:1}
+  .brand-mark span{position:absolute;top:-6px;right:-6px;color:#d7ffef;font-size:13px}
+  .brand-copy{display:grid;gap:0}.brand-copy strong{font-family:"Space Grotesk",sans-serif;font-size:18px;letter-spacing:.12em;line-height:1.1}.brand-copy small{color:var(--sl-muted);font-size:11px;letter-spacing:.05em}
+  .logout{border-color:#364660;color:#c5d2e5;border-radius:10px;padding:9px 16px;font-family:inherit;font-weight:700;transition:background .2s,border-color .2s,transform .2s}
+  .logout:hover{background:#1a2940;border-color:#8498b8;transform:translateY(-1px)}
+  .hero{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;min-height:244px;margin:26px 0 16px;padding:32px 40px;border:1px solid #364773;border-radius:24px;background:linear-gradient(112deg,#1d2849 0%,#142440 49%,#132e3c 100%);box-shadow:0 22px 65px rgba(1,5,14,.25)}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 80% 45%,rgba(115,233,212,.23),transparent 31%),linear-gradient(90deg,rgba(154,130,255,.08),transparent 55%);z-index:-1}
+  .hero-copy{position:relative;z-index:1;max-width:760px}.eyebrow{display:flex;align-items:center;gap:9px;color:#a8e9dc;font-size:11px;font-weight:800;letter-spacing:.17em}.eyebrow-dot{width:7px;height:7px;border-radius:50%;background:#74ead3;box-shadow:0 0 0 4px rgba(116,234,211,.12)}
+  .hero h1{margin:13px 0 9px;font-family:"Space Grotesk",Manrope,sans-serif;font-size:clamp(30px,3.4vw,48px);line-height:1.12;letter-spacing:-.04em}.nick{color:#c0b5ff}.hero-period{color:var(--sl-mint)}
+  .hero p{margin:0;max-width:620px;color:#c6d4e8;font-size:14px;line-height:1.7}.hero-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}.hero-tags span{border:1px solid rgba(170,198,225,.27);border-radius:100px;padding:6px 12px;background:rgba(7,15,32,.26);font-size:11px;color:#dbe7f7;font-weight:700}
+  .hero-orbit{position:absolute;right:7%;width:220px;height:220px;border:1px solid rgba(158,204,239,.25);border-radius:50%;display:grid;place-items:center;transform:rotate(-18deg)}.hero-orbit::before,.hero-orbit::after{content:"";position:absolute;border:1px solid rgba(158,204,239,.22);border-radius:50%;inset:24px}.hero-orbit::after{inset:52px;border-color:rgba(161,142,255,.32)}.orbit-core{display:grid;place-items:center;width:74px;height:74px;border-radius:23px;background:linear-gradient(145deg,#9c8aff,#4dd3c0);color:white;font:700 42px "Space Grotesk",sans-serif;box-shadow:0 12px 45px rgba(85,206,202,.25)}.orbit-star{position:absolute;color:#a2f1de;font-size:25px}.star-one{top:4px;right:43px}.star-two{bottom:22px;left:17px}
+  .jumpnav{display:flex;gap:6px;overflow:auto;margin-bottom:22px;padding:6px;border:1px solid rgba(150,173,212,.16);border-radius:14px;background:rgba(12,21,37,.7);scrollbar-width:none}.jumpnav::-webkit-scrollbar{display:none}.jumpnav a{flex:0 0 auto;padding:9px 14px;border-radius:9px;color:#aebed3;text-decoration:none;font-size:12px;font-weight:800;transition:background .2s,color .2s}.jumpnav a:hover,.jumpnav a:focus-visible{background:#22324c;color:white}
+  .status,.section,.tile{border:1px solid var(--sl-border);background:linear-gradient(165deg,rgba(23,35,56,.97),rgba(15,25,42,.97));box-shadow:0 12px 35px rgba(0,0,0,.12)}
+  .status{position:relative;overflow:hidden;border-radius:20px;padding:25px 28px;margin-bottom:16px}.status::before{content:"";position:absolute;top:0;bottom:0;left:0;width:4px;background:var(--sl-lilac)}.status.ok{border-color:rgba(73,202,171,.38);background:linear-gradient(115deg,rgba(22,57,60,.94),rgba(15,31,46,.97))}.status.ok::before{background:var(--sl-mint)}.status.wait{border-color:rgba(232,174,94,.36);background:linear-gradient(115deg,rgba(59,46,41,.92),rgba(22,31,46,.97))}.status.wait::before{background:#f5be75}.status .head{font-family:"Space Grotesk",sans-serif;font-size:20px;letter-spacing:-.02em}.status .why{color:#bdcce0}.steps li{border-color:rgba(166,185,212,.15);color:#b4c3d8}.steps li.done{color:#f1f7fe}.steps .hint{color:#f5c787}.counts{color:#91a6c0;flex-wrap:wrap;gap:10px 22px}
+  .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-bottom:18px}.tile{position:relative;overflow:hidden;border-radius:17px;padding:19px 21px;min-height:102px;transition:transform .2s,border-color .2s,box-shadow .2s}.tile:hover{transform:translateY(-2px);border-color:#51658a;box-shadow:0 18px 35px rgba(0,0,0,.2)}.tile::after{content:"";position:absolute;width:95px;height:95px;right:-45px;top:-45px;border:1px solid rgba(175,192,255,.19);border-radius:50%}.tile .lbl{color:#8fa7c0;letter-spacing:.11em;font-size:10px;font-weight:800;margin-bottom:10px}.tile .val{font-family:"Space Grotesk",Manrope,sans-serif;font-size:19px;letter-spacing:-.02em;word-break:break-word}.tile:nth-child(1) .val,.tile:nth-child(2) .val{color:#c1b6ff}.tile:nth-child(6) .val{color:#86e9d3}.tier-badge{background:#7766da;border:1px solid rgba(205,196,255,.3);border-radius:8px;font-family:Manrope,sans-serif}
+  .status-updated{margin-top:12px;color:#8fa7c0;font-size:11px}
+  .section{position:relative;border-radius:20px;padding:26px 28px;margin-bottom:16px}.section h2{font-family:"Space Grotesk",Manrope,sans-serif;font-size:21px;letter-spacing:-.025em;color:#f3f6fc;margin-bottom:8px}.section .sub{color:#aebfd5;line-height:1.65;font-size:13px}.section#safety{border-color:rgba(246,125,123,.34);background:linear-gradient(110deg,rgba(54,30,44,.95),rgba(24,30,47,.97))}.section#safety h2{color:#ffd3ce}
+  .mod-switch{gap:10px}.mod-btn{background:#101a2c;color:#b9c8dd;border:1px solid #354661;border-radius:11px;padding:12px 15px;font-family:Manrope,sans-serif;font-weight:800;transition:transform .2s,border-color .2s,background .2s}.mod-btn:hover{border-color:#9686ef;background:#20304b;transform:translateY(-1px)}.mod-btn.active{background:linear-gradient(135deg,#6657c9,#4f72bc);border-color:#9b91ef;color:white;box-shadow:0 8px 24px rgba(99,88,205,.22)}#pause-btn{flex:0 1 auto;border-color:#9e676b;color:#ffe1df;background:#482b3c}#pause-btn:hover{background:#633344;border-color:#f0a3a0}#pause-btn.active{background:#23594e;border-color:#6be5cc;color:#e0fff4;box-shadow:none}
+  .install .path,code,.cfgbox textarea,.tok-field,.automsg-row input.am-text,.automsg-row select,.boosty-form input,.boosty-form select,.boosty-bulk textarea{background:#0b1423;border-color:#32445e;color:#dce9fa;border-radius:9px}.install .path{font-size:12px}.warnbox{background:rgba(237,178,101,.09);border-color:#735b49;color:#ecd3ad;border-radius:11px}.boosty-tier-info{background:rgba(158,137,255,.09);border-color:#504878;border-radius:11px;color:#bbc8dc}.boosty-row{background:#101c30;border-color:#2c3f59;border-radius:10px;padding:10px 13px}.boosty-row .t,.tok-name,.boosty-tier-info b{color:#bfb4ff}.boosty-row .n{color:#93a7c1}.tok-copy,.boosty-form button,.automsg-actions button.primary{background:#6959ce;border-color:#6959ce;border-radius:9px;font-family:Manrope,sans-serif}.tok-copy:hover,.boosty-form button:hover{background:#7e6ee3}.tok-show,.cfgbox .cfgcopy,.automsg-actions button{border-color:#41516b;border-radius:9px;color:#dce8f8;background:#1d2b40}.tok-show:hover,.automsg-actions button:hover{border-color:#9b8df3;color:white}.boosty-msg.ok{color:#8df1d9;border-color:#3a8d7d}.boosty-msg.err{color:#ffadaa;border-color:#ae5b63}.footnote{color:#8297b0}.section button,.section input,.section select,.section textarea{font-family:Manrope,"Segoe UI",sans-serif}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #b9adff;outline-offset:2px}
+  @media(max-width:940px){.hero-orbit{right:-3%;opacity:.35}.grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:640px){body{padding:0 14px 35px}.header{min-height:73px}.brand-copy strong{font-size:16px}.hero{min-height:0;padding:25px 22px;border-radius:18px}.hero-orbit{display:none}.hero h1{font-size:34px}.hero p{font-size:13px}.hero-tags{margin-top:17px}.jumpnav{margin-bottom:15px}.status,.section{padding:20px 18px;border-radius:16px}.status .head{font-size:18px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.tile{min-height:88px;padding:15px;border-radius:13px}.tile .val{font-size:16px}.tile .lbl{font-size:9px}.section h2{font-size:19px}.mod-switch{flex-direction:column}.mod-btn{width:100%}.boosty-form{grid-template-columns:1fr}.automsg-row{grid-template-columns:1fr 1fr}.tok-field{min-width:0;width:100%}.tok-row .tok-name{width:100%} }
+  @media(max-width:380px){.grid{grid-template-columns:1fr}.hero h1{font-size:30px}.brand-copy small{display:none} }
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.tile,.mod-btn,.logout{transition:none} }
+  /* Compact stream view: keep live controls visible, fold setup and rare tools. */
+  .header{min-height:70px}.hero{min-height:0;margin:18px 0 12px;padding:19px 25px;border-radius:17px}
+  .hero h1{margin:5px 0 2px;font-size:clamp(25px,2.6vw,34px)}.hero p,.hero-orbit{display:none}
+  .hero-tags{margin-top:9px}.hero-tags span{padding:4px 9px}.jumpnav{margin-bottom:13px}
+  .status{padding:18px 22px;margin-bottom:12px}.status .head{font-size:18px}.status .why{margin-top:4px}
+  .section{padding:20px 23px;margin-bottom:12px}.section .sub{margin-bottom:11px}
+  .status-steps{margin-top:10px}.status-steps summary{cursor:pointer;color:#b9c9df;font-size:12px;font-weight:800}
+  .status-steps .steps{margin-top:8px}
+  .tool-drawer{margin-bottom:11px;border:1px solid var(--sl-border);border-radius:16px;background:#142137}
+  .tool-drawer>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:16px 20px;cursor:pointer;list-style:none;font-weight:800;color:#e4ecfa}
+  .tool-drawer>summary::-webkit-details-marker{display:none}.tool-drawer>summary::after{content:'＋';color:var(--sl-mint);font-size:18px}
+  .tool-drawer[open]>summary::after{content:'−'}.tool-drawer>summary small{color:var(--sl-muted);font-size:11px;font-weight:500}
+  .tool-drawer>.section{margin:0 12px 12px;box-shadow:none}
+  .tool-drawer>.section:first-of-type{margin-top:0}
+  .live-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;margin-bottom:12px}
+  .live-controls>.section{margin:0}.live-controls .mod-switch{gap:6px}.live-controls .mod-btn{padding:10px 9px;font-size:12px}
+  .brand-copy small{font-size:12px;letter-spacing:0;color:#bdcde1}
+  .header-meta{margin-left:auto;color:#9fb2cc;font-size:12px;font-weight:700}
+  @media(max-width:900px){.live-controls{grid-template-columns:1fr} }
+  @media(max-width:640px){.header-meta{display:none}.status,.section{padding:17px}.tool-drawer>summary{padding:15px}.tool-drawer>summary small{display:none} }
+</style></head>
+<body><div class="wrap">
+  <header class="header">
+    <div class="brand"><span class="brand-mark">S<span>✦</span></span><span class="brand-copy"><strong>SHEDLINK</strong><small>Кабинет {{ display }}</small></span></div>
+    <span class="header-meta">{{ tier }} · #{{ channel_id }} · {{ module }}</span>
+    <form action="/streamer/logout" method="post" style="margin:0">
+      <button type="submit" class="logout">Выйти</button>
+    </form>
+  </header>
+  <nav class="jumpnav" aria-label="Разделы кабинета">
+    <a href="#overview">Состояние</a><a href="#safety">Пауза</a><a href="#module-control">Игра</a><a href="#tts-mod-section">Модерация</a><a href="#setup-tools">Подключение</a><a href="#community-tools">Инструменты</a>
+  </nav>
+  <div id="overview"></div>
+  <div class="status" id="setupCard">
+    <div class="head"><span id="setupIcon">⏳</span><span id="setupTitle">Проверяю состояние…</span></div>
+    <div class="why" id="setupWhy"></div>
+    <div class="counts" id="setupCounts"></div>
+    <div class="status-updated" id="setupUpdated">Ожидаю ответ сервера…</div>
+    <details class="status-steps" id="setupDetails"><summary>Шаги подключения</summary><ul class="steps" id="setupSteps"></ul></details>
+  </div>
+
+  <div class="live-controls">
+  <!-- Аварийная остановка (2026-09-01). Стоит ПЕРВОЙ секцией намеренно: её
+       ищут в тот момент, когда в эфире что-то идёт не так, и искать её надо
+       не глазами по странице. -->
+  <div class="section" id="safety">
+    <h2>🛑 Аварийная остановка</h2>
+    <div class="sub">
+       Пауза отклоняет новые платные действия <b>до списания</b> и временно не
+       передаёт задания моду. После снятия паузы очередь продолжится.
+    </div>
+    <button class="mod-btn" id="pause-btn" onclick="togglePause()">Загрузка…</button>
+    <div id="pause-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  var _paused = null;
+  function renderPause(p){
+    _paused = p;
+    var b = document.getElementById('pause-btn');
+    if(!b) return;
+    b.textContent = p ? '▶️ Снять паузу — вернуть действия зрителям'
+                      : '🛑 Остановить всё — пауза интеграции';
+    b.className = 'mod-btn' + (p ? ' active' : '');
+  }
+  function pauseMsg(txt, isErr){
+    var m = document.getElementById('pause-msg');
+    m.textContent = txt; m.className = 'boosty-msg ' + (isErr ? 'err' : 'ok');
+  }
+  async function loadPause(){
+    try{
+      const r = await fetch('/api/streamer/actions-pause', {credentials:'include'});
+      const d = await r.json();
+      if(d.status === 'ok'){ renderPause(!!d.paused); pauseMsg(d.paused ? '⏸ Интеграция на паузе.' : '', false); }
+    } catch(e){ pauseMsg('Не удалось узнать статус: ' + e.message, true); }
+  }
+  async function togglePause(){
+    var next = !_paused;
+    try{
+      const r = await fetch('/api/streamer/actions-pause', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({paused: next})});
+      const d = await r.json();
+      if(d.status === 'ok'){
+        renderPause(!!d.paused);
+        pauseMsg(d.paused ? '⏸ Пауза взведена — действия зрителей не выполняются и не оплачиваются.'
+                          : '▶️ Пауза снята — очередь вернулась моду.', false);
+      } else { pauseMsg('Ошибка: ' + (d.status || 'не удалось'), true); }
+    } catch(e){ pauseMsg('Network error: ' + e.message, true); }
+  }
+  loadPause();
+  </script>
+
+  <!-- Переключатель активного модуля -->
+  <div class="section" id="module-control">
+    <h2>🎮 Активный модуль расширения</h2>
+    <div class="sub">Какую игру видят зрители. Изменение появится при следующем обновлении расширения.</div>
+    <div class="mod-switch">
+      <button class="mod-btn" id="mod-btn-bannerlord" onclick="setModule('bannerlord')">⚔️ Bannerlord</button>
+      <button class="mod-btn" id="mod-btn-rimworld" onclick="setModule('rimworld')">🪐 RimWorld</button>
+      <button class="mod-btn" id="mod-btn-shedcolony" onclick="setModule('shedcolony')">⛏️ Minecraft</button>
+    </div>
+    <div id="mod-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  function markActiveModule(mod){
+    ['bannerlord','rimworld','shedcolony'].forEach(function(m){
+      var b = document.getElementById('mod-btn-'+m);
+      if(b) b.className = 'mod-btn' + (m === mod ? ' active' : '');
+    });
+    var tag = document.getElementById('hero-active-module');
+    if(tag) tag.textContent = 'Активная игра · ' + (mod || '—');
+  }
+  function modMsg(txt, isErr){
+    var m = document.getElementById('mod-msg');
+    m.textContent = txt; m.className = 'boosty-msg ' + (isErr ? 'err' : 'ok');
+  }
+  async function setModule(mod){
+    try{
+      const r = await fetch('/api/streamer/active-module', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({module_id: mod})});
+      const d = await r.json();
+      if(d.status === 'ok'){ markActiveModule(d.active_module); modMsg('✅ Активный модуль: ' + d.active_module, false); }
+      else { modMsg('Ошибка: ' + (d.status || 'не удалось'), true); }
+    } catch(e){ modMsg('Network error: ' + e.message, true); }
+  }
+  markActiveModule({{ module_js }});
+  </script>
+  </div>
+
+  <details class="tool-drawer" id="setup-tools">
+    <summary>Подключение и OBS <small>Установка, токены и адрес оверлея</small></summary>
+  <!-- Установка мода -->
+  <div class="section install" id="connect">
+    <h2>📦 Как подключить игру</h2>
+    <div class="sub">
+      Один раз. Дальше мод подключается сам при каждом запуске игры.
+    </div>
+
+    <ol>
+      <li><b>Скачать ShedLink Manager</b> —
+          <a href="{{ manager_url }}" style="color:#c084fc">приложение для Windows</a>
+          (версия {{ manager_version }}).</li>
+      <li><b>Запустить и войти через Twitch.</b> Кнопка в самом приложении,
+          пароль оно не спрашивает и не видит.</li>
+      <li><b>Выбрать игру и нажать «Установить».</b> Manager сам найдёт папку
+          игры, скачает мод, проверит подпись, положит его на место и пропишет
+          твой токен. Руками ничего копировать не нужно.</li>
+      <li><b>Запустить игру</b> и нажать в Manager «Проверить готовность».
+          Карточка вверху этой страницы покажет «Мод на связи» — обновлять не
+          нужно.</li>
+    </ol>
+
+    <div class="warnbox">
+      При первом запуске Windows покажет предупреждение SmartScreen: приложение
+      пока не подписано сертификатом. Это ожидаемо — нажми «Подробнее» →
+      «Выполнить в любом случае». Подпись появится позже.
+    </div>
+
+    <details style="margin-top:14px;">
+      <summary style="cursor:pointer;color:#c084fc;">Поставить вручную, без Manager</summary>
+      <div style="margin-top:10px;">
+        <ol>
+          <li><b>Взять мод.</b> Напиши в
+              <a href="https://t.me/ttvshedoy23" target="_blank" rel="noopener"
+                 style="color:#c084fc">телеграм</a>, пришлю архив.</li>
+          <li><b>Распаковать</b> в папку модов игры:
+              <div class="path">…\Mount &amp; Blade II Bannerlord\Modules\Shedoy23.BannerlordLink\</div></li>
+          <li><b>Включить</b> мод в лаунчере игры, во вкладке «Модули».</li>
+          <li><b>Положить рядом</b> <code>config.json</code>:
+              <div class="path">…\Modules\Shedoy23.BannerlordLink\config.json</div>
+              <div class="cfgbox">
+                <textarea id="cfgText" readonly spellcheck="false">нажми «Показать конфиг»</textarea>
+                <button class="cfgcopy" onclick="copyCfg()">📋 Копировать</button>
+              </div>
+              <button class="tok-show" onclick="revealCfg()">👁 Показать конфиг</button></li>
+          <li><b>Запустить игру.</b></li>
+        </ol>
+        <div class="warnbox">
+          В конфиге лежит твой токен — он равнозначен доступу к каналу в
+          расширении. <b>Не показывай его на стриме</b> и не выкладывай никуда.
+          Засветил — напиши, выпущу новый.
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- Module-токены (для C#-модов) -->
+  <div class="section">
+    <h2>🔑 Module-токены</h2>
+    <div class="sub">
+      Токен авторизации C#-мода. Вставь его в настройки мода (поле «Module-токен»)
+      один раз — дальше мод авторизуется сам. <b>Не показывай на стриме.</b>
+    </div>
+    <div class="tok-row">
+      <span class="tok-name">Bannerlord</span>
+      <input class="tok-field" id="tok-bannerlord" type="text" readonly placeholder="скрыт — «Копировать» или «Показать»">
+      <button class="tok-copy" onclick="copyTok('bannerlord')">📋 Копировать</button>
+      <button class="tok-show" onclick="showTok('bannerlord')">👁 Показать</button>
+    </div>
+    <div class="tok-row">
+      <span class="tok-name">RimWorld</span>
+      <input class="tok-field" id="tok-rimworld" type="text" readonly placeholder="скрыт — «Копировать» или «Показать»">
+      <button class="tok-copy" onclick="copyTok('rimworld')">📋 Копировать</button>
+      <button class="tok-show" onclick="showTok('rimworld')">👁 Показать</button>
+    </div>
+    <div class="tok-row">
+      <span class="tok-name">Minecraft</span>
+      <input class="tok-field" id="tok-shedcolony" type="text" readonly placeholder="скрыт — «Копировать» или «Показать»">
+      <button class="tok-copy" onclick="copyTok('shedcolony')">📋 Копировать</button>
+      <button class="tok-show" onclick="showTok('shedcolony')">👁 Показать</button>
+    </div>
+    <div id="tok-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  async function fetchTok(mod){
+    const r = await fetch('/api/streamer/module-token?module_id=' + mod, {credentials:'include'});
+    const d = await r.json();
+    if(d.status === 'ok') return d.token;
+    tokMsg('Ошибка: ' + (d.status || 'не удалось получить токен'), true);
+    return null;
+  }
+  async function copyTok(mod){
+    const t = await fetchTok(mod);
+    if(!t) return;
+    try{ await navigator.clipboard.writeText(t); tokMsg('✅ ' + mod + '-токен скопирован в буфер', false); }
+    catch(e){ document.getElementById('tok-'+mod).value = t; tokMsg('Буфер недоступен — токен показан, скопируй вручную', true); }
+  }
+  async function showTok(mod){
+    const t = await fetchTok(mod);
+    if(t) document.getElementById('tok-'+mod).value = t;
+  }
+  function tokMsg(txt, isErr){
+    const m = document.getElementById('tok-msg');
+    m.textContent = txt; m.className = 'boosty-msg ' + (isErr ? 'err' : 'ok');
+  }
+  </script>
+
+  <!-- Overlay URL для OBS (A2 2026-07-02) -->
+  <div class="section">
+    <h2>🖥 URL оверлея для OBS</h2>
+    <div class="sub">
+      Вставь как <b>Browser Source</b> в OBS. Содержит токен для защиты TTS —
+      <b>не показывай на стриме</b>. Если менял оверлей раньше — обнови URL, иначе
+      TTS перестанет отмечаться проигранным.
+    </div>
+    <div class="tok-row">
+      <input class="tok-field" id="overlay-url" type="text" readonly placeholder="Нажми «Показать URL»">
+      <button class="tok-copy" onclick="copyOverlayUrl()">📋 Копировать</button>
+      <button class="tok-show" onclick="showOverlayUrl()">👁 Показать URL</button>
+    </div>
+    <div id="overlay-url-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  async function _fetchOverlayUrl(){
+    const r = await fetch('/api/streamer/overlay-url', {credentials:'include'});
+    const d = await r.json();
+    return d.status === 'ok' ? d.url : null;
+  }
+  async function showOverlayUrl(){
+    const u = await _fetchOverlayUrl();
+    if(u) document.getElementById('overlay-url').value = u;
+  }
+  async function copyOverlayUrl(){
+    const u = await _fetchOverlayUrl();
+    if(!u) return;
+    const m = document.getElementById('overlay-url-msg');
+    try{ await navigator.clipboard.writeText(u); m.textContent = '✅ URL скопирован'; m.className = 'boosty-msg ok'; }
+    catch(e){ document.getElementById('overlay-url').value = u; m.textContent = 'Буфер недоступен — скопируй вручную'; m.className = 'boosty-msg err'; }
+  }
+  </script>
+
+  </details>
+  <!-- Модерация озвучки (M107, 2026-08-01).
+       Twitch Extensions Guidelines §7.2 требует, чтобы стример мог одобрить ИЛИ
+       отклонить пользовательский аудиоконтент. До этой карточки эндпоинты
+       модерации существовали, но нажать было нечего — для ревьюера это
+       равносильно отсутствию модерации. -->
+  <div class="section" id="tts-mod-section">
+    <h2>🎤 Озвучка — модерация</h2>
+    <div class="sub">
+      Зритель платит 5000💎 и его текст звучит на оверлее. Это пользовательский
+      контент: пока ты не одобришь сообщение, оно не прозвучит.
+    </div>
+
+    <div class="warnbox" id="tts-gate-box">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="tts-skip-mod" style="margin-top:3px;">
+        <span>
+          <b>Пропускать сообщения без модерации — на свой страх и риск.</b><br>
+          <span style="color:#adadb8;font-size:13px;">
+            Сообщения пойдут в эфир сразу, без твоего одобрения. Скрыть и
+            заблокировать автора ты по-прежнему сможешь, но уже после того,
+            как зрители это услышали. Правила Twitch требуют, чтобы у тебя
+            была возможность одобрять контент заранее — выключаешь ты её сам.
+          </span>
+        </span>
+      </label>
+    </div>
+    <div id="tts-mod-msg" class="boosty-msg"></div>
+
+    <div style="margin-top:16px;">
+      <div class="sub" style="margin-bottom:8px;">Ждут решения</div>
+      <div id="tts-pending-list"><div class="sub">Загрузка…</div></div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <div class="sub" style="margin-bottom:8px;">История (последние 50)</div>
+      <div id="tts-history-list"><div class="sub">Загрузка…</div></div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <div class="sub" style="margin-bottom:8px;">Заблокированные зрители</div>
+      <div id="tts-blocked-list"><div class="sub">Загрузка…</div></div>
+    </div>
+  </div>
+  <script>
+  function ttsEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function ttsMsg(text, ok){
+    const m = document.getElementById('tts-mod-msg');
+    m.textContent = text; m.className = 'boosty-msg ' + (ok ? 'ok' : 'err');
+  }
+  async function loadTtsMod(){
+    const pend = document.getElementById('tts-pending-list');
+    const hist = document.getElementById('tts-history-list');
+    const blk  = document.getElementById('tts-blocked-list');
+    try{
+      const r = await fetch('/api/streamer/tts/queue', {credentials:'include'});
+      const d = await r.json();
+      if(!d.success){ pend.innerHTML = '<div class="sub">Ошибка загрузки</div>'; return; }
+
+      document.getElementById('tts-skip-mod').checked = !d.require_approval;
+
+      const msgs = d.messages || [];
+      // «Ждёт решения» — только то, по чему стример ещё может что-то сделать.
+      const waiting = msgs.filter(function(m){ return m.state === 'ждёт решения'; });
+      pend.innerHTML = waiting.length ? waiting.map(function(m){
+        return '<div class="boosty-row"><span class="u">@' + ttsEsc(m.username) + '</span>'
+          + '<span class="t">' + ttsEsc(m.text) + '</span>'
+          + '<button style="background:#065f46;color:#6ee7b7;" data-tts-ok="' + m.id + '">✔ Одобрить</button>'
+          + '<button data-tts-hide="' + m.id + '">✖ Скрыть</button>'
+          + '<button data-tts-block="' + ttsEsc(m.username) + '">🚫 Заблокировать</button></div>';
+      }).join('') : '<div class="sub">Пока нечего решать.</div>';
+
+      hist.innerHTML = msgs.length ? msgs.map(function(m){
+        return '<div class="boosty-row"><span class="u">@' + ttsEsc(m.username) + '</span>'
+          + '<span class="t">' + ttsEsc(m.text) + '</span>'
+          + '<span class="n">' + ttsEsc(m.state) + '</span></div>';
+      }).join('') : '<div class="sub">Пока пусто.</div>';
+
+      const blocked = d.blocked || [];
+      blk.innerHTML = blocked.length ? blocked.map(function(b){
+        return '<div class="boosty-row"><span class="u">@' + ttsEsc(b.username) + '</span>'
+          + '<span class="n">' + ttsEsc(b.reason || '') + '</span>'
+          + '<button data-tts-unblock="' + ttsEsc(b.username) + '">Разблокировать</button></div>';
+      }).join('') : '<div class="sub">Никто не заблокирован.</div>';
+
+      document.querySelectorAll('[data-tts-ok]').forEach(function(b){
+        b.addEventListener('click', function(){ ttsAction('/api/streamer/tts/approve', {id: parseInt(b.getAttribute('data-tts-ok'),10)}); });
+      });
+      document.querySelectorAll('[data-tts-hide]').forEach(function(b){
+        b.addEventListener('click', function(){ ttsAction('/api/streamer/tts/hide', {id: parseInt(b.getAttribute('data-tts-hide'),10)}); });
+      });
+      document.querySelectorAll('[data-tts-block]').forEach(function(b){
+        b.addEventListener('click', function(){ ttsAction('/api/streamer/tts/block', {username: b.getAttribute('data-tts-block'), blocked: true}); });
+      });
+      document.querySelectorAll('[data-tts-unblock]').forEach(function(b){
+        b.addEventListener('click', function(){ ttsAction('/api/streamer/tts/block', {username: b.getAttribute('data-tts-unblock'), blocked: false}); });
+      });
+    } catch(e){ pend.innerHTML = '<div class="sub">Сеть недоступна</div>'; }
+  }
+  async function ttsAction(url, body){
+    try{
+      const r = await fetch(url, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+      const d = await r.json();
+      ttsMsg(d.message || (d.success ? 'Готово' : 'Ошибка'), !!d.success);
+      loadTtsMod();
+    } catch(e){ ttsMsg('Сеть недоступна', false); }
+  }
+  document.getElementById('tts-skip-mod').addEventListener('change', function(){
+    ttsAction('/api/streamer/tts/settings', {require_approval: !this.checked});
+  });
+  loadTtsMod();
+  // Очередь живая: сообщение может прийти, пока дашборд открыт.
+  setInterval(loadTtsMod, 10000);
+  </script>
+
+  <!-- Баг-репорты убраны из дашборда 2026-07-02: техбаги — забота разработчика
+       (см. админку /admin), не стримера. Зритель шлёт !баг → падает разработчику. -->
+
+  <details class="tool-drawer" id="community-tools">
+    <summary>Инструменты сообщества <small>Промокоды, сообщения, голосование и Boosty</small></summary>
+  <!-- Промокоды (self-serve, 2026-07-02) -->
+  <div class="section">
+    <h2>🎟 Промокоды</h2>
+    <div class="sub">
+      Создай код — зритель введёт его в расширении и получит крустики. Работает во время стрима.
+    </div>
+    <div class="boosty-form">
+      <input id="promo-code" placeholder="КОД (напр. ЛЕТО2026)" style="text-transform:uppercase;">
+      <input id="promo-points" type="number" placeholder="💎" value="1000">
+      <input id="promo-uses" type="number" placeholder="лимит (0=∞)" value="1">
+      <button onclick="createPromo()">Создать</button>
+    </div>
+    <div id="promo-msg" class="boosty-msg"></div>
+    <div id="promo-list" style="margin-top:12px;"><div class="sub">Загрузка…</div></div>
+  </div>
+  <script>
+  function pEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  async function loadPromos(){
+    const list = document.getElementById('promo-list');
+    try{
+      const r = await fetch('/api/streamer/promocodes', {credentials:'include'});
+      const d = await r.json();
+      if(d.status !== 'ok'){ list.innerHTML = '<div class="sub">Ошибка загрузки</div>'; return; }
+      if(!d.promocodes || !d.promocodes.length){ list.innerHTML = '<div class="sub">Пока нет промокодов.</div>'; return; }
+      list.innerHTML = d.promocodes.map(function(p){
+        const left = p.max_uses > 0 ? (p.max_uses - p.uses) + ' из ' + p.max_uses : '∞';
+        return '<div class="boosty-row"><span class="u">' + pEsc(p.code) + '</span>'
+          + '<span class="t">' + p.points + '💎</span>'
+          + '<span class="n">исп. ' + p.uses + ' · осталось ' + left + '</span>'
+          + '<button data-promo-del="' + p.id + '">✖ Удалить</button></div>';
+      }).join('');
+      list.querySelectorAll('[data-promo-del]').forEach(function(btn){
+        btn.addEventListener('click', function(){ deletePromo(btn.getAttribute('data-promo-del')); });
+      });
+    } catch(e){ list.innerHTML = '<div class="sub">Network error</div>'; }
+  }
+  async function createPromo(){
+    const code = document.getElementById('promo-code').value.trim();
+    const points = parseInt(document.getElementById('promo-points').value || '0', 10);
+    const max_uses = parseInt(document.getElementById('promo-uses').value || '1', 10);
+    const m = document.getElementById('promo-msg');
+    if(!code){ m.textContent='Укажи код'; m.className='boosty-msg err'; return; }
+    try{
+      const r = await fetch('/api/streamer/promocodes/create', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code:code, points:points, max_uses:max_uses})});
+      const d = await r.json();
+      m.textContent = d.message || (d.success ? 'OK' : 'Ошибка'); m.className = 'boosty-msg ' + (d.success ? 'ok' : 'err');
+      if(d.success){ document.getElementById('promo-code').value=''; loadPromos(); }
+    } catch(e){ m.textContent='Сеть недоступна'; m.className='boosty-msg err'; }
+  }
+  async function deletePromo(id){
+    try{
+      await fetch('/api/streamer/promocodes/' + id, {method:'DELETE', credentials:'include'});
+      loadPromos();
+    } catch(e){}
+  }
+  loadPromos();
+  </script>
+
+  <!-- Автосообщения (2026-08-22): у каждого свой таймер.
+       До m114/m115 список был один на всю платформу и содержал личные ссылки
+       владельца — второму стримеру бот рекламировал бы чужие донаты. Теперь
+       набор принадлежит каналу, и стример правит его сам. -->
+  <div class="section" id="automsg-section">
+    <h2>💬 Автосообщения в чат</h2>
+    <div class="sub">
+      Бот пишет их в твой чат, пока идёт стрим. У каждого сообщения свой таймер.
+      Строка начинает отсчёт с момента сохранения, поэтому первое появление —
+      через выбранный интервал, а не сразу. За один раз уходит только одно
+      сообщение: пачкой Twitch считает спамом и выдаёт таймаут боту.
+      <br>Начни строку с <b>/announcepurple</b> — она уйдёт выделенным
+      объявлением, а не обычным сообщением.
+    </div>
+    <div id="automsg-list"><div class="sub">Загрузка…</div></div>
+    <div class="automsg-actions">
+      <button id="automsg-add" type="button">+ Добавить сообщение</button>
+      <button id="automsg-save" type="button" class="primary">Сохранить</button>
+    </div>
+    <div id="automsg-msg" class="boosty-msg"></div>
+  </div>
+  <script>
+  var _automsgCfg = {intervals:[10,15,20,30,45,60,90,120], max_count:10, max_len:400};
+
+  function amEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function amRow(m){
+    var opts = _automsgCfg.intervals.map(function(v){
+      return '<option value="' + v + '"' + (v === m.interval_min ? ' selected' : '') + '>' + v + ' мин</option>';
+    }).join('');
+    // Когда сообщение прозвучит в следующий раз — считаем на клиенте, чтобы
+    // стример видел эффект таймера, а не только цифру в списке.
+    var when = 'после сохранения';
+    if (m.last_sent_at) {
+      var left = Math.round((m.last_sent_at + m.interval_min * 60 - Date.now() / 1000) / 60);
+      when = left > 0 ? ('через ~' + left + ' мин') : 'на ближайшей проверке';
+    }
+    return '<div class="automsg-row">'
+      + '<input class="am-text" type="text" maxlength="' + _automsgCfg.max_len + '" value="' + amEsc(m.text) + '">'
+      + '<select class="am-interval">' + opts + '</select>'
+      + '<label class="am-on"><input class="am-enabled" type="checkbox"' + (m.enabled ? ' checked' : '') + '> вкл</label>'
+      + '<span class="am-next">' + amEsc(when) + '</span>'
+      + '<button type="button" class="am-del">✖</button>'
+      + '</div>';
+  }
+
+  function amBind(){
+    document.querySelectorAll('#automsg-list .am-del').forEach(function(b){
+      b.addEventListener('click', function(){ b.closest('.automsg-row').remove(); });
+    });
+  }
+
+  async function loadAutoMessages(){
+    var list = document.getElementById('automsg-list');
+    try{
+      var r = await fetch('/api/streamer/auto-messages', {credentials:'include'});
+      var d = await r.json();
+      if(d.status !== 'ok'){ list.innerHTML = '<div class="sub">Ошибка загрузки</div>'; return; }
+      _automsgCfg = {intervals:d.intervals, max_count:d.max_count, max_len:d.max_len};
+      list.innerHTML = d.messages.length
+        ? d.messages.map(amRow).join('')
+        : '<div class="sub">Пока пусто — добавь первое сообщение.</div>';
+      amBind();
+    } catch(e){ list.innerHTML = '<div class="sub">Network error</div>'; }
+  }
+
+  document.getElementById('automsg-add').addEventListener('click', function(){
+    var list = document.getElementById('automsg-list');
+    var rows = list.querySelectorAll('.automsg-row');
+    var box = document.getElementById('automsg-msg');
+    if(rows.length >= _automsgCfg.max_count){
+      box.textContent = 'Больше ' + _automsgCfg.max_count + ' сообщений не даём — чат не рекламная тумба.';
+      return;
+    }
+    if(!rows.length){ list.innerHTML = ''; }
+    list.insertAdjacentHTML('beforeend', amRow({text:'', interval_min:20, enabled:true, last_sent_at:null}));
+    amBind();
+    box.textContent = '';
+  });
+
+  document.getElementById('automsg-save').addEventListener('click', async function(){
+    var box = document.getElementById('automsg-msg');
+    var messages = [];
+    document.querySelectorAll('#automsg-list .automsg-row').forEach(function(row){
+      var text = row.querySelector('.am-text').value.trim();
+      if(!text){ return; }
+      messages.push({
+        text: text,
+        interval_min: parseInt(row.querySelector('.am-interval').value, 10),
+        enabled: row.querySelector('.am-enabled').checked
+      });
+    });
+    box.textContent = 'Сохраняю…';
+    try{
+      var r = await fetch('/api/streamer/auto-messages', {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({messages: messages})
+      });
+      var d = await r.json();
+      if(d.status === 'ok'){
+        box.textContent = 'Сохранено: ' + d.messages.length + ' шт.';
+        await loadAutoMessages();
+      } else if(d.status === 'too_many'){
+        box.textContent = 'Слишком много сообщений (максимум ' + d.max_count + ').';
+      } else {
+        box.textContent = 'Не сохранилось. Попробуй ещё раз.';
+      }
+    } catch(e){ box.textContent = 'Network error'; }
+  });
+
+  loadAutoMessages();
+  </script>
+
+  <!-- Народный выбор игры (M88, 2026-07-02) -->
+  <div class="section" id="gamevote-section">
+    <h2>🎮 Народный выбор игры</h2>
+    <div class="sub">
+      Открой раунд — зрители кидают крустики за игры и могут предложить свою.
+      Побеждает игра с наибольшим вкладом. Предложения зрителей приходят сюда на одобрение
+      (виден ник автора; любое можно отклонить). Вклад автора спишется только после одобрения.
+    </div>
+    <div class="boosty-form" style="flex-wrap:wrap;">
+      <input id="gv-seed" type="text" placeholder="свои игры через запятую (необязательно)" style="flex:1 1 100%;">
+      <input id="gv-duration" type="number" placeholder="минут" value="5" style="width:90px;">
+      <button id="gv-start-btn" onclick="gvStart()">▶ Открыть раунд</button>
+      <button id="gv-finalize-btn" onclick="gvFinalize()" style="display:none;">⏹ Закрыть и подвести итог</button>
+    </div>
+    <div id="gv-msg" class="boosty-msg"></div>
+    <div id="gv-standings" style="margin-top:12px;"></div>
+    <div id="gv-pending" style="margin-top:12px;"></div>
+  </div>
+  <script>
+  function gvEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  let _gvPollId = null;
+  async function gvLoad(){
+    const standings = document.getElementById('gv-standings');
+    const pending = document.getElementById('gv-pending');
+    const startBtn = document.getElementById('gv-start-btn');
+    const finBtn = document.getElementById('gv-finalize-btn');
+    try{
+      const r = await fetch('/api/streamer/voting/status', {credentials:'include'});
+      const d = await r.json();
+      if(!d.success){ standings.innerHTML=''; pending.innerHTML=''; return; }
+      const ev = d.active_event;
+      if(!ev){
+        standings.innerHTML = '<div class="sub">Раунд не идёт. Открой новый.</div>';
+        pending.innerHTML = '';
+        startBtn.style.display=''; finBtn.style.display='none';
+        return;
+      }
+      startBtn.style.display='none'; finBtn.style.display='';
+      const opts = (ev.options||[]).slice().sort(function(a,b){ return b.pool-a.pool; });
+      let sh = '<div class="sub">Идёт раунд · всего ' + (ev.total_pool||0) + '💎</div>';
+      sh += opts.length ? opts.map(function(o){ return '<div class="boosty-row"><span class="u">'+gvEsc(o.label)+'</span><span class="t">'+o.pool+'💎</span></div>'; }).join('') : '<div class="sub">Пока нет вариантов — зрители предложат.</div>';
+      standings.innerHTML = sh;
+      const pend = d.pending||[];
+      if(!pend.length){ pending.innerHTML = '<div class="sub">Нет предложений на одобрение.</div>'; }
+      else{
+        pending.innerHTML = '<div class="sub">На одобрение:</div>' + pend.map(function(p){
+          return '<div class="boosty-row"><span class="u">'+gvEsc(p.label)+'</span>'
+            + '<span class="n">от @'+gvEsc(p.username)+' · '+p.pledge+'💎</span>'
+            + '<button data-gv-ok="'+p.id+'">✔ Одобрить</button>'
+            + '<button data-gv-no="'+p.id+'">✖</button></div>';
+        }).join('');
+        pending.querySelectorAll('[data-gv-ok]').forEach(function(b){ b.addEventListener('click', function(){ gvApprove(b.getAttribute('data-gv-ok')); }); });
+        pending.querySelectorAll('[data-gv-no]').forEach(function(b){ b.addEventListener('click', function(){ gvReject(b.getAttribute('data-gv-no')); }); });
+      }
+    } catch(e){}
+  }
+  async function gvStart(){
+    const seed = (document.getElementById('gv-seed').value||'').split(',').map(function(s){ return s.trim(); }).filter(function(s){ return s.length; });
+    const mins = parseInt(document.getElementById('gv-duration').value||'5',10);
+    const m = document.getElementById('gv-msg');
+    try{
+      const r = await fetch('/api/streamer/voting/start', {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({duration_sec: (mins>0?mins:5)*60, options: seed})});
+      const d = await r.json();
+      m.textContent = d.message || (d.success?'OK':'Ошибка'); m.className='boosty-msg '+(d.success?'ok':'err');
+      gvLoad();
+    } catch(e){ m.textContent='Сеть недоступна'; m.className='boosty-msg err'; }
+  }
+  async function gvFinalize(){
+    const m = document.getElementById('gv-msg');
+    try{
+      const r = await fetch('/api/streamer/voting/finalize', {method:'POST', credentials:'include'});
+      const d = await r.json();
+      m.textContent = d.message || (d.success?'OK':'Ошибка'); m.className='boosty-msg '+(d.success?'ok':'err');
+      gvLoad();
+    } catch(e){ m.textContent='Сеть недоступна'; m.className='boosty-msg err'; }
+  }
+  async function gvApprove(id){
+    try{ await fetch('/api/streamer/voting/proposals/'+id+'/approve', {method:'POST', credentials:'include'}); gvLoad(); } catch(e){}
+  }
+  async function gvReject(id){
+    try{ await fetch('/api/streamer/voting/proposals/'+id+'/reject', {method:'POST', credentials:'include'}); gvLoad(); } catch(e){}
+  }
+  gvLoad();
+  if(_gvPollId) clearInterval(_gvPollId);
+  _gvPollId = setInterval(gvLoad, 5000);
+  </script>
+
+  <!-- Boosty subscribers admin (Sprint 5.31 #45b) -->
+  <div class="section" id="boosty-section">
+    <h2>💜 Boosty-подписчики</h2>
+    <div class="sub">
+      Веди список Twitch-логинов своих Boosty-сабов вручную.
+      <br><br>
+      ⚠ <b>Важно (Sprint 5.33 ToS compliance, 2026-05-28)</b>: после обновления
+      Twitch Extension Developer Agreement, gameplay-бонусы за подписки
+      (Twitch sub OR Boosty) <b>УБРАНЫ</b> — это нарушение правил Twitch.
+      Cписок остаётся для cosmetic UI (badges в extension), без price/reward
+      эффекта.
+    </div>
+    <div class="boosty-tier-info">
+      <b>T1</b> — cosmetic badge (Бакалавр)<br>
+      <b>T2</b> — cosmetic badge (Магистр)<br>
+      <b>T3</b> — cosmetic badge (Жнец)
+    </div>
+    <div id="boosty-list"><div class="boosty-empty">Загрузка…</div></div>
+    <div class="boosty-form">
+      <input id="b-username" type="text" placeholder="twitch_username" autocomplete="off">
+      <select id="b-tier">
+        <option value="1">T1</option>
+        <option value="2">T2</option>
+        <option value="3">T3</option>
+      </select>
+      <input id="b-note" type="text" placeholder="заметка (опционально)" autocomplete="off">
+      <button id="b-add">➕ Добавить / Обновить</button>
+    </div>
+    <div id="boosty-msg" class="boosty-msg"></div>
+    <details class="boosty-bulk">
+      <summary style="cursor:pointer;color:#adadb8;font-size:13px;">
+        📋 Массовая вставка (CSV)
+      </summary>
+      <div style="color:#6e6e73;font-size:12px;margin:8px 0;">
+        Формат: <code>username,tier,note</code> — по одной строке.
+        Пример: <code>bobby,2,Магистр</code>
+      </div>
+      <textarea id="b-bulk-text" placeholder="username,tier,note&#10;another,1,Бакалавр"></textarea>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:8px;
+                    font-size:12px;color:#adadb8;cursor:pointer;">
+        <input id="b-bulk-replace" type="checkbox">
+        Полная замена (удалить тех, кого нет в списке)
+      </label>
+      <button id="b-bulk-apply">📥 Применить</button>
+    </details>
+  </div>
+
+  </details>
+  <details class="tool-drawer" id="danger-tools">
+    <summary>Опасные действия <small>Сброс данных Bannerlord</small></summary>
+  <!-- Bannerlord admin tools (Sprint 5.33 RESET-1, 2026-05-28) -->
+  <div class="section" id="bnr-admin-section">
+    <h2>⚙ Bannerlord — admin tools</h2>
+    <div class="sub" style="color:#fb7185;">
+      ⚠ <b>Опасные действия.</b> Используй если backend cache десинхронизировался
+      с моей кампанией или нужно начать чисто (тест, новый wipe и т.д.).
+      Reset удаляет ВСЕ per-channel Bannerlord данные: heroes / workshops /
+      fiefs / caravans / heirs / proposals / vassals / party orders / diplomacy /
+      tournament queue / auctions / achievements / pending mod actions.
+      <b>НЕ удаляются</b>: catalog (classes/powers/upgrades), Boosty list (cosmetic),
+      audit events log.
+    </div>
+    <div style="margin-top:10px;">
+      <button id="bnr-reset-preview-btn"
+              style="background:#3d3d3f;color:#efeff1;border:1px solid #5d5d5f;
+                     padding:8px 14px;border-radius:4px;cursor:pointer;">
+        👁 Preview (узнать что будет удалено)
+      </button>
+      <button id="bnr-reset-confirm-btn"
+              style="background:#7f1d1d;color:#fee2e2;border:1px solid #991b1b;
+                     padding:8px 14px;border-radius:4px;cursor:pointer;margin-left:6px;">
+        🧹 Reset Bannerlord data
+      </button>
+    </div>
+    <div id="bnr-reset-result"
+         style="margin-top:12px;padding:8px 12px;background:#0a0a0a;
+                border-radius:4px;font-size:11px;color:#adadb8;
+                display:none;white-space:pre-wrap;font-family:monospace;">
+    </div>
+  </div>
+
+  </details>
+  <div class="footnote">
+    Расширение установи через <a href="https://dashboard.twitch.tv/extensions" style="color:#9147ff">Twitch Dashboard → Extensions</a>.
+    Проверяй его видимость на Twitch отдельно от состояния мода.
+  </div>
+</div>
+
+<script>
+(function(){
+  const tierLabel = t => t===1?'T1 (cosmetic)' : t===2?'T2 (cosmetic)' : t===3?'T3 (cosmetic)' : '?';
+  const esc = s => String(s||'').replace(/[&<>"']/g, c =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  const msg = (text, ok) => {
+    const el = document.getElementById('boosty-msg');
+    el.textContent = text;
+    el.className = 'boosty-msg ' + (ok ? 'ok' : 'err');
+    setTimeout(() => { el.className = 'boosty-msg'; }, 4000);
+  };
+  async function load() {
+    const r = await fetch('/api/dashboard/boosty/subscribers', {credentials:'include'});
+    const d = await r.json();
+    const list = document.getElementById('boosty-list');
+    if (!d.success) {
+      list.innerHTML = '<div class="boosty-empty">' + esc(d.message || 'Ошибка') + '</div>';
+      return;
+    }
+    if (!d.subscribers || d.subscribers.length === 0) {
+      list.innerHTML = '<div class="boosty-empty">Список пуст — добавь подписчиков ниже ↓</div>';
+      return;
+    }
+    list.innerHTML = d.subscribers.map(s => `
+      <div class="boosty-row">
+        <span class="u">@${esc(s.username)}</span>
+        <span class="t">${tierLabel(s.tier)}</span>
+        ${s.note ? '<span class="n">' + esc(s.note) + '</span>' : '<span class="n"></span>'}
+        <button data-u="${esc(s.username)}">✖ Удалить</button>
+      </div>`).join('');
+    list.querySelectorAll('button[data-u]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const u = btn.getAttribute('data-u');
+        if (!confirm('Удалить @' + u + ' из списка?')) return;
+        const r = await fetch('/api/dashboard/boosty/subscribers', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({username: u, tier: 0})
+        });
+        const d = await r.json();
+        msg(d.message || (d.success ? 'OK' : 'Ошибка'), !!d.success);
+        load();
+      });
+    });
+  }
+  document.getElementById('b-add').addEventListener('click', async () => {
+    const u = document.getElementById('b-username').value.trim();
+    const t = parseInt(document.getElementById('b-tier').value, 10);
+    const n = document.getElementById('b-note').value.trim();
+    if (!u) { msg('Введи twitch username', false); return; }
+    const r = await fetch('/api/dashboard/boosty/subscribers', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username: u, tier: t, note: n})
+    });
+    const d = await r.json();
+    msg(d.message || (d.success ? 'OK' : 'Ошибка'), !!d.success);
+    if (d.success) {
+      document.getElementById('b-username').value = '';
+      document.getElementById('b-note').value = '';
+      load();
+    }
+  });
+  document.getElementById('b-bulk-apply').addEventListener('click', async () => {
+    const txt = document.getElementById('b-bulk-text').value.trim();
+    if (!txt) { msg('Вставь CSV', false); return; }
+    const replace = document.getElementById('b-bulk-replace').checked;
+    const entries = [];
+    for (const raw of txt.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) continue;
+      const parts = line.split(',').map(p => p.trim());
+      const u = parts[0] || '';
+      const t = parseInt(parts[1] || '0', 10);
+      const note = parts.slice(2).join(',') || '';
+      if (!u || t < 1 || t > 3) continue;
+      entries.push({username: u, tier: t, note: note});
+    }
+    if (entries.length === 0) {
+      msg('Не распознано ни одной строки', false);
+      return;
+    }
+    if (replace && !confirm('Полная замена: всех текущих, кого нет в списке, удалит. Продолжить?')) return;
+    const r = await fetch('/api/dashboard/boosty/subscribers/bulk', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({entries: entries, replace_all: replace})
+    });
+    const d = await r.json();
+    msg(d.message || (d.success ? 'OK' : 'Ошибка'), !!d.success);
+    if (d.success) {
+      document.getElementById('b-bulk-text').value = '';
+      load();
+    }
+  });
+  load();
+
+  // Sprint 5.33 RESET-1 — Bannerlord admin reset tools.
+  // GET preview /api/streamer/bannerlord/reset/preview → table_counts
+  // POST /api/streamer/bannerlord/reset с {confirm_phrase: channel_id} → wipe.
+  const bnrResetOut = document.getElementById('bnr-reset-result');
+  const bnrResetShow = (txt, isError) => {
+    bnrResetOut.style.display = 'block';
+    bnrResetOut.style.color = isError ? '#fb7185' : '#adadb8';
+    bnrResetOut.textContent = txt;
+  };
+  document.getElementById('bnr-reset-preview-btn')?.addEventListener('click', async () => {
+    bnrResetShow('Loading preview...', false);
+    try {
+      const r = await fetch('/api/streamer/bannerlord/reset/preview', {
+        credentials: 'include',
+      });
+      const d = await r.json();
+      if (!d.success) { bnrResetShow('❌ ' + (d.message || 'Failed'), true); return; }
+      const lines = [];
+      lines.push('Channel #' + d.channel_id + ' — total rows: ' + d.total_rows);
+      lines.push('');
+      lines.push('Per table:');
+      const entries = Object.entries(d.table_counts || {}).sort((a, b) => (b[1] || 0) - (a[1] || 0));
+      for (const [tbl, cnt] of entries) {
+        if (cnt === 0) continue;
+        lines.push('  ' + (cnt === -1 ? '?' : String(cnt).padStart(5)) + '  ' + tbl);
+      }
+      lines.push('');
+      lines.push('Preserved (НЕ удаляются): ' + (d.preserved_tables || []).join(', '));
+      bnrResetShow(lines.join('\n'), false);
+    } catch (e) {
+      bnrResetShow('❌ Network error: ' + e.message, true);
+    }
+  });
+  document.getElementById('bnr-reset-confirm-btn')?.addEventListener('click', async () => {
+    // Get current channel_id from session — fetch /api/streamer/me
+    let channelId = null;
+    try {
+      const meR = await fetch('/api/streamer/me', {credentials: 'include'});
+      const me = await meR.json();
+      channelId = me.id || me.channel_id;
+    } catch (e) {}
+    if (!channelId) {
+      bnrResetShow('❌ Не удалось определить channel_id (re-login?)', true);
+      return;
+    }
+    const phrase = prompt(
+      'Это удалит ВСЁ per-channel Bannerlord state.\n\n' +
+      'Для подтверждения введи свой channel_id: ' + channelId
+    );
+    if (phrase === null) return;
+    if (String(phrase).trim() !== String(channelId)) {
+      bnrResetShow('❌ Confirmation mismatch — ничего не удалено', true);
+      return;
+    }
+    bnrResetShow('Wiping...', false);
+    try {
+      const r = await fetch('/api/streamer/bannerlord/reset', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({confirm_phrase: String(channelId)}),
+      });
+      const d = await r.json();
+      if (!d.success) { bnrResetShow('❌ ' + (d.message || 'Failed'), true); return; }
+      const lines = [];
+      lines.push('✅ ' + (d.message || 'Done'));
+      lines.push('');
+      lines.push('Deleted ' + d.total_deleted + ' rows. Detail:');
+      for (const [tbl, cnt] of Object.entries(d.deleted_by_table || {})) {
+        if (cnt === 0) continue;
+        lines.push('  ' + (cnt === -1 ? '?' : String(cnt).padStart(5)) + '  ' + tbl);
+      }
+      bnrResetShow(lines.join('\n'), false);
+    } catch (e) {
+      bnrResetShow('❌ Network error: ' + e.message, true);
+    }
+  });
+})();
+</script>
+
+<script>
+/* Состояние подключения. Опрашиваем раз в 15 секунд: стример держит эту
+   страницу открытой, пока настраивает мод, и должен видеть, что связь
+   появилась, не нажимая обновление. */
+(function(){
+  var card = document.getElementById('setupCard');
+  if (!card) return;
+  var updated = document.getElementById('setupUpdated');
+  var lastGoodAt = null;
+  var firstStatus = true;
+  function checkedAt(ts){ return new Date(ts).toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+  function stale(message){
+    card.className = 'status wait';
+    document.getElementById('setupIcon').textContent = '⚠️';
+    document.getElementById('setupTitle').textContent = 'Нет свежего состояния';
+    document.getElementById('setupWhy').textContent = message;
+    updated.textContent = lastGoodAt ? 'Последний успешный ответ: ' + checkedAt(lastGoodAt) : 'Успешного ответа пока не было';
+  }
+  function paint(d){
+    lastGoodAt = Date.now();
+    var icon = document.getElementById('setupIcon');
+    var title = document.getElementById('setupTitle');
+    var why = document.getElementById('setupWhy');
+    var steps = document.getElementById('setupSteps');
+    var counts = document.getElementById('setupCounts');
+    if (firstStatus && !d.all_good) document.getElementById('setupDetails').open = true;
+    firstStatus = false;
+    card.className = 'status ' + (d.all_good ? 'ok' : 'wait');
+    icon.textContent = d.all_good ? '✅' : '⏳';
+    title.textContent = d.all_good ? 'Канал технически готов' : ('Осталось: ' + d.next_step);
+    why.textContent = d.all_good
+      ? 'Мод на связи. Проверь, что расширение включено на Twitch.'
+      : (d.next_hint || '');
+    steps.innerHTML = '';
+    (d.steps || []).forEach(function(s){
+      var li = document.createElement('li');
+      if (s.done) li.className = 'done';
+      var m = document.createElement('span');
+      m.className = 'mark'; m.textContent = s.done ? '✓' : '•';
+      var t = document.createElement('span');
+      t.textContent = s.title;
+      if (!s.done && s.hint){
+        var h = document.createElement('span');
+        h.className = 'hint'; h.textContent = s.hint;
+        t.appendChild(h);
+      }
+      li.appendChild(m); li.appendChild(t); steps.appendChild(li);
+    });
+    counts.textContent = 'Зрителей всего: ' + (d.viewers_total || 0)
+      + '   ·   активных за 15 минут: ' + (d.viewers_active || 0)
+      + (d.mod_silent_sec == null ? '' : '   ·   сигнал мода ' +
+         (d.mod_silent_sec < 60 ? d.mod_silent_sec + ' с'
+           : d.mod_silent_sec < 3600 ? Math.floor(d.mod_silent_sec / 60) + ' мин'
+           : Math.floor(d.mod_silent_sec / 3600) + ' ч') + ' назад');
+    updated.textContent = 'Обновлено: ' + checkedAt(lastGoodAt);
+  }
+  function tick(){
+    fetch('/api/streamer/setup-status', {credentials:'same-origin'})
+      .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(d){
+        if (d && d.success) paint(d);
+        else stale(d && d.status === 'unauthenticated'
+          ? 'Сессия истекла. Войди снова через /streamer.'
+          : 'Не удалось проверить канал. Обнови страницу.');
+      })
+      .catch(function(){ stale('Сервер или сеть недоступны. Данные ниже могли устареть.'); });
+  }
+  tick();
+  setInterval(tick, 15000);
+})();
+</script>
+
+<script>
+/* Готовый config.json. Стример копирует ЦЕЛИКОМ файл, а не вписывает три поля
+   руками: ручная правка JSON — это забытая запятая, кавычка-ёлочка из
+   мессенджера и вечер переписки. */
+function copyCfg(){
+  var t = document.getElementById('cfgText');
+  t.select(); t.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); } catch(e){}
+  var b = document.querySelector('.cfgcopy');
+  var old = b.textContent; b.textContent = '✓ Скопировано';
+  setTimeout(function(){ b.textContent = old; }, 1500);
+}
+/* 2026-08-20. Раньше конфиг с ТОКЕНОМ подтягивался при загрузке страницы и
+   стоял на экране открытым текстом. Дашборд открывают во время стрима — чтобы
+   посмотреть, на связи ли мод, — и токен оказывался в кадре без единого клика.
+   Предупреждение «не показывай на стриме» есть, но полагаться на внимательность
+   там, где можно просто не показывать, — плохая защита.
+
+   Теперь токен запрашивается ТОЛЬКО по кнопке, и весь ручной путь спрятан под
+   спойлер: основной способ — Manager, ему конфиг руками не нужен вовсе. */
+function revealCfg(){
+  var box = document.getElementById('cfgText');
+  if (!box) return;
+  box.value = 'загружаю…';
+  fetch('/api/streamer/module-token?module_id=bannerlord', {credentials:'same-origin'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var tok = (d && (d.token || d.module_token)) || '';
+      box.value = JSON.stringify({
+        BackendUrl: window.location.origin,
+        ModuleToken: tok,
+        ChannelId: Number({{ channel_id }}),
+        PollIntervalMs: 3000
+      }, null, 2);
+    })
+    .catch(function(){
+      box.value = 'Не удалось получить токен. Обнови страницу.';
+    });
+}
+</script>
+</body></html>

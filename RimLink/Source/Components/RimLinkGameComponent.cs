@@ -1,0 +1,219 @@
+using System.Collections.Generic;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using UnityEngine;
+using RimWorld;
+using Verse;
+
+namespace RimLink.Components
+{
+    /// <summary>
+    /// Подключается к игровому циклу после полной загрузки карты.
+    /// Именно здесь безопасно читать пешки, карту и мир.
+    /// RimWorld создаёт GameComponent автоматически для активной игры.
+    /// </summary>
+    public class RimLinkGameComponent : GameComponent
+    {
+        private float _syncRealTime = 0f;
+        private float _deathCheckRealTime = 0f;
+        
+        private float SyncIntervalSeconds =>
+            RimLinkMod.Instance != null ? Math.Max(1, RimLinkMod.Instance.SyncInterval) : 50;
+            
+        private bool _gameLoaded = false;
+        private bool _offlineSent = false;
+        private bool _sessionInitialized = false;
+        private bool _quittingSubscribed = false;
+        private int _heartbeatInFlight = 0;
+
+        private const int MAX_COMMANDS_PER_TICK = 5;
+        private const int COMMAND_BUDGET_MS = 8;
+
+        // Heartbeat по реальному времени (не игровым тикам) — работает и на паузе
+        private float _heartbeatRealTime = 0f;
+        private const float HEARTBEAT_REAL_INTERVAL = 30f;
+
+        public RimLinkGameComponent(Game game) { }
+
+        private static void SyncCatalogsInBackground()
+        {
+            List<object> catalog = null;
+            List<object> events  = null;
+
+            try
+            {
+                if (RimLinkMod.ShopManager != null && RimLinkMod.Prices != null)
+                    catalog = RimLinkMod.ShopManager.BuildCatalogWithPrices(RimLinkMod.Prices);
+            }
+            catch (Exception ex) { RimLinkLog.Warn($"[RimLink] BuildShopCatalog: {ex.Message}"); }
+
+            try
+            {
+                if (RimLinkMod.EventManager != null && RimLinkMod.Prices != null)
+                    events = RimLinkMod.EventManager.BuildEventCatalog(RimLinkMod.Prices);
+            }
+            catch (Exception ex) { RimLinkLog.Warn($"[RimLink] BuildEventCatalog: {ex.Message}"); }
+
+            var capCatalog = catalog;
+            var capEvents  = events;
+            Task.Run(() =>
+            {
+                try
+                {
+                    if (capCatalog != null) RimLinkMod.API?.SyncShopCatalog(capCatalog);
+                    if (capEvents != null)  RimLinkMod.API?.SyncEventCatalog(capEvents);
+                }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] SyncCatalogs bg: {ex.Message}"); }
+            });
+        }
+
+        public override void FinalizeInit()
+        {
+            base.FinalizeInit();
+            TryInitializeSession("игра загружена");
+        }
+
+        public override void StartedNewGame()
+        {
+            base.StartedNewGame();
+            TryInitializeSession("новая игра");
+        }
+
+        private void TryInitializeSession(string reason)
+        {
+            if (_sessionInitialized || Current.Game == null) return;
+            bool worldReady = (Find.Maps != null && Find.Maps.Count > 0)
+                || PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Count > 0;
+            if (!worldReady) return;
+
+            _sessionInitialized = true;
+            _gameLoaded = true;
+            RimLinkMod.GameSessionActive = true;
+            _offlineSent = false;
+            _heartbeatRealTime = 0f;
+            _deathCheckRealTime = 0f;
+            _syncRealTime = 0f;
+            RimLinkLog.Msg($"[RimLink] Инициализация сессии ({reason})");
+
+            if (!_quittingSubscribed)
+            {
+                UnityEngine.Application.quitting += OnApplicationQuitting;
+                _quittingSubscribed = true;
+            }
+
+            RimLinkMod.PawnManager?.LoadFromCurrentMap();
+            SyncCatalogsInBackground();
+        }
+
+        public override void GameComponentTick()
+        {
+            base.GameComponentTick();
+
+            if (!_sessionInitialized)
+                TryInitializeSession("отложенная готовность мира");
+            if (!_gameLoaded) return;
+            if (RimLinkMod.CommandQueue == null) return;
+            
+
+            RimLinkMod.CommandQueue.FlushBudget(MAX_COMMANDS_PER_TICK, COMMAND_BUDGET_MS);
+
+
+        }
+
+        public override void GameComponentUpdate()
+        {
+            base.GameComponentUpdate();
+
+            if (_gameLoaded && !_offlineSent && Current.ProgramState == ProgramState.Entry)
+            {
+                SendOfflineNotification();
+                return;
+            }
+
+            if (_gameLoaded)
+            {
+                // Unity main thread, real time: death must reach the UI on pause too.
+                _deathCheckRealTime += Time.unscaledDeltaTime;
+                if (_deathCheckRealTime >= 1f)
+                {
+                    _deathCheckRealTime = 0f;
+                    try { RimLinkMod.PawnManager?.CheckAndSyncDeaths(); }
+                    catch (Exception ex) { RimLinkLog.Warn($"[RimLink] Death sync: {ex.Message}"); }
+                }
+                // Retry snapshots even while paused; network I/O remains in PawnManager's worker.
+                _syncRealTime += Time.unscaledDeltaTime;
+                if (_syncRealTime >= SyncIntervalSeconds)
+                {
+                    _syncRealTime = 0f;
+                    try { RimLinkMod.PawnManager?.SyncAll(); }
+                    catch (Exception ex) { RimLinkLog.Warn($"[RimLink] Snapshot sync: {ex.Message}"); }
+                }
+                _heartbeatRealTime += Time.unscaledDeltaTime;
+                if (_heartbeatRealTime >= HEARTBEAT_REAL_INTERVAL)
+                {
+                    _heartbeatRealTime = 0f;
+                    if (Interlocked.CompareExchange(ref _heartbeatInFlight, 1, 0) != 0)
+                        return;
+
+                    Task.Run(() =>
+                    {
+                        try { RimLinkMod.API?.Heartbeat(); }
+                        catch (Exception ex)
+                        {
+                            #if DEBUG
+                            RimLinkLog.Warn($"[RimLink] Heartbeat failed: {ex.Message}");
+                            #else
+                            _ = ex;
+                            #endif
+                        }
+                        finally { Interlocked.Exchange(ref _heartbeatInFlight, 0); }
+                    });
+                }
+            }
+        }
+
+        public override void GameComponentOnGUI()
+        {
+            base.GameComponentOnGUI();
+        }
+
+        private void OnApplicationQuitting()
+        {
+            UnsubscribeFromQuitting();
+            SendOfflineNotification();
+        }
+
+        private void SendOfflineNotification()
+        {
+            if (_offlineSent) return;
+            _offlineSent = true;
+            _gameLoaded  = false;
+            RimLinkMod.GameSessionActive = false;
+            _sessionInitialized = false;
+            UnsubscribeFromQuitting();
+
+            RimLinkMod.CommandQueue?.ClearPending();
+            RimLinkMod.PawnManager?.Clear();
+
+            RimLinkLog.Msg("[RimLink] Игра закрывается — отправляем offline");
+            Task.Run(() =>
+            {
+                try { RimLinkMod.API?.SendOffline(); }
+                catch (Exception ex) { RimLinkLog.Warn($"[RimLink] Offline notification failed: {ex.Message}"); }
+            });
+        }
+
+        private void UnsubscribeFromQuitting()
+        {
+            if (!_quittingSubscribed) return;
+            UnityEngine.Application.quitting -= OnApplicationQuitting;
+            _quittingSubscribed = false;
+        }
+
+        public override void ExposeData()
+        {
+            base.ExposeData();
+        }
+    }
+}

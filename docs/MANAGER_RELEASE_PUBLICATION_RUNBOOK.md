@@ -1,0 +1,250 @@
+# Manager release publication runbook
+
+Дата: 2026-08-16  
+Статус: RimLink `0.1.1` и BannerlordLink `0.1.0` опубликованы и независимо
+проверены 2026-08-16
+
+## Подтверждённая исходная точка
+
+- production nginx `/etc/nginx/sites-enabled/twitchbot` обслуживает reverse
+  proxy и отдельный статический `/releases/`;
+- канонический local artifact `RimLink-0.1.1.zip` имеет size `63673` и SHA-256
+  `4e9656cb84b574691482938967928b0c50ad3cafd3cb7e41e79a12cb7ed42381`;
+- эти значения совпадают с signed installation manifest;
+- public key `shedlink-release-2026` встроен в Manager; private PEM хранится вне
+  repository с user-only ACL;
+- nginx backup: `/root/twitchbot.nginx.bak.20260816T123624Z`.
+
+## Неизменяемый URL
+
+Планируемый URL:
+
+```text
+https://shedoy23.ru/releases/RimLink-0.1.1.zip
+```
+
+Опубликованный versioned файл никогда не перезаписывается. Любое изменение
+bytes требует нового release version, filename, manifest и подписи.
+
+## Локальная подготовка
+
+Сборка выполняется только PowerShell 7: алгоритм сжатия Windows PowerShell 5
+даёт другие bytes.
+
+```powershell
+pwsh -File scripts/pack-rimlink-release.ps1 `
+  -OutputPath dist/releases/RimLink-0.1.1.zip
+```
+
+Упаковщик отказывается перезаписывать существующий файл. Затем на копии
+manifest выполняются generator/signer/verifier из
+`docs/MANAGER_RELEASE_SIGNATURE_POLICY_V1.md`.
+
+## Production-схема
+
+- directory: `/srv/shedlink/releases/`;
+- owner: `root:root`;
+- directory mode: `0755`;
+- immutable release files: `0644`;
+- nginx location:
+
+```nginx
+location ^~ /releases/ {
+    alias /srv/shedlink/releases/;
+    autoindex off;
+    limit_except GET HEAD { deny all; }
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+}
+```
+
+Изменение применяется только через backup конфига, `nginx -t`, затем reload.
+Backend и supervisor restart для статического location не требуются.
+
+ZIP сначала загружается под временным именем, сверяется на сервере по size и
+SHA-256 и только потом атомарно переименовывается в окончательный filename.
+
+## Внешняя проверка
+
+После публикации с отдельной машины проверяются:
+
+1. HTTPS 200 без redirect;
+2. точный `Content-Length`;
+3. повторное скачивание ZIP;
+4. независимый `ShedLink.Manager.VerifyRelease`;
+5. совпадение public-key fingerprint;
+6. отсутствие directory listing;
+7. `/health` и публичные страницы backend остаются 200.
+
+Только после этого signed manifest и public key встраиваются в Manager build и
+становится доступен Install CTA.
+
+Проверка 2026-08-16 завершена: HTTPS 200 без redirect, `Content-Length=63673`,
+HTTP 404, listing 403, POST 403, server/local SHA-256 и RSA fingerprint совпали,
+independent verifier зелёный, backend `/health` остался 200.
+
+BannerlordLink `0.1.0` выпущен тем же контрактом: `218775` bytes, SHA-256
+`2f5e431e…cf43416a`, HTTPS 200 без redirect, HTTP 404, listing/POST 403,
+независимый verifier зелёный, `/health` 200. Evidence:
+`docs/BANNERLORD_MANAGER_RELEASE_2026-08-16.md`.
+
+## Выпуск 2026-08-19 — BannerlordLink 0.1.1 и ShedColony 0.1.0
+
+Опубликованы тем же контрактом, по явному подтверждению владельца.
+
+| Файл | Размер | SHA-256 |
+|---|---|---|
+| `BannerlordLink-0.1.1.zip` | 218885 | `58ce59857731273c64d4555c958876bef98fd77aeb3207f33a8080c926747c92` |
+| `ShedColony-0.1.0.zip` | 49366 | `e1b270492c0bace8eefee8b871b9f49b9f39c95c2098df5cbdb5600b44cd9786` |
+
+Порядок: загрузка под именами `.upload-*` → сверка size и SHA-256 НА СЕРВЕРЕ →
+`chown root:root`, `chmod 0644` → `mv -n` в окончательное имя с явным отказом,
+если имя занято. Ранее опубликованные `RimLink-0.1.1.zip` и
+`BannerlordLink-0.1.0.zip` не тронуты (размеры и даты прежние).
+
+Внешняя проверка после публикации:
+
+```text
+BannerlordLink-0.1.1.zip  https 200, redirects=0, Content-Length 218885, application/zip
+ShedColony-0.1.0.zip      https 200, redirects=0, Content-Length 49366,  application/zip
+скачанные SHA-256         совпали с локальными и с манифестами
+independent verifier      VERIFIED × 2, exit 0 — против манифестов, взятых
+                          ИЗ пакета Manager alpha.8, и артефактов, скачанных с прода
+fingerprint               17e6043cca11dcb9f4230d5a91325e9d5d52ba9a29bb4cc4a6ffb51618001541
+http://…                  404 (закрыт)
+/releases/ listing        403
+POST на файл              403
+/health                   200
+```
+
+Backend обновлён отдельно (`deploy.ps1 -Backend`): гейт критических тестов
+107/0, `Migrations complete`, `Modules discovered: ['bannerlord','rimworld',
+'shedcolony']`, сервис RUNNING, публичные страницы 200, чат-бот переподключился,
+после старта ноль traceback. Фронт расширения не деплоился — он заблокирован
+флагом `$FrontendReviewOpen` на время ревью `0.0.2`.
+
+Что этим НЕ доказано: живая установка обеих игр Manager'ом. См.
+`docs/MANAGER_MULTIGAME_PREFLIGHT_2026-08-19.md` §10.
+
+## Выпуск 2026-08-20 — ShedLink Manager alpha.10
+
+Manager впервые опубликован по постоянному адресу — до этого он передавался из
+рук в руки, и первая ступень воронки была недостижима в принципе.
+
+```text
+https://shedoy23.ru/releases/ShedLink.Manager-0.1.0-alpha.10-win-x64.zip
+size    67853805
+SHA-256 d4ea262c9800009bc7b18850948228861230d12a35b32d091226ebbe5613d3c3
+```
+
+Тем же контрактом: загрузка под `.upload-`, сверка размера и SHA-256 НА
+СЕРВЕРЕ, `mv -n` с отказом при занятом имени. Внешняя проверка: HTTPS 200 без
+редиректов, `Content-Length` точный, скачанный файл совпал по SHA-256, HTTP
+404, листинг 403. Три мода рядом не тронуты.
+
+**Ссылка версионная и не станет «последней».** Опубликованный файл неизменяем;
+новая сборка — новое имя. Постоянной ссылки `latest` СОЗНАТЕЛЬНО нет: она
+означала бы перезапись, а это ровно то, от чего защищает контракт. Ссылку на
+свежую версию давать руками либо со страницы, когда фронт разморозят.
+
+**Чего у файла нет:** подписи. Windows покажет SmartScreen при первом запуске —
+это ожидаемо и записано в R3; для незнакомого человека это первая преграда, и
+именно её теперь видно в воронке как разрыв «скачали, но не запустили».
+
+### Подсчёт скачиваний
+
+`scripts/ingest-download-events.py` разбирает журнал nginx и кладёт события
+`manager_downloaded` в воронку. Запуск на сервере:
+
+```bash
+cd /root/twitch-extension && python3 scripts/ingest-download-events.py --db backend/viewers.db
+```
+
+Идемпотентен: прогресс лежит в `backend/viewers.db.download-ingest-state`,
+обрабатываются только записи строго новее. Повторный прогон проверен — не
+удваивает. IP-адреса не сохраняются.
+
+**Первые две записи в воронке — мои проверочные скачивания 20.08 03:40 и
+03:42.** Не вычищал: выкидывать неудобные данные хуже, чем объяснить их.
+
+**Не автоматизировано:** скрипт никем не вызывается по расписанию. Пока
+запускать руками перед тем, как смотреть воронку. Cron — решение владельца,
+это постоянная настройка прода.
+
+## Выпуск 2026-08-20 — Manager alpha.11 и alpha.12
+
+```text
+alpha.11  67858860  4767244769856645af5aa12a6c8cb07c90211aa2f80da1480d8c38b56cb45946
+alpha.12  67858655  7d28fbff4fbacbacc8fb3d407c5d0fd7be66d9927855770bf2147b7df035ee68  (текущая)
+```
+
+alpha.11 — первая сборка с телеметрией воронки. **alpha.10 её не содержала**, и
+это стоило ложной проверки: владелец поставил её, прошёл весь путь, а воронка
+осталась пуста. Причина не в коде — артефакт был собран на четыре коммита
+раньше фичи. **Перед публикацией сверять `source_commit` из `RELEASE.json` с
+коммитом той фичи, которую собираешься проверять.**
+
+alpha.12 — правка ступени «выбрал игру» (см. ROADMAP §R4) плюс всё, что
+накопилось.
+
+### Постоянная ссылка
+
+```text
+https://shedoy23.ru/download/manager   →  302 на текущую versioned-сборку
+```
+
+Имя файла живёт в ОДНОЙ константе `MANAGER_RELEASE_FILE`
+(`backend/routes/streamer.py`). При выпуске новой сборки:
+
+1. собрать из чистого коммита, сверить `source_commit`;
+2. опубликовать под versioned-именем (temp → сверка на сервере → `mv -n`);
+3. поменять `MANAGER_RELEASE_FILE` и `MANAGER_RELEASE_VERSION` — **одну строку
+   на две правки**, и задеплоить бэкенд;
+4. проверить, что `/download/manager` редиректит на новое имя, а старые версии
+   по-прежнему отдаются (неизменяемость).
+
+Так номер версии не размножается по страницам: и дашборд, и лендинг ведут на
+постоянный адрес, а не на файл.
+
+### Проверка выпуска alpha.12
+
+`/download/manager` → 302 на alpha.12, скачанный по постоянной ссылке файл
+совпал по размеру и SHA-256 с локальным; alpha.10 и alpha.11 по-прежнему
+отдаются 200 — опубликованное не переписывается.
+
+## Rollback
+
+Если проверка не прошла, signed manifest не попадает в Manager. Временный ZIP
+удаляется. Если nginx location уже был применён, восстанавливается backup
+конфига, выполняются `nginx -t` и reload. Backend/DB при этом не изменяются.
+
+## Выпуск 2026-09-12 — RimLink 0.1.4 и Manager alpha.17
+
+**Почему понадобился.** Менеджер alpha.16 не мог поставить ни один из трёх
+актуальных модов. Манифесты 0.1.3/0.1.4 были сделаны копией предыдущих: ссылку
+и SHA-256 обновили, а `size_bytes` оставили от старой версии — и подпись была
+под этот старый размер. Менеджер сверяет и размер, и подпись, поэтому
+установка падала. Увидеть это можно было только запустив установку: схемная
+проверка размера не знает, а самопроверка менеджера подписи shipped-манифестов
+не трогала.
+
+**Что сделано.**
+
+| Шаг | Результат |
+|---|---|
+| Переподписаны rimworld-0.1.3, bannerlord-0.1.3, shedcolony-0.1.4 | `SignArtifact` ключом `shedlink-release-2026`, независимый `VerifyRelease` зелёный, отпечаток `17e6043c…` |
+| Собран RimLink 0.1.4 (фикс подсказки протезов, багрепорт #50) | 65 101 байт, SHA-256 `daf5f727…`; DLL внутри сверена с деревом (md5 `e97f9945…`) |
+| Опубликован RimLink-0.1.4.zip | временное имя → сверка размера и SHA на сервере → атомарное `mv`; HTTPS 200 без редиректов |
+| Собран Manager alpha.17 | 67 878 414 байт, SHA-256 `30554fea…`; в пакете 11 манифестов, у каждого размер совпадает с опубликованным архивом |
+| Опубликован и переключена постоянная ссылка | `/download/manager` → 302 → alpha.17, скачивание 200 |
+
+**Новый гейт.** `python scripts/check-published-artifacts.py` качает то, что
+реально лежит на сервере, и сверяет размер, SHA-256 и подпись — публичным
+ключом ИЗ КОДА менеджера, а не из папки с ключами. Прогонять после каждой
+публикации; в CI не стоит — он ходит в сеть.
+
+**Грабли этого выпуска** (подробнее в `RUNBOOK.md` §7 «Ловушки, на которых мы уже спотыкались»): на диске C: не хватило
+места под self-contained сборку, а `dotnet nuget locals --clear` не помогает —
+пакеты тут же качаются обратно. Помог `$env:NUGET_PACKAGES` на другом диске.
+Упаковщик требует чистое рабочее дерево, иначе пакет нечем связать с кодом.
+

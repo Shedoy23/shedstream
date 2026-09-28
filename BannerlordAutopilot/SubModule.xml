@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Module>
+	<Name value="BannerlordAutopilot"/>
+	<Id value="Shedoy23.BannerlordAutopilot"/>
+	<Version value="v0.0.1"/>
+	<DefaultModule value="false"/>
+	<SingleplayerModule value="true"/>
+	<Official value="false"/>
+	<!-- Harmony НЕ нужен: прототип не патчит чужие методы. Барьер входа в
+	     штатный выбор целей обходится тем, что мод сам вызывает публичный
+	     цикл движка для MainParty — то есть ни одна другая партия не
+	     затрагивается. Разбор: docs/BANNERLORD_AUTOPILOT_RESEARCH_2026-09-12.md
+	     Зависимости без DLC: War Sails здесь не нужен и не проверялся. -->
+	<DependedModules>
+		<DependedModule Id="Native"/>
+		<DependedModule Id="SandBoxCore"/>
+		<DependedModule Id="Sandbox"/>
+	</DependedModules>
+	<SubModules>
+		<SubModule>
+			<Name value="BannerlordAutopilot"/>
+			<DLLName value="BannerlordAutopilot.dll"/>
+			<SubModuleClassType value="BannerlordAutopilot.AutopilotSubModule"/>
+			<Tags>
+			</Tags>
+		</SubModule>
+	</SubModules>
+	<DependedModuleMetadatas>
+		<DependedModuleMetadata id="Native" order="LoadBeforeThis"/>
+		<DependedModuleMetadata id="SandBoxCore" order="LoadBeforeThis"/>
+		<DependedModuleMetadata id="Sandbox" order="LoadBeforeThis"/>
+	</DependedModuleMetadatas>
+</Module>

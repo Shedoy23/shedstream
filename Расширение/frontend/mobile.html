@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://extension-files.twitch.tv; connect-src 'self' https://api.twitch.tv https://shedoy23.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://shedoy23.ru;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <style>html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;}</style>
+    <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+    <title>Twitch Bot Extension</title>
+    <link rel="stylesheet" href="viewer.css?v=202609221910">
+</head>
+<body>
+
+<!-- Язычок скрытия — зеркало язычка открытия (#panel-restore-tab), багрепорт #20.
+     Лежит ВНЕ панели: панель скроллится, а язычок должен стоять на месте. -->
+<button id="panel-hide-tab" title="Скрыть панель">▶</button>
+
+<div id="overlay-panel" class="open">
+    <div id="panel-close">
+        <div class="panel-brand">
+            <div class="panel-brand-row">
+                <span class="panel-title">ShedLink</span>
+                <!-- Заполняется из <meta name="shedlink-version"> — метку ставит
+                     упаковщик (scripts/pack-extension.py). Незапакованный фронт
+                     (наш сервер, /dev) честно показывает "dev". -->
+                <span class="panel-version" id="panel-version"></span>
+            </div>
+            <span class="panel-subtitle" id="panel-module-name"></span>
+        </div>
+        <button id="panel-hide-btn" title="Скрыть панель">✕</button>
+    </div>
+    <div id="panel-content">
+
+    <!-- Шапка с балансом -->
+    <div class="header">
+        <div class="user-info">
+            <div class="avatar">👤</div>
+            <div>
+                <div class="username" id="username">Загрузка...</div>
+                <div class="badge" id="user-role-badge">Зритель</div>
+                <!-- Sprint 5.31 #45b: tier бейджи (TS1/BS2/...) рядом с ролью. -->
+                <div id="user-tier-badges" style="display:flex;gap:4px;margin-top:3px;"></div>
+            </div>
+        </div>
+        <div class="balance-info">
+            <div class="balance-item">
+                <div class="balance-label">Баланс</div>
+                <div class="balance-value" id="points">0</div>
+            </div>
+            <div class="balance-item">
+                <div class="balance-label">Доход/мин</div>
+                <div class="balance-value income" id="income">+0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Полоска уровня -->
+    <div id="level-bar-container" style="padding:10px 16px;background:rgba(145,71,255,0.08);border-bottom:1px solid #2d2d2f;"></div>
+
+    <!-- Вкладки -->
+    <div class="tabs">
+        <button class="tab active" data-tab="bot"><span class="tab-icon">🎮</span><span class="tab-text">Бот</span></button>
+        <button class="tab" data-tab="rimworld"><span class="tab-icon">🔌</span><span class="tab-text">Интеграция</span></button>
+        <button class="tab" data-tab="shop"><span class="tab-icon">🏪</span><span class="tab-text">Магазин</span></button>
+        <!-- market tab удалён 2026-05-10 (Phase 1.C compliance rework — P2P trade) -->
+        <button class="tab" data-tab="stats"><span class="tab-icon">📊</span><span class="tab-text">Стата</span></button>
+    </div>
+
+    <!-- ===== БОТ =====
+         Sprint 5.19 (2026-05-20): зеркало extension.html — 4 секции
+         (🎮 Игры / 🤝 Социалка / 🎁 Награды / 📺 Канал). Кейсы/Квесты/Промо
+         в секции Награды — клик открывает модалки. CSS в viewer.css (.bot-section,
+         .bot-grid, .bot-card). -->
+    <div id="bot-tab" class="tab-content active">
+
+        <!-- Приглашение к первому шагу. Содержимое целиком приходит с бэкенда
+             (`first_step` в /api/viewer/info) — здесь только место под него.
+             Пусто, если персонаж уже есть или модуль не подключён. -->
+        <div id="first-step-card"></div>
+
+
+        <!-- 🎮 Игры -->
+        <div class="bot-section">
+            <div class="bot-section-title">🎮 Игры</div>
+            <div class="bot-grid">
+                <div class="action-card bot-card" data-action="tictactoe">
+                    <div class="bot-card-icon">❌⭕</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Крестики</div>
+                        <div class="bot-card-sub" id="ttt-state">PvP · ELO</div>
+                    </div>
+                </div>
+                <!-- 2026-09-01: канат ЗАМЕНИЛ кубики (решение владельца, правило
+                     «фича входит — фича выходит»). В кубиках случайность
+                     неустранима, и именно они стоят первыми в претензии Twitch
+                     по правилу 3.5. Канат устроен как крестики и дуэли: 1×1,
+                     ELO, сезонные призы. За отдельный матч крустики не платятся,
+                     платит только сезон — исход при этом целиком в руках двоих,
+                     поэтому приз стоит на той же почве, что у остальных игр. -->
+                <div class="action-card bot-card" data-action="tug">
+                    <div class="bot-card-icon">🪢</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Канат</div>
+                        <div class="bot-card-sub" id="tug-state">1×1 · ELO</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="duels">
+                    <div class="bot-card-icon">⚔️</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Дуэли</div>
+                        <div class="bot-card-sub" id="duel-count">0 активных</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🤝 Социалка -->
+        <div class="bot-section">
+            <div class="bot-section-title">🤝 Социалка</div>
+            <div class="bot-grid">
+                <div class="action-card bot-card" data-action="pets">
+                    <div class="bot-card-icon">🐾</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Питомец</div>
+                        <div class="bot-card-sub" id="pets-state">Косметика</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="family">
+                    <div class="bot-card-icon">💍</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Семья</div>
+                        <div class="bot-card-sub" id="family-status-desc">Свободен</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="guilds">
+                    <div class="bot-card-icon">🛡️</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Гильдия</div>
+                        <div class="bot-card-sub" id="guild-state">Не состоишь</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎁 Награды -->
+        <div class="bot-section">
+            <div class="bot-section-title">🎁 Награды</div>
+            <div class="bot-grid">
+                <div class="action-card bot-card" data-action="cases">
+                    <div class="bot-card-icon">🎁</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Кейсы</div>
+                        <div class="bot-card-sub" id="inventory-count">0 закрытых</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="quests">
+                    <div class="bot-card-icon">📜</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Квесты</div>
+                        <div class="bot-card-sub" id="quest-count">0/0</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="promo">
+                    <div class="bot-card-icon">💌</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Промокод</div>
+                        <div class="bot-card-sub">Введи код</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📺 Канал -->
+        <div class="bot-section">
+            <div class="bot-section-title">📺 Канал</div>
+            <div class="bot-grid">
+                <div class="action-card bot-card" data-action="voting">
+                    <div class="bot-card-icon">🗳️</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Голосование</div>
+                        <div class="bot-card-sub" id="voting-state">Реши что играет стример</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="bug_report">
+                    <div class="bot-card-icon">🐛</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Сообщить о баге</div>
+                        <div class="bot-card-sub">Нашёл проблему? Напиши нам</div>
+                    </div>
+                </div>
+                <div class="action-card bot-card" data-action="tts">
+                    <div class="bot-card-icon">🎤</div>
+                    <div class="bot-card-body">
+                        <div class="bot-card-title">Озвучить</div>
+                        <div class="bot-card-sub" id="tts-price-sub">5000💎 на оверлей</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== RIMWORLD ===== -->
+    <div id="rimworld-tab" class="tab-content">
+        <!-- 2026-05-15: tab переименован «RimWorld» → «🔌 Интеграция».
+             Содержимое conditional по channel.active_module:
+               'rimworld'   → блок #rimworld-content (legacy)
+               'bannerlord' → блок #bannerlord-content (Sprint 1.5)
+               null         → подсказка «Подключи модуль игры» -->
+
+        <div id="integration-empty" style="display:none;padding:20px;text-align:center;color:#adadb8;">
+            <div style="font-size:48px;margin-bottom:12px;">🔌</div>
+            <div style="font-weight:700;font-size:15px;color:#efeff1;margin-bottom:6px;">
+                Игровой модуль не подключён
+            </div>
+            <div style="font-size:12px;line-height:1.5;">
+                Стример должен запустить игру с подключённым модулем<br>
+                (RimWorld или Bannerlord) чтобы появились интерактивные фичи.
+            </div>
+        </div>
+
+        <!-- ===== BANNERLORD CONTENT (Sprint 1.5; Sprint 5.32 UI refactor — 4 inner tabs) ===== -->
+        <div id="bannerlord-content" style="display:none;">
+            <div class="rimworld-status-row">
+                <span class="rimworld-status-label">⚔️ Bannerlord</span>
+                <span id="bannerlord-status-badge" style="font-size:11px;font-weight:700;color:#f87171;">🔴 Оффлайн</span>
+            </div>
+
+            <div id="my-hero-card" style="padding:8px 6px 6px 6px;
+                 background:rgba(45,45,47,0.3);border-radius:6px;margin-bottom:6px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div id="hero-body" style="flex:1;min-width:0;">
+                        <div class="loading" style="font-size:12px;">Загрузка героя...</div>
+                    </div>
+                    <button class="small-btn" id="refresh-hero-btn"
+                            style="margin-left:8px;flex:0 0 auto;">🔄</button>
+                </div>
+            </div>
+
+            <div class="bnr-tab-strip" id="bnr-tab-strip">
+                <button class="bnr-tab-btn active" data-bnr-tab="combat">
+                    <span class="bnr-tab-icon">⚔</span><span>Бой</span>
+                </button>
+                <button class="bnr-tab-btn" data-bnr-tab="hero">
+                    <span class="bnr-tab-icon">🛡</span><span>Герой</span>
+                </button>
+                <button class="bnr-tab-btn" data-bnr-tab="inventory">
+                    <span class="bnr-tab-icon">🎒</span><span>Инвентарь</span>
+                </button>
+                <button class="bnr-tab-btn" data-bnr-tab="dynasty">
+                    <span class="bnr-tab-icon">🏰</span><span>Династия</span>
+                </button>
+            </div>
+
+            <div class="bnr-tab-pane active" data-bnr-pane="combat">
+                <div id="bnr-pane-combat-body"></div>
+                <div id="bnr-summon-slot" data-bnr-ui-section="summon" style="padding:0 6px;"></div>
+                <div id="bnr-active-powers-slot" data-bnr-ui-section="active_powers" style="padding:0 6px;"></div>
+                <div class="card" id="bannerlord-tournament-card" data-bnr-ui-section="tournament" style="margin-top:10px;">
+                    <div class="card-header">
+                        <h3 data-bnr-ui-label="tournament">🏆 Турнир зрителей</h3>
+                        <span class="card-badge" id="bannerlord-tournament-status">idle</span>
+                    </div>
+                    <div id="bannerlord-tournament-body">
+                        <div class="loading">Загрузка турнира...</div>
+                    </div>
+                </div>
+                <div id="bnr-build-choice-slot" data-bnr-ui-section="weapon_choice" style="padding:6px;margin-top:10px;"></div>
+            </div>
+            <div class="bnr-tab-pane" data-bnr-pane="hero">
+                <div id="bnr-pane-hero-body"></div>
+            </div>
+            <div class="bnr-tab-pane" data-bnr-pane="inventory">
+                <div class="card" id="bnr-equipment-shop" aria-label="Магазин и инвентарь героя"></div>
+                <div id="bnr-pane-inventory-body"></div>
+                <div class="card" id="bannerlord-shop-card" style="margin-top:10px;">
+                    <div class="card-header">
+                        <h3>🛒 Действия в игре</h3>
+                        <span class="card-badge" id="bannerlord-shop-count">0</span>
+                    </div>
+                    <div class="shop-list" id="bannerlord-shop-list">
+                        <div class="loading">Ждём данных от мода...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bnr-tab-pane" data-bnr-pane="dynasty">
+                <div id="bnr-pane-dynasty-body"></div>
+            </div>
+        </div>
+
+        <!-- ===== SHEDCOLONY CONTENT (Minecraft / MineColonies) ===== -->
+        <div id="shedcolony-content" style="display:none;"></div>
+
+        <!-- ===== RIMWORLD CONTENT (legacy) ===== -->
+        <div id="rimworld-content">
+        <div class="rimworld-status-row">
+            <span class="rimworld-status-label">RimWorld</span>
+            <span id="rimworld-status-badge" style="font-size:11px;font-weight:700;color:#f87171;">🔴 Оффлайн</span>
+        </div>
+
+        <!-- Лечение и воскрешение стоят ВЫШЕ карточки пешки: под карточкой их
+             закрывали навыки, экипировка и черты — до кнопок приходилось
+             скроллить весь профиль (просьба владельца 2026-09-05). -->
+        <!-- Числа в подписях — ЗАПАСНЫЕ: настоящие цены приходят с сервера
+             (/api/rimworld/config) и перерисовывают эти кнопки, см.
+             applyRimworldPriceLabels() в viewer-rimworld.js. Менять цену
+             здесь бесполезно — фронт живёт на CDN Twitch, сервер деплоится
+             за минуты. -->
+        <div id="pawn-actions" style="gap:6px;margin-bottom:10px;display:none;">
+            <button class="extra-btn" id="heal-pawn-btn"><span>💊</span> Лечить (150💎)</button>
+            <button class="extra-btn" id="btn-resurrect" style="display:none;"><span>✨</span> Воскресить (500💎)</button>
+        </div>
+
+        <div class="card" id="my-pawn-card">
+            <div class="card-header">
+                <h3>👤 Моя пешка</h3>
+                <button class="small-btn" id="refresh-pawn-btn">🔄</button>
+            </div>
+            <div class="loading">Загрузка...</div>
+        </div>
+
+        <button class="modal-btn" id="create-pawn-btn" style="display:none;margin-top:10px;">
+            ✨ Создать пешку (200💎)
+        </button>
+
+        <div class="card" id="shop-card" style="margin-top:10px;">
+            <div class="card-header">
+                <h3>🏪 Магазин</h3>
+                <span class="card-badge" id="shop-count">0</span>
+            </div>
+            <div class="shop-filters" id="shop-filters">
+                <button class="filter-btn active" data-cat="all">Все</button>
+                <button class="filter-btn" data-cat="apparel" aria-label="Одежда">👕</button>
+                <button class="filter-btn" data-cat="weapon" aria-label="Оружие">⚔️</button>
+                <button class="filter-btn" data-cat="implant" aria-label="Импланты">🔧</button>
+                <button class="filter-btn" data-cat="trait" aria-label="Черты">🎭</button>
+                <button class="filter-btn" data-cat="gene" aria-label="Гены">🔬</button>
+            </div>
+            <div style="padding-bottom:8px;">
+                <input type="text" id="shop-search" placeholder="🔍 Поиск..."
+                    style="width:100%;background:#2d2d2f;border:1px solid #3d3d3f;border-radius:7px;padding:7px 10px;color:#efeff1;font-size:12px;outline:none;font-family:inherit;">
+            </div>
+            <div class="shop-list" id="shop-list">
+                <div class="loading">Загрузка каталога...</div>
+            </div>
+        </div>
+
+        <div class="card" id="events-card" style="margin-top:10px;">
+            <div class="card-header">
+                <h3>⚡ Ивенты</h3>
+                <span class="card-badge">RimWorld</span>
+            </div>
+            <div style="padding:8px 12px 4px;">
+                <input type="text" id="events-search" placeholder="🔍 Поиск ивента..."
+                    style="width:100%;background:#2d2d2f;border:1px solid #3d3d3f;border-radius:7px;padding:7px 10px;color:#efeff1;font-size:12px;outline:none;">
+            </div>
+            <div class="shop-list" id="events-list">
+                <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+        </div><!-- /rimworld-content -->
+    </div><!-- /rimworld-tab -->
+
+    <!-- ===== МАГАЗИН (заглушка) ===== -->
+    <div id="shop-tab" class="tab-content">
+        <div class="card">
+            <h3>🏪 Магазин предметов</h3>
+            <p class="coming-soon">Скоро здесь будут предметы за очки!</p>
+        </div>
+    </div>
+
+    <!-- РЫНОК section целиком удалён 2026-05-10 (Phase 1.C compliance rework) -->
+
+    <!-- ===== СТАТИСТИКА ===== -->
+    <div id="stats-tab" class="tab-content">
+        <div class="card">
+            <div class="card-header"><h3>📊 Твоя статистика</h3></div>
+
+            <div class="stats-block">
+                <div class="stats-row-item">
+                    <span class="stats-row-label">⏱️ Время на стриме:</span>
+                    <span class="stats-row-value purple" id="watch-time-today">0 мин</span>
+                </div>
+                <div class="stats-row-item">
+                    <span class="stats-row-label">📅 За всё время:</span>
+                    <span class="stats-row-value" id="watch-time-total">0 мин</span>
+                </div>
+            </div>
+
+            <div class="stats-block">
+                <div class="stats-row-item">
+                    <span class="stats-row-label">💬 Сообщений сегодня:</span>
+                    <span class="stats-row-value green" id="chat-today">0</span>
+                </div>
+                <div class="stats-row-item">
+                    <span class="stats-row-label">📨 Сообщений за всё время:</span>
+                    <span class="stats-row-value" id="chat-total">0</span>
+                </div>
+                <div class="stats-row-item">
+                    <span class="stats-row-label">📝 Символов сегодня:</span>
+                    <span class="stats-row-value" id="chat-length">0</span>
+                </div>
+            </div>
+
+            <button class="modal-btn" id="stats-refresh-btn">🔄 Обновить статистику</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3>🔥 Стрик</h3></div>
+            <div id="streak-block" style="padding:4px 0;">
+                <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3>🏆 Достижения</h3></div>
+            <div id="achievements-list">
+                <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== COMPLIANCE FOOTER (Phase A.1 disclosure, 2026-05-16) =====
+         Twitch Channel Points Acceptable Use Policy требует disclosure для
+         extensions конвертирующих Channel Points в in-extension currency.
+         См. также §5.2 Extensions Guidelines — virtual goods без monetary value.
+         Sprint 5.33 W2 (2026-05-28): added explicit drop odds disclosure для
+         кейсы + smithed items per industry best-practice.
+         2026-07-29: smithed items из раскрытия убраны вместе с механикой —
+         осталось раскрытие ТОЛЬКО по кейсам. -->
+    <details id="compliance-disclosure" style="margin:14px 8px 8px;padding:8px 12px;background:#1a1a1c;border-radius:6px;font-size:11px;color:#8a8a8e;">
+        <summary style="cursor:pointer;color:#adadb8;">ℹ️ О внутренней валюте и шансах &middot; About virtual currency &amp; drop rates</summary>
+        <div style="margin-top:8px;line-height:1.5;">
+            <p style="margin:0 0 8px;">
+                Алмазы (💎) — внутренняя валюта расширения. Они <b>не имеют денежной
+                ценности</b>, не обмениваются на реальные деньги или Bits и не подлежат
+                передаче между пользователями. Channel Points конвертируются
+                в алмазы как награда за участие в активностях канала. Виртуальные предметы
+                (кейсы, косметика питомцев) не продаются за реальные деньги.
+            </p>
+            <!-- Английская версия — не украшение: раскрытие про валюту и шансы
+                 читает англоязычный ревьюер Twitch, и раскрытие только
+                 по-русски он вправе счесть отсутствующим (A0-octies, 28.07). -->
+            <p style="margin:0 0 8px;">
+                Crystals (💎) are this extension's virtual currency. They have
+                <b>no monetary value</b>, cannot be exchanged for real money or Bits,
+                and cannot be transferred between users. Channel Points convert into
+                crystals as a reward for participating in channel activities. Virtual items (cases,
+                pet cosmetics) are never sold for real money.
+            </p>
+            <!-- Точность этих строк проверена по коду 2026-07-29: веса 70/25/4/1 —
+                 это bot_core.DROP_CASE_TIERS, и применяются они ТОЛЬКО к источнику
+                 'drop'. Кейсы за quest/streak/watch_milestone/season_top выдаются
+                 фиксированным тиром (config.CASE_SOURCES), награда внутри кейса
+                 фиксирована по тиру (config.CASE_TIER_REWARDS). Раньше проценты
+                 стояли под подписью «earned through activity / milestones» — то есть
+                 приписывались как раз тем кейсам, где случайности нет. -->
+            <p style="margin:8px 0 4px;color:#adadb8;"><b>Шансы выпадения для кейсов</b> &middot; <b>Case drop odds</b></p>
+            <p style="margin:0 0 6px;">
+                Кейсы всегда бесплатны. Случайность ровно одна — какого тира окажется
+                кейс; что внутри кейса, определено его тиром и не разыгрывается.
+                Случайный тир бывает у двух источников:<br>
+                Cases are always free. The only random element is a case's tier; what is
+                inside a case is fixed by that tier and is never rolled. Two sources give
+                a random tier:
+            </p>
+            <p style="margin:0 0 4px;color:#adadb8;">Дроп во время эфира &middot; Drop during the stream</p>
+            <ul style="margin:0 0 8px 16px;padding:0;color:#8a8a8e;">
+                <li>Common — 70%</li>
+                <li>Rare — 25%</li>
+                <li>Epic — 4%</li>
+                <li>Legendary — 1%</li>
+            </ul>
+            <p style="margin:0 0 4px;color:#adadb8;">Ежечасный кейс активным зрителям &middot; Hourly case for active viewers</p>
+            <ul style="margin:0 0 8px 16px;padding:0;color:#8a8a8e;">
+                <li>Common — 68.9%</li>
+                <li>Rare — 25.0%</li>
+                <li>Epic — 6.0%</li>
+                <li>Legendary — 0.1%</li>
+            </ul>
+            <p style="margin:0 0 8px;">
+                Зритель, у которого панель открыта, но не было ни одного действия за час,
+                получает обычный кейс без розыгрыша тира.<br>
+                A viewer whose panel is open but who has not interacted for an hour
+                receives a common case with no tier roll.
+            </p>
+            <p style="margin:0 0 8px;">
+                Кейсы за квесты, серии и этапы просмотра выдаются фиксированного тира —
+                случайности в них нет. Награда внутри кейса тоже фиксирована и зависит
+                только от тира: открытие кейса ничего не разыгрывает.<br>
+                Cases granted for quests, streaks and watch-time milestones have a fixed
+                tier — no randomness involved. The reward inside a case is likewise fixed
+                per tier: opening a case does not roll anything.
+            </p>
+            <!-- Блок «шансы редкости для кованых предметов» убран 2026-07-29.
+                 Ковку предметов решено не делать (DEFERRED §D), а оставшаяся
+                 перековка качества случайности НЕ содержит: одна ступень вверх
+                 (Хорошее→Шикарное→Легендарное) за фиксированную цену. Раскрытие
+                 вероятностей для механики, которой нет, ревьюер читает буквально —
+                 это хуже, чем его отсутствие. Шансы кейсов выше остаются: кейсы
+                 живы и случайность в них настоящая. -->
+        </div>
+    </details>
+
+    <!-- ===== ОФИЦИАЛЬНЫЕ ПРАВИЛА КОНКУРСОВ (2026-09-01) =====
+         App Store Review 5.3.2 требует, чтобы официальные правила конкурса были
+         показаны В САМОМ приложении и чтобы там прямо стояло, что Apple не
+         спонсор и в конкурсе не участвует. Расширение объявляет окончание
+         сезона, три призовых места и порог рейтинга — то есть это конкурс, а
+         правил у него не было (аудит 002, R1). Это основание для отказа,
+         отдельное от правила 3.5, и закрывается статическим текстом.
+
+         Текст СТАТИЧЕН намеренно, вопреки правилу «тонкий фронт»: суммы и даты
+         по-прежнему приходят с сервера и здесь не дублируются, а вот сами
+         правила обязаны отрисоваться даже если бэкенд недоступен — пустой
+         блок правил ревьюер читает как их отсутствие.
+
+         ОБЕ оболочки обязаны нести идентичный текст: расходятся они молча.
+         Гейт — backend/tests/test_contest_rules_and_prize.py. -->
+    <details id="contest-rules" style="margin:8px;padding:8px 12px;background:#1a1a1c;border-radius:6px;font-size:11px;color:#8a8a8e;">
+        <summary style="cursor:pointer;color:#adadb8;">📜 Официальные правила конкурсов &middot; Official contest rules</summary>
+        <div style="margin-top:8px;line-height:1.5;">
+            <p style="margin:0 0 8px;">
+                <b>Организатор:</b> стример этого канала. <b>Участие бесплатное:</b> покупка не требуется
+                ни для участия, ни для победы. <b>Кто может участвовать:</b> зрители канала с аккаунтом
+                Twitch, отвечающие требованиям Условий использования Twitch.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>Как участвовать:</b> сыграть матч в мини-игре расширения или встать в очередь турнира —
+                и то и другое бесплатно. <b>Как определяется победитель:</b> по рейтингу, набранному
+                в матчах за сезон (призовые места достаются верхним строчкам таблицы на момент
+                окончания сезона при рейтинге не ниже указанного порога); в турнире — по исходу боёв.
+                <b>Сроки, размеры призов и порог рейтинга</b> показаны в разделе мини-игр и приходят
+                с сервера, поэтому здесь не дублируются.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>Призы:</b> только внутренняя валюта расширения и внутриигровые ценности. Они
+                <b>не имеют денежной ценности</b>, не обмениваются на реальные деньги, Bits или
+                товары и не передаются между пользователями. Начисляются автоматически при закрытии
+                сезона. Вопросы — в чат канала.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>Apple не является спонсором</b> этих конкурсов и никак в них не участвует.
+                <b>Twitch не является спонсором</b> этих конкурсов и никак в них не участвует.
+            </p>
+            <!-- Английская версия — не украшение: правила читает англоязычный
+                 ревьюер, и правила только по-русски он вправе счесть
+                 отсутствующими (тот же вывод, что и по раскрытию валюты 28.07). -->
+            <p style="margin:0 0 8px;">
+                <b>Sponsor:</b> the streamer of this channel. <b>No purchase</b> or payment of any kind
+                is necessary to enter or win. <b>Eligibility:</b> viewers of this channel holding a
+                Twitch account in good standing under the Twitch Terms of Service.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>How to enter:</b> play a match in one of the extension's mini-games, or join the
+                tournament queue — both are free. <b>How winners are determined:</b> by the rating
+                earned in matches during the season (top places on the leaderboard at season end,
+                subject to the stated rating threshold); for the tournament, by the outcome of the
+                fights. <b>Dates, prize amounts and the rating threshold</b> are shown in the
+                mini-games section and are served by our backend, so they are not duplicated here.
+            </p>
+            <p style="margin:0 0 8px;">
+                <b>Prizes:</b> the extension's virtual currency and in-game virtual goods only. They have
+                <b>no monetary value</b>, cannot be exchanged for real money, Bits or goods, and cannot
+                be transferred between users. They are granted automatically when a season closes.
+                Questions: ask in the channel chat.
+            </p>
+            <p style="margin:0;">
+                <b>Apple is not a sponsor of, and is not involved in, these contests in any way.</b>
+                <b>Twitch is not a sponsor of, and is not involved in, these contests in any way.</b>
+            </p>
+        </div>
+    </details>
+
+    <!-- ===== МОДАЛКИ ===== -->
+
+    <div id="colonist-modal" class="modal">
+        <div class="modal-content">
+            <h2>✨ Создание пешки</h2>
+            <input type="text" id="colonist-name" class="modal-input" placeholder="Имя колониста">
+            <!-- Цена НЕ хардкодится: модалка мёртвая (клик только закрывает), но раньше
+                 здесь стояло «100💎» при реальных 200💎 — подключат и соврёт вдвое.
+                 Подключать будут — гидрировать из /api/rimworld/config. -->
+            <button class="modal-btn" id="create-colonist-btn">Создать</button>
+            <button class="modal-btn cancel" data-close-modal>Отмена</button>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="confirm-title">Подтверждение</h2>
+            <p id="confirm-message" style="margin-bottom:14px;color:#adadb8;font-size:12px;"></p>
+            <div style="display:flex;gap:8px;">
+                <button class="modal-btn" id="confirm-yes" style="flex:1;">Да</button>
+                <button class="modal-btn cancel" id="confirm-no" style="flex:1;">Нет</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- cache-bust v: обновить при любой правке JS, чтобы Twitch-CDN и браузер
+         перечитали файлы (расширения агрессивно кешируют .js). -->
+    <!-- market.js удалён 2026-05-10 (Phase 1.C compliance rework) -->
+    <!-- realtime.js — Phase C (2026-05-17). Должен загружаться ДО viewer.js,
+         чтобы window.RealtimeBus был доступен в onAuthorized callback. -->
+    <script src="realtime.js?v=202609221910"></script>
+    <script src="pawn.js?v=202609221910"></script>
+    <script src="shop.js?v=202609221910"></script>
+    <script src="cases.js?v=202609221910"></script>
+    <script src="tictactoe.js?v=202609221910"></script>
+    <script src="tugofwar.js?v=202609221910"></script>
+    <script src="guilds.js?v=202609221910"></script>
+    <script src="voting.js?v=202609221910"></script>
+    <!-- pet-stage.js: PNG pixel-art creature (Sprint 5.28). MUST загружаться ДО pets.js -->
+    <script src="pet-stage.js?v=202609221910"></script>
+    <script src="pets.js?v=202609221910"></script>
+    <script src="family.js?v=202609221910"></script>
+    <script src="duels.js?v=202609221910"></script>
+    <script src="xenotype.js?v=202609221910"></script>
+    <!-- Общий платный путь всех игровых модулей (ShedLink.buyAction).
+         Грузится ПЕРЕД viewer.js: им пользуются и ядро, и игры. -->
+    <!-- Реестр игровых модулей (ShedLink.registerGame / switchGame).
+         Грузится ПЕРЕД viewer.js: ядро переключает игры через него. -->
+    <script src="viewer-registry.js?v=202609221910"></script>
+    <script src="viewer-actions.js?v=202609221910"></script>
+    <script src="viewer.js?v=202609221910"></script>
+    <!-- ROADMAP 2.4: Bannerlord-код вынесен из viewer.js. Грузится ПОСЛЕ viewer.js. -->
+    <script src="viewer-bannerlord.js?v=202609221910"></script>
+    <script src="viewer-bannerlord-ui-config.js?v=202609221910"></script>
+    <script src="viewer-bannerlord-equipment.js?v=202609221910"></script>
+    <script src="viewer-bannerlord-builds.js?v=202609221910"></script>
+    <!-- ROADMAP 2.4: RimWorld-код вынесен из viewer.js. Грузится ПОСЛЕ viewer.js. -->
+    <script src="viewer-rimworld.js?v=202609221910"></script>
+    <!-- ShedColony (Minecraft / MineColonies) — грузится ПОСЛЕ viewer.js. -->
+    <script src="viewer-shedcolony.js?v=202609221910"></script>
+    </div><!-- /panel-content -->
+</div><!-- /overlay-panel -->
+
+
+
+</body>
+</html>

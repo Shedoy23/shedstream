@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "integration_id": "shedcolony",
+  "release_version": "0.1.2",
+  "game": {
+    "id": "minecraft",
+    "display_name": "Minecraft 1.21.1 (NeoForge)",
+    "supported_versions": [
+      "1.21.1"
+    ],
+    "process_names": [
+      "MinecraftLauncher"
+    ],
+    "version": {
+      "kind": "file_name",
+      "path": "mods/minecolonies-*.jar",
+      "compatibility_pattern": "(?\u003C![\\d.])(1\\.21\\.1)(?!\\d)(?!\\.\\d)"
+    },
+    "detection": [
+      {
+        "kind": "manual",
+        "hint": "\u0423\u043A\u0430\u0436\u0438 \u043F\u0430\u043F\u043A\u0443 \u0438\u043D\u0441\u0442\u0430\u043D\u0441\u0430 \u0438\u0433\u0440\u044B, \u0432\u043D\u0443\u0442\u0440\u0438 \u043A\u043E\u0442\u043E\u0440\u043E\u0439 \u043B\u0435\u0436\u0438\u0442 mods. \u0423 Prism \u0438 MultiMC \u044D\u0442\u043E .minecraft \u0432\u043D\u0443\u0442\u0440\u0438 \u043F\u0430\u043F\u043A\u0438 \u0438\u043D\u0441\u0442\u0430\u043D\u0441\u0430.",
+        "required_paths": [
+          "mods"
+        ]
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "id": "minecolonies",
+      "path_pattern": "mods/minecolonies-*.jar",
+      "message": "\u0421\u043D\u0430\u0447\u0430\u043B\u0430 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438 MineColonies \u0434\u043B\u044F Minecraft 1.21.1 (NeoForge). Manager \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442 \u044D\u0442\u043E\u0442 \u043C\u043E\u0434.",
+      "help_url": "https://www.curseforge.com/minecraft/mc-mods/minecolonies/files/all"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "shedcolony_mod",
+      "source": {
+        "kind": "https",
+        "url": "https://shedoy23.ru/releases/ShedColony-0.1.2.zip"
+      },
+      "size_bytes": 69341,
+      "sha256": "099447cd5d9eeb6f5dcccb4cdbd8c7b5fe6912c9e4281ffa9356a774fad5a556",
+      "format": "zip",
+      "archive_root": "shedcolony-0.1.2.jar",
+      "signature": {
+        "algorithm": "rsa-pss-sha256",
+        "key_id": "shedlink-release-2026",
+        "value": "p7ABwCrrVrvTW/24zfRfyd6DTJkz26HxMyB/x5SfcutYjrxDTxjmGhruWAA3o6cPvxO6i03be2Fn04KjXBTGT1DYKIeqQPFO9G/3pq2CM5hcApc\u002BfAz1ucBvsIpuru/bI9V4NOSOG38uKk4GYC3YV6dlYNN2FIRbfPd/A7XVNElZpAt7R\u002BPTcB4x4R5PFemVd10ScM6mFtSkH4B7fhFTzI7g6EMVPlmXQ5wbn/tOQ5JiaMrIaiRLl1zh6PZNgapUNkcrgfs\u002BHtLnOdd0EqRkKOtRVWBUXyH0dg2VkKD/G7c5z9VJOxykXcOvr8SBU0cn3psZvZzGqp0Qvz37zwLKzRKXmoTmLPu8p9DoDQmKKSG03ZSyrk\u002BVdOY7aWVXkIR6Vpwn\u002BsYe8vS8W9szHrK44rDCLk2nUx5sQqaFzE77c\u002BZZPP7Hmw0QOZGNRQYB7lFc0kGqUStBS5cWAwbMSPwwVPhS3ZpwgVKxuhrV2hlD5IwMUkIJvO9wY\u002BFfavYrNerYxNjTdEHpsIFni50ozG11BOGVBHHzCYH0VuCbA6MC5Aqc9l3lx/QVpDHWhCupCzmY4fEfPB/fpYRiXPVwkk\u002BTkQUPes2MjPK7yYDGM2AyhRYPSiFsv6nR5RnT6Ld5d\u002BlQCGXYSOOSDt6eN7yzxdVbu7iokq8Kwfb2yk\u002BpSkauaSw="
+      }
+    }
+  ],
+  "installation": {
+    "target": {
+      "base": "game_root",
+      "relative_path": "mods/shedcolony.jar",
+      "kind": "file"
+    },
+    "staging": {
+      "base": "manager_temp",
+      "verify_before_replace": true
+    },
+    "replace": {
+      "mode": "atomic_file_swap",
+      "require_game_stopped": true
+    },
+    "rollback": {
+      "enabled": true,
+      "preserve": [
+        "configuration_store"
+      ]
+    },
+    "update": {
+      "mode": "verify_then_replace",
+      "preserve": [
+        "configuration_store"
+      ]
+    },
+    "repair": {
+      "mode": "verify_then_replace",
+      "preserve": [
+        "configuration_store"
+      ]
+    },
+    "uninstall": {
+      "enabled": true,
+      "preserve": [
+        "configuration_store"
+      ]
+    }
+  },
+  "configuration": {
+    "store": {
+      "kind": "json",
+      "base": "game_root",
+      "relative_path": "config/shedcolony.json"
+    },
+    "managed_fields": [
+      {
+        "name": "backend_url",
+        "selector": "/backend_url",
+        "value_source": "backend_url",
+        "secret": false
+      },
+      {
+        "name": "module_token",
+        "selector": "/module_token",
+        "value_source": "channel_module_token",
+        "secret": true
+      },
+      {
+        "name": "channel_id",
+        "selector": "/channel_id",
+        "value_source": "channel_id",
+        "secret": false
+      }
+    ],
+    "create_if_missing": true,
+    "preserve_unmanaged": true
+  },
+  "health": [
+    {
+      "id": "jar_present",
+      "kind": "path_exists",
+      "path": ".",
+      "required": true
+    }
+  ],
+  "security": {
+    "publisher": "shedoy23",
+    "signature_status": "signed",
+    "allowed_write_roots": [
+      "game_root",
+      "manager_temp"
+    ],
+    "redact_fields": [
+      "module_token",
+      "authorization",
+      "cookie"
+    ]
+  },
+  "runtime": {
+    "manifest_version": "0.1.2",
+    "core_api_version": "\u003E=1.0.0,\u003C2.0.0"
+  },
+  "compatibility_messages": {
+    "invalid_game_path": "\u0412\u044B\u0431\u0435\u0440\u0438 \u043F\u0430\u043F\u043A\u0443 \u0438\u043D\u0441\u0442\u0430\u043D\u0441\u0430 Minecraft \u0441 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u043E\u043C mods.",
+    "unsupported_game_version": "\u041D\u0443\u0436\u043D\u0430 Minecraft 1.21.1 \u0441 MineColonies \u0434\u043B\u044F NeoForge.",
+    "game_running": "\u0417\u0430\u043A\u0440\u043E\u0439 \u0438\u0433\u0440\u0443 \u043F\u0435\u0440\u0435\u0434 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0435\u043C \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0438."
+  }
+}

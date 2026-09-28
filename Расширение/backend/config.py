@@ -1,0 +1,919 @@
+import os
+import platform
+import re as _re
+import sys
+from dotenv import load_dotenv
+
+# Консоль Windows по умолчанию cp1251, а сообщения при старте — с эмодзи и
+# кириллицей. Обычный print в такую консоль падает UnicodeEncodeError, причём
+# на ИМПОРТЕ: вместо предупреждения получаешь краш. Из-за этого `python main.py`
+# из обычной консоли не стартовал вовсе, а тесты без собственной защиты вывода
+# (83 из 95) падали до первой проверки — 12.09 так нашлось, что гейт
+# совместимости клиента 0.0.1 руками не запускается, хотя в CI зелёный: там
+# PYTHONIOENCODING=utf-8, и он эту поломку маскировал.
+# Кодировку не меняем — только просим заменять непредставимые символы вместо
+# исключения. На проде (UTF-8) заменять нечего, поведение прежнее.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except (AttributeError, OSError, ValueError):
+        pass
+
+# ── Сутки зрителя ────────────────────────────────────────────────────────────
+# Прод живёт в UTC, а зритель — в Москве. Пока «сегодня» считалось через
+# date.today(), день квестов кончался в 00:00 UTC, то есть в 03:00 МСК: в час
+# ночи человек ждал новые квесты и видел вчерашние ещё два часа (багрепорт #50
+# от kuro_gothic 13.08 — «квесты не обновляются 00:00 по мск», подтверждён
+# 12.09). Решение владельца 12.09: считать сутки по Москве.
+#
+# Москва — UTC+3 круглый год, перевода часов нет с 2014-го, поэтому хватает
+# фиксированного сдвига и не нужна база часовых поясов (на Windows её может
+# не быть вовсе).
+#
+# ВАЖНО про SQL. Время в таблицах пишется в UTC (CURRENT_TIMESTAMP у SQLite —
+# UTC), поэтому сравнивать `date(created_at)` с московским днём НЕЛЬЗЯ: с
+# 00:00 до 03:00 МСК они разные. Сдвигать нужно обе стороны — для этого
+# VIEWER_DAY_SQL_SHIFT: `date(created_at, '+3 hours') = ?`.
+VIEWER_DAY_OFFSET_HOURS = 3
+VIEWER_DAY_SQL_SHIFT = f"+{VIEWER_DAY_OFFSET_HOURS} hours"
+
+
+def viewer_day() -> str:
+    """Какое сегодня число с точки зрения зрителя (Москва), YYYY-MM-DD."""
+    from datetime import datetime, timedelta, timezone
+    moscow_now = datetime.now(timezone.utc) + timedelta(hours=VIEWER_DAY_OFFSET_HOURS)
+    return moscow_now.date().isoformat()
+
+
+# Загружаем переменные из .env
+load_dotenv()
+
+# ===== ПРОВЕРКА ОБЯЗАТЕЛЬНЫХ ПЕРЕМЕННЫХ =====
+REQUIRED_ENV_VARS = [
+    'TWITCH_OAUTH_TOKEN',
+    'TWITCH_CLIENT_ID',
+    'TWITCH_CLIENT_SECRET',
+    'TWITCH_BOT_ID'
+]
+
+missing_env = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
+if missing_env:
+    print(f"❌ Отсутствуют переменные в .env файле: {', '.join(missing_env)}")
+    print("📁 Создайте файл .env в папке с ботом со следующим содержимым:")
+    print("""
+TWITCH_OAUTH_TOKEN=oauth:ваш_токен
+TWITCH_CLIENT_ID=ваш_client_id
+TWITCH_CLIENT_SECRET=ваш_client_secret
+TWITCH_BOT_ID=имя_бота
+TWITCH_CHANNEL_NAME=ваш_канал
+    """)
+    sys.exit(1)
+
+# ===== TWITCH НАСТРОЙКИ =====
+TWITCH_OAUTH_TOKEN = os.getenv('TWITCH_OAUTH_TOKEN')
+TWITCH_CHANNEL_NAME = os.getenv('TWITCH_CHANNEL_NAME', 'default_channel').lower().strip()
+TWITCH_CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
+TWITCH_CLIENT_SECRET = os.getenv('TWITCH_CLIENT_SECRET')
+TWITCH_BOT_ID = os.getenv('TWITCH_BOT_ID')
+TWITCH_EXTENSION_SECRET = os.getenv('TWITCH_EXTENSION_SECRET', '')
+if not TWITCH_EXTENSION_SECRET:
+    print("⚠️  TWITCH_EXTENSION_SECRET не задан в .env — JWT верификация будет отклонять все токены")
+
+# ===== M4.3: TWITCH OAUTH FOR STREAMER REGISTRATION =====
+# Стример проходит OAuth на /streamer чтобы зарегистрироваться в платформе.
+# REDIRECT_URI должен совпадать с настройкой Twitch Developer Console.
+TWITCH_OAUTH_REDIRECT_URI = os.getenv(
+    'TWITCH_OAUTH_REDIRECT_URI',
+    'https://shedoy23.ru/api/streamer/auth/callback'
+)
+# Скоупы для broadcaster OAuth:
+#   user:read:email             — login + user_id для регистрации канала
+#   channel:read:redemptions    — EventSub auto-register для channel points
+#   channel:read:subscriptions  — Sprint 5.29: проверка sub-status зрителей
+#                                 через Helix /subscriptions (для perk-tier
+#                                 system — price discount + reward boost).
+#                                 Также: EventSub channel.subscribe* для
+#                                 sub-greet (бот приветствует подписчиков).
+#   moderator:read:followers    — EventSub channel.follow v2 для follow-greet
+#                                 (бот приветствует новых фолловеров).
+#   user:read:chat              — EventSub channel.chat.notification для
+#                                 watch-streak трекинга (статистика серий
+#                                 просмотров; broadcaster читает свой чат).
+#   user:bot + channel:bot      — channel.chat.notification через APP access
+#                                 token (webhook) требует ДОПОЛНИТЕЛЬНО эти два
+#                                 «bot»-скопа сверх user:read:chat (Twitch:
+#                                 "If app access token used, then additionally
+#                                 requires user:bot … and channel:bot …").
+#                                 Без них регистрация чат-подписки → 403.
+# Existing streamers нужно re-OAuth чтобы scope добавился к их токену
+# (без re-OAuth Helix будет 401 на /subscriptions запросы — handled gracefully;
+#  а EventSub channel.subscribe/channel.follow/channel.chat.notification вернёт
+#  403 при регистрации).
+# NB: user:read:email НЕ запрашиваем — расширение не читает и не хранит email
+# стримера (privacy: меньше доступа = чище для Twitch-review). Убрано 2026-06-27.
+#   bits:read                   — channel.cheer (биты). Добавлен 2026-08-22.
+#                                 Рейды (channel.raid) scope НЕ требуют, они
+#                                 приходят и без него — поэтому рейды работают
+#                                 сразу, а биты только после re-OAuth стримера.
+TWITCH_OAUTH_SCOPES = 'channel:read:redemptions channel:read:subscriptions moderator:read:followers user:read:chat user:bot channel:bot bits:read'
+
+# ===== Этап 3 step 5: Module API player events feature flag =====
+# При false (default) — `player.linked` / `player.died` / `player.respawned` /
+# `player.unlinked` / `player.state_update` events от connector'а ЛОГИРУЮТСЯ,
+# но НЕ записываются в rimworld_pawns. Запись делает легаси-путь
+# /api/rimworld/link / /sync_pawns_bulk / etc.
+#
+# При true — RimWorldAdapter сам пишет в БД через специализированные db-helpers.
+# Это даёт двойную запись в переходный период (легаси /api/rimworld/* всё ещё
+# работает) — для production нужно сначала переключить connector мода на
+# Module API path, потом флипнуть флаг, потом отключить легаси routes.
+#
+# Ставим в true только при ручном тесте на dev-VPS или после Step 6 wrapper
+# migration. До тех пор — false (безопасный default).
+MODULE_API_PLAYER_EVENTS_ENABLED = os.getenv('MODULE_API_PLAYER_EVENTS_ENABLED', 'false').lower() == 'true'
+
+# ===== Этап 3 step 2: Module API token signing =====
+# Module API токены — HMAC-подписанные per-channel-per-module credentials.
+# Стример получает токен из admin-UI dashboard, вставляет в connector
+# (мод/плагин), connector использует в Authorization: Bearer <token>.
+#
+# **ВАЖНО (regression 2026-05-17):** если MODULE_TOKEN_SECRET не задан,
+# fallback на TWITCH_EXTENSION_SECRET ломает существующие mod-токены при
+# любой ротации TWITCH_EXTENSION_SECRET (вне зависимости от того,
+# планировали ли мы trogat module API). Поэтому MODULE_TOKEN_SECRET
+# **должен быть задан отдельно** на любом prod-deployment — fallback
+# теперь даёт громкий warning при startup чтобы это заметить.
+_MODULE_TOKEN_SECRET_ENV = os.getenv('MODULE_TOKEN_SECRET', '').strip()
+MODULE_TOKEN_SECRET = _MODULE_TOKEN_SECRET_ENV or TWITCH_EXTENSION_SECRET
+if not MODULE_TOKEN_SECRET:
+    print("⚠️  MODULE_TOKEN_SECRET и TWITCH_EXTENSION_SECRET не заданы — Module API auth не будет работать")
+elif not _MODULE_TOKEN_SECRET_ENV:
+    print(
+        "⚠️  MODULE_TOKEN_SECRET не задан явно — fallback на TWITCH_EXTENSION_SECRET. "
+        "При ротации TWITCH_EXTENSION_SECRET все mod-токены станут невалидны (regression 2026-05-17). "
+        "Рекомендуется: secrets.token_urlsafe(32) в .env как MODULE_TOKEN_SECRET=... — "
+        "после этого mod-токены не зависят от extension secret rotation."
+    )
+
+# Streamer dashboard session cookie signing (routes/streamer.py).
+# Separate secret so a leaked Extension secret can't forge dashboard sessions and
+# rotating the Extension secret doesn't log every streamer out. Falls back to
+# TWITCH_EXTENSION_SECRET when unset → existing cookies stay valid (transition-safe);
+# set SESSION_SECRET in .env (secrets.token_urlsafe(32)) to fully decouple. If BOTH
+# are empty the cookie is refused (the old hardcoded fallback constant was forgeable).
+SESSION_SECRET = os.getenv('SESSION_SECRET', '').strip() or TWITCH_EXTENSION_SECRET
+
+# ShedLink Manager pairing/opaque credentials. Pepper must be independent from
+# legacy module-token and Twitch secrets so rotation/revoke domains stay split.
+# Missing/short pepper does not break the existing backend: Manager endpoints
+# fail closed with 503 until configured.
+MANAGER_CREDENTIAL_PEPPER = os.getenv('MANAGER_CREDENTIAL_PEPPER', '').strip()
+MANAGER_PUBLIC_BASE_URL = (
+    os.getenv('MANAGER_PUBLIC_BASE_URL', 'https://shedoy23.ru').strip().rstrip('/')
+    or 'https://shedoy23.ru'
+)
+
+# ===== M5: Per-channel rate limits + tier-based квоты =====
+# Лимит в минуту в require_jwt_user/_channel. Для чтения и двух штатных
+# presence POST (/viewer/online, /viewer/activity) — на JWT-зрителя в канале;
+# для остальных действий — общий на канал. Превышение возвращает 429.
+#
+# Размер аудитории сам по себе не должен исчерпывать квоту опроса панели.
+#
+# Можно переопределить в .env через RATE_LIMIT_FREE / _PRO / _VIP (req/min).
+RATE_LIMITS_BY_TIER = {
+    'free': int(os.getenv('RATE_LIMIT_FREE', '300')),   # ~5 req/sec на канал
+    'pro':  int(os.getenv('RATE_LIMIT_PRO',  '1200')),  # 20 req/sec
+    'vip':  int(os.getenv('RATE_LIMIT_VIP',  '6000')),  # 100 req/sec
+}
+# Tier для каналов которые ещё не имеют записи (или fallback при кэш-промахе).
+RATE_LIMIT_DEFAULT_TIER = 'free'
+
+# ===== M4.5: EventSub AUTO-REGISTER (feature flag) =====
+# При false — register_eventsub_subscriptions регистрирует подписки только для
+# TWITCH_BROADCASTER_ID из .env (текущая single-tenant логика, безопасный default).
+# При true — iterate db.list_channels() и регистрируем по подписке на каждого
+# зарегистрированного стримера. Требует что у каждого канала есть OAuth-токен
+# (M4.3 OAuth flow) — без этого Twitch не примет subscription для broadcaster'а
+# который не авторизовал наш scope.
+#
+# Phase A (2026-05-16): регистрируется 3 типа подписок на канал —
+# channel_points, stream.online, stream.offline. См. eventsub.PHASE_A_SUBSCRIPTIONS.
+#
+# Флипать в true когда: 1) есть >1 зарегистрированного стримера, 2) проверена
+# логика на dev-VPS или unit-тестами. До того момента — оставлять false чтобы
+# прод single-tenant поведение не менялось.
+EVENTSUB_AUTO_REGISTER = os.getenv('EVENTSUB_AUTO_REGISTER', 'false').lower() == 'true'
+
+# ===== DEV MODE (только для локального тестирования) =====
+# Добавьте DEV_MODE=true и DEV_USERNAME=ваш_ник в .env чтобы обойти JWT верификацию
+# НИКОГДА не включайте на продакшн сервере
+DEV_MODE     = os.getenv('DEV_MODE', 'false').lower() == 'true'
+DEV_USERNAME = os.getenv('DEV_USERNAME', 'dev_user').lower().strip()
+
+# /dev preview-страница на проде: белый список Twitch-логинов (lowercase), кому
+# разрешён логин/превью. env DEV_LOGIN_WHITELIST="login1,login2"; default — владелец.
+# Не в списке → /dev не выдаёт сессию (A1 public-gate 2026-07-02).
+DEV_LOGIN_WHITELIST = {
+    x.strip().lower()
+    for x in os.getenv('DEV_LOGIN_WHITELIST', 'shedoy23,shedoyrobot').split(',')
+    if x.strip()
+}
+
+# Testing-без-стрима. Если True — require_stream_live() всегда возвращает None.
+# Используется для функционального тестирования без необходимости поднимать стрим.
+# WARN: НЕ оставлять True в проде надолго — viewer'ы смогут тратить очки на дуэли
+# / события когда канал офлайн. Включать только на test-канале или коротко.
+TESTING_BYPASS_STREAM_LIVE = os.getenv('TESTING_BYPASS_STREAM_LIVE', 'false').lower() == 'true'
+
+# RimWorld может использоваться для закрытого технического прогона при
+# запущенной игре, но без активного Twitch-эфира. Это отдельный production flag:
+# общий TESTING_BYPASS_STREAM_LIVE затрагивает дуэли, TTS и остальные модули.
+# Default остаётся безопасным — viewer actions разрешены только во время стрима.
+RIMWORLD_REQUIRE_STREAM_LIVE = (
+    os.getenv('RIMWORLD_REQUIRE_STREAM_LIVE', 'true').lower() == 'true'
+)
+if DEV_MODE:
+    print(f"⚠️  DEV_MODE включён — JWT верификация отключена, пользователь: '{DEV_USERNAME}'")
+
+# ===== УТИЛИТЫ (используются в нескольких модулях) =====
+
+def sanitize_username(username: str) -> str:
+    """Очищает username — только ASCII буквы, цифры, _ и - (Twitch usernames ASCII-only)"""
+    if not username:
+        return ''
+    clean = _re.sub(r'[^a-zA-Z0-9_\-]', '', str(username).strip())
+    return clean[:64]
+
+def validate_username(username: str) -> bool:
+    if not username or len(username) < 2 or len(username) > 64:
+        return False
+    bad = ["'", '"', ';', '--', '<', '>', '/', '\\', '..']
+    low = username.lower()
+    return not any(b in low for b in bad)
+
+# ===== НАСТРОЙКИ БОТА =====
+POINTS_PER_MINUTE = 25  # Базовые очки в минуту (снижено с 50 для баланса экономики)
+CHECK_INTERVAL = 60      # секунд
+
+# ===== ОКНА АКТИВНОСТИ ЗРИТЕЛЯ =====
+# Сигнал активности = heartbeat расширения / сообщение в чате / любое действие (спин/ставка/…).
+# Возраст сигнала (age) измеряется от момента последнего касания:
+#   age < ACTIVE_WINDOW                  → status="active",  100% очков
+#   ACTIVE_WINDOW ≤ age < REDUCED_WINDOW → status="reduced", 50%  очков
+#   age ≥ REDUCED_WINDOW                 → status="offline", 0   (не начисляем)
+ACTIVE_WINDOW  = 900    # 15 минут
+REDUCED_WINDOW = 1800   # 30 минут
+# Насколько недавно зритель должен был ДЕЙСТВОВАТЬ (клик/движение в панели или
+# сообщение в чат), чтобы получать полную ставку. Без этого — половина, но не
+# ноль: на мобильном мышью не двигают, и честный лёркер не должен страдать.
+ENGAGED_WINDOW = 900    # 15 минут
+
+# Backward-compat алиасы — постепенно удалить. Внешние модули могут ещё импортить.
+
+# Минимальный heartbeat (секунд watch_time) чтобы засчитать сигнал активности.
+# Отсекает пустые/нулевые пинги и осложняет накрутку через сырые POST-ы.
+# 2026-06-06 — 30→10: на мобайле Twitch душит heartbeat-таймер расширения,
+# короткие видимые окна (<30с) терялись. 10с всё ещё отсекает пустышки.
+MIN_HEARTBEAT_SECONDS = 10
+
+# 2026-06-06 — PRESENCE-WATCHTIME (фикс мобайл-перекоса уровня/очков). Когда True:
+# reward_points_loop помечает present-зрителей по списку чата Twitch
+# (channel.chatters от twitchio membership) → last_seen + watch_time начисляются
+# СЕРВЕРНО, независимо от клиентского heartbeat (десктоп и мобайл равны). При
+# этом heartbeat перестаёт давать watch_time (анти-дабл уровня на десктопе).
+# Кредитуем ТОЛЬКО существующих юзеров расширения (UPDATE по viewers — без
+# раздувания БД лёркерами). OFF по умолчанию — включай и смотри в логах
+# "presence-watchtime: credited N". Откат мгновенный — флаг обратно в False.
+PRESENCE_WATCHTIME_ENABLED = False
+
+# ===== Chat-bonus антифрод (M7) =====
+# IRC bot ловит каждое сообщение в чате и может выдать бонус (1-10 поинтов)
+# за длинное сообщение. Без защиты — спам мелкими репликами или копи-паст
+# даёт unfair advantage. Триггеры pre-bonus:
+#   1. Cooldown — один бонус раз в N секунд (per channel, user)
+#   2. Min length — короткие сообщения не получают бонус
+#   3. Dedup — повтор в недавнем окне = no bonus (anti copy-paste)
+CHAT_BONUS_COOLDOWN_SEC = 10
+CHAT_BONUS_MIN_CHARS    = 10
+CHAT_BONUS_DEDUP_WINDOW = 10  # помним последние N хэшей сообщений на (channel, user)
+# Balance dial (2026-06-27 — поднять актив): 1 крустик за каждые N символов, потолок за сообщение.
+# Прогрессия: 10/10 (база) → 6/15 → 3/30 (ещё ×2 за сообщения). Делитель ниже = щедрее обычному
+# чату; потолок выше = больше за развёрнутые сообщения. Анти-спам (cooldown/min_chars/dedup выше)
+# НЕ трогаем — иначе стимулируем флуд. Кулдаун 10с — главный ограничитель частоты фарма.
+# 2026-08-23 (решение владельца «за сами сообщения хочу поощрять довольно
+# хорошо»). Замер на эфире 20.08: самый активный в чате — 108 сообщений и
+# ~900💎 бонуса за день, а пассивно за те же 9 часов набегало ~13 500💎.
+# То есть чат стоил 7% от открытой вкладки. Втрое дешевле делитель и вдвое
+# выше потолок за сообщение: среднее сообщение (29 символов) даёт ~29💎
+# вместо ~9💎, развёрнутое — до 60💎.
+# Плата ЗА САМ ФАКТ сообщения, сверх платы за длину (2026-08-23, владелец:
+# «болтуны нужны, болтуны мне важны»). Без неё короткая живая реплика —
+# «ага», «жёстко», «+» — стоила почти ничего, хотя разговор состоит в том
+# числе из них. С базой среднее сообщение (29 символов) стоит ~39💎, и за
+# стрим болтун обгоняет молчуна, а не догоняет его.
+CHAT_BONUS_BASE         = 10
+CHAT_BONUS_PER_CHARS    = 1
+CHAT_BONUS_MAX          = 60
+# Дневной потолок бонуса на (канал, зритель).
+# Он тут НЕ для того, чтобы ограничивать разговор, а только против флуда.
+# Ориентиры (средняя длина сообщения на эфире 20.08 — 29 символов):
+#   500 сообщений за стрим (число владельца) × ~39💎 = ~19 500💎 — болтун
+#   ОБГОНЯЕТ полный эфир пассивного просмотра (15 000💎), и это цель, а не
+#   побочный эффект.
+#   Флуд по кулдауну 10с: 360 сообщений/час × 20💎 (минимальные 10 символов)
+#   = 7 200💎/час, то есть в потолок упрётся часа за три — а живой собеседник
+#   за весь эфир до него не дотянется.
+# Анти-спам (кулдаун 10с, дедуп 10 хешей, минимум 10 символов) НЕ трогаем:
+# он и делает потолок последней линией, а не единственной.
+CHAT_BONUS_DAILY_CAP    = 25_000
+
+# ===== НАСТРОЙКИ ДРОПОВ =====
+DROP_INTERVAL = 1200     # 20 минут
+DROP_CHANCE = 0.25       # 25% шанс
+
+# Вес зрителя без недавнего взаимодействия в розыгрыше кейса.
+#
+# 28.08 замер на проде: через две минуты ПОСЛЕ конца эфира десять зрителей
+# имели last_seen = «сейчас», а последнее их действие было за 5-8 часов до
+# того; двое не взаимодействовали ни разу. Панель шлёт heartbeat, пока открыта
+# вкладка, поэтому по одному last_seen брошенная вкладка неотличима от
+# зрителя — и кейсы уходили в неё, отбирая шанс у тех, кто смотрит.
+#
+# Половина, а НЕ ноль — то же продуктовое решение, что и в ставке за просмотр
+# (см. `_reward_points`): на мобильном мышью не двигают, и честный лёркер не
+# должен быть наказан за устройство. Хочется отсечь брошенные вкладки совсем —
+# это ноль здесь, но тогда мобильные зрители выпадают из розыгрыша вместе с
+# ними, и решать это владельцу, а не правкой ради стройности.
+DROP_LURKER_WEIGHT = 0.5
+
+# ===== СИСТЕМНЫЕ ТАЙМАУТЫ =====
+RIMWORLD_OFFLINE_TIMEOUT = 600  # 10 минут без пинга = RimWorld офлайн
+CACHE_EVICTION_INTERVAL  = 600  # 10 минут между чистками внутреннего кэша
+WATCH_TIME_CAP           = 3600 # максимум времени просмотра за один запрос (1 час)
+LOGIN_ATTEMPT_TTL        = 3600 # через 1 час сбрасывается счётчик неудачных входов
+
+# ===== ПУТИ RIMWORLD (автоопределение) =====
+def get_rimworld_path():
+    """Автоматически определяет путь к RimWorld в зависимости от ОС"""
+    system = platform.system()
+    
+    if system == "Windows":
+        base = os.path.join(os.environ['USERPROFILE'], 
+                           'AppData', 'LocalLow', 'Ludeon Studios', 
+                           'RimWorld by Ludeon Studios')
+    elif system == "Linux":
+        base = os.path.join(os.path.expanduser('~'), 
+                           '.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios')
+    elif system == "Darwin":  # macOS
+        base = os.path.join(os.path.expanduser('~'), 
+                           'Library/Application Support/RimWorld')
+    else:
+        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rimworld_data')
+    
+    # Создаём папку, если её нет
+    os.makedirs(base, exist_ok=True)
+    return base
+
+if not os.getenv('RIMWORLD_PRICES_PATH'):
+    RIMWORLD_BASE_PATH = get_rimworld_path()
+    RIMWORLD_PRICES_PATH = os.path.join(RIMWORLD_BASE_PATH, 'TwitchPrices.json')
+    RIMWORLD_COMMANDS_PATH = os.path.join(RIMWORLD_BASE_PATH, 'TwitchCommands.txt')
+    RIMWORLD_REFUNDS_PATH = os.path.join(RIMWORLD_BASE_PATH, 'TwitchRefunds.txt')
+else:
+    RIMWORLD_PRICES_PATH = os.getenv('RIMWORLD_PRICES_PATH')
+    RIMWORLD_COMMANDS_PATH = os.getenv('RIMWORLD_COMMANDS_PATH')
+    RIMWORLD_REFUNDS_PATH = os.getenv('RIMWORLD_REFUNDS_PATH')
+    if RIMWORLD_PRICES_PATH:
+        RIMWORLD_BASE_PATH = os.path.dirname(os.path.abspath(RIMWORLD_PRICES_PATH))
+    else:
+        RIMWORLD_BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+
+# ===== ПРОЧИЕ НАСТРОЙКИ =====
+# DONATION_MULTIPLIER + ECONOMY_CONFIG donation keys удалены 2026-05-14
+# (Phase 8.F donate removal — §5.2/§5.4 compliance).
+AUTO_MESSAGES_ENABLED = True
+# Как часто цикл ПРОВЕРЯЕТ, не пора ли что-то отправить. Сам интервал теперь
+# у каждого сообщения свой (channel_auto_messages.interval_min, m115), а
+# прежний общий AUTO_MESSAGE_INTERVAL удалён — он больше ничего не значил.
+AUTO_MESSAGE_TICK_SEC = 60
+
+# ЭТОТ СПИСОК УХОДИТ В ЧАТ КАЖДОГО КАНАЛА — держать нейтральным.
+#
+# До 2026-08-22 здесь же лежали личные ссылки владельца (DonationAlerts, Boosty,
+# его Telegram) и название награды его канала. Бот рассылает список во ВСЕ
+# каналы реестра, то есть второму стримеру он рекламировал бы чужие донаты в
+# его чате. С одним каналом это было незаметно; это ровно тот класс, что и
+# захардкоженные цены во фронте — данные ОДНОГО арендатора в общем месте.
+#
+# Всё, что относится к конкретному каналу (ссылки, соцсети, названия наград),
+# живёт в таблице `channel_auto_messages` (миграция m114) и подмешивается
+# per-channel. Правило простое: если сообщение нельзя без правки показать
+# НЕЗНАКОМОМУ стримеру — ему здесь не место.
+#
+# Префикс "/announcepurple " auto_message_loop роутит в Helix
+# POST /chat/announcements (IRC /announce у Twitch deprecated — молча
+# дропается). Чат однострочный → ссылки в одну строку.
+AUTO_MESSAGES = [
+    '📜 Ежедневные квесты обновляются в 00:00 МСК!',
+    '🎁 Кейсы падают каждые 20 минут с шансом 25%!',
+    '💬 Пиши в чат и получай бонусные очки!',
+    '⏰ Активные зрители получают больше очков!',
+]
+
+# Настройки ивента-аукциона («рулекцион») удалены 2026-07-29 вместе с
+# механикой: она переписана в голосование за игру (VOTING_* ниже).
+
+# CASINO_CONFIG удалён в Phase 1.A (2026-05-10) — gambling по §6.2.3 Twitch Extension Guidelines.
+# См. COMPLIANCE_REWORK_PLAN.md §4 Phase 1.
+
+# ===== MATCHMAKING (Phase 5.0, 2026-05-11) =====
+# Интервал matchmaking_loop — как часто ищем пары в очереди (sek).
+# Trade-off: ниже — быстрее матч после enqueue, выше — меньше БД-нагрузка.
+MATCHMAKING_INTERVAL = 5
+
+# Какие game_types обслуживает matchmaking_loop. Добавляются по мере
+# реализации игр.
+# 'rps'       — legacy дуэли (Phase 1.F убрала ставки, остался ELO-only)
+# 'tictactoe' — Phase 5.1 MVP
+# 'dice'      — Phase 5.2 (vs bot + PvP)
+# 2026-09-01: 'dice' УБРАН — кубики заморожены, их место занял канат
+# (`routes/tugofwar.py`). Убирать надо здесь, а не только кнопку во фронте:
+# очередь матчей общая, и без этой строки зритель встал бы в очередь на
+# кубики прямым запросом. Разморозка = вернуть строку и карточку в обе
+# оболочки одновременно.
+MATCHMAKING_GAME_TYPES = ('rps', 'tictactoe', 'tug')
+
+# ELO-spread по умолчанию (если юзер не указал свой).
+MATCHMAKING_DEFAULT_ELO_SPREAD = 100
+
+# Auto-expire queue entries старше N секунд (cleanup от disconnected клиентов).
+
+# ===== PETS MVP (Phase 7, 2026-05-11; крустики-pricing 2026-06-27) =====
+# Compliance критично: catalog задаётся ТУТ, не стримером (§6.2.8 protection).
+# Items deterministic, не mystery box (§6.2.4 ban). Cosmetics-only — НЕТ utility.
+
+# Косметика покупается за КРУСТИКИ (внутренняя валюта), не за Bits — цена по
+# редкости. Bits-флоу выпилен 2026-06-27 (упрощает подачу: не нужна регистрация
+# Bits-products + signature verify). Числа крутятся ТУТ одним местом.
+PET_COSMETIC_PRICES = {
+    'common':      500_000,
+    'rare':      1_000_000,
+    'epic':      2_000_000,
+    'legendary': 3_500_000,
+    'mythic':    5_000_000,
+}
+
+# Default pet appearance — 🥚 яичко-маскот (символ начала, см. PROJECT_PLAYBOOK §5.4)
+PET_BASE_TYPE = 'egg'
+
+# Какие slots существуют. Если добавляем новый — расширяем CHECK в миграции
+# (current: M29 = 6 slots). Order = render z-index низ→верх:
+#   background → aura → (creature base) → body → face → head → accessory
+PET_SLOTS = ('background', 'aura', 'body', 'face', 'head', 'accessory')
+
+# Max pet name length (опц.)
+PET_NAME_MAX_LEN = 24
+
+# ===== TTS «Озвучить сообщение» (Sprint 5.23, 2026-05-21) =====
+# Зрители платят крустиками за TTS-озвучку текста на overlay'е стрима
+# через Web Speech API. Compliance: in-extension currency burn (без real $),
+# §5.x Twitch Extension Guidelines — virtual goods OK.
+TTS_COST        = 5000   # крустиков за сообщение
+TTS_COOLDOWN_S  = 30     # секунд между TTS от одного юзера
+TTS_MAX_LEN     = 200    # макс длина текста
+
+# Сколько заявка ждёт решения стримера, прежде чем деньги вернутся сами
+# (решение владельца 2026-09-07). Гейт одобрения включён по умолчанию, поэтому
+# у платного действия появился исход «стример просто не посмотрел очередь» — до
+# 07.09 он не возвращал ничего и длился вечно. 30 минут выбраны так, чтобы
+# зритель получил крустики обратно в том же эфире, а стример успел заметить
+# очередь. Истёкшая заявка помечается как отклонённая (moderated_by), то есть
+# после возврата прозвучать уже не может: иначе вернули бы деньги И озвучили.
+TTS_PENDING_TTL_S = 30 * 60
+
+# ===== ГОЛОСОВАНИЯ (Phase 4, 2026-05-11) =====
+# Voting events — стример настраивает варианты действий, юзеры вкидывают
+# крустики на свой выбор. §6.1.4 Twitch Extension Guidelines прямо разрешает.
+
+# Pool accumulation: пассивная активность зрителей наполняет pool units.
+# При достижении порога — auto-start event (если default template есть).
+VOTING_POOL_THRESHOLD = 1000              # units для auto-start
+VOTING_POOL_PER_WATCH_MIN = 1             # +1 unit за минуту активного просмотра per viewer
+VOTING_POOL_PER_CHAT_MSG = 5              # +5 unit за каждое чат-сообщение
+
+# Event duration after start
+VOTING_EVENT_DURATION_SEC = 300           # 5 минут на голосование
+
+# Bid constraints
+VOTING_MIN_BID = 50                       # минимальный bid крустиков
+VOTING_MAX_OPTIONS = 6                    # макс вариантов в template
+
+# «Народный выбор игры» (M88) — стример-триггерный открытый раунд, где зритель
+# предлагает свою игру. Вклад списывается ПОСЛЕ одобрения стримером (не на предложении).
+VOTING_PROPOSE_MIN_PLEDGE = 100           # мин. вклад при предложении своей игры (💎)
+# Быстрые кнопки сумм в модалках голосования. Держим ЗДЕСЬ, а не во фронте:
+# фронт замерзает на CDN Twitch до следующего ревью, и любая правка ступенек
+# расходилась бы с интерфейсом на недели (2026-09-05).
+VOTING_BID_PRESETS = [VOTING_MIN_BID, 500, 5_000, 50_000]
+VOTING_PLEDGE_PRESETS = [VOTING_PROPOSE_MIN_PLEDGE, 500, 5_000, 50_000]
+VOTING_MAX_PENDING_PER_USER = 1           # сколько предложений в очереди на одного зрителя
+
+# Matchmaking-style loop: проверка завершения events каждые N сек
+VOTING_LOOP_INTERVAL = 10
+
+# ===== ГИЛЬДИИ (Phase 3, 2026-05-11) =====
+# Cost создания гильдии — sink крустиков из личного баланса master'а.
+GUILD_CREATE_COST = 100_000
+
+# Лимиты:
+GUILD_NAME_MIN_LEN = 3
+GUILD_NAME_MAX_LEN = 30
+GUILD_TAGLINE_MAX_LEN = 80
+GUILD_MAX_MEMBERS_BASE = 10    # без skills прокачки
+GUILD_MIN_CONTRIBUTE = 100     # минимальный взнос в balance
+
+# Skills config (Phase 3 placeholder — v1 две ветки).
+# Расширяется в Phase 3.1+ когда увидим что просят юзеры (§13.10 числа = параметры).
+# cost_per_level — стоимость прокачки уровня N из balance гильдии.
+GUILD_SKILLS_CONFIG = {
+    'extra_member_slots': {
+        'name':           'Расширение состава',
+        'description':    '+5 слотов для участников на уровень',
+        'max_level':      5,
+        'cost_per_level': [50_000, 100_000, 200_000, 400_000, 800_000],
+        'effect_per_level': 5,  # +5 max_members per level
+    },
+    'cosmetic_banner_unlock': {
+        'name':           'Кастомный баннер',
+        'description':    'Разблокирует выбор баннера для гильдии',
+        'max_level':      1,
+        'cost_per_level': [200_000],
+        'effect_per_level': 1,  # unlock-style: 1 level = enabled
+    },
+}
+
+# ===== КАТАЛОГ RIMWORLD: ЧТО НЕ ПРОДАЁМ (2026-09-06) =====
+# Каталог RimWorld строится модом из DefDatabase — это осознанный принцип:
+# любое изменение содержимого игры расширение переживает без правок
+# (ROADMAP, «динамический каталог»). Обратная сторона: в продажу так же
+# автоматически попадает то, что на конкретной сборке выдать НЕЛЬЗЯ.
+#
+# Живой случай: `W_Weapon_Melee_Sheathe` (сабля из Wolfein Race) прошла все
+# фильтры мода, продавалась за 5520💎 и не выдалась ни разу — 5 покупок,
+# 5 отказов, 0 успехов. Падает не наш код: MVCF разыменовывает null в
+# VerbManager.AddVerb. Деньги возвращались, но товар оставался в продаже.
+#
+# ПОЧЕМУ СПИСОК ЗДЕСЬ, А НЕ В МОДЕ. В моде такой список уже есть
+# (ShopManager.BlacklistedPrefixes), но снять товар с продажи через него —
+# значит собрать DLL, поставить стримеру и перезапустить игру. Тот же товар
+# на сервере гасится деплоем за минуты. Это тот же принцип, по которому цены
+# уже уехали на бэкенд.
+#
+# Фильтр применяется при ПРИЁМЕ каталога от мода, поэтому закрывает сразу оба
+# пути: предмет не показывается зрителю и не проходит проверку при покупке
+# (buy-item ищет строку в shop_catalog).
+RIMWORLD_CATALOG_BLOCKLIST = {
+    # 2026-09-06: NRE в чужом MVCF при выдаче, 0 успехов из 5 покупок.
+    "W_Weapon_Melee_Sheathe",
+}
+
+# Префиксы — на случай, когда сборка ломает целое семейство предметов.
+# Пусто намеренно: точечный запрет честнее, чем широкий, и его видно в списке.
+RIMWORLD_CATALOG_BLOCKLIST_PREFIXES: tuple = ()
+
+# ===== НАСТРОЙКИ КЕЙСОВ (Phase 2, 2026-05-11) =====
+# Фиксированная награда крустиков per tier. Балансится через config, не через
+# миграцию — позволяет корректировать без БД-изменений (см. урок 13.10
+# COMPLIANCE_AND_ARCHITECTURE.md: числа = параметры, не законы).
+#
+# Compliance: содержимое каждого кейса детерминированно (нет RNG в reward).
+# Кейсы выдаются бесплатно за активность — §5.3 Twitch Extension Guidelines
+# permits loot boxes "as long as contents do not have monetary value" (наша
+# валюта non-tradable, non-exchangeable → no monetary value).
+CASE_TIER_REWARDS = {
+    'common':     1_000,
+    'rare':       10_000,
+    'epic':       100_000,
+    'legendary':  500_000,
+}
+
+# ===== ЧАСОВЫЕ КЕЙСЫ (2026-09-05, решение владельца) =====
+# Раз в час КАЖДЫЙ активный зритель получает кейс. Причина — замер 05.09:
+# на обычном эфире зрители тратят 771k крустиков против 334k заработанных,
+# то есть заработок покрывает меньше половины того, во что они играют, и
+# разрыв затыкался разовыми промокодами.
+#
+# Вес легендарки СПЕЦИАЛЬНО дробный. Расчёт при 13 зрителях и ~20 эфирах в
+# месяц (≈910 часовых кейсов): вес 1 (как у дропа) дал бы 9 легендарок в месяц —
+# верхний тир перестал бы быть событием; вес 0.04 сохранил бы нынешние 0.4 в
+# месяц, но тогда зритель за сезон не увидел бы ни одной. Взято 0.1 —
+# примерно одна в месяц, шанс поймать за эфир 4.4%: редко, но случается, и
+# тому, кому выпала, это 500k при дневном заработке 25-77k (решение владельца
+# 2026-09-05). Дроповые легендарки (1%) остаются сверх этого.
+HOURLY_CASE_INTERVAL = 3600      # раз в час
+# Тик цикла — не то же самое, что интервал выдачи. Цикл просыпается часто и
+# СМОТРИТ В БАЗУ, когда выдавали в прошлый раз; спать сразу на час нельзя:
+# 05.09 бэкенд перезапускался пять раз за вечер, и при «сначала sleep(3600)»
+# выдача не наступила бы вообще ни разу (нашёл внешний обзор).
+HOURLY_CASE_TICK = 60            # как часто проверять, не пора ли
+HOURLY_CASE_TIERS = [
+    ('common',    69),
+    ('rare',      25),
+    ('epic',       6),
+    ('legendary',  0.1),
+]
+# Кто «на связи», но за окно ни разу не взаимодействовал, получает только
+# обычный кейс: брошенная вкладка не должна фармить редкие (урок 28.08,
+# см. DROP_LURKER_WEIGHT выше).
+HOURLY_CASE_LURKER_TIER = 'common'
+
+# Valid sources для cases.source (audit-trail откуда выдан кейс).
+# Расширяется по мере добавления новых триггеров (Phase 6 drops loop, etc).
+CASE_SOURCES = (
+    'quest',            # daily quest completion → common
+    'streak',           # streak milestones (10) → rare
+    'watch_milestone',  # watch hour milestones (100h) → epic
+    'season_top',       # sезонный топ-3 → legendary
+    'drop',             # Phase 6 drops loop (tier weights 70/25/4/1)
+    'admin_grant',      # выдан admin'ом руками
+    'promo',            # через промокод (future)
+)
+
+# ===== НАСТРОЙКИ TTS =====
+# 2026-07-24 — TTS_CONFIG УДАЛЁН как мёртвый: его никто не импортировал, а
+# 'cost': 100 противоречил живой цене TTS_COST = 5000 (выше в этом файле).
+# Разница в 50 раз — идеальная ловушка для того, кто будет «сверять цены».
+
+# ===== НАСТРОЙКИ EVENTSUB =====
+# ===== НАСТРОЙКИ ЗВУКОВ =====
+# ===== НАСТРОЙКИ ПРОИЗВОДИТЕЛЬНОСТИ =====
+PERFORMANCE_CONFIG = {
+    'cache_ttl': 30,
+}
+
+# ===== КОНФИГУРАЦИЯ ПРЕДМЕТОВ =====
+# ===== НАСТРОЙКИ КВЕСТОВ =====
+QUESTS_CONFIG = {
+    # Квесты на время просмотра
+    'watch_time_30': {
+        'target': 30,
+        'reward_points': 1500,
+        'reward_item': None,
+        'display_name': '📺 30 минут просмотра',
+        'emoji': '⏱️',
+        'type': 'time'
+    },
+    'watch_time_60': {
+        'target': 60,
+        'reward_points': 3000,
+        'reward_item': None,
+        'display_name': '📺 1 час просмотра',
+        'emoji': '⌛',
+        'type': 'time'
+    },
+    'watch_time_120': {
+        'target': 120,
+        'reward_points': 6000,
+        'reward_item': None,
+        'display_name': '📺 2 часа просмотра',
+        'emoji': '⏳',
+        'type': 'time'
+    },
+    'watch_time_180': {
+        'target': 180,
+        'reward_points': 8000,
+        'reward_item': None,
+        'display_name': '📺 3 часа просмотра',
+        'emoji': '⌚',
+        'type': 'time'
+    },
+    'watch_time_240': {
+        'target': 240,
+        'reward_points': 9000,
+        'reward_item': None,
+        'display_name': '📺 4 часа просмотра',
+        'emoji': '⏰',
+        'type': 'time'
+    },
+    'watch_time_300': {
+        'target': 300,
+        'reward_points': 10000,
+        'reward_item': None,  # 2026-05-13 (Phase 8.C): item rewards убраны (§5.3 compliance)
+        'display_name': '📺 5 ЧАСОВ ПРОСМОТРА!',
+        'emoji': '🏆',
+        'type': 'time'
+    },
+    
+    # Квесты на сообщения в чате
+    'chat_messages_10': {
+        'target': 10,
+        'reward_points': 500,
+        'reward_item': None,
+        'display_name': '💬 10 сообщений в чате',
+        'emoji': '💬',
+        'type': 'chat'
+    },
+    'chat_messages_25': {
+        'target': 25,
+        'reward_points': 1200,
+        'reward_item': None,
+        'display_name': '💬 25 сообщений в чате',
+        'emoji': '🗣️',
+        'type': 'chat'
+    },
+    'chat_messages_50': {
+        'target': 50,
+        'reward_points': 2500,
+        'reward_item': None,  # 2026-05-13 (Phase 8.C): item rewards убраны (§5.3 compliance)
+        'display_name': '💬 50 сообщений в чате',
+        'emoji': '💎',
+        'type': 'chat'
+    },
+    'chat_messages_100': {
+        'target': 100,
+        'reward_points': 5000,
+        'reward_item': None,
+        'display_name': '💬 100 сообщений в чате',
+        'emoji': '👑',
+        'type': 'chat'
+    },
+    # 2026-08-23 (владелец: «болтуны нужны», «за стрим человек и 500 сообщений
+    # выдать может»). До этого цели у болтуна кончались на сотне, а у молчуна
+    # шли до пяти часов — то есть система переставала его замечать ровно там,
+    # где он только разошёлся. Награда держит ту же кривую, что нижние ступени:
+    # примерно 50💎 за сообщение.
+    'chat_messages_200': {
+        'target': 200,
+        'reward_points': 10000,
+        'reward_item': None,
+        'display_name': '💬 200 сообщений в чате',
+        'emoji': '🔥',
+        'type': 'chat'
+    },
+    'chat_messages_300': {
+        'target': 300,
+        'reward_points': 15000,
+        'reward_item': None,
+        'display_name': '💬 300 сообщений в чате',
+        'emoji': '🏆',
+        'type': 'chat'
+    },
+    
+
+}
+
+# Порядок отображения квестов
+QUEST_ORDER = [
+    # Временные квесты
+    'watch_time_30',
+    'watch_time_60',
+    'watch_time_120',
+    'watch_time_180',
+    'watch_time_240',
+    'watch_time_300',
+    # Чат-квесты
+    'chat_messages_10',
+    'chat_messages_25',
+    'chat_messages_50',
+    'chat_messages_100',
+    'chat_messages_200',
+    'chat_messages_300',
+]
+
+# ===== НАСТРОЙКИ ОТСЛЕЖИВАНИЯ АКТИВНОСТИ =====
+# ACTIVITY_CONFIG удалён 2026-07-29: единственным его читателем был
+# /api/viewer/click, а сам клик убран как несуществующая механика. Ключей
+# про бонус за клик в нём, кстати, и не было — эндпоинт брал 1💎 из
+# умолчания в `.get()`, то есть настройка была фиктивной.
+
+# ===== TWITCH КАНАЛ ДЛЯ ПРОВЕРКИ ОНЛАЙНА =====
+TWITCH_STREAM_CHANNEL = os.getenv('TWITCH_STREAM_CHANNEL', 'shedoy23')  # Канал для проверки онлайна
+
+# ===== НАСТРОЙКИ ЭКОНОМИКИ =====
+# 2026-05-14 (Phase 8.F donate removal): убраны donation-keys
+# (points_per_rub, donation_item_threshold, min_event_donations) — §5.2/§5.4
+# Twitch Extension Guidelines, real-money flow вне Bits недопустим.
+ECONOMY_CONFIG = {
+    # 2026-06-14 audit: убраны орфаны min_transfer (P2P transfer вырезан Phase 1.D)
+    # и income_no_items (нигде не читались).
+    'min_event_contribute': 100,    # Минимум очков для вклада (voting events)
+}
+
+# ===== НАСТРОЙКИ СЕМЬИ =====
+FAMILY_CONFIG = {
+    # 'income_per_min' / 'bonus_per_min' удалены 2026-05-10 (Phase 1.G compliance
+    # rework — financial pool вырезан, marriage теперь чисто social).
+    # 'marriage_cost' тоже удалён (был не используется в коде).
+    'divorce_cost': 500,            # Sink крустиков, гейт от случайных разводов
+}
+
+# ===== НАСТРОЙКИ RIMWORLD =====
+# 2026-07-24 — RIMWORLD_CONFIG УДАЛЁН как мёртвый: его никто не импортировал,
+# а цены дублировали живые константы в rimworld.py. Теперь единственный источник —
+# модульные константы там же + отдача в /api/rimworld/config (тонкий фронт).
+
+# ===== НАГРАДЫ ЗА СТРИКИ ПРОСМОТРОВ =====
+# Twitch присылает USERNOTICE с msg-id=viewership-milestone когда зритель
+# смотрит N стримов подряд. Ключи — количество стримов, значения — алмазы.
+STREAK_REWARDS = {
+    5:   5000,
+    10:  10000,
+    20:  20000,
+    30:  30000,
+    40:  40000,
+    50:  50000,
+    100: 100000,
+}
+
+# ===== MULTI-TENANT FALLBACK =====
+# Используется в helpers (add_points, touch_viewer и др.) и inline INSERT'ах
+# где channel_id ещё НЕ протолкнут из JWT. M1 миграция требует channel_id
+# во всех TENANT-таблицах; без явного значения берём этот fallback.
+# TODO M3: после полного query scoping убрать fallback, требовать channel_id явно.
+try:
+    DEFAULT_CHANNEL_ID = int(os.getenv('TWITCH_BROADCASTER_ID', '98319857') or 98319857)
+except (TypeError, ValueError):
+    DEFAULT_CHANNEL_ID = 98319857
+
+# ===== CHANNEL POINTS → IN-EXTENSION АЛМАЗЫ (loyalty reward) =====
+# Зритель redeem'ит channel-point reward — бэк начисляет внутренние алмазы.
+#
+# Compliance (см. mini-audit 2026-05-16):
+#   - Twitch Channel Points Acceptable Use Policy явно разрешает CP →
+#     in-extension currency, при условии что эта currency не имеет monetary
+#     value и не cash-out'ится в реальные деньги. У нас алмазы только тратятся
+#     внутри расширения (cases/cosmetics). Disclosure показан зрителю
+#     в extension.html / mobile.html (compliance-disclosure block).
+#   - Названия наград — formulated как loyalty reward (не «обмен/exchange»):
+#     "Награда: ..." не воспринимается reviewer'ами как commercial transaction.
+#
+# !!! ВАЖНО про синхронизацию с Twitch Dashboard !!!
+# Ключи в `rewards` ДОЛЖНЫ ТОЧНО совпадать с custom reward titles
+# в Twitch Creator Dashboard → Channel Points → Manage Rewards. Если
+# поменял здесь — обязательно поменяй и там, иначе EventSub redemption
+# event прилетит с title который не найдётся в config и будет ignored.
+#
+# TWITCH_BROADCASTER_ID — числовой ID стримера (не ник).
+# Получить можно тут: https://www.streamweasels.com/tools/convert-twitch-username-to-user-id/
+CHANNEL_POINTS_CONFIG = {
+    'enabled': True,
+    'broadcaster_id': os.getenv('TWITCH_BROADCASTER_ID', ''),
+    # title → сколько алмазов начислить как loyalty reward.
+    # Streamer переименовал rewards в Twitch dashboard — теперь формат
+    # "{cost} очков → алмазы → Награда: {diamonds} алмазов".
+    # Старые названия оставлены для backwards-compat (если кто-то откатит).
+    'rewards': {
+        # Текущие (актуал 2026-05-17 — Twitch dashboard)
+        '5000 очков → алмазы → Награда: 5000 алмазов':   {'channel_points_cost': 5000,  'diamonds': 5000},
+        '10000 очков → алмазы → Награда: 12000 алмазов': {'channel_points_cost': 10000, 'diamonds': 12000},
+        '25000 очков → алмазы → Награда: 35000 алмазов': {'channel_points_cost': 25000, 'diamonds': 35000},
+        # Legacy (если кто-то откатит названия в dashboard)
+        'Награда: 5000 алмазов':  {'channel_points_cost': 5000,  'diamonds': 5000},
+        'Награда: 12000 алмазов': {'channel_points_cost': 10000, 'diamonds': 12000},
+        'Награда: 35000 алмазов': {'channel_points_cost': 25000, 'diamonds': 35000},
+    },
+    # Награды, которые НЕ дают крустиков, а означают заявку «хочу в тестеры
+    # расширения». Выдать доступ может только владелец руками в консоли Twitch
+    # (публичного API для списка тест-аккаунтов у Twitch нет), поэтому бэкенд
+    # делает единственное, что может: подтверждает зрителю, что заявка принята,
+    # и называет ник в чате, чтобы стример не пропустил.
+    #
+    # Заведено 2026-08-22: 20.08 зритель @zerohomes потратил баллы на награду
+    # 'ПОЛУЧИТЬ ДОСТУП К РАСШИРЕНЮ', её не было в конфиге, и он не получил
+    # НИЧЕГО — ни доступа, ни ответа. Список ключей тут обязан совпадать с
+    # названиями наград в Twitch Dashboard посимвольно (включая опечатки).
+    # Сравнение по ВХОЖДЕНИЮ, а не по точному совпадению — намеренно.
+    # Обычные награды (алмазы) требуют точного ключа, и это правильно: там от
+    # названия зависит СУММА, ошибиться нельзя. Здесь суммы нет, есть только
+    # «человек попросился в тестеры», зато есть высокий шанс переименования:
+    # в названии уже живёт опечатка («РАСШИРЕНЮ»), её захочется исправить — и
+    # точное сравнение молча сломалось бы ровно так же, как сломалось 20.08.
+    'tester_request_patterns': (
+        'ДОСТУП К РАСШИРЕН',   # ловит и РАСШИРЕНЮ, и РАСШИРЕНИЮ
+        'ТЕСТЕР',              # «стать тестером», «тестер расширения», …
+    ),
+    # Секрет для верификации EventSub вебхука (32+ url-safe bytes).
+    # Ротирован 2026-05-16 на secrets.token_urlsafe(32).
+    'eventsub_secret': os.getenv('EVENTSUB_SECRET', ''),
+}
+
+# ===== СПИСОК ИСКЛЮЧЕНИЙ ИЗ ДРОПА =====
+# Пользователи из этого списка не получают дропы
+DROP_BLACKLIST: set = set(filter(None, os.getenv('DROP_BLACKLIST', 'shedoy23').split(',')))
+
+# ===== ВЫВОД ИНФОРМАЦИИ ПРИ ЗАПУСКЕ =====
+if __name__ == '__main__':
+    print("✅ Конфигурация загружена успешно!")
+    print(f"📺 Канал: {TWITCH_CHANNEL_NAME}")
+    print(f"💎 Очки в минуту: {POINTS_PER_MINUTE}")
+    print("💬 Бонус за сообщение в чате: до 10💎 (макс 500 сообщений/день)")
+    print(f"🎁 Дропы: каждые {DROP_INTERVAL//60} мин, шанс {DROP_CHANCE*100}%")
+    print(f"📁 RimWorld путь: {RIMWORLD_BASE_PATH}")
+    print(f"📜 Квестов настроено: {len(QUESTS_CONFIG)}")
+
+# Мёртвые константы удалены 2026-07-29 (решение владельца: «мёртвый нахер
+# не нужен, опять кто-то из-за него запутается»): AFK_TIMEOUT,
+# AFK_PENALTY_TIMEOUT, RAFFLE_COOLDOWN, MATCHMAKING_QUEUE_TTL_SEC,
+# EVENTSUB_CONFIG, SOUND_CONFIG, ITEMS_CONFIG — ни одного читателя во всём
+# репозитории, следы вырезанных розыгрышей, звуков оверлея и AFK-логики.

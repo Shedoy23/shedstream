@@ -1,0 +1,3695 @@
+"""
+routes/bannerlord.py — viewer-facing endpoints для Bannerlord-модуля
+(Sprint 1.3 of BANNERLORD_MVP.md).
+
+Endpoints:
+  GET  /api/bannerlord/my-hero   — мой hero (state + skills + attributes + equipment)
+  GET  /api/bannerlord/shop      — catalog покупных actions/items (через module_catalogs)
+  POST /api/bannerlord/action    — купить action (списать крустики + enqueue в action queue)
+
+C# mod long-poll'ит /v1/module/bannerlord/actions через generic Module API
+(см. routes/module_api.py) — нам тут не нужно дублировать.
+
+Multi-tenant: все endpoints scope'ятся через JWT.channel_id.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import uuid
+
+from fastapi import APIRouter, Request
+
+from dependencies import get_db, require_jwt_user
+from routes._mod_queue import enqueue_mod_action
+
+router = APIRouter()
+
+
+async def _require_live_mod(db, channel_id: int) -> bool:
+    """Мод Bannerlord на связи? Ставится перед тратой чего-либо невозвратного.
+
+    2026-08-06, фаза 1 (решение владельца после разбора 05.08). Пока стример
+    играл в другую игру, расширение продолжало принимать заявки: они ложились
+    в очередь, никто их не исполнял, и через 30 минут сторож помечал их
+    провалом. Для платных действий деньги возвращались, а вот для ежедневного
+    бонуса возвращать было нечего — «ценой» там было само право забрать его
+    сегодня, и оно сгорало.
+
+    Если сигнала не было НИ РАЗУ (свежий канал, только что перезапущенный
+    бэкенд, у которого мод ещё не успел постучаться), не блокируем: ложный
+    отказ на ровном месте хуже, чем редкая заявка в очередь.
+    """
+    try:
+        import module_liveness
+        ts = await module_liveness.last_seen(db, channel_id, "bannerlord")
+        if not ts:
+            return True
+        return await module_liveness.is_on_air(db, channel_id, "bannerlord")
+    except Exception:
+        return True
+
+# Sprint 5.29 audit fix #39 — per-(channel,user) asyncio.Lock для serializing
+# actions того же viewer'а. Закрывает race condition:
+#   1. Viewer spam'нул 2× hero.create_clan (1M динаров)
+#   2. Backend ОБА раза читает кэшированный gold (мод ещё не успел deduct)
+#   3. Оба validate → оба enqueue → mod успешно делает первый, отказывает
+#      второй. Refund для второго работает (#21 уже задеплоен), но всё равно
+#      ненужные round-trip'ы / spam в логах / risk нарваться на edge cases.
+#
+# Lock per-(channel,user) сериализует: второй action ждёт пока первый
+# полностью закончит buy_action endpoint. Mod успевает применить + push'ить
+# state_update до того как второй action прочитает gold.
+#
+# Lock держится только на время backend buy_action (charge + enqueue) —
+# обычно <100ms. Не блокирует mod на main thread.
+#
+# Grows unbounded для new users — приемлемо на our scale (<100 active
+# viewers per stream).
+_user_action_locks: dict[tuple[int, str], asyncio.Lock] = {}
+_user_action_locks_meta_lock = asyncio.Lock()
+
+
+async def _get_user_lock(channel_id: int, username: str) -> asyncio.Lock:
+    """Lazy-init per-user lock. Thread-safe через meta-lock."""
+    key = (channel_id, (username or "").lower())
+    if key not in _user_action_locks:
+        async with _user_action_locks_meta_lock:
+            if key not in _user_action_locks:   # double-check after acquire
+                _user_action_locks[key] = asyncio.Lock()
+    return _user_action_locks[key]
+
+# Sprint 5.29 audit fix #34: action_id tracing logs + REFUSE prefix unification.
+# Раньше большинство refuse paths логировали без префикса — нельзя было
+# grep'нуть "что отказано сегодня". Также enqueue не логировал action_id —
+# нельзя было проследить судьбу конкретного action через цепочку
+# buy_action → mod poll → mod apply → ack.
+log = logging.getLogger("rimlink.bannerlord")
+
+
+def _refuse(action_type: str, username: str, reason: str) -> None:
+    """grep-friendly: `grep '\\[bannerlord REFUSE\\]'` найдёт все отказы."""
+    try:
+        log.warning("[bannerlord REFUSE] action=%s user=%s reason=%s",
+                    action_type, username, reason)
+    except Exception:
+        pass
+
+_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
+
+
+# Sprint 5.32 — class_level вычисляется из основного скилла класса (BLT-style).
+# Раньше class_level хранился в bannerlord_hero_class но НЕ обновлялся (всегда 1).
+# Теперь dynamic compute: для archer смотрим Bow, для cavalry — Riding, и т.д.
+# Threshold:
+#   skill <  50  → class_level 1 (×1.4 для rage и т.п.)
+#   skill >= 50  → class_level 2 (×1.6)
+#   skill >= 150 → class_level 3 (×1.9)
+#
+# С class-weighted XP (Sprint 5.29 #29) primary skill качается быстрее → progression
+# награждает специализацию: archer'у выгодно качать Bow.
+_CLASS_PRIMARY_SKILL = {
+    "archer":         "Bow",
+    "heavy_archer":   "Bow",       # 2026-06-15 (bug #8) — был пропущен
+    "horse_archer":   "Bow",
+    "camel_archer":   "Bow",
+    "crossbow":       "Crossbow",  # 2026-06-15 (bug #8) — был пропущен → lvl1 навсегда
+    "heavy_crossbow": "Crossbow",  # 2026-06-15 (bug #8) — репорт kuro_gothic
+    "cavalry":        "Riding",
+    "camel_cavalry":  "Riding",
+    "knight":         "Riding",
+    "infantry":       "Polearm",   # legacy ключ (нет такого класса в M15) — безвреден
+    "tank":           "OneHanded",
+    "assassin":       "OneHanded", # 2026-06-15 (bug #8) — кинжалы = OneHanded
+    "berserk":        "TwoHanded",
+    "psycho":         "TwoHanded",
+}
+_CLASS_LEVEL_THRESHOLDS = (50, 150)   # skill ≥ 50 → lvl2, ≥ 150 → lvl3
+
+
+async def _compute_class_level(conn, channel_id: int, username: str,
+                                class_key: str) -> int:
+    """Сomputed dynamic class_level (1-3) для viewer'а на основе primary skill.
+
+    Если класс не в map'е (legacy / unknown) — возвращает 1.
+    Если skill не найден в bannerlord_skills — возвращает 1.
+    """
+    if not class_key:
+        return 1
+    primary_skill = _CLASS_PRIMARY_SKILL.get((class_key or "").lower())
+    if not primary_skill:
+        return 1
+    cur = await conn.execute(
+        "SELECT level FROM bannerlord_skills "
+        "WHERE channel_id=? AND username=? AND LOWER(skill_key)=LOWER(?)",
+        (channel_id, username, primary_skill))
+    row = await cur.fetchone()
+    if not row:
+        return 1
+    skill_val = int(row[0] or 0)
+    t2, t3 = _CLASS_LEVEL_THRESHOLDS
+    if skill_val >= t3:
+        return 3
+    if skill_val >= t2:
+        return 2
+    return 1
+
+
+@router.get("/api/bannerlord/heirs")
+async def bannerlord_heirs(request: Request):
+    """Sprint 5.32 (BLT-parity M2) — heir queue для adopted viewer hero.
+
+    Frontend: показать "наследники в очереди" в hero pane (под HP/skills).
+    Возвращает список alive non-activated heirs у viewer'а (по убыванию came_of_age_at).
+    JWT auth — viewer видит только своих наследников.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT heir_hero_id, heir_name, came_of_age_at "
+            "FROM bannerlord_heirs "
+            "WHERE channel_id=? AND parent_username=? "
+            "AND alive=1 AND activated=0 "
+            "ORDER BY came_of_age_at DESC",
+            (channel_id, username))
+        rows = await cur.fetchall()
+
+    # Sprint 5.32 (LOG-3) — log если у пользователя есть наследники. Silent
+    # если пусто (не спамим — большинство viewer'ов без heirs).
+    if rows:
+        log.info("[HEIR-API] ch=%s user=@%s heirs=%d (%s)",
+                 channel_id, username, len(rows),
+                 ", ".join(r[1] for r in rows[:3]) + ("..." if len(rows) > 3 else ""))
+
+    return {
+        "success": True,
+        "heirs": [
+            {"hero_id": r[0], "name": r[1], "came_of_age_at": r[2]}
+            for r in rows
+        ],
+    }
+
+
+@router.get("/api/bannerlord/recent-tournament-winners")
+async def bannerlord_recent_tournament_winners(request: Request):
+    """Sprint 5.32 (BLT-parity H8) — persistent anti-snowball winners list.
+
+    Mod GET'ит при tournament start чтобы initialize TournamentMissionBehavior._recentWinners.
+    Возвращает top-5 viewers по tournament_wins (DESC). Используется для HP-penalty
+    при spawn'е в следующих турнирах.
+
+    Раньше _recentWinners хранился как **static List в C#** — сбрасывался на reload
+    save / restart игры. Топ-1 viewer переставал получать nerf после restart'а.
+
+    Module-token auth (мод-side) ИЛИ Twitch JWT (frontend debug).
+    """
+    # Try module-token first.
+    auth_header = request.headers.get("Authorization", "")
+    channel_id = None
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        try:
+            from routes.streamer import verify_module_token
+            claims = verify_module_token(token)
+            if claims and claims.get("module_id") == "bannerlord":
+                channel_id = int(claims["channel_id"])
+        except Exception as e:
+            log.warning("[recent-tournament-winners] module-token verify failed: %s", e)
+    if channel_id is None:
+        auth = require_jwt_user(request)
+        if not auth:
+            return _AUTH_FAIL
+        _, channel_id = auth
+
+    try:
+        limit = int(request.query_params.get("limit") or 5)
+        limit = max(1, min(limit, 50))
+    except (TypeError, ValueError):
+        limit = 5
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT username, tournament_wins FROM bannerlord_heroes "
+            "WHERE channel_id=? AND tournament_wins > 0 "
+            "ORDER BY tournament_wins DESC, last_sync DESC LIMIT ?",
+            (channel_id, limit))
+        rows = await cur.fetchall()
+
+    # Sprint 5.32 (LOG-3) — на каждом tournament start mod fetch'ит этот endpoint.
+    # Log даёт visibility "сколько winners в anti-snowball list'е сейчас".
+    log.info("[VET-API] ch=%s recent_winners=%d limit=%d (%s)",
+             channel_id, len(rows), limit,
+             ", ".join(f"@{r[0]}({r[1]})" for r in rows[:5])
+             if rows else "—")
+
+    return {
+        "success": True,
+        "winners": [
+            {"username": r[0], "wins": r[1]} for r in rows
+        ],
+    }
+
+
+@router.get("/api/bannerlord/class-state")
+async def bannerlord_class_state(request: Request):
+    """Snapshot всех heroes канала + их class + power values.
+
+    Mod вызывает на session_start и кэширует в памяти. При AgentBuild в
+    Mission смотрит cache для apply powers.
+
+    Sprint 5.32 BUGFIX — auth поддерживает ОБА варианта:
+      1. Module-token (Authorization: Bearer ...) — мод-side, основной путь
+      2. Twitch JWT (X-Twitch-JWT) — frontend/streamer, fallback
+    Раньше требовался ТОЛЬКО JWT → мод получал AUTH_FAIL → PowerCache
+    refresh падал → viewer powers не применялись в бою.
+    """
+    # Try module-token first (мод-side).
+    auth_header = request.headers.get("Authorization", "")
+    channel_id = None
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        try:
+            from routes.streamer import verify_module_token
+            claims = verify_module_token(token)
+            if claims and claims.get("module_id") == "bannerlord":
+                channel_id = int(claims["channel_id"])
+        except Exception as e:
+            log.warning("[class-state] module-token verify failed: %s", e)
+    # Fallback to JWT (frontend / streamer).
+    if channel_id is None:
+        auth = require_jwt_user(request)
+        if not auth:
+            return _AUTH_FAIL
+        _, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        # All heroes + their class + level
+        # Sprint 5.32 — class_level dynamically computed from primary skill.
+        # DB column stays as legacy/seed (always 1); реальный level — функция
+        # от Bow/Riding/etc. См. _compute_class_level выше.
+        cur = await conn.execute("""
+            SELECT h.username, h.hero_id, c.class_key,
+                   COALESCE(h.combat_stance, 'balanced')
+            FROM bannerlord_heroes h
+            LEFT JOIN bannerlord_hero_class c
+              ON h.channel_id = c.channel_id AND h.username = c.username
+            WHERE h.channel_id=? AND h.is_alive=1
+        """, (channel_id,))
+        rows = await cur.fetchall()
+        heroes = []
+        for r in rows:
+            uname, hero_id, cls_key, stance = r[0], r[1], r[2], r[3]
+            class_level = await _compute_class_level(conn, channel_id, uname, cls_key)
+            heroes.append({
+                "username":      uname,
+                "hero_id":       hero_id,
+                "class_key":     cls_key,
+                "class_level":   class_level,
+                "combat_stance": stance,   # 2026-06-10 — мод грузит стойку на рестарте
+            })
+
+        # Powers catalog (full — mod cache'ит)
+        cur = await conn.execute("""
+            SELECT class_key, power_key, lvl1_value, lvl2_value, lvl3_value
+            FROM bannerlord_class_powers
+        """)
+        powers = {}
+        for r in await cur.fetchall():
+            powers.setdefault(r[0], {})[r[1]] = [r[2], r[3], r[4]]
+
+    return {"success": True, "heroes": heroes, "powers": powers}
+
+
+@router.get("/api/bannerlord/classes")
+async def bannerlord_classes(request: Request):
+    """Catalog классов (seeded в M15). Public-ish (но JWT — для consistency).
+
+    Frontend renders class picker; selected class triggers
+    POST /api/bannerlord/action {hero.set_class, class_key}.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    _, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        # Catalog (active only)
+        cur = await conn.execute("""
+            SELECT class_key, name, formation, slot1, slot2, slot3, slot4,
+                   use_horse, use_camel, description
+            FROM bannerlord_classes
+            WHERE deprecated = 0
+            ORDER BY class_key
+        """)
+        classes = []
+        for r in await cur.fetchall():
+            classes.append({
+                "class_key":   r[0],
+                "name":        r[1],
+                "formation":   r[2],
+                "slots":       [s for s in (r[3], r[4], r[5], r[6]) if s],
+                "use_horse":   bool(r[7]),
+                "use_camel":   bool(r[8]),
+                "description": r[9],
+            })
+
+        # Current viewer's class (если есть)
+        # Sprint 5.32 — class_level dynamic (по primary skill). Старая колонка
+        # class_level в БД остаётся 1 forever (legacy field), реальный
+        # level вычисляется через _compute_class_level.
+        username = auth[0]
+        cur = await conn.execute(
+            "SELECT class_key FROM bannerlord_hero_class "
+            "WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        row = await cur.fetchone()
+        current = None
+        if row:
+            cls_key = row[0]
+            class_level = await _compute_class_level(conn, channel_id, username, cls_key)
+            # Дополнительно отдаём frontend info о primary skill + threshold —
+            # для будущего UI "до lvl 2 осталось N очков скилла Bow".
+            primary_skill = _CLASS_PRIMARY_SKILL.get((cls_key or "").lower())
+            primary_skill_level = 0
+            if primary_skill:
+                cur_ps = await conn.execute(
+                    "SELECT level FROM bannerlord_skills "
+                    "WHERE channel_id=? AND username=? AND LOWER(skill_key)=LOWER(?)",
+                    (channel_id, username, primary_skill))
+                ps_row = await cur_ps.fetchone()
+                if ps_row:
+                    primary_skill_level = int(ps_row[0] or 0)
+            current = {
+                "class_key":           cls_key,
+                "class_level":         class_level,
+                "primary_skill":       primary_skill,
+                "primary_skill_level": primary_skill_level,
+                "next_threshold":      (_CLASS_LEVEL_THRESHOLDS[0] if class_level == 1
+                                        else _CLASS_LEVEL_THRESHOLDS[1] if class_level == 2
+                                        else None),
+            }
+
+        # Sprint 4.7: active powers для current класса viewer'а (для UI кнопок).
+        # Фильтруем только active power_keys — passive (hp_multi / armor / skill
+        # boosts) не покупаются runtime'ом. Heal_burst — special: доступен всем.
+        ACTIVE_POWER_KEYS = (
+            "shield_break_burst", "rage", "retribution_toggle",
+            # 2026-05-29 BLT-parity combat powers (active variants).
+            "lifesteal_burst", "ironskin_toggle",
+            # 2026-05-29 взрывные стрелы (ranged AoE active).
+            "explosive_arrows",
+            # 2026-06-17 (#15) — рассечение: мили AoE-активка (зеркало explosive_arrows).
+            "cleave",
+            # 2026-06-18 — подключаем реализованные, но не выставленные активки (были
+            # seed'нуты на классы, но фильтровались тут → кнопок не было, недоступны):
+            # Яд (assassin DoT) + Берсерк-рывок (berserk speed). disarm_burst НЕ
+            # включаем — выкинут как слабый (m81 чистит его строку).
+            "poison_dot", "berserker_charge",
+        )
+        current_powers = []
+        if current:
+            cur = await conn.execute(
+                "SELECT power_key, lvl1_value, lvl2_value, lvl3_value "
+                "FROM bannerlord_class_powers WHERE class_key = ?",
+                (current["class_key"],))
+            for pr in await cur.fetchall():
+                pk = pr[0]
+                if pk not in ACTIVE_POWER_KEYS:
+                    continue
+                lvl = max(1, min(3, current["class_level"] or 1))
+                val = pr[lvl]  # 1→lvl1_value (idx 1), 2→lvl2_value (idx 2), 3→idx 3
+                current_powers.append(
+                    {"power_key": pk, "value": val,
+                     "price": POWER_PRICES.get(pk, 0)})
+
+        # heal_burst всегда доступен (не привязан к классу)
+        current_powers.append(
+            {"power_key": "heal_burst", "value": 50.0,
+             "price": POWER_PRICES.get("heal_burst", 0)})
+
+    return {
+        "success": True,
+        "classes": classes,
+        "current": current,
+        "current_powers": current_powers,
+    }
+
+
+@router.get("/api/bannerlord/status")
+async def bannerlord_status(request: Request):
+    """Online/offline status мода для UI badge.
+
+    Online = last event от мода < 60 сек назад. Mod шлёт heartbeat
+    автоматически (планируется в Sprint 3.4) или events через
+    CampaignBehavior + ActionPoller polling который keeps connection alive.
+    """
+    import time
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    _, channel_id = auth
+
+    from modules.bannerlord._adapter import get_last_seen
+    last_seen = get_last_seen(channel_id)
+    age = time.time() - last_seen if last_seen > 0 else None
+    online = age is not None and age < 60
+
+    return {
+        "success":     True,
+        "online":      online,
+        "last_seen":   last_seen if last_seen > 0 else None,
+        "age_seconds": age,
+    }
+
+
+# Sprint 5.32 (BLT-parity #46) — daily reward presets.
+# 1 раз в день (UTC reset) viewer выбирает либо gold либо XP.
+DAILY_GOLD_AMOUNT = 100_000   # динаров
+DAILY_XP_AMOUNT   = 50_000    # XP в random skill
+
+
+@router.get("/api/bannerlord/daily-status")
+async def bannerlord_daily_status(request: Request):
+    """Status дейлика: можно ли клеймить сегодня + что забирал в прошлый раз.
+
+    Returns: {can_claim: bool, last_claim_date, last_reward_type,
+              today_date, reward_amounts: {gold, xp}}
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        # SQLite DATE('now') возвращает UTC date (YYYY-MM-DD).
+        cur = await conn.execute(
+            "SELECT claim_date, reward_type FROM bannerlord_daily_claims "
+            "WHERE channel_id=? AND username=? "
+            "ORDER BY claim_date DESC LIMIT 1",
+            (channel_id, username))
+        row = await cur.fetchone()
+        last_date = row[0] if row else None
+        last_type = row[1] if row else None
+
+        cur = await conn.execute("SELECT DATE('now')")
+        today_row = await cur.fetchone()
+        today = today_row[0] if today_row else None
+
+    can_claim = (last_date != today)
+    return {
+        "success":           True,
+        "can_claim":         can_claim,
+        "last_claim_date":   last_date,
+        "last_reward_type":  last_type,
+        "today_date":        today,
+        "reward_amounts":    {"gold": DAILY_GOLD_AMOUNT, "xp": DAILY_XP_AMOUNT},
+    }
+
+
+@router.post("/api/bannerlord/daily-claim")
+async def bannerlord_daily_claim(request: Request):
+    """Заклеймить дейлик. Body: {reward_type: 'gold'|'xp'}.
+
+    Atomic: BEGIN IMMEDIATE → check not already claimed today → INSERT claim →
+    enqueue action в module_actions → COMMIT. Daily reset на UTC midnight.
+
+    Returns: {success, message, amount, reward_type, action_id}
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    try:
+        body = await request.json()
+    except Exception:
+        return {"success": False, "message": "bad JSON"}
+
+    reward_type = (body.get("reward_type") or "").strip().lower()
+    if reward_type not in ("gold", "xp"):
+        return {"success": False, "message": "reward_type должен быть 'gold' или 'xp'"}
+
+    db = get_db()
+
+    # 2026-08-06. Тратой здесь является не валюта, а САМ ДЕЙЛИК: отметка «сегодня
+    # забрал» ставится в той же транзакции, что и заявка моду. Если мода нет,
+    # заявка через 30 минут протухнет, вернёт «REFUNDED:0» (верно — бонус
+    # бесплатный), и зритель останется без награды И без права забрать её снова.
+    # Ровно это случилось 05.08 с пятью зрителями, пока стример играл в другую
+    # игру. Поэтому не даём начать: отказ дешевле отката.
+    if not await _require_live_mod(db, channel_id):
+        return {
+            "success": False,
+            "message": "Игра сейчас не запущена — бонус можно будет забрать, "
+                       "когда стример вернётся в игру. Твой сегодняшний "
+                       "бонус никуда не денется.",
+        }
+    async with db._connect() as conn:
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+
+            # Уже клеймил сегодня?
+            cur = await conn.execute(
+                "SELECT reward_type FROM bannerlord_daily_claims "
+                "WHERE channel_id=? AND username=? AND claim_date=DATE('now')",
+                (channel_id, username))
+            existing = await cur.fetchone()
+            if existing:
+                await conn.execute("ROLLBACK")
+                return {
+                    "success": False,
+                    "message": f"Дейлик уже забран сегодня ({existing[0]}). "
+                               f"Возвращайся завтра!",
+                }
+
+            # INSERT claim record.
+            await conn.execute(
+                "INSERT INTO bannerlord_daily_claims "
+                "(channel_id, username, claim_date, reward_type) "
+                "VALUES (?, ?, DATE('now'), ?)",
+                (channel_id, username, reward_type))
+
+            # Enqueue mod action.
+            action_id = uuid.uuid4().hex
+            if reward_type == "gold":
+                payload = {
+                    "initiated_by": username,
+                    "target":       username,
+                    "item_type":    "gold",
+                    "amount":       DAILY_GOLD_AMOUNT,
+                    "_daily":       True,
+                }
+                action_type = "player.give_item"
+                amount = DAILY_GOLD_AMOUNT
+                msg = f"🎁 +{DAILY_GOLD_AMOUNT:,}💰 динаров — приходи завтра за новым!"
+            else:
+                payload = {
+                    "initiated_by": username,
+                    "target":       username,
+                    "skill_key":    "",   # mod random pick
+                    "xp":           DAILY_XP_AMOUNT,
+                    "_daily":       True,
+                }
+                action_type = "hero.add_skill"
+                amount = DAILY_XP_AMOUNT
+                msg = f"🎁 +{DAILY_XP_AMOUNT:,} XP в случайный скилл — приходи завтра!"
+
+            await conn.execute(
+                "INSERT INTO module_actions "
+                "(channel_id, module_id, action_id, type, data, status) "
+                "VALUES (?, 'bannerlord', ?, ?, ?, 'queued')",
+                (channel_id, action_id, action_type,
+                 json.dumps(payload, ensure_ascii=False)))
+
+            await conn.commit()
+            log.info("[bannerlord DAILY] ch=%s user=%s type=%s amount=%s action_id=%s",
+                     channel_id, username, reward_type, amount, action_id)
+            return {
+                "success":     True,
+                "message":     msg,
+                "amount":      amount,
+                "reward_type": reward_type,
+                "action_id":   action_id,
+            }
+        except Exception as ex:
+            try: await conn.execute("ROLLBACK")
+            except Exception: pass
+            log.exception("daily-claim failed: %s", ex)
+            return {"success": False, "message": f"server error: {ex}"}
+
+
+@router.get("/api/bannerlord/my-buffs")
+async def bannerlord_my_buffs(request: Request):
+    """Sprint 4.6/4.8 — active buffs + cooldowns для viewer'а.
+
+    Buffs: текущие активные active powers (rage / retribution_toggle).
+      State в `_adapter.py:_active_buffs`, обновляется через mod'овые
+      buff.activated/buff.expired. Reset на supervisor restart — mod
+      повторно пошлёт buff.activated если buff ещё активен.
+
+    Cooldowns (4.8): remaining seconds до следующей разрешённой активации
+      каждого power_key. Set'ится при /action для power.activate.
+
+    Response: { success, buffs: [{power_key, remaining_s}],
+                       cooldowns: [{power_key, remaining_s}] }
+    Frontend polling 2.5с + client-side decrement для smooth countdown.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    from modules.bannerlord._adapter import get_active_buffs, get_active_cooldowns
+    return {
+        "success":   True,
+        "buffs":     get_active_buffs(channel_id, username),
+        "cooldowns": get_active_cooldowns(channel_id, username),
+    }
+
+
+@router.get("/api/bannerlord/tournament")
+async def bannerlord_tournament(request: Request):
+    """Турнир: queue + state + my bet status.
+
+    Frontend polling ~3s для UI update:
+      - "Турнир: idle (3 в очереди)" → можно join
+      - "Турнир: running, раунд 2/4, ставки открыты на участников X/Y" → можно bet
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        # Queue (ordered by joined_at)
+        cur = await conn.execute("""
+            SELECT q.username, q.entry_fee, q.joined_at,
+                   c.class_key
+            FROM bannerlord_tournament_queue q
+            LEFT JOIN bannerlord_hero_class c
+              ON c.channel_id = q.channel_id AND c.username = q.username
+            WHERE q.channel_id=?
+            ORDER BY q.joined_at ASC
+        """, (channel_id,))
+        queue = []
+        for r in await cur.fetchall():
+            queue.append({
+                "username":  r[0],
+                "entry_fee": r[1] or 0,
+                "class_key": r[3],
+            })
+
+        # State
+        cur = await conn.execute("""
+            SELECT status, current_round, participants, last_winner, started_at
+            FROM bannerlord_tournament_state WHERE channel_id=?
+        """, (channel_id,))
+        row = await cur.fetchone()
+        if row:
+            try:
+                participants = json.loads(row[2] or "[]")
+            except Exception:
+                participants = []
+            state = {
+                "status":        row[0] or "idle",
+                "current_round": row[1] or 0,
+                "participants":  participants,
+                "last_winner":   row[3],
+                "started_at":    row[4],
+            }
+        else:
+            state = {
+                "status":        "idle",
+                "current_round": 0,
+                "participants":  [],
+                "last_winner":   None,
+                "started_at":    None,
+            }
+
+        # Мой прогноз (этот раунд)
+        my_prediction = None
+        if state["status"] == "running":
+            cur = await conn.execute("""
+                SELECT target, amount FROM bannerlord_tournament_bets
+                WHERE channel_id=? AND bettor=? AND round_index=?
+            """, (channel_id, username, state["current_round"]))
+            br = await cur.fetchone()
+            if br:
+                my_prediction = {"target": br[0], "amount": br[1]}
+
+        # In queue?
+        in_queue = any(q["username"] == username for q in queue)
+
+    return {
+        "success":     True,
+        "queue":       queue,
+        "state":       state,
+        "in_queue":    in_queue,
+        "my_prediction": my_prediction,
+        "my_username": username,
+        "config": {
+            "entry_fee_gold": TOURNAMENT_ENTRY_FEE_GOLD,  # legacy 0 — backward-compat
+            "join_price":     TOURNAMENT_JOIN_PRICE,      # 5.28c: 0 — турнир бесплатный
+        },
+    }
+
+
+@router.get("/api/bannerlord/tournament/queue-usernames")
+async def bannerlord_tournament_queue_usernames(channel_id: int = 0):
+    """Mod-facing: usernames текущей турнирной очереди канала (по joined_at).
+
+    Public-ish (channel_id query — нет JWT, mod вызывает с module token), как
+    clan-upgrades/all-owners. Мод фетчит на загрузке сейва и домерджит тех, кто
+    записался, но выпал из in-game очереди после save-load (savescum) — bug #18:
+    backend-очередь durable source of truth для «кто записался».
+    """
+    from dependencies import resolve_channel_id_or_default
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT username FROM bannerlord_tournament_queue "
+            "WHERE channel_id = ? ORDER BY joined_at ASC",
+            (channel_id,)
+        )
+        usernames = [r[0] for r in await cur.fetchall()]
+
+    return {"success": True, "usernames": usernames}
+
+
+@router.get("/api/bannerlord/battle-status")
+async def bannerlord_battle_status(request: Request):
+    """Sprint 5.5: viewer-side battle indicator.
+
+    Returns:
+      {in_battle: bool,         # идёт ли активный бой в игре
+       participant_count: int,
+       my_stats: {hp, hp_max, alive, state, kills, gold_earned, xp_earned}
+                                # — null если viewer не участвует}
+
+    Polling ~2с в extension'е — banner показывает "⚔️ Бой идёт" +
+    мою HP/kills/gold/xp. На transition new-battle backend автоматически
+    сбрасывает мои cooldowns (см. _adapter._on_battle_stats).
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    from modules.bannerlord._adapter import get_my_battle_stats
+    data = get_my_battle_stats(channel_id, username)
+    return {"success": True, **data}
+
+
+# Sprint 5.30 #41 — power activation events для overlay broadcast.
+# Ring buffer per-channel, auto-prune events older than 30s. Overlay polls
+# every 1s, renders big floating banner for each new event (по seq counter).
+_power_events: dict[int, list[dict]] = {}
+_power_events_seq: dict[int, int] = {}
+_POWER_EVENTS_TTL_SEC = 30
+
+# 2026-06-14 — per-power цена активки (💎 крустики). ЕДИНЫЙ источник правды:
+# бэк и enforce'ит её при списании (_prepare_action), и отдаёт фронту в
+# current_powers (фронт рисует price из ответа, не хардкодит). До этого фикса
+# power.activate сидел в ACTION_PRICES_DEFAULT (flat 50) → бэк списывал 50 за
+# любую способность, а фронт показывал 100–350 → "написано одно, списано другое".
+POWER_PRICES = {
+    "heal_burst":         100,
+    "shield_break_burst": 200,
+    "rage":               300,
+    "retribution_toggle": 300,
+    "poison_dot":         350,
+    "disarm_burst":       250,
+    "berserker_charge":   200,
+    "lifesteal_burst":    300,
+    "ironskin_toggle":    300,
+    "explosive_arrows":   350,
+    "cleave":             350,   # 2026-06-17 (#15) — мили AoE-активка, как explosive_arrows
+}
+
+
+def _push_power_event(channel_id: int, user: str, power_key: str,
+                       value: float = 0.0, duration_s: float = 0.0) -> None:
+    """Inline-called from buy_action когда action_type=power.activate.
+    Append event в ring buffer + prune старые. Idempotent через seq."""
+    import time
+    now = time.time()
+    seq = _power_events_seq.get(channel_id, 0) + 1
+    _power_events_seq[channel_id] = seq
+    lst = _power_events.setdefault(channel_id, [])
+    lst.append({
+        "seq":         seq,
+        "ts":          now,
+        "user":        (user or "").lower(),
+        "power_key":   power_key,
+        "value":       value,
+        "duration_s":  duration_s,
+    })
+    # Prune expired
+    cutoff = now - _POWER_EVENTS_TTL_SEC
+    _power_events[channel_id] = [e for e in lst if e["ts"] >= cutoff]
+
+
+@router.get("/api/overlay/bannerlord/power-events")
+async def overlay_bannerlord_power_events(channel_id: int = 0, since_seq: int = 0):
+    """Sprint 5.30 #41 — recent power activations для overlay big-banner display.
+
+    Public endpoint (no JWT) для OBS browser source.
+    Returns events with seq > since_seq. Overlay polls с last seq → animates
+    каждое новое событие как floating banner ~3-5s.
+
+    Returns: {success, events: [...], cursor: max_seq}
+    """
+    if channel_id <= 0:
+        from dependencies import resolve_channel_id_or_default
+        channel_id = resolve_channel_id_or_default()
+
+    lst = _power_events.get(channel_id, [])
+    fresh = [e for e in lst if e["seq"] > int(since_seq or 0)]
+    max_seq = max((e["seq"] for e in fresh), default=int(since_seq or 0))
+    return {
+        "success":  True,
+        "events":   fresh,
+        "cursor":   max_seq,
+    }
+
+
+@router.get("/api/overlay/bannerlord/summoned")
+async def overlay_bannerlord_summoned(channel_id: int = 0):
+    """Sprint 5.4: Active summoned heroes в Mission — для overlay рендера.
+
+    Public endpoint (no JWT) т.к. overlay.html запускается в OBS без
+    Twitch auth context. Защита через channel_id query param.
+
+    Mod пушит battle.stats_snapshot каждые ~1.5s, мы храним in-memory.
+    Если TTL истёк (>8s) или isFinal=true → active=false (overlay скрывает).
+
+    Returns:
+      {success, active, participants: [{username, hp, hp_max, alive,
+       kills, gold_earned, xp_earned}], age_sec}
+    """
+    if channel_id <= 0:
+        from dependencies import resolve_channel_id_or_default
+        channel_id = resolve_channel_id_or_default()
+
+    from modules.bannerlord._adapter import get_battle_stats
+    snapshot = get_battle_stats(channel_id)
+    return {
+        "success":      True,
+        "channel_id":   channel_id,
+        **snapshot,
+    }
+
+
+@router.get("/api/bannerlord/ping")
+async def bannerlord_ping():
+    """Public health check для C# мода — connectivity test.
+
+    Mod при load пингует это endpoint чтобы убедиться что backend reachable
+    и его module discoverable. Не требует auth — это бессекретный probe.
+
+    Реальный auth flow (module token handshake) — через Module API
+    /v1/module/* endpoints, Sprint 2.3.
+    """
+    import time
+    return {
+        "ok":          True,
+        "module_id":   "bannerlord",
+        "server_time": int(time.time()),
+        "message":     "Bannerlord backend ready",
+    }
+
+# Action types которые viewer может купить через /api/bannerlord/action.
+# Должны быть в bannerlord/manifest.yaml actions/extensions.
+_PURCHASABLE_ACTIONS = (
+    "hero.set_specialization", "hero.select_weapon_power", "hero.claim_starter",
+    "hero.buy_equipment", "hero.equip_owned", "hero.unequip_owned", "hero.discard_owned",
+    "hero.create",            # adoption — special: НЕ требует существующего hero
+    "hero.set_class",         # Sprint 4.1: класс + equipment apply
+    "hero.set_combat_stance", # 2026-06-10: боевая стойка (defensive/balanced/aggressive)
+    "power.activate",         # Sprint 4.3: active power burst
+    "hero.upgrade_gear",      # Sprint M20: 6-tier equipment progression
+    "hero.reequip_gear",      # 2026-05-29: re-roll снаряги на текущем тире (BLT ReequipInsteadOfUpgrade)
+    "hero.discard_item",      # 2026-06-18: выбросить вещь из слота (освободить залоченную/перекованную, free)
+    "player.spawn",
+    # player.heal и player.respawn убраны из продажи 2026-07-29 (линтер
+    # sold-action-without-entry поймал их первым же прогоном).
+    #  · player.heal (50⦷) — кнопки нет, и он вытеснен активкой heal_burst
+    #    (power.activate), которая доступна всем классам и имеет свою цену.
+    #  · player.respawn (500⦷) — зарегистрирован на заглушку EchoHandler
+    #    («не реализовано» + отказ). Настоящее воскрешение живёт в
+    #    hero.activate_heir и запускается бэкендом на смерть героя.
+    # Хендлеры в моде не трогаю: они безвредны, пока бэкенд не кладёт задание.
+    "player.give_item",
+    # 2026-09-01: "player.equip_item" УБРАН из покупаемых (решение владельца).
+    #   Это был «🎁 Случайный товар» — оружие/броня/конь из high-tier пула за
+    #   500K–1M динаров, категорию выбирал зритель, конкретный предмет катал
+    #   мод (MBRandom). Прогрессия снаряжения остаётся детерминированной:
+    #   hero.upgrade_gear качает тир T1→T6 за фиксированную цену.
+    #   Снят и на бэкенде, а не только во фронте: фронт обходится, а адрес
+    #   без кнопки — тот же класс, что дыра с атрибутами (27.07).
+    #   Хендлер в моде не трогаю: он безвреден, пока бэкенд не кладёт задание.
+    # 2026-07-27 (аудит S-01): "player.modify_attribute" УБРАН из покупаемых.
+    # Цена фиксированная (50💎), а сколько очков атрибута выдать — присылал сам
+    # клиент: ни эта ветка, ни _prepare_action, ни C#-хендлер поле `points` не
+    # ограничивали (AddAttribute(attr, points, checkUnspentPoints: false)).
+    # Кнопки в панели не было, но POST /api/bannerlord/action открыт напрямую с
+    # валидным JWT зрителя → 50💎 за миллион очков. Доказано красным тестом
+    # tests/test_bannerlord_attribute_exploit.py (списание 50, задание в очереди).
+    # Законный путь — "hero.add_attribute" (Sprint 5.8, цена в динарах, своя
+    # ветка с проверкой). Хендлер в моде оставлен: он безвреден, пока бэкенд
+    # не кладёт такое задание в очередь.
+    "world.trigger_event",   # service-only: модератор-онли (role_label), не из панели зрителя
+    "hero.add_skill",
+    "hero.recruit_troops",
+    "hero.train_troops",         # 2026-05-29 (BLT TrainingBehavior): bulk-upgrade свиты за динары
+    "hero.join_tournament",      # Sprint 5.3: BLT-style viewer tournament queue
+    "tournament.predict",        # Sprint 5.3 (renamed 2026-06-29): бесплатный прогноз победителя
+    "hero.add_focus",            # Sprint 5.8: focus point в skill (Hero.Gold tier-based)
+    "hero.add_attribute",        # Sprint 5.8: attribute point (Hero.Gold flat)
+    "hero.create_clan",          # Sprint 5.9: BLT-style clan creation (Hero.Gold 1M)
+    "hero.create_kingdom",       # Sprint 5.12: kingdom creation (Hero.Gold 5M)
+    "hero.leave_clan",           # Sprint 5.12: leave own clan (free)
+    "hero.leave_kingdom",        # Sprint 5.12: clan leaves kingdom (free)
+    "hero.join_clan",            # Sprint 5.12: join existing clan (Hero.Gold 50K)
+    "hero.join_kingdom",         # Sprint 5.12: clan joins kingdom (Hero.Gold 100K)
+    "hero.create_party",         # Sprint 5.13: clan-leader creates MobileParty (Hero.Gold 200K)
+    "hero.set_gender",           # Sprint 5.27a: gender swap (Hero.Gold 50K)
+    "hero.marry",                # Sprint 5.27b: marriage to random NPC (50K)
+    "hero.divorce",              # Sprint 5.27b: free divorce
+    "hero.make_baby",            # Sprint 5.27c: pregnancy (100K)
+    # hero.smith_item / hero.equip_trophy убраны из продажи 2026-07-29.
+    # Ковку предметов по образцу BLT решено НЕ делать (владелец: большая
+    # самописная механика; DEFERRED §D). Трофей-система была попыткой и не
+    # заработала — трофей жил записью в БД и подбирался «похожим» предметом,
+    # заменена перековкой качества (hero.reforge_quality, ниже). Кнопок во
+    # фронте нет с 15.06, а цена 500⦷ висела в прайс-листе ещё полтора месяца.
+    "hero.reforge_quality",      # 2026-06-15 «Кузница»: перековка качества надетого предмета (mod)
+    # Sprint 5.32 (BLT-parity Detachment) — viewer командует своим hero-agent'ом
+    # in-Mission. Detach → hold/charge/walls/gate. Возвращение через attach.
+    # Pattern из Randomchair22-fork BLT (BLTHeroDetachmentBehavior, апрель 2026).
+    "hero.detach",               # Вынуть из formation в собственный отряд
+    "hero.attach",               # Вернуть обратно в parent formation
+    "hero.detach_hold",          # Стоять на текущей позиции (sniper-mode)
+    "hero.detach_charge",        # Бежать на ближайшее enemy formation
+    "hero.detach_skirmish",      # 2026-06-17 рич-приказ: бой-на-расстоянии (standoff+auto-target)
+    "hero.detach_raid",          # 2026-06-17 рич-приказ: набег — конная орбита вокруг врага
+    "hero.detach_walls",         # Siege only: лезть на стены/лестницы/башни
+    "hero.detach_gate",          # Siege only: к ближайшим воротам/баррикаде
+    # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer семейные интеракции
+    # между взрослыми детьми. Proposal flow с accept/reject через 24h timeout.
+    "hero.propose_marriage",     # A → B: «поженим Маше и Петю?»
+    "hero.respond_marriage_proposal", # B принимает/отклоняет
+    "hero.cancel_proposal",      # A отзывает proposal до response
+    "hero.rename_child",         # переименовать своего взрослого ребёнка
+    "hero.change_child_looks",   # body code change ребёнка
+    "hero.respec_child_skills",  # re-init child skills (HeroDeveloper)
+    # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
+    "hero.create_vassal_clan",   # 250K Hero.Gold — выделить heir в новый clan
+    "hero.recruit_vassal_clan",  # 2026-06-17: 3M Hero.Gold — правитель нанимает NPC-вассальный клан
+    "hero.rename_vassal",        # 50K Hero.Gold — rename vassal clan
+    # Sprint 5.33 (BLT-parity SIEGE) — party order strategic management
+    "hero.party_order_set",      # установить siege/defend/raid/garrison/patrol
+    "hero.party_order_release",  # отменить active order
+    "hero.army_create",          # 2026-06-14 Армия MVP — собрать армию королевства
+    "hero.army_disband",         # распустить армию
+    # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
+    "hero.enact_policy",         # 1500⦷ king-only — propose+pass policy
+    "hero.make_peace",           # 2000⦷ king-only — propose peace с врагом
+    "hero.pay_ransom",           # 500⦷ — chip into ransom pool captured hero
+    "kingdom.set_tax_rate",      # free king-only — set kingdom tax 0-100% (Backlog #1)
+    "kingdom.propose_war",       # 2026-06-14 предложить войну (голосование кланов)
+    "kingdom.propose_peace",     # предложить мир (голосование кланов)
+    # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
+    "hero.buy_workshop",         # 2500⦷ — viewer покупает workshop в town (чистая 💎)
+    "hero.sell_workshop",        # free — engine refund 50% capital
+    # hero.tribute_boost убран из продажи 2026-07-29. Механика отключена ещё
+    # 28.05 (DECOUPLE-1: пассивный ⦷-доход с владений выключен, boost стал
+    # бессмысленным), но цена 2000⦷ и место в списке покупаемого остались.
+    # Денег зритель не терял — обработчик отказывал, а отказ откатывал
+    # транзакцию вместе со списанием. Убрано, чтобы платное действие,
+    # которое не может сработать, не числилось продаваемым.
+    # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income trilogy closer
+    "hero.buy_caravan",          # 4000⦷ — create caravan party (чистая 💎)
+    "hero.sell_caravan",         # free — engine transfer к MainHero
+)
+
+# Sprint 5.27a — стоимость gender swap (BLT default: 50k).
+GENDER_SWAP_COST = 50_000
+# Sprint 5.27b — стоимость брака с NPC.
+MARRIAGE_COST = 50_000
+# Sprint 5.27c — стоимость pregnancy (трюк на дитя).
+BABY_COST = 100_000
+# Предел живых детей в клане. Хозяин правила — бэкенд, и это НЕ украшение:
+# мод (`MakeBabyHandler.cs`) читает предел из `data["max_alive_children"]` и
+# принимает любое значение 1..20, а `data` — это тело запроса зрителя, которое
+# доезжает до мода как есть. Пока бэкенд поле не ставил, единственным его
+# источником был клиент: `{"max_alive_children": 20}` поднимал предел впятеро.
+# Комментарий в моде («backend пока всегда не шлёт») описывал ровно эту дыру.
+# Значение совпадает с `DEFAULT_MAX_ALIVE_CHILDREN` в моде и с фронтом
+# (`aliveChildren.length < 5`); менять — во всех трёх местах, держит
+# `tests/test_bannerlord_authority_contracts.py`.
+MAX_ALIVE_CHILDREN = 5
+
+# Sprint 5.18 (refactor): helper для повторяющегося Hero.Gold pre-check.
+# Используется в нескольких action handlers (create_clan, create_kingdom,
+# join_clan, join_kingdom, create_party, recruit_troops, add_focus,
+# add_attribute, upgrade_gear). Source-of-truth — backend cache
+# `bannerlord_heroes.gold` (mod пушит на каждом HeroStateSync).
+async def _fetch_hero_gold(channel_id: int, username: str) -> int:
+    """Возвращает cached Hero.Gold (или 0 если героя нет)."""
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT gold FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        row = await cur.fetchone()
+    return (row[0] if row else 0) or 0
+
+
+async def _fetch_hero_clan_name(channel_id: int, username: str) -> str:
+    """Возвращает cached clan_name героя ('' если клана/героя нет).
+
+    Гейт для действий, требующих клан (брак/дети): бесклановый замужний
+    герой крашит ванильную DefaultPregnancyModel на дейли-тике — см.
+    BannerlordLink PregnancyModelPatch + crash dump 2026-05-29."""
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT clan_name FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        row = await cur.fetchone()
+    return (row[0] if row else "") or ""
+
+
+# Sprint 5.9: clan creation cost — mirror C# CreateClanHandler.CREATE_COST.
+CLAN_CREATE_COST = 1_000_000   # 1M динаров
+
+# Sprint 5.12: kingdom / join / leave costs — mirror соответствующих C# handlers.
+KINGDOM_CREATE_COST = 5_000_000   # 5M динаров — premium prestige
+CLAN_JOIN_COST = 50_000           # вступление в clan
+KINGDOM_JOIN_COST = 100_000       # clan вступает в kingdom вассалом
+PARTY_CREATE_COST = 200_000       # MobileParty создание (стартовый loot + морал)
+# 2026-06-17: правитель нанимает свежий NPC-вассальный клан в своё королевство.
+# MIRROR C# RecruitVassalClanHandler.RECRUIT_VASSAL_COST — списывает МОД (динары).
+RECRUIT_VASSAL_COST = 3_000_000   # 3M динаров — единственный ограничитель (лимита нет)
+# leave_clan и leave_kingdom — бесплатно
+
+# Sprint 5.8: focus cost tier-based (mirror C# AddFocusHandler.FOCUS_TIER_COSTS).
+FOCUS_TIER_COSTS = [30_000, 40_000, 50_000, 60_000, 75_000]
+ATTRIBUTE_COST = 50_000  # flat Hero.Gold per attribute point
+
+# Whitelist skill keys (vanilla Bannerlord 1.3.15).
+# 2026-09-06: были ALLOWED_* — белые списки, по которым бэкенд решал, какие
+# навыки и характеристики существуют в игре. Это противоречит выбранному
+# принципу «источник истины о содержимом — запущенная игра» (ROADMAP,
+# «динамический каталог»): сборка, добавившая навык, получала отказ ещё на
+# сервере, хотя в игре навык есть и мод его знает.
+#
+# Теперь это ИЗВЕСТНЫЕ ванильные значения — для подсказки в сообщении и для
+# лога, а не для запрета. Существование проверяет мод: не нашёл — отказ с
+# возвратом и понятной фразой (`unknown_skill` / `unknown_attribute` в
+# modules/bannerlord/refusals.py).
+KNOWN_SKILLS = {
+    "OneHanded", "TwoHanded", "Polearm", "Bow", "Crossbow", "Throwing",
+    "Athletics", "Riding", "Smithing", "Scouting", "Tactics", "Roguery",
+    "Charm", "Leadership", "Trade", "Steward", "Medicine", "Engineering",
+}
+KNOWN_ATTRIBUTES = {"Vigor", "Control", "Endurance", "Cunning", "Social", "Intelligence"}
+
+# Формат ключа проверяем по-прежнему: бэкенд не решает, что существует, но
+# обязан отсечь мусор до того, как тот уедет в игру. Буквы, цифры и подчёркивание,
+# не длиннее 48 символов — этого хватает любому моду и не пропускает инъекции.
+_GAME_KEY_RE = __import__("re").compile(r"^[A-Za-z0-9_]{1,48}$")
+
+# Sprint 5.3: tournament entry fee.
+# 5.28a: было 0 крустиков + 5000 динаров → отказы в моде, крустики не списывались.
+# 5.28b: было 1000 крустиков + 0 динаров → юзер передумал, нужно free.
+# 5.28c: ПОЛНОСТЬЮ БЕСПЛАТНО. Идея: turnover в очереди важнее barrier-to-entry.
+# (2026-06-29: wager-эпоха закрыта — прогнозы бесплатны, MIN/MAX-лимиты удалены.)
+TOURNAMENT_ENTRY_FEE_GOLD = 0              # in-game динары (deprecated, было 5000)
+TOURNAMENT_JOIN_PRICE     = 0              # крустиков (5.28c: free)
+
+# Sprint M20: gear upgrade costs в Hero.Gold (in-game динары, не крустики).
+# Mod-side source-of-truth — mod проверяет Hero.Gold ≥ cost и списывает.
+# Backend нужны только для UI display (показать "T2 — 100K динаров").
+# Должны совпадать с HERO_GOLD_TIER_COSTS в C# UpgradeGearHandler.
+HERO_GOLD_TIER_COSTS = {
+    1:    50_000,
+    2:   100_000,
+    3:   200_000,
+    4:   400_000,
+    5:   800_000,
+    6: 1_500_000,
+}
+
+# Sprint M21: give_gold presets — 1000⦷ → 5000 динаров (1:5).
+# Маппинг {крустики: динары} — server-side override клиентского amount.
+GIVE_GOLD_PRESETS = {
+    1_000:   5_000,
+    5_000:  25_000,
+    20_000: 100_000,
+}
+
+# Sprint M21: add_skill_xp presets — 1000⦷ → 100 XP.
+# Маппинг {крустики: xp} в random skill.
+ADD_SKILL_XP_PRESETS = {
+      500:    50,
+    1_000:   100,
+    5_000:   500,
+}
+
+# Thin-front (2026-07-02): подняты на module-level из _prepare_action, чтобы
+# GET /api/bannerlord/config отдавал их фронту (единый источник цен). Функция
+# читает их read-only — module-scope достаточно.
+SPAWN_PRICES = {
+    "player": 50,     # на сторону стримера (ally) — 5.27i: ×0.5 от 100
+    "enemy":  100,    # против стримера — тролл-tax — 5.27i: ×0.5 от 200
+}
+# MIRROR mod TIER_COSTS из RecruitTroopsHandler.cs — pre-check Hero.Gold.
+RECRUIT_TIER_COSTS = [5_000, 10_000, 20_000, 30_000, 50_000, 80_000]
+ELITE_COST_MULTIPLIER = 3
+REFORGE_QUALITY_PRICE = 20_000    # «Кузница»: перековка качества надетого (mod)
+# Passive-income крустик-цены — module-level, чтобы GET /api/bannerlord/config
+# отдавал их фронту (единый источник, thin-front). В ACTION_PRICES_DEFAULT
+# ссылаются ПО ИМЕНИ, не литералом — правишь тут, меняется везде.
+WORKSHOP_PRICE_CRUSTIC = 2_500    # 💎 workshop passive income (2026-05-29: 1000→2500)
+CARAVAN_PRICE_CRUSTIC  = 4_000    # 💎 caravan passive income (2026-05-29: 1500→4000)
+
+# 2026-07-24 — ПОДНЯТ НА УРОВЕНЬ МОДУЛЯ (был локальным внутри _prepare_action).
+# Причина: это крупнейший словарь цен в крустиках, и пока он жил внутри функции,
+# отдать его фронту было физически нельзя — пришлось бы делать ВТОРУЮ копию.
+# А фронт как раз хардкодил эти же числа у себя (аудит цен 2026-07-24: rename_child,
+# respec_child_skills, party_order, army_create, enact_policy, make_peace, ransom,
+# detach_* — всё дублировалось вручную и уже начинало врать). Теперь ОДИН источник:
+# бэк enforce'ит отсюда И отдаёт это же в /api/bannerlord/config.
+ACTION_PRICES_DEFAULT = {
+    "hero.set_specialization": 0,
+    "hero.select_weapon_power": 0,
+    "hero.claim_starter": 0,
+    "hero.buy_equipment": 0,
+    "hero.equip_owned": 0,
+    "hero.unequip_owned": 0,
+    "hero.discard_owned": 0,
+    "hero.create":             0,    # adoption — free
+    "player.modify_attribute": 50,
+    "world.trigger_event":  1000,    # heavy / admin-style
+    # power.activate — per-power цена (POWER_PRICES), enforced в _prepare_action.
+    # 2026-06-14: убран отсюда (был flat 50 — плющил все активки в одну цену).
+    "hero.reforge_quality": REFORGE_QUALITY_PRICE,  # module-level const (thin-front)
+    "hero.set_combat_stance": 0,    # 2026-06-10: боевая стойка — бесплатно, мгновенно
+    "hero.discard_item":      0,    # 2026-06-18: выбросить вещь из слота — free utility (свой герой)
+    # Sprint 5.32 BUGFIX — player.give_item / hero.add_skill убраны
+    # отсюда (перенесены в _ACTIONS_WITH_OWN_PRICING выше).
+    # Sprint 5.32 (BLT-parity Detachment) — управление своим hero-agent'ом
+    # в Mission (6 базовых + 2026-06-17 рич-приказы skirmish/raid). Цены низкие
+    # (10-30⦷) потому что spam-friendly: в бою viewer часто переключает команды.
+    "hero.detach":            10,
+    "hero.attach":            10,
+    "hero.detach_hold":       30,
+    "hero.detach_charge":     30,
+    "hero.detach_skirmish":   30,    # 2026-06-17 рич-приказ — бой-на-расстоянии
+    "hero.detach_raid":       30,    # 2026-06-17 рич-приказ — конная орбита
+    "hero.detach_walls":      30,
+    "hero.detach_gate":       30,
+    # Sprint 5.33 (BLT-parity FAM) — семейные viewer↔viewer интеракции.
+    # Propose/respond — viral engagement-loop, цены символические.
+    # Rename/looks/respec — cosmetic + customization.
+    "hero.propose_marriage":         100,   # viewer A: «поженим Машу + Петю?»
+    "hero.respond_marriage_proposal": 0,    # accept/reject — free
+    "hero.cancel_proposal":           0,    # withdraw — free
+    "hero.rename_child":             50,    # customize child name
+    "hero.change_child_looks":      200,    # body change (BLT pattern)
+    "hero.respec_child_skills":     500,    # full skill re-roll
+    # Sprint 5.33 (BLT-parity VAS) — sub-clan progression. High crustic
+    # entry barrier — это long-term feature, не impulse-buy.
+    "hero.create_vassal_clan":        0,    # 2026-05-29 currency re-map: платится Hero.Gold (как обычный клан), мод списывает 💰
+    "hero.recruit_vassal_clan":       0,    # 2026-06-17: платится 3M Hero.Gold (мод списывает 💰), крустики 0
+    "hero.rename_vassal":           100,    # cosmetic
+    # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
+    "hero.party_order_set":         500,    # significant strategic decision
+    "hero.party_order_release":       0,    # free cancel
+    # 2026-06-14 Армия MVP — собрать армию королевства (vanilla CreateArmy).
+    # Команды армии = существующие party orders (отдельной цены не надо).
+    "hero.army_create":            1000,    # собрать армию (крупное решение)
+    "hero.army_disband":              0,    # распустить — бесплатно
+    # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom
+    "hero.enact_policy":           1500,    # king-only major political move
+    "hero.make_peace":             2000,    # king-only diplomatic decision
+    # 2026-06-14 — дипломатия через ГОЛОСОВАНИЕ кланов (предложение, может не пройти).
+    # Цена ×2 от стартовой (по просьбе владельца) — серьёзное решение.
+    "kingdom.propose_war":         2000,    # предложить войну королевству
+    "kingdom.propose_peace":       3000,    # предложить мир королевству
+    "hero.pay_ransom":              500,    # crowd-fund tier, any viewer
+    "kingdom.set_tax_rate":           0,    # free — king manages own kingdom (Backlog #1)
+    # Sprint 5.33 (BLT-parity SHOP) — workshops passive income
+    "hero.buy_workshop": WORKSHOP_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1000→2500)
+    "hero.sell_workshop":             0,    # free — engine handles refund
+    # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
+    # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income
+    "hero.buy_caravan": CARAVAN_PRICE_CRUSTIC,  # module-level const (thin-front) — 2026-05-29: чистая 💎 (капитал НЕ списывался, 1500→4000)
+    "hero.sell_caravan":              0,    # free — engine handles transfer
+}
+# Турнир — display-only числа (динары приза/раунда). Enforce'ит мод/движок; тут для UI.
+TOURNAMENT_PRIZE_GOLD  = 50_000
+TOURNAMENT_ROUND_GOLD  = 10_000
+
+# Actions которые НЕ требуют existing alive hero (adopt + respawn + bet).
+_ACTIONS_WITHOUT_HERO_REQUIREMENT = (
+    "hero.create",
+    "player.respawn",
+    "tournament.predict", # прогноз можно сделать и без своего героя
+)
+
+# Actions которые НЕ enqueue'аться в module_actions (pure backend ops).
+_BACKEND_ONLY_ACTIONS = (
+    "tournament.predict", "hero.smith_item",
+    # Sprint 5.33 (BLT-parity FAM) — proposal flow это backend state machine.
+    # На respond accept backend САМ enqueue'ит mod-action hero.activate_marriage.
+    # Сам propose/respond/cancel — backend-only.
+    "hero.propose_marriage",
+    "hero.respond_marriage_proposal",
+    "hero.cancel_proposal",
+    # Sprint 5.33 VAS — vassal create/rename — backend INSERT + enqueue mod
+    "hero.create_vassal_clan",
+    "hero.rename_vassal",
+    # Sprint 5.33 SIEGE — party orders — backend INSERT + enqueue mod
+    "hero.party_order_set",
+    "hero.party_order_release",
+    # Sprint 5.33 DIPLO — kingdom politics + ransom — backend INSERT + enqueue mod
+    "hero.enact_policy",
+    "hero.make_peace",
+    "hero.pay_ransom",
+    "kingdom.set_tax_rate",
+    # Sprint 5.33 SHOP — workshops — backend INSERT/UPDATE + enqueue mod
+    "hero.buy_workshop",
+    "hero.sell_workshop",
+    # Sprint 5.33 FIEF — tribute boost — backend-only state mutation
+    "hero.tribute_boost",
+    # Sprint 5.33 CARAVAN — caravan lifecycle — backend INSERT/UPDATE + enqueue mod
+    "hero.buy_caravan",
+    "hero.sell_caravan",
+)
+
+# Actions где data["target"] ЛЕГИТИМНО указывает на ДРУГОГО зрителя
+# (viewer↔viewer flows) — сервер НЕ должен затирать target на requester'а.
+# SECURITY (2026-06-18): mod-хендлеры резолвят «кто действует» как
+# data["target"] ?? data["initiated_by"] (target побеждает). Без этой защиты
+# crafted-запрос с data.target=<жертва> на self-action заставил бы мод
+# действовать на ЧУЖОГО героя. Все перечисленные сегодня ещё и backend-only
+# (обрабатываются здесь, в мод по payload'у НЕ уходят), но список держим
+# fail-closed: НОВЫЙ кросс-юзер мод-action надо добавить сюда явно, иначе его
+# target форсится на requester'а (безопасный дефолт). Кросс-юзер мод-action
+# hero.activate_marriage enqueue'ится отдельно в bannerlord_family.py с
+# target=сам отвечающий (партнёр — в target_username), сюда не попадает.
+_CROSS_USER_TARGET_ACTIONS = (
+    "tournament.predict",              # target = участник, на которого прогноз
+    "hero.propose_marriage",           # target_username = владелец ребёнка-партнёра
+    "hero.respond_marriage_proposal",  # ответ на proposal другого зрителя
+    "hero.cancel_proposal",            # отзыв proposal'а другому зрителю
+)
+
+
+@router.get("/api/bannerlord/config")
+async def bannerlord_config():
+    """Статические балансовые числа (цены/кулдауны) — единый источник для тонкого
+    фронта. Публичный (числа не секретны). Фронт кэширует и рисует ОТСЮДА, а не из
+    своих хардкодов: замороженный на CDN фронт иначе покажет устаревшие цифры после
+    ребаланса на бэке. Бэк по-прежнему сам enforce'ит цену при списании —
+    это только для отображения. См. PUBLIC_GATE_PLAN §Фаза 3."""
+    # Поздний импорт: bannerlord_vassals импортирует этот модуль, прямой
+    # импорт наверху дал бы цикл.
+    from routes.bannerlord_vassals import VASSAL_GOLD_COST as _VASSAL_GOLD_COST
+    from modules.bannerlord.ui_config import load_ui_config
+    return {
+        "ui": load_ui_config(),
+        "give_gold_presets":  [{"crusticov": k, "dinars": v} for k, v in sorted(GIVE_GOLD_PRESETS.items())],
+        "add_skill_presets":  [{"crusticov": k, "xp": v}     for k, v in sorted(ADD_SKILL_XP_PRESETS.items())],
+        "focus_tier_costs":   FOCUS_TIER_COSTS,
+        "attribute_cost":     ATTRIBUTE_COST,
+        "recruit_tier_costs": RECRUIT_TIER_COSTS,
+        "recruit_elite_mult": ELITE_COST_MULTIPLIER,
+        "gear_upgrade_costs": HERO_GOLD_TIER_COSTS,
+        "reforge_price":      REFORGE_QUALITY_PRICE,
+        "spawn_prices":       SPAWN_PRICES,
+        "gender_swap_cost":   GENDER_SWAP_COST,
+        "baby_cost":          BABY_COST,
+        "workshop_price":        WORKSHOP_PRICE_CRUSTIC,
+        "caravan_price":         CARAVAN_PRICE_CRUSTIC,
+        "tournament_prize_gold": TOURNAMENT_PRIZE_GOLD,
+        "tournament_round_gold": TOURNAMENT_ROUND_GOLD,
+
+        # ── 2026-07-24: тонкий фронт, шаг 1 ────────────────────────────────
+        # Ниже — ВСЕ остальные цены, которые фронт до сих пор хардкодил у себя.
+        # Аудит 2026-07-24 показал, к чему это ведёт: удаление черты рисовалось
+        # как 2000💎 при реальных 300; «зачать ребёнка» и «женитьба» держали
+        # свои копии мимо конфига; кнопка сброса страсти показывала одну цену,
+        # а подтверждение — другую. Теперь источник один: ЭТИ ЖЕ значения бэк
+        # использует при списании (ACTION_PRICES_DEFAULT / POWER_PRICES).
+        # Фронт обязан рисовать отсюда, свои константы удалить.
+        # Отдаём ЦЕЛИКОМ словарями — новые действия появятся тут сами, без
+        # правки этого эндпоинта (и без новой подачи на ревью Twitch).
+        "action_prices":         ACTION_PRICES_DEFAULT,   # 💎 за действие
+        "power_prices":          POWER_PRICES,            # 💎 за активку
+
+        # 💰 динары: бэк их НЕ списывает (только проверяет баланс), списывает
+        # мод в игре. Для фронта это всё равно «цена», которую надо показать.
+        "hero_gold_costs": {
+            "marry":              MARRIAGE_COST,
+            "create_clan":        CLAN_CREATE_COST,
+            "join_clan":          CLAN_JOIN_COST,
+            "create_kingdom":     KINGDOM_CREATE_COST,
+            "join_kingdom":       KINGDOM_JOIN_COST,
+            "create_party":       PARTY_CREATE_COST,
+            "recruit_vassal":     RECRUIT_VASSAL_COST,
+            "make_baby":          BABY_COST,
+            # Живёт в routes/bannerlord_vassals.py — там же, где проверяется.
+            "create_vassal_clan": _VASSAL_GOLD_COST,
+        },
+    }
+
+
+@router.get("/api/bannerlord/my-hero")
+async def bannerlord_my_hero(request: Request):
+    """Мой hero — state + skills + attributes + equipment + recent events.
+
+    Если viewer не adopted ни одного hero — вернёт {has_hero: false}.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        # Hero base + M19 meta + M20 gear_tier + M27 clan/kingdom info
+        # + M38 iteration (heir succession counter, Sprint 5.29).
+        cur = await conn.execute(
+            "SELECT hero_id, display_name, culture, is_alive, is_prisoner, gold, "
+            "       location, adopted_at, last_sync, level, clan_name, kingdom_name, "
+            "       gear_tier, clan_info_json, kingdom_info_json, "
+            "       is_female, family_info_json, "
+            "       COALESCE(iteration, 1), "
+            "       COALESCE(is_wounded, 0), "
+            "       COALESCE(tournament_wins, 0), "
+            "       party_info_json, "
+            "       COALESCE(combat_stance, 'balanced') "
+            "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        row = await cur.fetchone()
+        if not row:
+            return {"success": True, "has_hero": False}
+
+        def _safe_json(s):
+            if not s:
+                return None
+            try:
+                return json.loads(s)
+            except Exception:
+                return None
+
+        hero = {
+            "hero_id":      row[0],
+            "display_name": row[1],
+            "culture":      row[2],
+            "is_alive":     bool(row[3]),
+            "is_prisoner":  bool(row[4]),
+            "gold":         row[5],
+            "location":     row[6],
+            "adopted_at":   row[7],
+            "last_sync":    row[8],
+            "level":        row[9] or 1,
+            "clan_name":    row[10],
+            "kingdom_name": row[11],
+            "gear_tier":    row[12] or 0,
+            "clan_info":    _safe_json(row[13]),
+            "kingdom_info": _safe_json(row[14]),
+            "is_female":    bool(row[15]) if row[15] is not None else None,
+            "family_info":  _safe_json(row[16]),
+            "iteration":    int(row[17]) if row[17] is not None else 1,  # Sprint 5.29
+            "is_wounded":   bool(row[18]),  # Sprint 5.32 M43 — KO state
+            "tournament_wins": int(row[19]) if row[19] is not None else 0,  # Sprint 5.32 H8/FE-H8 veteran badge
+            "party_info":   _safe_json(row[20]),  # 2026-06-10 — отряд на карте (size/task/target/in_army)
+            "combat_stance": row[21],             # 2026-06-10 — боевая стойка зрителя
+        }
+        # Convenience: top-level spouse_name (для profile modal display)
+        fi = hero.get("family_info") or {}
+        sp = fi.get("spouse") if isinstance(fi, dict) else None
+        hero["spouse_name"] = sp.get("name") if isinstance(sp, dict) else None
+
+        # Skills + Sprint 5.8 focus
+        cur = await conn.execute(
+            "SELECT skill_key, level, xp, COALESCE(focus, 0) "
+            "FROM bannerlord_skills "
+            "WHERE channel_id=? AND username=? ORDER BY level DESC, skill_key ASC",
+            (channel_id, username))
+        skills = [
+            {"skill_key": r[0], "level": r[1], "xp": r[2], "focus": r[3] or 0}
+            for r in await cur.fetchall()
+        ]
+
+        # Attributes
+        # Sprint 5.27v: нормализуем keys к PascalCase в response, чтобы
+        # frontend получал стабильный shape независимо от того, как mod
+        # их сохранил (engine StringId был lowercase → frontend ожидал
+        # PascalCase → 0/10 для всех). Single source of truth: response.
+        cur = await conn.execute(
+            "SELECT attribute, value FROM bannerlord_attributes "
+            "WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        def _to_pascal(k: str) -> str:
+            return (k[0].upper() + k[1:].lower()) if k else k
+        attributes = {_to_pascal(r[0]): r[1] for r in await cur.fetchall()}
+
+        # Equipment + M21 stats
+        cur = await conn.execute(
+            "SELECT slot, item_id, item_name, tier, item_value, weight, stats_json, quality "
+            "FROM bannerlord_equipment WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        equipment = {}
+        for r in await cur.fetchall():
+            slot_name, item_id, item_name, tier, item_value, weight, stats_json, quality = r
+            stats = None
+            if stats_json:
+                try:
+                    stats = json.loads(stats_json)
+                except Exception:
+                    stats = None
+            equipment[slot_name] = {
+                "item_id":    item_id,
+                "item_name":  item_name,
+                "tier":       tier,           # 0-5 (frontend +1 для UI T1-T6)
+                "item_value": item_value,     # base game price
+                "weight":     weight,
+                "stats":      stats,          # dict с per-type stats
+                "quality":    quality,        # M77: poor..legendary | None (без модификатора)
+            }
+
+        # Retinue (M23) — BLT-style свита, sorted by slot_index
+        # M28 (5.14): include is_elite flag для UI badge "★ Элит"
+        cur = await conn.execute(
+            "SELECT slot_index, troop_id, troop_name, tier, COALESCE(is_elite, 0) "
+            "FROM bannerlord_retinue "
+            "WHERE channel_id=? AND username=? ORDER BY slot_index",
+            (channel_id, username))
+        retinue = [
+            {
+                "slot_index": r[0],
+                "troop_id":   r[1],
+                "troop_name": r[2],
+                "tier":       r[3] or 0,
+                "is_elite":   bool(r[4]),
+            }
+            for r in await cur.fetchall()
+        ]
+
+        # 2026-06-10 — retinue_cap = 5 + clan-upgrade retinue_size_bonus. Фронт
+        # раньше хардкодил 5 → апгрейд «Усиленная свита» не открывал слот свиты.
+        retinue_cap = 5
+        cur = await conn.execute(
+            "SELECT u.effects_json FROM bannerlord_clan_upgrades_owned o "
+            "JOIN bannerlord_clan_upgrades_catalog u ON "
+            "  u.channel_id = o.channel_id AND u.upgrade_id = o.upgrade_id "
+            "WHERE o.channel_id = ? AND o.username = ?",
+            (channel_id, username))
+        for (eff_json,) in await cur.fetchall():
+            try:
+                retinue_cap += int((json.loads(eff_json or '{}')).get("retinue_size_bonus", 0) or 0)
+            except Exception:
+                pass
+        hero["retinue_cap"] = retinue_cap
+
+        # 2026-06-10 — недавние рефанды этого зрителя. Mod отказывает действию
+        # асинхронно (после ACK) → action.failed → крустики возвращаются, НО
+        # зритель не видел ПОЧЕМУ «не сработало» и кликал снова. Отдаём список
+        # причин; фронт тостит (дедуп по action_id). Окно 30s покрывает 8s
+        # hero-poll без пропусков. error_msg формат: "REFUNDED:{price} reason={r}"
+        # (или "REFUNDED:0 (no_price) reason={r}" для бесплатных действий).
+        recent_refunds = []
+        cur = await conn.execute(
+            "SELECT action_id, type, data, error_msg FROM module_actions "
+            "WHERE channel_id=? AND module_id='bannerlord' "
+            "  AND error_msg LIKE 'REFUNDED:%' "
+            "  AND created_at > datetime('now','-30 seconds') "
+            "ORDER BY id DESC LIMIT 20",
+            (channel_id,))
+        _uname = (username or "").lower()
+        for _aid, _atype, _adata, _aerr in await cur.fetchall():
+            try:
+                if (json.loads(_adata or "{}").get("initiated_by") or "").lower() != _uname:
+                    continue
+            except Exception:
+                continue
+            _aerr = _aerr or ""
+            recent_refunds.append({
+                "action_id": _aid,
+                "type":      _atype,
+                "reason":    _aerr.split("reason=", 1)[-1].strip() or "unspecified",
+                "refunded":  not _aerr.startswith("REFUNDED:0"),
+            })
+
+    async with db._connect() as equipment_conn:
+        equipment_cur = await equipment_conn.execute(
+            "SELECT 1 FROM bannerlord_inventory_snapshots i JOIN bannerlord_channel_state s ON s.channel_id=i.channel_id "
+            "JOIN bannerlord_heroes h ON h.channel_id=i.channel_id AND h.username=i.username "
+            "JOIN bannerlord_equipment_sessions e ON e.channel_id=i.channel_id AND e.session_id=i.session_id "
+            "WHERE i.channel_id=? AND i.username=? AND i.save_id=s.current_save_id AND i.hero_id=h.hero_id",
+            (channel_id, username))
+        equipment_shop_ready = bool(await equipment_cur.fetchone())
+
+    return {
+        "equipment_shop_ready": equipment_shop_ready,
+        "success":        True,
+        "has_hero":       True,
+        "hero":           hero,
+        "skills":         skills,
+        "attributes":     attributes,
+        "equipment":      equipment,
+        "retinue":        retinue,
+        "recent_refunds": recent_refunds,
+    }
+
+
+@router.get("/api/bannerlord/equipment-shop")
+async def bannerlord_equipment_shop(request: Request):
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+    from modules.bannerlord.equipment_shop import context, catalog, buy_reason, purchase_options, refusal, TIER_LEVELS
+    db = get_db()
+    async with db._connect() as conn:
+        await conn.execute("BEGIN")
+        ctx = await context(conn, channel_id, username, require_party=True, for_shop=True)
+        items = await catalog(conn, channel_id)
+        await conn.rollback()
+    import module_liveness
+    live = await module_liveness.is_on_air(db, channel_id, "bannerlord")
+    if not live:
+        if ctx["reason"] not in ("no_hero", "hero_dead", "hero_prisoner"):
+            ctx["reason"] = "offline"
+    for item in items:
+        item['purchase_mode'] = 'equip' if ctx['direct_purchase'] else 'inventory'
+        if ctx['direct_purchase']:
+            item['purchase_options'] = purchase_options(item, ctx)
+            reason = (None if any(x['can_buy'] for x in item['purchase_options']) else
+                      ctx['reason'] or next((x['reason'] for x in item['purchase_options']), 'invalid_slot'))
+        else:
+            reason = buy_reason(item, ctx)
+        item.update(can_buy=reason is None, reason=reason,
+                    message=refusal(reason)["message"] if reason else "")
+    hero = ctx["hero"]
+    return {"success": True, "items": items, "inventory": ctx["inventory"],
+            "party_inventory": ctx["party_inventory"],
+            "tiers": [{"tier": t, "required_level": lv} for t, lv in TIER_LEVELS.items()],
+            "hero_level": hero[1] if hero else 0, "gold": hero[2] if hero else 0,
+            "has_hero": bool(hero), "ready": ctx["ready"], "pending": ctx["pending"],
+            "can_manage": ctx["reason"] is None, "reason": ctx["reason"],
+            "message": refusal(ctx["reason"])["message"] if ctx["reason"] else ""}
+
+
+@router.get("/api/bannerlord/build")
+async def bannerlord_build(request: Request):
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+    from modules.bannerlord.equipment_shop import context
+    from modules.bannerlord.builds import manage_reason, refusal
+    from modules.bannerlord._adapter import check_cooldown
+    db = get_db()
+    async with db._connect() as conn:
+        await conn.execute("BEGIN")
+        ctx = await context(conn, channel_id, username)
+        await conn.rollback()
+    reason = manage_reason(ctx)
+    import module_liveness
+    if not await module_liveness.is_on_air(db, channel_id, "bannerlord"):
+        reason = reason or 'offline'
+    build = ctx['build']
+    for option in build.get('power_options', []):
+        option['price'] = POWER_PRICES.get(option.get('power_key'), 0)
+    from modules.bannerlord.refusals import describe
+    for option in build.get('power_options', []) + build.get('starter_kits', []):
+        code = option.get('reason')
+        option['reason_code'] = code
+        option['reason'] = describe(code) if code else None
+    build['common_powers'] = [{'power_key':'heal_burst', 'label':'Лечение',
+                              'description':'Восстанавливает 50 здоровья в бою',
+                              'price':POWER_PRICES['heal_burst'], 'value':50}]
+    import time
+    remaining = max(0, check_cooldown(channel_id, username, 'weapon_power'),
+                    float(build.get('weapon_power_cooldown_until') or 0) - time.time())
+    return {'success':True, 'enabled':bool(ctx['session_id']), 'build':build,
+            'has_hero':bool(ctx['hero']), 'ready':build.get('version')==1,
+            'pending':ctx['pending'], 'can_manage':reason is None,
+            'cooldown_remaining_s':round(remaining,1), 'reason':reason,
+            'message':refusal(reason)['message'] if reason else ''}
+
+
+@router.get("/api/bannerlord/shop")
+async def bannerlord_shop(request: Request):
+    """Catalog покупных actions + items.
+
+    Catalog приходит от C# mod через module.catalog_update (см. adapter).
+    Возвращаем как есть — frontend рендерит.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT catalog_type, entry_id, payload FROM module_catalogs "
+            "WHERE channel_id=? AND module_id='bannerlord' "
+            "AND catalog_type != 'equipment' ORDER BY catalog_type, entry_id",
+            (channel_id,))
+        items = []
+        for r in await cur.fetchall():
+            try:
+                payload = json.loads(r[2]) if r[2] else {}
+            except Exception:
+                payload = {}
+            items.append({
+                "catalog_type": r[0],
+                "entry_id":     r[1],
+                **payload,
+            })
+
+    return {"success": True, "items": items}
+
+
+@router.post("/api/bannerlord/action")
+async def bannerlord_buy_action(request: Request):
+    """Купить action — atomic charge + enqueue.
+
+    Body: {
+        "action_type": str,  // e.g. "player.spawn", "player.heal"
+        "data": dict,        // action payload (target username, item id, etc.)
+    }
+
+    Цена — СЕРВЕРНАЯ. `data.price` из тела запроса игнорируется: `_enforce_price`
+    перезаписывает его по `ACTION_PRICES_DEFAULT` / собственному прайсингу
+    действия. (До 2026-07-30 здесь было написано «frontend подставляет» — и это
+    было правдой для двух действий, через которые зритель мог обнулить себе
+    баланс. Аудит спеки §1.)
+    Если у viewer'а недостаточно крустиков — отказ. Атомарно: списание +
+    enqueue в одной TX, если enqueue упал — откатываем баланс.
+
+    Validation:
+      - action_type в _PURCHASABLE_ACTIONS
+      - module 'bannerlord' зарегистрирован у channel'а (мод подключён)
+      - hero существует и (для не-respawn actions) is_alive=1
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    # Sprint 5.29 BLT-parity #9: extract role для perk-tier system.
+    # Twitch JWT role enum: viewer / broadcaster / moderator / external.
+    # Subscriber detection via Helix — TODO (требует broadcaster OAuth scope).
+    from auth import verify_twitch_jwt
+    _jwt = verify_twitch_jwt(request)
+    user_role = (_jwt.get("role") if _jwt.get("status") == "valid" else "viewer") or "viewer"
+
+    body = await request.json()
+    action_type = (body.get("action_type") or "").strip()
+    data = body.get("data") or {}
+    if not isinstance(data, dict):
+        return {"success": False, "message": "data должен быть объектом"}
+    # Pass role в data для mod (использует для XP/gold boost).
+    data["_user_role"] = user_role
+
+    # Sprint 5.32 VERBOSE-5 — entry log для request tracing. client_action_id
+    # (H1 idempotency) + action_type + user — full chain visibility.
+    _client_id = (data.get("client_action_id") or "").strip() or "?"
+    log.info("[BNR-ACTION enter] ch=%s user=@%s role=%s action=%s client_id=%s",
+             channel_id, username, user_role, action_type, _client_id[:12])
+
+    # 2026-08-06, фаза 1: не принимаем заявку, если игры нет на связи. Раньше
+    # она ложилась в очередь, полчаса ждала и возвращалась авто-возвратом —
+    # деньги не терялись, но зритель полчаса не понимал, что произошло, и жал
+    # ещё раз. Отказ приходит текстом: фронт 0.0.2 умеет показать причину,
+    # которую не знает заранее.
+    if not await _require_live_mod(get_db(), channel_id):
+        return {
+            "success": False,
+            "message": "Игра сейчас не запущена — действие некому выполнить. "
+                       "Попробуй, когда стример вернётся в игру.",
+        }
+
+    # Sprint 5.29 audit fix #39 — per-user serialization (double-spend prevention).
+    # Wrap entire handler в asyncio.Lock keyed (channel, username).
+    # Без этого два simultaneous actions того же viewer'а оба видят кэшированный
+    # gold/balance, оба validate, оба charge — refund для второго работает,
+    # но это плодит ненужные actions в outbox + spam в логах.
+    user_lock = await _get_user_lock(channel_id, username)
+    async with user_lock:
+        return await _bannerlord_buy_action_locked(
+            request, username, channel_id, action_type, data)
+
+
+async def _prepare_action(username, channel_id, action_type, data):
+    """Phase C — per-action validation + price-prep (extracted verbatim).
+
+    Mutates `data` in place (price / hero_gold_cost / amount / retinue / ...).
+    Returns a refusal-dict to short-circuit the buy, or None to proceed.
+    """
+    # 2026-09-01: ценовая ветка player.equip_item удалена вместе с механикой
+    #   «Случайный товар», а с ней RANDOM_EQUIP_HERO_GOLD и MOUNTED_CLASSES —
+    #   их больше никто не читает. SPAWN_PRICES живёт на module-level.
+
+    if action_type == "player.spawn":
+        side = (data.get("side") or "player").strip().lower()
+        if side not in SPAWN_PRICES:
+            return {"success": False, "message": f"Side '{side}' не разрешён"}
+        data["side"] = side
+        data["price"] = SPAWN_PRICES[side]
+
+    if action_type == "hero.set_class":
+        # 2026-07-30 (аудит спеки §1в) — цена ДОЛЖНА ставиться здесь, до
+        # _enforce_price. Она ставилась в _charge_execute_enqueue, то есть ПОСЛЕ
+        # того, как цена уже вычислена и передана на списание: комментарий там
+        # обещал «фиксируем на сервере», но на списание это не влияло.
+        # Доказано пробой: зритель прислал price=12345 для бесплатной смены
+        # класса → списалось 12345 крустиков. Само действие бесплатное, поэтому
+        # обмануть систему в свою пользу было нельзя, но (а) зритель мог
+        # обнулить себе баланс одним запросом, (б) сделай кто-нибудь смену
+        # класса платной — и присланный 0 дал бы её бесплатно.
+        # Валидация class_key остаётся в кассе (ей нужен conn), здесь только цена.
+        data["price"] = 0
+
+    if action_type == "power.activate":
+        # Цена активки — per-power, истина на бэке (POWER_PRICES). Sent price
+        # игнорируется (как и везде — security). Неизвестный power_key → refuse.
+        power_key = (data.get("power_key") or "").strip()
+        if power_key not in POWER_PRICES:
+            return {
+                "success": False,
+                "message": f"Способность '{power_key}' не найдена",
+            }
+        data["price"] = POWER_PRICES[power_key]
+        # Силу и длительность способности задаёт МОД из своих таблиц, а не тот,
+        # кто прислал запрос. `ActivatePowerHandler.cs:48-49` читает
+        # `duration_s`/`value` как override и передаёт в Activate() для десяти
+        # способностей (rage, poison_dot, explosive_arrows, cleave и прочих);
+        # бэкенд их не ставил, а `payload = dict(data)` уносит тело зрителя
+        # к моду как есть. Значит зритель платил обычную цену и сам назначал
+        # длительность и силу. Фронт этих полей не шлёт вовсе — снимаем их,
+        # и мод берёт свои умолчания (оба поля у него nullable).
+        data.pop("duration_s", None)
+        data.pop("value", None)
+
+    # hero.recruit_troops: backend passes current retinue snapshot в data
+    # чтобы mod знал какие slots filled (для add vs upgrade decision).
+    # Also: player.spawn — pass retinue для spawn вместе с hero.
+    # Recruit: 100💎 в крустиках за попытку (mod ещё проверяет Hero.Gold).
+    # RECRUIT_TIER_COSTS / ELITE_COST_MULTIPLIER подняты на module-level
+    # (thin-front 2026-07-02) — см. блок констант выше.
+    if action_type in ("hero.recruit_troops", "player.spawn", "hero.create_party",
+                       "hero.train_troops"):
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT slot_index, troop_id, troop_name, tier, "
+                "       COALESCE(is_elite, 0) "
+                "FROM bannerlord_retinue "
+                "WHERE channel_id=? AND username=? ORDER BY slot_index",
+                (channel_id, username))
+            retinue_rows = [
+                {
+                    "slot_index": r[0],
+                    "troop_id":   r[1],
+                    "troop_name": r[2],
+                    "tier":       r[3] or 0,
+                    "is_elite":   bool(r[4]),
+                }
+                for r in await cur.fetchall()
+            ]
+            data["retinue"] = retinue_rows
+
+            if action_type == "hero.recruit_troops":
+                # Sprint 5.14: is_elite flag — 3× cost для elite troops
+                want_elite = bool(data.get("is_elite", False))
+                # Sprint 5.26d: retinue_size_bonus из clan upgrades суммируется
+                # к базовым 5 slots. Бонус = sum effects.retinue_size_bonus по
+                # owned upgrades этого юзера в этом канале.
+                base_cap = 5
+                bonus_cap = 0
+                cur = await conn.execute(
+                    "SELECT u.effects_json FROM bannerlord_clan_upgrades_owned o "
+                    "JOIN bannerlord_clan_upgrades_catalog u ON "
+                    "  u.channel_id = o.channel_id AND u.upgrade_id = o.upgrade_id "
+                    "WHERE o.channel_id = ? AND o.username = ?",
+                    (channel_id, username))
+                for (eff_json,) in await cur.fetchall():
+                    try:
+                        eff = json.loads(eff_json or '{}')
+                        bonus_cap += int(eff.get("retinue_size_bonus", 0) or 0)
+                    except Exception:
+                        pass
+                MAX_RETINUE = base_cap + bonus_cap
+
+                # Sprint 5.14: проверяем slots ТОГО же типа (basic vs elite)
+                # для upgrade-decision. Empty slots → new troop.
+                if len(retinue_rows) < MAX_RETINUE:
+                    needed = RECRUIT_TIER_COSTS[0]
+                    cost_label = f"найм нового {'elite' if want_elite else 'basic'}"
+                else:
+                    same_type = [s for s in retinue_rows if s["is_elite"] == want_elite]
+                    if not same_type:
+                        return {
+                            "success": False,
+                            "message": f"Нет {'elite' if want_elite else 'basic'} войнов "
+                                       f"для прокачки. Сначала найми хотя бы одного.",
+                        }
+                    lowest_tier = min(s["tier"] for s in same_type)
+                    idx = min(lowest_tier, len(RECRUIT_TIER_COSTS) - 1)
+                    needed = RECRUIT_TIER_COSTS[idx]
+                    cost_label = f"прокачка T{lowest_tier + 1} " \
+                                 f"{'elite' if want_elite else 'basic'}"
+
+                if want_elite:
+                    needed *= ELITE_COST_MULTIPLIER
+
+                cur = await conn.execute(
+                    "SELECT gold FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+                    (channel_id, username))
+                row = await cur.fetchone()
+                hero_gold = (row[0] if row else 0) or 0
+                if hero_gold < needed:
+                    return {
+                        "success": False,
+                        "message": f"Нужно {needed:,}💰 динаров для {cost_label}, "
+                                   f"у тебя {hero_gold:,}💰 (накопи в игре).",
+                    }
+                data["hero_gold_cost"] = needed
+                data["is_elite"] = want_elite
+
+        if action_type == "hero.recruit_troops":
+            # 2026-05-29 currency re-map: рекрут платится ТОЛЬКО динарами героя
+            # (hero_gold_cost ниже, списывается модом). Крустиковая часть убрана
+            # — одно действие = одна валюта (армия = кошелёк героя 💰).
+            data["price"] = 0
+
+        if action_type == "hero.train_troops":
+            # 2026-05-29 (BLT TrainingBehavior): тренировка свиты платится ТОЛЬКО
+            # динарами героя — мод списывает сумму апгрейдов всех слотов. retinue
+            # snapshot уже приложен выше. Крустиков 0.
+            data["price"] = 0
+
+    # hero.create: culture choice (empire/sturgia/vlandia/aserai/khuzait/battania).
+    # Validate whitelist; null/empty = mod выберет random wanderer.
+    if action_type == "hero.create":
+        ALLOWED_CULTURES = {"empire", "sturgia", "vlandia", "aserai", "khuzait", "battania"}
+        culture = (data.get("culture") or "").strip().lower()
+        if culture and culture not in ALLOWED_CULTURES:
+            return {
+                "success": False,
+                "message": f"Культура '{culture}' не разрешена "
+                           f"(допустимо: {sorted(ALLOWED_CULTURES)})",
+            }
+        data["culture"] = culture  # mod resolve'ит '' → random
+
+        # Defense-in-depth: ещё один guard против opaque-ID adoption.
+        # Если username длинный (>25) ИЛИ выглядит как opaque (u_xxx, длинная
+        # base64url-строка) — refuse. Real Twitch login ≤25 символов
+        # [a-z0-9_].
+        import re as _re_local
+        if (len(username) > 25
+                or _re_local.fullmatch(r"u[a-z0-9_-]{15,}", username)):
+            return {
+                "success": False,
+                "message": "Нужно войти через Twitch ('Share Identity'), "
+                           "иначе твой герой будет создан с opaque ID. "
+                           "Нажми 'Login' в шапке.",
+            }
+
+    # Sprint M20+M21: hero.upgrade_gear — БЕСПЛАТНО в крустиках, mod
+    # списывает Hero.Gold (in-game динары) — см. UpgradeGearHandler.cs.
+    # Backend только validates eligibility и enqueue'ит action.
+    # Backend НЕ обновляет gear_tier сам — mod пушит hero.gear_tier_changed
+    # после successful in-game upgrade.
+    if action_type == "hero.upgrade_gear":
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT h.gear_tier, c.class_key "
+                "FROM bannerlord_heroes h "
+                "LEFT JOIN bannerlord_hero_class c "
+                "  ON c.channel_id=h.channel_id AND c.username=h.username "
+                "WHERE h.channel_id=? AND h.username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        if not row:
+            return {"success": False, "message": "Сначала создай героя"}
+        current_tier = row[0] or 0
+        class_key = (row[1] or "").lower()
+        if not class_key:
+            return {
+                "success": False,
+                "message": "Сначала выбери класс — он определяет slot template",
+            }
+        if current_tier >= 6:
+            return {
+                "success": False,
+                "message": "Снаряжение уже T6 — выше некуда",
+            }
+        target_tier = current_tier + 1
+        data["class_key"] = class_key
+        data["target_tier"] = target_tier
+        data["hero_gold_cost"] = HERO_GOLD_TIER_COSTS[target_tier]
+        data["price"] = 0   # крустики: бесплатно
+
+    # 2026-05-29 hero.reequip_gear — «переформировать снаряжение» (BLT
+    # ReequipInsteadOfUpgrade). Ре-ролл на ТЕКУЩЕМ тире (без повышения), FREE,
+    # работает в т.ч. на T6 (фикс-утилита при кривой экипировке). Mod
+    # переиспользует ApplyGearLoadout.
+    if action_type == "hero.reequip_gear":
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT h.gear_tier, c.class_key "
+                "FROM bannerlord_heroes h "
+                "LEFT JOIN bannerlord_hero_class c "
+                "  ON c.channel_id=h.channel_id AND c.username=h.username "
+                "WHERE h.channel_id=? AND h.username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        if not row:
+            return {"success": False, "message": "Сначала создай героя"}
+        class_key = (row[1] or "").lower()
+        if not class_key:
+            return {
+                "success": False,
+                "message": "Сначала выбери класс — он определяет slot template",
+            }
+        data["class_key"] = class_key
+        data["gear_tier"] = row[0] or 0     # текущий тир — ре-ролл на нём
+        data["price"] = 0                   # крустики: бесплатно (utility/fix)
+
+    # Sprint M21: player.give_item (gold) — server-side amount по крустики preset.
+    if action_type == "player.give_item":
+        item_type = (data.get("item_type") or "gold").strip().lower()
+        if item_type != "gold":
+            return {
+                "success": False,
+                "message": f"Неподдерживаемый тип предмета: {item_type}",
+            }
+        try:
+            crusticov = int(data.get("price") or 0)
+        except (TypeError, ValueError):
+            return {"success": False, "message": "Неверная цена"}
+        if crusticov not in GIVE_GOLD_PRESETS:
+            return {
+                "success": False,
+                "message": f"Неизвестный пресет {crusticov}⦷ "
+                           f"(допустимы: {sorted(GIVE_GOLD_PRESETS.keys())})",
+            }
+        data["item_type"] = "gold"
+        data["amount"] = GIVE_GOLD_PRESETS[crusticov]
+        # price остаётся = crusticov (передан клиентом, validated в preset map)
+
+    # Sprint M21: hero.add_skill — server-side xp по крустики preset.
+    # skill_key опциональный — если пуст, mod random pick.
+    if action_type == "hero.add_skill":
+        try:
+            crusticov = int(data.get("price") or 0)
+        except (TypeError, ValueError):
+            return {"success": False, "message": "Неверная цена"}
+        if crusticov not in ADD_SKILL_XP_PRESETS:
+            return {
+                "success": False,
+                "message": f"Неизвестный пресет {crusticov}⦷ "
+                           f"(допустимы: {sorted(ADD_SKILL_XP_PRESETS.keys())})",
+            }
+        data["xp"] = ADD_SKILL_XP_PRESETS[crusticov]
+        # skill_key может быть пустым = random skill в mod
+
+    # Sprint 5.8: hero.add_focus — БЕСПЛАТНО в крустиках, mod списывает
+    # Hero.Gold tier-based. Validation skill_key + pre-check Hero.Gold.
+    if action_type == "hero.add_focus":
+        skill_key = (data.get("skill_key") or "").strip()
+        try:
+            amount = int(data.get("amount") or 1)
+        except (TypeError, ValueError):
+            amount = 1
+        amount = max(1, min(5, amount))
+
+        if skill_key and not _GAME_KEY_RE.match(skill_key):
+            return {
+                "success": False,
+                "message": "Неверное имя навыка "
+                           f"(допустимы буквы, цифры и «_», до 48 символов; "
+                           f"ванильные: {', '.join(sorted(KNOWN_SKILLS))})",
+            }
+        if skill_key and skill_key not in KNOWN_SKILLS:
+            # Не отказ: сборка могла добавить свой навык, и знает об этом игра,
+            # а не мы. Пишем в лог, чтобы такие случаи было видно.
+            print(f"[bannerlord] add_skill: незнакомый навык {skill_key!r} "
+                  f"(ch={channel_id}, @{username}) — пропускаем в мод, решать ему")
+
+        # Pre-check Hero.Gold (cached). Worst case: amount=1 → 30K.
+        # Точная стоимость зависит от текущего focus в skill (mod знает),
+        # но мы здесь делаем conservative check на самый низкий tier.
+        # Mod сам проверит реальную стоимость и откажет если не хватит.
+        hero_gold = await _fetch_hero_gold(channel_id, username)
+        min_needed = FOCUS_TIER_COSTS[0] * amount  # хотя бы amount × cheapest tier
+        if hero_gold < min_needed:
+            return {
+                "success": False,
+                "message": f"Минимум {min_needed:,}💰 динаров нужно "
+                           f"(у тебя {hero_gold:,}💰).",
+            }
+        data["skill_key"] = skill_key  # '' = random
+        data["amount"] = amount
+        data["hero_gold_cost_min"] = min_needed  # for UI display
+        data["price"] = 0   # крустики free
+
+    # Sprint 5.8: hero.add_attribute — БЕСПЛАТНО в крустиках, mod списывает
+    # Hero.Gold flat 50K per point.
+    # player.modify_attribute — легаси-двойник hero.add_attribute, закрыт 09.09.
+    #
+    # Он объявлен в манифесте и стоит 50 крустиков по ACTION_PRICES_DEFAULT, но
+    # ветки здесь у него не было ВООБЩЕ: `points` приезжал из тела запроса, а
+    # `ModifyAttributeHandler.cs:28` берёт его как есть — проверяет только
+    # `points != 0`, потолка нет — и зовёт `AddAttribute(attr, points)`.
+    # Рядом живёт настоящий путь: `hero.add_attribute` зажимает количество в
+    # 1..10, проверяет имя характеристики и берёт ATTRIBUTE_COST = 50 000
+    # динаров ЗА КАЖДОЕ очко. То есть двойник давал тот же эффект за 50
+    # крустиков вместо 50 000 динаров и в неограниченном количестве одним
+    # вызовом. Фронт его не вызывает нигде — попасть сюда можно только прямым
+    # запросом, поэтому отказ ничего у зрителя не отнимает.
+    #
+    # Отказываем, а не зажимаем: даже с потолком в одно очко это остаётся
+    # путём, который в тысячу раз дешевле настоящего, и выбирать ему цену —
+    # решение владельца, а не моё. Вернуть как настоящую механику = дать ему
+    # собственную цену и валидацию (`DEFERRED.md`).
+    if action_type == "player.modify_attribute":
+        log.warning("[bannerlord SECURITY REFUSE] player.modify_attribute "
+                    "user=%s ch=%s points=%r — легаси-двойник add_attribute",
+                    username, channel_id, data.get("points"))
+        return {
+            "success": False,
+            "message": "Характеристики поднимаются кнопкой «Характеристики» "
+                       "(🎯) — это действие больше не обслуживается.",
+        }
+
+    if action_type == "hero.add_attribute":
+        attr_key = (data.get("attribute_key") or "").strip()
+        try:
+            amount = int(data.get("amount") or 1)
+        except (TypeError, ValueError):
+            amount = 1
+        amount = max(1, min(10, amount))
+
+        if attr_key and not _GAME_KEY_RE.match(attr_key):
+            return {
+                "success": False,
+                "message": "Неверное имя характеристики "
+                           f"(допустимы буквы, цифры и «_», до 48 символов; "
+                           f"ванильные: {', '.join(sorted(KNOWN_ATTRIBUTES))})",
+            }
+        if attr_key and attr_key not in KNOWN_ATTRIBUTES:
+            print(f"[bannerlord] add_attribute: незнакомая характеристика {attr_key!r} "
+                  f"(ch={channel_id}, @{username}) — пропускаем в мод, решать ему")
+
+        cost = ATTRIBUTE_COST * amount
+        hero_gold = await _fetch_hero_gold(channel_id, username)
+        if hero_gold < cost:
+            # 5.27s diagnostic: log refuse так стример видит причину в supervisor.
+            print(f"[bannerlord:{channel_id}] hero.add_attribute REFUSE @{username} "
+                  f"attr={attr_key or 'random'} cost={cost} hero_gold={hero_gold}")
+            return {
+                "success": False,
+                "message": f"Нужно {cost:,}💰 динаров у героя (у тебя {hero_gold:,}💰). "
+                           "Заработай в битвах или конвертируй крустики в gold.",
+            }
+        print(f"[bannerlord:{channel_id}] hero.add_attribute QUEUE @{username} "
+              f"attr={attr_key or 'random'} amount={amount} cost={cost}")
+        data["attribute_key"] = attr_key  # '' = random
+        data["amount"] = amount
+        data["hero_gold_cost"] = cost
+        data["price"] = 0
+
+    # Sprint 5.27a: hero.set_gender — gender swap (50k💰 Hero.Gold).
+    # Body: {gender: "male"|"female"}. Mod auto-flips spouse если есть
+    # (Bannerlord не любит same-sex marriages).
+    if action_type == "hero.set_gender":
+        gender = (data.get("gender") or "").strip().lower()
+        if gender not in ("male", "female"):
+            return {"success": False, "message": "gender должен быть male|female"}
+        hero_gold = await _fetch_hero_gold(channel_id, username)
+        if hero_gold < GENDER_SWAP_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {GENDER_SWAP_COST:,}💰 для смены пола "
+                           f"(у тебя {hero_gold:,}💰).",
+            }
+        data["gender"] = gender
+        data["hero_gold_cost"] = GENDER_SWAP_COST
+        data["price"] = 0  # крустики free
+
+    # Sprint 5.27b: hero.marry — брак с random suitable NPC (50K💰).
+    # Mod выбирает подходящую NPC (opposite gender, single, 18+, не [BLink]).
+    if action_type == "hero.marry":
+        # 2026-05-29: брак требует клан. Бесклановый замужний герой крашит
+        # ванильную DefaultPregnancyModel на дейли-тике (PregnancyModelPatch).
+        # Фронт уже дизейблит кнопку, но клиент обходим — гейтим и на сервере.
+        if not await _fetch_hero_clan_name(channel_id, username):
+            return {
+                "success": False,
+                "message": "Нужен клан для брака — сначала создай или вступи в клан (🏰).",
+            }
+        hero_gold = await _fetch_hero_gold(channel_id, username)
+        if hero_gold < MARRIAGE_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {MARRIAGE_COST:,}💰 для брака "
+                           f"(у тебя {hero_gold:,}💰).",
+            }
+        data["hero_gold_cost"] = MARRIAGE_COST
+        data["price"] = 0
+
+    # Sprint 5.27b: hero.divorce — free (никакой gold check, мод просто
+    # обнуляет Spouse). Развод emotionally free :)
+    if action_type == "hero.divorce":
+        data["hero_gold_cost"] = 0
+        data["price"] = 0
+
+    # Sprint 5.27c: hero.make_baby — pregnancy через MakePregnantAction (100K💰).
+    # Mod проверяет spouse + age + max children (5).
+    if action_type == "hero.make_baby":
+        # 2026-05-29: дети рождаются в клан родителя; бесклановый родитель →
+        # клейтлесс-дети → краш беременности. Требуем клан (как и брак).
+        if not await _fetch_hero_clan_name(channel_id, username):
+            return {
+                "success": False,
+                "message": "Нужен клан, чтобы заводить детей — создай или вступи в клан (🏰).",
+            }
+        hero_gold = await _fetch_hero_gold(channel_id, username)
+        if hero_gold < BABY_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {BABY_COST:,}💰 для зачатия "
+                           f"(у тебя {hero_gold:,}💰).",
+            }
+        data["hero_gold_cost"] = BABY_COST
+        data["price"] = 0
+        # Предел ставит сервер, а не тот, кто прислал запрос. Присваиваем
+        # безусловно: клиентское значение здесь именно перезаписывается, иначе
+        # `{"max_alive_children": 20}` из тела доехало бы до мода и подняло
+        # предел впятеро. Заодно оговорённый в моде per-tier override начинает
+        # работать так, как задуман, — с этой строки, а не из payload'а зрителя.
+        data["max_alive_children"] = MAX_ALIVE_CHILDREN
+
+    # 2026-05-29: hero.propose_marriage женит ДЕТЕЙ двух viewer'ов. Дети
+    # наследуют клан родителя — у бесклановых детей брак даёт тот же
+    # клейтлесс-краш беременности. Гейтим за клан инициатора (его дети в его
+    # клане). Сам proposal обрабатывается ниже (handle_propose_marriage).
+    if action_type == "hero.propose_marriage":
+        if not await _fetch_hero_clan_name(channel_id, username):
+            return {
+                "success": False,
+                "message": "Нужен клан, чтобы устраивать браки детей — создай или вступи в клан (🏰).",
+            }
+
+    # Sprint 5.9: hero.create_clan — БЕСПЛАТНО в крустиках, mod списывает
+    # 100K Hero.Gold. Validation clan_name + Hero.Gold pre-check + check
+    # что viewer не лидер clan'а (через bannerlord_heroes.clan_name).
+    if action_type == "hero.create_clan":
+        clan_name = (data.get("clan_name") or "").strip()
+        # Allow empty (mod выберет дефолтное "{username}'s Clan").
+        # Basic sanity: длина и недопустимые символы.
+        if clan_name and len(clan_name) > 32:
+            return {
+                "success": False,
+                "message": "Имя клана слишком длинное (макс 32 символа)",
+            }
+        if clan_name and any(c in clan_name for c in ('<', '>', '"', "'", '`', '\\')):
+            return {
+                "success": False,
+                "message": "Недопустимые символы в имени клана",
+            }
+
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT gold, clan_name FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        if not row:
+            return {"success": False, "message": "Сначала создай героя"}
+        hero_gold = (row[0] if row else 0) or 0
+        current_clan = (row[1] if len(row) > 1 else None) or ""
+        # Если cached clan_name содержит [BLink] prefix → viewer уже лидер
+        if current_clan.startswith("[BLink]"):
+            return {
+                "success": False,
+                "message": f"Ты уже лидер клана '{current_clan}'",
+            }
+        if hero_gold < CLAN_CREATE_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {CLAN_CREATE_COST:,}💰 динаров для создания клана "
+                           f"(у тебя {hero_gold:,}💰).",
+            }
+        data["clan_name"] = clan_name   # '' = mod default
+        data["hero_gold_cost"] = CLAN_CREATE_COST
+        data["price"] = 0               # крустики free
+
+    # Sprint 5.12: hero.create_kingdom — 5M Hero.Gold, clan-leader only
+    if action_type == "hero.create_kingdom":
+        kingdom_name = (data.get("kingdom_name") or "").strip()
+        if kingdom_name and len(kingdom_name) > 32:
+            return {"success": False, "message": "Имя королевства слишком длинное (макс 32)"}
+        if kingdom_name and any(c in kingdom_name for c in ('<', '>', '"', "'", '`', '\\')):
+            return {"success": False, "message": "Недопустимые символы в имени"}
+
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT gold, clan_name, kingdom_name FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        if not row:
+            return {"success": False, "message": "Сначала создай героя"}
+        hero_gold = (row[0] if row else 0) or 0
+        clan_name = (row[1] if len(row) > 1 else None) or ""
+        kingdom_name_cur = (row[2] if len(row) > 2 else None) or ""
+        if not clan_name.startswith("[BLink]"):
+            return {
+                "success": False,
+                "message": "Сначала создай свой клан — королевство только для лидеров.",
+            }
+        # 2026-07-31: убран отказ «сначала покинь королевство». Он и был
+        # причиной жалоб «зрители теряют поселение»: выход из королевства идёт
+        # через движковый ApplyByLeaveKingdom, который ЯВНО отбирает все
+        # владения клана в пользу бывшего короля. Зритель терял замки и
+        # основывал пустую корону за 5 млн.
+        # Движок умеет правильно: KingdomManager.CreateKingdom зовёт
+        # ApplyByCreateKingdom, и та выводит клан из старого королевства НЕ
+        # трогая владения. Проверка «уже в королевстве» нам не нужна — мод
+        # отдаёт действие движку, который разберётся сам.
+        # Разбор: DEFERRED §C0-tervicies.
+        if hero_gold < KINGDOM_CREATE_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {KINGDOM_CREATE_COST:,}💰 динаров (у тебя {hero_gold:,}💰).",
+            }
+        data["kingdom_name"] = kingdom_name
+        data["hero_gold_cost"] = KINGDOM_CREATE_COST
+        data["price"] = 0
+
+    # Sprint 5.12: hero.leave_clan / hero.leave_kingdom — free actions, no extra validation
+    # (mod-side проверки делают всё)
+    if action_type in ("hero.leave_clan", "hero.leave_kingdom"):
+        data["price"] = 0
+
+    # 2026-07-24 SECURITY (аудит радиуса поражения): действия над РЕБЁНКОМ обязаны
+    # проверять родство. Раньше не проверял НИКТО:
+    #   - здесь валидации не было вовсе (эти три типа встречались только в allowlist
+    #     и в прайсе);
+    #   - мод (FamilyHandlers.FindHeroByStringId) резолвит ЛЮБОГО героя по StringId,
+    #     сверяя только «жив ли».
+    # А hero_id чужих детей ЛЕГАЛЬНО отдаётся любому зрителю (эндпоинт детей по
+    # ?username=<кто угодно> — он нужен для сватовства). Итог: зритель A за 500💎
+    # стирал все навыки ребёнка зрителя B (HeroDeveloper.ClearHero), переименовывал
+    # его или менял внешность. Тот же класс, что фикс подмены target от 2026-06-18:
+    # тогда защитили поле target, но НЕ произвольные id внутри payload.
+    if action_type in ("hero.rename_child", "hero.change_child_looks",
+                       "hero.respec_child_skills"):
+        child_id = (str(data.get("child_hero_id") or "")).strip()
+        if not child_id:
+            return {"success": False, "message": "Нужен child_hero_id"}
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT 1 FROM bannerlord_heirs "
+                "WHERE channel_id=? AND parent_username=? AND heir_hero_id=?",
+                (channel_id, username, child_id))
+            owns_child = await cur.fetchone()
+        if not owns_child:
+            log.warning("[FAM-SEC] ch=%s @%s пытался %s над ЧУЖИМ ребёнком id=%s",
+                        channel_id, username, action_type, child_id)
+            return {"success": False, "message": "Это не твой ребёнок"}
+
+    # Sprint 5.12: hero.join_clan — 50K Hero.Gold, requires clan_name input
+    if action_type == "hero.join_clan":
+        clan_name_in = (data.get("clan_name") or "").strip()
+        if not clan_name_in:
+            return {"success": False, "message": "Имя клана обязательно"}
+        if len(clan_name_in) > 64:
+            return {"success": False, "message": "Имя клана слишком длинное"}
+        hero_gold = await _fetch_hero_gold(channel_id, username)
+        if hero_gold < CLAN_JOIN_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {CLAN_JOIN_COST:,}💰 динаров (у тебя {hero_gold:,}💰).",
+            }
+        data["clan_name"] = clan_name_in
+        data["hero_gold_cost"] = CLAN_JOIN_COST
+        data["price"] = 0
+
+    # Sprint 5.13: hero.create_party — 200K, requires clan + clan-leader
+    if action_type == "hero.create_party":
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT gold, clan_name FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        if not row:
+            return {"success": False, "message": "Сначала создай героя"}
+        hero_gold = (row[0] if row else 0) or 0
+        clan_name = (row[1] if len(row) > 1 else None) or ""
+        if not clan_name.startswith("[BLink]"):
+            return {
+                "success": False,
+                "message": "Сначала создай свой клан — party требует clan-leader статус.",
+            }
+        if hero_gold < PARTY_CREATE_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {PARTY_CREATE_COST:,}💰 динаров (у тебя {hero_gold:,}💰).",
+            }
+        data["hero_gold_cost"] = PARTY_CREATE_COST
+        data["price"] = 0
+
+    # Sprint 5.12: hero.join_kingdom — 100K Hero.Gold, requires kingdom_name + clan
+    if action_type == "hero.join_kingdom":
+        kingdom_name_in = (data.get("kingdom_name") or "").strip()
+        if not kingdom_name_in:
+            return {"success": False, "message": "Имя королевства обязательно"}
+        if len(kingdom_name_in) > 64:
+            return {"success": False, "message": "Имя слишком длинное"}
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT gold, clan_name FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        hero_gold = (row[0] if row else 0) or 0
+        clan_name = (row[1] if len(row) > 1 else None) or ""
+        if not clan_name.startswith("[BLink]"):
+            return {
+                "success": False,
+                "message": "Сначала создай свой клан — королевства только для лидеров кланов.",
+            }
+        if hero_gold < KINGDOM_JOIN_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {KINGDOM_JOIN_COST:,}💰 динаров (у тебя {hero_gold:,}💰).",
+            }
+        data["kingdom_name"] = kingdom_name_in
+        data["hero_gold_cost"] = KINGDOM_JOIN_COST
+        data["price"] = 0
+
+    # 2026-06-17: hero.recruit_vassal_clan — 3M Hero.Gold, ТОЛЬКО правитель королевства.
+    # Мод — авторитетная проверка (ruler/gold/clan-leader) + списание динаров; здесь
+    # UX pre-check (чистое сообщение вместо тихого refuse мода). Defense-in-depth:
+    # фронт прячет кнопку у не-правителя, бэк refuse'ит, мод — финальный арбитр.
+    if action_type == "hero.recruit_vassal_clan":
+        from routes.bannerlord_diplomacy import _derive_kingdom
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT gold, clan_name, kingdom_id, kingdom_name, is_king, "
+                "       is_clan_leader, kingdom_info_json "
+                "FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+        if not row:
+            return {"success": False, "message": "Сначала создай героя"}
+        hero_gold = (row[0] if row else 0) or 0
+        clan_name = (row[1] if len(row) > 1 else None) or ""
+        kingdom_id, kingdom_name_cur, is_king, _is_cl = _derive_kingdom(
+            row[2], row[3], row[4], row[5], row[6])
+        if not clan_name.startswith("[BLink]"):
+            return {"success": False, "message": "Сначала создай свой клан."}
+        if not kingdom_id:
+            return {"success": False, "message": "Сначала создай или вступи в королевство."}
+        if not is_king:
+            return {
+                "success": False,
+                "message": "Только правитель королевства может нанимать вассальные кланы.",
+            }
+        if hero_gold < RECRUIT_VASSAL_COST:
+            return {
+                "success": False,
+                "message": f"Нужно {RECRUIT_VASSAL_COST:,}💰 динаров (у тебя {hero_gold:,}💰).",
+            }
+        data["hero_gold_cost"] = RECRUIT_VASSAL_COST
+        data["price"] = 0
+
+    # Sprint 5.29 BLT-parity #6 phase A: hero.equip_trophy — pre-validate
+    # ownership + inject trophy details в data для mod handler.
+    if action_type == "hero.equip_trophy":
+        try:
+            trophy_id = int(data.get("custom_item_id") or 0)
+        except (TypeError, ValueError):
+            trophy_id = 0
+        if trophy_id <= 0:
+            return {"success": False, "message": "custom_item_id required"}
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            # Атомарный claim: BEGIN IMMEDIATE сериализует SELECT-проверку и
+            # conditional UPDATE (WHERE claimed=0 + rowcount) — иначе два
+            # параллельных equip_trophy могли оба прочитать claimed=0 и
+            # получить один предмет дважды (double-bonus).
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "SELECT base_type, base_subtype, custom_name, rarity, tier, "
+                "       COALESCE(damage_bonus, 0), COALESCE(armor_bonus, 0), "
+                "       COALESCE(weight_factor, 1.0), COALESCE(speed_factor, 1.0), "
+                "       COALESCE(claimed, 0) "
+                "FROM bannerlord_custom_items "
+                "WHERE id=? AND channel_id=? AND owner_username=?",
+                (trophy_id, channel_id, username))
+            row = await cur.fetchone()
+            if not row:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Трофей не найден / не твой"}
+            # Phase B — нельзя получить один предмет дважды (анти double-bonus).
+            if int(row[9] or 0) == 1:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Этот предмет уже получен в игре"}
+            upd = await conn.execute(
+                "UPDATE bannerlord_custom_items SET claimed=1 WHERE id=? AND claimed=0",
+                (trophy_id,))
+            if upd.rowcount == 0:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Этот предмет уже получен в игре"}
+            await conn.commit()
+        data["base_type"]    = row[0]
+        data["base_subtype"] = row[1]
+        data["custom_name"]  = row[2]
+        data["rarity"]       = row[3]
+        data["tier"]         = row[4]
+        # Sprint 5.33 (BLT-parity ITEM) — rolled stats injection.
+        # Mod-side EquipTrophyHandler читает эти поля и регистрирует в
+        # ActiveTrophyState для apply через DamageHookPatch.
+        data["damage_bonus"]  = row[5]
+        data["armor_bonus"]   = row[6]
+        data["weight_factor"] = row[7]
+        data["speed_factor"]  = row[8]
+        data["price"] = 0
+
+    # Sprint 5.28c: hero.join_tournament полностью бесплатен — 0 крустиков и
+    # 0 динаров. Раньше пробовали 5000 динаров, затем 1000 крустиков; оба
+    # варианта создавали ненужный barrier-to-entry и gambling-read на mobile.
+    # Backend всё равно принудительно перезаписывает обе цены нулями: клиент не
+    # может вернуть входной взнос своим payload'ом.
+    # mod = source-of-truth для очереди (event tournament.joined → INSERT).
+    if action_type == "hero.join_tournament":
+        # Sprint 5.31 #45d (audit HIGH-5) — checks перенесены ВНУТРЬ BEGIN
+        # IMMEDIATE ниже (см. _tournament_join_atomic_check). Раньше SELECT
+        # status + SELECT queue делались отдельной connection ВНЕ TX —
+        # два одновременных POST'а могли пройти оба SELECT'а и создать два
+        # задания. Checks остаются под одним IMMEDIATE lock'ом — serialized,
+        # даже несмотря на нулевую цену.
+        data["hero_gold_cost"] = 0           # mod больше не списывает динары
+        data["price"] = TOURNAMENT_JOIN_PRICE  # 5.28c: 0 — турнир бесплатный
+
+    # 1.5 compliance (2026-06-11): tournament.predict — БЕСПЛАТНЫЙ no-loss ПРОГНОЗ
+    # на победителя. Крустики НЕ списываются и НЕ сгорают; верный прогноз даёт
+    # фикс-бонус из платформенного пула (см. _adapter._on_tournament_ended).
+    # Убрали wager-на-исход (дух §6.2.6) — как уже сделали для дуэлей.
+    # (2026-06-29: action переименован tournament.bet → tournament.predict, лексикон.)
+    if action_type == "tournament.predict":
+        target = (data.get("target") or "").strip().lower()
+        if not target:
+            return {"success": False, "message": "Не указан участник"}
+        # Tournament must be running + target в participants
+        db_tmp = get_db()
+        async with db_tmp._connect() as conn:
+            cur = await conn.execute(
+                "SELECT status, current_round, participants "
+                "FROM bannerlord_tournament_state WHERE channel_id=?",
+                (channel_id,))
+            row = await cur.fetchone()
+        if not row or (row[0] or "idle") != "running":
+            return {"success": False, "message": "Турнир не идёт"}
+        try:
+            participants = json.loads(row[2] or "[]")
+        except Exception:
+            participants = []
+        if target not in [str(p).lower() for p in participants]:
+            return {
+                "success": False,
+                "message": f"@{target} не участвует в турнире",
+            }
+        round_index = int(row[1] or 0)
+        # Sprint 5.31 #45e (audit MED-6) — dedup check внутри BEGIN IMMEDIATE ниже.
+        data["target"] = target
+        data["amount"] = 0          # no-loss: ставка не берётся
+        data["round_index"] = round_index
+        data["price"] = 0           # бесплатный прогноз — ничего не списываем
+    return None
+
+
+def _enforce_price(action_type, data, username, channel_id):
+    """Phase D — server-side price enforcement (extracted verbatim).
+
+    Returns an int `price` on success, or a refusal-dict to short-circuit.
+    """
+    # ════════════════════════════════════════════════════════════════════
+    # Sprint 5.29 audit fix #32 — server-side ACTION_PRICES enforcement.
+    # ════════════════════════════════════════════════════════════════════
+    # SECURITY: до этого fix'а viewer мог POST `{action_type: "player.heal",
+    # data: {price: 0}}` и получить бесплатное действие. Backend читал
+    # data["price"] напрямую из viewer payload'а для actions БЕЗ explicit
+    # per-action branch. Fix: server-side price table enforce'ит цену.
+    #
+    # Two categories:
+    #   _ACTIONS_WITH_OWN_PRICING — already set data["price"] выше
+    #     (player.spawn → SPAWN_PRICES per-side; tournament.predict → amount;
+    #      все *clan/kingdom/party/marry/* → 0 потому что mod использует
+    #      Hero.Gold; etc.).
+    #   ACTION_PRICES_DEFAULT — fallback для actions БЕЗ branch'а.
+    #     Hardcoded crustic price, viewer override игнорируется.
+    #
+    # Unknown action (не в одном из двух) → REFUSE (security gate, новые
+    # actions требуют explicit price entry).
+    # Sprint 5.32 BUGFIX — player.give_item и hero.add_skill ИМЕЮТ собственный
+    # pricing валидатор (GIVE_GOLD_PRESETS / ADD_SKILL_XP_PRESETS) выше в этой
+    # функции (~L1265, ~L1140). Они должны быть в _ACTIONS_WITH_OWN_PRICING,
+    # иначе ACTION_PRICES_DEFAULT внизу перезаписывает их preset price на 100
+    # → viewer платит 100 крустиков за 5000 динаров (вместо 1000⦷). Это
+    # security/exploit гэп — sub'ы с Boosty tier3 ×0.5 платили 50 за 5K динаров.
+    _ACTIONS_WITH_OWN_PRICING = {
+        "player.spawn", "hero.set_class",
+        "hero.upgrade_gear", "hero.reequip_gear", "hero.recruit_troops", "hero.train_troops",
+        "hero.join_tournament", "tournament.predict",
+        "hero.create_clan", "hero.create_kingdom", "hero.leave_clan",
+        "hero.leave_kingdom", "hero.join_clan", "hero.join_kingdom",
+        "hero.create_party", "hero.set_gender", "hero.marry",
+        "hero.divorce", "hero.make_baby",
+        "hero.add_focus", "hero.add_attribute",
+        "power.activate",     # 2026-06-14: per-power цена (POWER_PRICES) ставится в _prepare_action
+        "hero.equip_trophy",  # Sprint 5.29 BLT-parity #6 phase A
+        # Sprint 5.32 BUGFIX — обе currency-conversion actions имеют свои
+        # presets; без этого list'а DEFAULT перезатирает их.
+        "player.give_item",   # 1000/5000/20000⦷ → 5K/25K/100K динаров (M21)
+        "hero.add_skill",     # 500/1000/5000⦷ → 50/100/500 XP (M21)
+    }
+    # ACTION_PRICES_DEFAULT теперь на уровне модуля (см. определение выше) —
+    # чтобы его можно было отдать фронту без второй копии.
+    if action_type not in _ACTIONS_WITH_OWN_PRICING:
+        if action_type not in ACTION_PRICES_DEFAULT:
+            log.warning(
+                "[bannerlord SECURITY REFUSE] no server-side price for %s user=%s ch=%s",
+                action_type, username, channel_id)
+            return {
+                "success": False,
+                "message": f"Action '{action_type}' не имеет server-side цены",
+            }
+        # Жёсткий override — viewer не может задать price.
+        data["price"] = ACTION_PRICES_DEFAULT[action_type]
+
+    try:
+        price = int(data.get("price", 0))
+    except (TypeError, ValueError):
+        return {"success": False, "message": "Неверная цена"}
+    if price < 0:
+        return {"success": False, "message": "Цена не может быть отрицательной"}
+    return price
+
+
+def _resolve_perks(request, action_type, price, username, channel_id, data):
+    """Phase E — role/perk resolution + role-gate (extracted verbatim).
+
+    Returns (price, price_mult, reward_mult, role_label) on success,
+    or a refusal-dict (role-gate) to short-circuit. Mutates `data`.
+    """
+    # Sprint 5.33 TOS-COMPLIANCE (2026-05-28) — REMOVED subscription bonuses.
+    # Twitch Extension ToS / Community Guidelines:
+    #   - Cannot gate gameplay rewards behind Twitch subscriptions
+    #   - Cannot give sub'ам discount on in-extension currency
+    #   - Cannot give sub'ам extra rewards
+    # Removed:
+    #   - Twitch Tier 1/2/3 multipliers (0.85/0.70/0.50× price, 1.5/2.0/3.0× rewards)
+    #   - Boosty Tier 1/2/3 same multipliers (third-party paywall, same spirit)
+    # Kept (role-based, NOT subscription-based — OK per ToS):
+    #   - broadcaster (channel owner) → 0.5× price, 2.0× rewards
+    # Removed 2026-06-06 (по просьбе стримера; Twitch против привилегий по роли):
+    #   - moderator boost (был 0.75× price, 1.5× rewards) → теперь 1.0/1.0.
+    #     role_label="moderator" сохранён ТОЛЬКО для admin-гейта world.trigger_event.
+    #
+    # Sprint 5.32 fix — `_jwt` был bound в внешнем bannerlord_buy_action,
+    # но эта функция (_bannerlord_buy_action_locked) — отдельная scope.
+    from auth import verify_twitch_jwt
+    _jwt = verify_twitch_jwt(request)
+    _user_role = (_jwt.get("role") or "viewer") if _jwt.get("status") == "valid" else "viewer"
+
+    # Defense-in-depth: broadcaster JWT must have user_id == channel_id.
+    # If they diverge, the token is anomalous — downgrade to viewer.
+    if _user_role == "broadcaster" and _jwt and str(_jwt.get("user_id", "")) != str(_jwt.get("channel_id", "")):
+        _user_role = "viewer"
+
+    if _user_role == "broadcaster":
+        price_mult, reward_mult, role_label = 0.5, 2.0, "broadcaster"
+    elif _user_role == "moderator":
+        # 2026-06-06 — boost модераторов УБРАН (Twitch против привилегий-наград
+        # по роли). role_label остаётся "moderator" ТОЛЬКО для admin-гейта
+        # world.trigger_event; скидки на цену и бонуса к награде больше нет.
+        price_mult, reward_mult, role_label = 1.0, 1.0, "moderator"
+    else:
+        # Sub status (Twitch + Boosty) больше НЕ влияет на price/reward.
+        # Detection функции остаются для optional cosmetic UI (badge) если
+        # понадобятся в будущем — НЕ для perks.
+        price_mult, reward_mult, role_label = 1.0, 1.0, "viewer"
+    # Sprint 5.33 TOS-COMPLIANCE — REMOVED subscriber-only action gating.
+    # Twitch ToS prohibits gating gameplay features за Twitch subscription.
+    # Previously gated:
+    #   hero.set_gender → "subscriber"     — теперь open для всех
+    #   hero.create_kingdom → "subscriber" — теперь open для всех (цена 5M Hero.Gold
+    #     остаётся естественным economic gate)
+    #   world.trigger_event → "moderator"  — admin-style, OK keep (channel role)
+    # Kept gating only для channel roles (broadcaster/moderator), не subscription.
+    _ROLE_PRIORITY = {
+        "viewer":      0,
+        "moderator":   2,
+        "broadcaster": 3,
+    }
+    _ACTIONS_MIN_ROLE = {
+        "world.trigger_event":   "moderator",  # admin-style spawn, OK keep
+    }
+    required_role = _ACTIONS_MIN_ROLE.get(action_type)
+    if required_role:
+        my_priority = _ROLE_PRIORITY.get(role_label, 0)
+        need_priority = _ROLE_PRIORITY.get(required_role, 0)
+        if my_priority < need_priority:
+            log.info(
+                "[bannerlord ROLE-GATE REFUSE] action=%s required=%s user=%s "
+                "role=%s priority=%d<%d",
+                action_type, required_role, username, role_label,
+                my_priority, need_priority)
+            human_role = {
+                "moderator":   "модераторов",
+                "broadcaster": "стримера",
+            }.get(required_role, required_role)
+            return {
+                "success": False,
+                "message": f"Это действие доступно только для {human_role}.",
+                "required_role": required_role,
+                "your_role":     role_label,
+            }
+
+    if price > 0 and price_mult < 1.0:
+        new_price = max(0, int(price * price_mult))
+        price = new_price
+    # 2026-07-28 (PB-01): цену в data пишем ВСЕГДА, а не только при скидке.
+    # Раньше строка стояла внутри `if` выше, и у зрителя без скидки поля просто
+    # не появлялось. Дальше спец-обработчики (`_BACKEND_ONLY_ACTIONS`) кладут
+    # действие в очередь через `enqueue_mod_action`, который берёт цену отсюда,
+    # а `_on_action_failed` по ней возвращает деньги. Нет поля → возврат 0.
+    # Ровно так на проде 74 отказа вернули ноль вместо списанного.
+    # Пишем ФАКТИЧЕСКУЮ сумму, уже с учётом ролевой скидки.
+    data["price"] = price   # backend uses this in TX
+    data["reward_boost"] = reward_mult   # mod использует
+    data["_perk_label"] = role_label    # для frontend UI (badge)
+    # Sprint 5.31 #45c — UNCONDITIONAL perk-resolve log. Каждая покупка
+    # оставляет запись о том, какой role/tier применился и почему. Без этого
+    # нельзя дебажить "почему мне не дали скидку" / "почему BS2 не сработал".
+    log.info("[bannerlord PERK RESOLVED] ch=%s user=%s action=%s role=%s "
+             "price=%d×%.2f reward×%.2f",
+             channel_id, username, action_type, role_label, price, price_mult, reward_mult)
+    return (price, price_mult, reward_mult, role_label)
+
+
+def _resolve_cooldown(action_type, data, username, channel_id):
+    """Phase F — cooldown-key compute + pre-check (extracted verbatim).
+
+    Returns the cooldown_key (str or None) on success, or a refusal-dict
+    if the action is still on cooldown.
+    """
+    # Sprint 4.8/5.0: server-side cooldown enforcement.
+    # Для power.activate ключ cooldown'а = data.power_key (per-power).
+    # Для player.spawn — split per-side (Sprint 5.29: ally и enemy раздельно).
+    # Sprint 5.29 audit fix #28: extended на spam-prone actions
+    # (recruit / heal / equip / add_skill / add_focus / add_attribute / marry / etc.)
+    # — ACTION_COOLDOWNS_SEC в _adapter.py.
+    # Frontend disable — UX only; реальная защита здесь.
+    cooldown_key = None
+    if action_type == "power.activate":
+        cooldown_key = (data.get("power_key") or "").strip().lower() or None
+    elif action_type == "player.spawn":
+        # split per-side — ally CD не блокирует enemy и наоборот
+        side = (data.get("side") or "player").strip().lower()
+        cooldown_key = f"player.spawn:{side}"
+    else:
+        # Sprint 5.29: fallback к action-level CD из ACTION_COOLDOWNS_SEC.
+        from modules.bannerlord._adapter import ACTION_COOLDOWNS_SEC
+        if action_type in ACTION_COOLDOWNS_SEC:
+            cooldown_key = action_type
+
+    if cooldown_key:
+        from modules.bannerlord._adapter import check_cooldown
+        remaining = check_cooldown(channel_id, username, cooldown_key)
+        if remaining > 0:
+            return {
+                "success": False,
+                "message": f"Способность на перезарядке ({int(remaining)}с)",
+                "cooldown_remaining_s": round(remaining, 1),
+            }
+    return cooldown_key
+
+
+async def _charge_execute_enqueue(action_type, data, price, username, channel_id):
+    """Phase G — the BEGIN IMMEDIATE cash-register TX (extracted verbatim).
+
+    Opens its own connection. Inside ONE BEGIN IMMEDIATE: idempotency-replay
+    check + per-action dedup (tournament.predict / hero.join_tournament) +
+    atomic charge (UPDATE ... WHERE points >= ?) + enqueue + per-action execute.
+    Ordering is load-bearing and must stay byte-identical (documented past
+    race/double-charge bugs). Returns (action_id, smith_result) on success,
+    or a refusal/idempotent-replay dict to short-circuit. Re-raises on commit
+    failure (same as before — FastAPI handler turns it into a 500).
+    """
+    db = get_db()
+    async with db._connect() as conn:
+        # ── Special case validation: hero.set_class ──
+        # Сам UPSERT — внутри TX ниже (чтобы не nested-transaction).
+        if action_type == "hero.set_class":
+            class_key = (data.get("class_key") or "").strip().lower()
+            if not class_key:
+                return {"success": False, "message": "class_key required"}
+            cur = await conn.execute(
+                "SELECT 1 FROM bannerlord_classes WHERE class_key=? AND deprecated=0",
+                (class_key,))
+            if not await cur.fetchone():
+                return {"success": False, "message": f"Класс '{class_key}' не существует"}
+            # Pass class_key в action data для mod (он применит equipment)
+            data["class_key"] = class_key
+            # 2026-07-25 — цену ставит СЕРВЕР, а не клиент. set_class входит в
+            # _ACTIONS_WITH_OWN_PRICING, значит ACTION_PRICES_DEFAULT его не
+            # покрывает, и _enforce_price брал `data.get("price")` ПРЯМО ИЗ ТЕЛА
+            # запроса зрителя. Сейчас это безвредно (действие бесплатное, фронт
+            # шлёт 0), но стоило бы сделать его платным правкой одного фронта —
+            # и зритель смог бы прислать 0. Фиксируем на сервере.
+            data["price"] = 0
+            # Sprint 5.10c: pass current gear_tier — иначе SetClassHandler даёт
+            # random T0-T2 шмот, viewer теряет прогрессию tier'а.
+            cur = await conn.execute(
+                "SELECT gear_tier FROM bannerlord_heroes "
+                "WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            row = await cur.fetchone()
+            data["gear_tier"] = (row[0] if row else 0) or 0
+
+        # Hero check (skip для adopt/respawn actions)
+        if action_type not in _ACTIONS_WITHOUT_HERO_REQUIREMENT:
+            cur = await conn.execute(
+                "SELECT is_alive FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+                (channel_id, username))
+            hero_row = await cur.fetchone()
+            if not hero_row:
+                return {
+                    "success": False,
+                    "message": "Сначала нужно создать героя. Action hero.create.",
+                }
+            if not hero_row[0]:
+                return {
+                    "success": False,
+                    "message": "Твой hero мёртв. Подожди heir succession.",
+                }
+        else:
+            # Для hero.create — наоборот, проверка что hero ещё НЕ существует.
+            if action_type == "hero.create":
+                cur = await conn.execute(
+                    "SELECT is_alive FROM bannerlord_heroes WHERE channel_id=? AND username=?",
+                    (channel_id, username))
+                hero_row = await cur.fetchone()
+                if hero_row and hero_row[0]:
+                    return {
+                        "success": False,
+                        "message": "У тебя уже есть живой герой.",
+                    }
+
+        # Balance check + atomic charge
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+
+            # Sprint 5.32 (BLT-parity H1) — client_action_id idempotency.
+            # Frontend генерит crypto.randomUUID() при первом отправлении
+            # action'а и шлёт его в payload. При retry (network blip /
+            # multi-click / proxy replay) — backend видит конфликт по
+            # UNIQUE (channel_id, module_id, client_action_id) и возвращает
+            # прежний result БЕЗ charge'а. Защита от двойного списания
+            # крустиков. BLT использует Twitch redemption-id (natural key),
+            # у нас natural key'а нет — client_action_id от frontend.
+            client_action_id = (data.get("client_action_id") or "").strip() or None
+            if client_action_id:
+                cur_idem = await conn.execute(
+                    "SELECT action_id, type, status, json_extract(data, '$.initiated_by') FROM module_actions "
+                    "WHERE channel_id=? AND module_id='bannerlord' "
+                    "AND client_action_id=? LIMIT 1",
+                    (channel_id, client_action_id))
+                idem_row = await cur_idem.fetchone()
+                if idem_row:
+                    prev_action_id, prev_type, prev_status, prev_owner = idem_row
+                    from modules.bannerlord.equipment_shop import ACTION_TYPES
+                    from modules.bannerlord.builds import ACTION_TYPES as BUILD_ACTIONS
+                    if action_type in ACTION_TYPES | BUILD_ACTIONS | {'power.activate'} and (prev_owner != username or prev_type != action_type):
+                        await conn.rollback()
+                        return {"success": False, "reason": "client_action_conflict", "message": "Идентификатор действия уже использован"}
+                    await conn.execute("ROLLBACK")
+                    log.info(
+                        "[bannerlord IDEM] retry hit ch=%s user=%s "
+                        "client_id=%s → reusing action_id=%s (type=%s status=%s)",
+                        channel_id, username, client_action_id,
+                        prev_action_id, prev_type, prev_status)
+                    return {
+                        "success":          True,
+                        "message":          "Действие уже принято",
+                        "action_id":        prev_action_id,
+                        "idempotent_replay": True,
+                    }
+
+            if action_type in ("hero.set_class", "hero.upgrade_gear", "hero.reequip_gear"):
+                cur = await conn.execute(
+                    "SELECT 1 FROM bannerlord_equipment_sessions WHERE channel_id=? AND session_id != '' LIMIT 1",
+                    (channel_id,))
+                if await cur.fetchone():
+                    await conn.rollback()
+                    return {"success": False, "reason": "equipment_shop_enabled",
+                            "message": "Выбирай снаряжение в магазине во вкладке Инвентарь"}
+
+            from modules.bannerlord.equipment_shop import ACTION_TYPES, validate_tx
+            if action_type in ACTION_TYPES:
+                equipment_refusal = await validate_tx(conn, channel_id, username, action_type, data)
+                if equipment_refusal:
+                    await conn.rollback()
+                    return equipment_refusal
+                price = 0
+
+            from modules.bannerlord.builds import ACTION_TYPES as BUILD_ACTIONS, validate_tx as validate_build_tx
+            if action_type in BUILD_ACTIONS or action_type == 'power.activate':
+                build_refusal = await validate_build_tx(conn, channel_id, username, action_type, data)
+                if build_refusal:
+                    await conn.rollback()
+                    return build_refusal
+                if action_type in BUILD_ACTIONS:
+                    price = 0
+
+            # Sprint 5.31 #45e (audit MED-6) — tournament.predict dedup
+            # ВНУТРИ TX, защищён BEGIN IMMEDIATE lock'ом. Раньше SELECT был
+            # отдельной connection — два concurrent прогноза от того же юзера
+            # обходили dedup и оба charge'или.
+            if action_type == "tournament.predict":
+                cur = await conn.execute(
+                    "SELECT 1 FROM bannerlord_tournament_bets "
+                    "WHERE channel_id=? AND bettor=? AND round_index=?",
+                    (channel_id, username, data.get("round_index", 0)))
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": f"Ты уже ставил в раунде "
+                                   f"{int(data.get('round_index', 0)) + 1}",
+                    }
+
+            # Sprint 5.31 #45d (audit HIGH-5) — для hero.join_tournament: проверка
+            # status + dedup ВНУТРИ BEGIN IMMEDIATE (один lock с charge). Раньше
+            # эти SELECT'ы были вне TX — race window между ними и charge.
+            if action_type == "hero.join_tournament":
+                cur = await conn.execute(
+                    "SELECT status FROM bannerlord_tournament_state WHERE channel_id=?",
+                    (channel_id,))
+                _row = await cur.fetchone()
+                _status = (_row[0] if _row else "idle") or "idle"
+                if _status == "running":
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": "Турнир уже идёт — подожди следующий",
+                    }
+                # Already in queue?
+                cur = await conn.execute(
+                    "SELECT 1 FROM bannerlord_tournament_queue "
+                    "WHERE channel_id=? AND username=?",
+                    (channel_id, username))
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": "Ты уже в очереди на турнир",
+                    }
+                # Pending join action в outbox (не ACK'нут модом)? Защита от
+                # double-click: ACK задержался, второй request видит queue
+                # пустым но action ещё in-flight.
+                cur = await conn.execute(
+                    "SELECT 1 FROM module_actions "
+                    "WHERE channel_id=? AND module_id='bannerlord' "
+                    "AND type='hero.join_tournament' "
+                    "AND json_extract(data, '$.initiated_by')=? "
+                    "AND status IN ('queued','dispatched') "
+                    "LIMIT 1",
+                    (channel_id, username))
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    log.info("[join_tournament] dedup blocked @%s ch=%s "
+                             "(pending action in module_actions)",
+                             username, channel_id)
+                    return {
+                        "success": False,
+                        "message": "Заявка уже отправлена — подожди подтверждения",
+                    }
+
+            # Sprint 5.31 #45d (audit HIGH-6) — atomic single-shot UPDATE
+            # вместо SELECT-then-UPDATE. Старый pattern полагался на
+            # in-process asyncio.Lock (см. _user_action_locks) — бесполезен
+            # под --workers > 1. UPDATE с условием `points >= ?` атомарен
+            # на уровне SQLite даже без in-process lock'а; rowcount=0 =
+            # недостаточно крустиков (либо row не существует — viewer
+            # никогда не зарабатывал).
+            if price > 0:
+                cur = await conn.execute(
+                    "UPDATE viewers SET points = points - ? "
+                    "WHERE channel_id=? AND username=? AND points >= ?",
+                    (price, channel_id, username, price))
+                if cur.rowcount != 1:
+                    # Re-read balance чтобы вернуть точное сообщение.
+                    cur2 = await conn.execute(
+                        "SELECT points FROM viewers WHERE channel_id=? AND username=?",
+                        (channel_id, username))
+                    _row = await cur2.fetchone()
+                    _balance = (_row[0] if _row else 0) or 0
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": f"Недостаточно крустиков: {_balance} < {price}",
+                    }
+            # price=0 → ничего не списываем (freebie actions).
+
+            # Enqueue action в outbox (через тот же conn — atomic с charge).
+            # tournament.predict — backend-only (не идёт в mod), пропускаем enqueue.
+            action_id = uuid.uuid4().hex
+            payload = dict(data)
+            payload["initiated_by"] = username
+            # SECURITY (2026-06-18): форсим mod-bound target на requester'а для
+            # всех self-actions — иначе spoofed data.target заставил бы мод
+            # действовать на ЧУЖОГО героя (mod резолвит target ?? initiated_by).
+            # Мутируем КОПИЮ (payload), не data → backend-логика (напр. запись
+            # ставки по data.get("target") ниже) не задета. Исключения —
+            # _CROSS_USER_TARGET_ACTIONS (легитимный viewer↔viewer target).
+            if action_type not in _CROSS_USER_TARGET_ACTIONS:
+                payload["target"] = username
+            if action_type not in _BACKEND_ONLY_ACTIONS:
+                # Sprint 5.32 (BLT-parity H1) — записываем client_action_id
+                # для идемпотентности. UNIQUE partial INDEX в m46 блокирует
+                # повторные INSERT'ы с тем же client_action_id (хотя мы уже
+                # проверили выше — это второй слой защиты против гонки между
+                # SELECT и INSERT внутри одной TX).
+                await conn.execute("""
+                    INSERT INTO module_actions
+                        (channel_id, module_id, action_id, type, data, status,
+                         client_action_id)
+                    VALUES (?, 'bannerlord', ?, ?, ?, 'queued', ?)
+                """, (channel_id, action_id, action_type,
+                      json.dumps(payload, ensure_ascii=False),
+                      client_action_id))
+
+            # Sprint 5.3: tournament.predict — записываем в predictions table
+            # (легаси-имя таблицы bannerlord_tournament_bets — DB-internals, не wire).
+            if action_type == "tournament.predict":
+                await conn.execute("""
+                    INSERT INTO bannerlord_tournament_bets
+                        (channel_id, bettor, target, amount, round_index)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (channel_id, username,
+                      data.get("target"),
+                      data.get("amount"),
+                      data.get("round_index", 0)))
+
+            # Sprint 5.29 BLT-parity #6: hero.smith_item — backend-only trophy.
+            # Generates random custom item, inserts в bannerlord_custom_items.
+            # Mod не задействуется (текущий MVP); future iteration добавит
+            # in-game ItemObject creation через mod handler.
+            smith_result = None
+            if action_type == "hero.smith_item":
+                base_type = (data.get("base_type") or "").strip().lower()
+                if base_type not in ("weapon", "armor", "horse"):
+                    # Этой validation должен был быть сделан до — но guard на всякий
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": "base_type должен быть weapon / armor / horse",
+                    }
+
+                # Sprint 5.32 (BLT-parity M15) — class requirement для weapon smith.
+                # BLT pattern (SmithItem.cs:94-97): weapon без class — REFUSE.
+                # Без spec'и crafted weapon будет mismatched с hero'й equipment'ом
+                # (archer smith'ит two-handed → не может equip без переcasting).
+                # Class lock защищает от random смитов "лишь бы потратить крустики".
+                if base_type == "weapon":
+                    cur_cls = await conn.execute(
+                        "SELECT class_key FROM bannerlord_hero_class "
+                        "WHERE channel_id=? AND username=?",
+                        (channel_id, username))
+                    cls_row = await cur_cls.fetchone()
+                    if not cls_row or not cls_row[0]:
+                        await conn.execute("ROLLBACK")
+                        return {
+                            "success": False,
+                            "message": "Сначала выбери класс — без него виверу не "
+                                       "подходит специализированное оружие.",
+                        }
+
+                # Inventory cap
+                cur_inv = await conn.execute(
+                    "SELECT COUNT(*) FROM bannerlord_custom_items "
+                    "WHERE channel_id=? AND owner_username=?",
+                    (channel_id, username))
+                inv_row = await cur_inv.fetchone()
+                if inv_row and inv_row[0] >= 50:
+                    await conn.execute("ROLLBACK")
+                    return {
+                        "success": False,
+                        "message": "Инвентарь полон (50). Дискарди что-то.",
+                    }
+                # Generate inline (reuse module logic).
+                from routes.bannerlord_custom_items import _generate_item, RARITY_COLORS
+                item = _generate_item(base_type)
+                cur_smith = await conn.execute(
+                    "INSERT INTO bannerlord_custom_items "
+                    "(channel_id, owner_username, base_type, base_subtype, "
+                    " custom_name, rarity, tier, icon, "
+                    " damage_bonus, armor_bonus, weight_factor, speed_factor) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                    (channel_id, username, item["base_type"], item["base_subtype"],
+                     item["custom_name"], item["rarity"], item["tier"], item["icon"],
+                     item.get("damage_bonus", 0), item.get("armor_bonus", 0),
+                     item.get("weight_factor", 1.0), item.get("speed_factor", 1.0)))
+                smith_row = await cur_smith.fetchone()
+                item_id_db = smith_row[0] if smith_row else 0
+                smith_result = {**item, "id": item_id_db,
+                                "color": RARITY_COLORS[item["rarity"]]}
+                log.info("[bannerlord SMITH] user=%s ch=%s base=%s rarity=%s '%s'",
+                         username, channel_id, base_type,
+                         item["rarity"], item["custom_name"])
+
+            # Sprint 5.33 (BLT-parity FAM) — family proposal handlers.
+            # Все 3 — backend-only state machine. On accept в `respond_marriage`
+            # backend enqueue'ит mod-action `hero.activate_marriage` сам.
+            family_result = None
+            if action_type == "hero.propose_marriage":
+                from routes.bannerlord_family import handle_propose_marriage
+                family_result = await handle_propose_marriage(conn, channel_id, username, data)
+                if not family_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return family_result
+            elif action_type == "hero.respond_marriage_proposal":
+                from routes.bannerlord_family import handle_respond_marriage
+                family_result = await handle_respond_marriage(conn, channel_id, username, data)
+                if not family_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return family_result
+            elif action_type == "hero.cancel_proposal":
+                from routes.bannerlord_family import handle_cancel_proposal
+                family_result = await handle_cancel_proposal(conn, channel_id, username, data)
+                if not family_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return family_result
+
+            # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan handlers.
+            vassal_result = None
+            if action_type == "hero.create_vassal_clan":
+                from routes.bannerlord_vassals import handle_create_vassal
+                vassal_result = await handle_create_vassal(conn, channel_id, username, data)
+                if not vassal_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return vassal_result
+            elif action_type == "hero.rename_vassal":
+                from routes.bannerlord_vassals import handle_rename_vassal
+                vassal_result = await handle_rename_vassal(conn, channel_id, username, data)
+                if not vassal_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return vassal_result
+
+            # Sprint 5.33 (BLT-parity SIEGE) — party order handlers.
+            siege_result = None
+            if action_type == "hero.party_order_set":
+                from routes.bannerlord_party_orders import handle_set_party_order
+                siege_result = await handle_set_party_order(conn, channel_id, username, data)
+                if not siege_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return siege_result
+            elif action_type == "hero.party_order_release":
+                from routes.bannerlord_party_orders import handle_release_party_order
+                siege_result = await handle_release_party_order(conn, channel_id, username, data)
+                if not siege_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return siege_result
+
+            # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom.
+            diplo_result = None
+            if action_type == "hero.enact_policy":
+                from routes.bannerlord_diplomacy import handle_enact_policy
+                diplo_result = await handle_enact_policy(conn, channel_id, username, data)
+                if not diplo_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return diplo_result
+            elif action_type == "hero.make_peace":
+                from routes.bannerlord_diplomacy import handle_make_peace
+                diplo_result = await handle_make_peace(conn, channel_id, username, data)
+                if not diplo_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return diplo_result
+            elif action_type == "hero.pay_ransom":
+                from routes.bannerlord_diplomacy import handle_pay_ransom
+                diplo_result = await handle_pay_ransom(conn, channel_id, username, data)
+                if not diplo_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return diplo_result
+            elif action_type == "kingdom.set_tax_rate":
+                from routes.bannerlord_diplomacy import handle_set_kingdom_tax
+                diplo_result = await handle_set_kingdom_tax(conn, channel_id, username, data)
+                if not diplo_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return diplo_result
+
+            # Sprint 5.33 (BLT-parity SHOP) — workshops passive income.
+            shop_result = None
+            if action_type == "hero.buy_workshop":
+                from routes.bannerlord_workshops import handle_buy_workshop
+                shop_result = await handle_buy_workshop(conn, channel_id, username, data)
+                if not shop_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return shop_result
+            elif action_type == "hero.sell_workshop":
+                from routes.bannerlord_workshops import handle_sell_workshop
+                shop_result = await handle_sell_workshop(conn, channel_id, username, data)
+                if not shop_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return shop_result
+
+            # Sprint 5.33 (BLT-parity FIEF) — tribute boost.
+            fief_result = None
+            if action_type == "hero.tribute_boost":
+                from routes.bannerlord_fiefs import handle_tribute_boost
+                fief_result = await handle_tribute_boost(conn, channel_id, username, data)
+                if not fief_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return fief_result
+
+            # Sprint 5.33 (BLT-parity CARAVAN) — caravan lifecycle.
+            caravan_result = None
+            if action_type == "hero.buy_caravan":
+                from routes.bannerlord_caravans import handle_buy_caravan
+                caravan_result = await handle_buy_caravan(conn, channel_id, username, data)
+                if not caravan_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return caravan_result
+            elif action_type == "hero.sell_caravan":
+                from routes.bannerlord_caravans import handle_sell_caravan
+                caravan_result = await handle_sell_caravan(conn, channel_id, username, data)
+                if not caravan_result.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return caravan_result
+
+            # Army MVP — server-side гейты hero.army_create (лидер клана +
+            # королевство + не в армии) ДО commit'а charge'а на 1000💎.
+            # НЕ backend-only: generic enqueue выше остаётся, ROLLBACK его откатит.
+            if action_type == "hero.army_create":
+                from routes.bannerlord_party_orders import handle_army_create_gate
+                army_gate = await handle_army_create_gate(conn, channel_id, username, data)
+                if not army_gate.get("success"):
+                    await conn.execute("ROLLBACK")
+                    return army_gate
+
+            # Special case в той же TX: UPSERT bannerlord_hero_class.
+            # Backend остаётся source-of-truth по class даже если mod offline.
+            if action_type == "hero.set_class":
+                class_key_lower = data.get("class_key", "").strip().lower()
+                await conn.execute("""
+                    INSERT INTO bannerlord_hero_class
+                        (channel_id, username, class_key, class_level, chosen_at)
+                    VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+                    ON CONFLICT(channel_id, username) DO UPDATE SET
+                        class_key   = excluded.class_key,
+                        class_level = 1,
+                        chosen_at   = CURRENT_TIMESTAMP
+                """, (channel_id, username, class_key_lower))
+
+            # Sprint M21: hero.upgrade_gear — backend НЕ обновляет gear_tier.
+            # Mod source-of-truth: списывает Hero.Gold и пушит
+            # hero.gear_tier_changed event только при successful upgrade.
+            # Это страхует race condition если mod не может списать (insufficient
+            # in-game gold) — backend остаётся синхронизирован с реальным state.
+
+            await conn.commit()
+        except Exception as ex:
+            # Sprint 5.29 audit fix #34: было silent — exception swallowed +
+            # raised, FastAPI default handler logged opaque 500. Теперь
+            # explicit logger.exception с context.
+            try:
+                await conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            log.exception(
+                "[bannerlord buy_action] commit failed ch=%s user=%s "
+                "action=%s price=%s: %s",
+                channel_id, username, action_type, price, ex)
+            raise
+    return (action_id, smith_result)
+
+
+def _post_commit_side_effects(action_type, data, cooldown_key, username, channel_id):
+    """Phase H — post-commit side-effects (extracted verbatim).
+
+    Runs AFTER the TX commits: set_cooldown (a failed commit must not
+    consume cooldown) + overlay power-event broadcast. Returns
+    cooldown_applied_s for the response.
+    """
+    # Sprint 4.8/5.0: запустить cooldown ПОСЛЕ commit (если упало — cooldown
+    # не считается). Происходит вне TX — cooldown это in-memory state.
+    # cooldown_applied_s — длительность запущенного CD; возвращаем frontend'у
+    # чтобы кнопка сразу показала отсчёт (без второго клика / ожидания poll'а).
+    cooldown_applied_s = 0
+    if cooldown_key:
+        from modules.bannerlord._adapter import (
+            set_cooldown, POWER_COOLDOWNS, ACTION_COOLDOWNS_SEC,
+        )
+        set_cooldown(channel_id, username, cooldown_key)
+        cooldown_applied_s = (
+            POWER_COOLDOWNS.get(cooldown_key)
+            or ACTION_COOLDOWNS_SEC.get(cooldown_key)
+            or 0
+        )
+
+    # Sprint 5.30 #41 — broadcast power activation event для OBS overlay.
+    # Append to ring buffer per-channel; overlay.html polls /api/overlay/bannerlord/power-events.
+    if action_type == "power.activate":
+        try:
+            _power_key = (data.get("power_key") or "").strip().lower()
+            _push_power_event(
+                channel_id=channel_id,
+                user=username,
+                power_key=_power_key,
+                value=float(data.get("value") or 0),
+                duration_s=float(data.get("duration_s") or 0),
+            )
+        except Exception as _pex:
+            log.warning("[bannerlord overlay power-event] push failed: %s", _pex)
+    return cooldown_applied_s
+
+
+async def _bannerlord_buy_action_locked(request, username, channel_id, action_type, data):
+    """Sprint 5.29: extracted body of bannerlord_buy_action — runs под user_lock."""
+    # 2026-09-01 — аварийная пауза стримера. Стоит ВНУТРИ кассы, а не во
+    # внешней HTTP-ручке: ручка не единственный вход, и тесты кассы бьют именно
+    # сюда. Проверка ДО списания — денег не взяли, значит и возвращать нечего.
+    # Второй затвор — выдача заданий моду (routes/module_api.py): без него уже
+    # стоящее в очереди уехало бы в игру.
+    from actions_pause import is_paused as _is_paused, PAUSED_MESSAGE as _PAUSED_MSG
+    async with get_db()._connect() as _conn_pause:
+        if await _is_paused(_conn_pause, channel_id):
+            return {"success": False, "message": _PAUSED_MSG, "paused": True}
+
+
+    if action_type not in _PURCHASABLE_ACTIONS:
+        return {"success": False, "message": f"Action '{action_type}' не разрешён"}
+
+    # ROADMAP 2.3 — учёт использования фич (best-effort, не блокирует действие).
+    from feature_usage import record_feature_use
+    await record_feature_use(channel_id, f"bannerlord:{action_type}")
+
+    # Phase C — per-action validation + price-prep.
+    refusal = await _prepare_action(username, channel_id, action_type, data)
+    if refusal is not None:
+        return refusal
+
+    # Phase D — server-side price enforcement.
+    price = _enforce_price(action_type, data, username, channel_id)
+    if isinstance(price, dict):
+        return price
+
+    # Phase E — role/perk resolution + role-gate.
+    _perk = _resolve_perks(request, action_type, price, username, channel_id, data)
+    if isinstance(_perk, dict):
+        return _perk
+    price, price_mult, reward_mult, role_label = _perk
+
+    # Phase F — cooldown-key compute + pre-check.
+    cooldown_key = _resolve_cooldown(action_type, data, username, channel_id)
+    if isinstance(cooldown_key, dict):
+        return cooldown_key
+
+    # Phase G — atomic charge + execute + enqueue (BEGIN IMMEDIATE).
+    _tx = await _charge_execute_enqueue(action_type, data, price, username, channel_id)
+    if isinstance(_tx, dict):
+        return _tx
+    action_id, smith_result = _tx
+
+    # Phase H — post-commit side-effects (cooldown + overlay).
+    if action_type == 'power.activate' and data.get('_weapon_build'):
+        cooldown_key = 'weapon_power'
+    cooldown_applied_s = _post_commit_side_effects(
+        action_type, data, cooldown_key, username, channel_id)
+
+    # Sprint 5.29 audit fix #34: log enqueued action_id для трассировки.
+    # Frontend получает action_id в response — теперь и в логах есть.
+    # Когда mod пушит ack — можно matched against action_id.
+    if action_type not in _BACKEND_ONLY_ACTIONS:
+        log.info(
+            "[bannerlord ENQUEUE] action_id=%s action=%s user=%s ch=%s price=%s",
+            action_id, action_type, username, channel_id, price)
+
+    # Sprint 5.29 BLT-parity #6: smith result returned inline.
+    if action_type == "hero.smith_item" and smith_result:
+        return {
+            "success":    True,
+            "action_id":  action_id,
+            "charged":    price,
+            "message":    f"{smith_result['icon']} Создан: «{smith_result['custom_name']}» ({smith_result['rarity']})",
+            "item":       smith_result,
+            "perk":       role_label,
+            "perk_price_mult": price_mult,
+            "cooldown_applied_s": cooldown_applied_s,
+        }
+
+    return {
+        "success":    True,
+        "action_id":  action_id,
+        "charged":    price,
+        "message":    f"⚔️ Action {action_type} в очереди ({price}💎 списано)",
+        "perk":       role_label,
+        "perk_price_mult": price_mult,
+        "cooldown_applied_s": cooldown_applied_s,
+    }
+
+
+# ════════ Sprint 5.26: Clan Upgrades (BLT-style) ════════
+
+import json as _bnr_clan_json
+
+
+@router.get("/api/bannerlord/clan-upgrades")
+async def bannerlord_clan_upgrades_list(request: Request):
+    """Список clan upgrades для текущего канала + own/locked status юзера.
+
+    Response:
+      {
+        success: True,
+        upgrades: [
+          {upgrade_id, name, description, tier, required_upgrade_id,
+           gold_cost, effects, owned: bool, locked: bool},
+          ...
+        ],
+        hero_gold: int
+      }
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT upgrade_id, name, description, tier, required_upgrade_id, "
+            "gold_cost, effects_json FROM bannerlord_clan_upgrades_catalog "
+            "WHERE channel_id = ? AND deprecated = 0 "
+            "ORDER BY tier ASC, gold_cost ASC",
+            (channel_id,)
+        )
+        rows = await cur.fetchall()
+
+        cur = await conn.execute(
+            "SELECT upgrade_id FROM bannerlord_clan_upgrades_owned "
+            "WHERE channel_id = ? AND username = ?",
+            (channel_id, username)
+        )
+        owned_set = {r[0] for r in await cur.fetchall()}
+
+    upgrades = []
+    for upg_id, name, desc, tier, req, cost, effects_json in rows:
+        owned = upg_id in owned_set
+        # Locked если prereq exists и не куплен
+        locked = bool(req and req not in owned_set)
+        upgrades.append({
+            "upgrade_id":          upg_id,
+            "name":                name,
+            "description":         desc or '',
+            "tier":                tier,
+            "required_upgrade_id": req,
+            "gold_cost":           cost,
+            "effects":             _bnr_clan_json.loads(effects_json or '{}'),
+            "owned":               owned,
+            "locked":              locked and not owned,
+        })
+
+    hero_gold = await _fetch_hero_gold(channel_id, username)
+    return {"success": True, "upgrades": upgrades, "hero_gold": hero_gold}
+
+
+@router.get("/api/bannerlord/clan-upgrades/all-owners")
+async def bannerlord_clan_upgrades_all_owners(channel_id: int = 0):
+    """Возвращает MAP {username → [upgrade_id, ...]} для всех heroes канала.
+
+    Public-ish (channel_id query — нет JWT т.к. mod вызывает с module token).
+    Mod polls этот endpoint раз в N минут чтобы знать актуальные owned upgrades
+    каждого hero для daily tick применения эффектов.
+
+    Также возвращает effects для каждого upgrade чтобы mod не дёргал отдельный
+    catalog endpoint.
+    """
+    from dependencies import resolve_channel_id_or_default
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
+
+    db = get_db()
+    async with db._connect() as conn:
+        # Catalog (только active)
+        cur = await conn.execute(
+            "SELECT upgrade_id, effects_json FROM bannerlord_clan_upgrades_catalog "
+            "WHERE channel_id = ? AND deprecated = 0",
+            (channel_id,)
+        )
+        catalog = {}
+        for upg_id, eff_json in await cur.fetchall():
+            try:
+                catalog[upg_id] = _bnr_clan_json.loads(eff_json or '{}')
+            except Exception:
+                catalog[upg_id] = {}
+
+        # Owned per username
+        cur = await conn.execute(
+            "SELECT username, upgrade_id FROM bannerlord_clan_upgrades_owned "
+            "WHERE channel_id = ?",
+            (channel_id,)
+        )
+        owners = {}
+        for username, upg_id in await cur.fetchall():
+            owners.setdefault(username, []).append(upg_id)
+
+    return {"success": True, "owners": owners, "catalog_effects": catalog}
+
+
+@router.post("/api/bannerlord/clan-upgrades/buy")
+async def bannerlord_clan_upgrades_buy(request: Request):
+    """Купить апгрейд(ы) клана за hero.gold.
+
+    Sprint 5.33 BULK (BLT-parity Lait fork inspiration) — теперь принимает
+    либо одиночный `upgrade_id` (legacy), либо list `upgrade_ids` для bulk
+    purchase. Все апгрейды покупаются **атомарно** — или все, или ни одного
+    (если gold кончится).
+
+    Body:
+      {"upgrade_id": str}          — single (legacy)
+      {"upgrade_ids": [str, ...]}  — bulk (NEW), max 10 за раз
+
+    Валидации (для каждого upgrade):
+      - exists и not deprecated
+      - не куплен уже
+      - prereq куплен (если есть)
+      - сумма gold >= sum(cost'ов) — atomic check
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    db = get_db()
+    if not await _require_live_mod(db, channel_id):
+        return {"success": False,
+                "message": "Bannerlord сейчас не подключён — покупка не списана"}
+
+    data = await request.json()
+    # Normalize input — either bulk list или single id (backward-compat).
+    bulk_ids = data.get("upgrade_ids")
+    if isinstance(bulk_ids, list) and bulk_ids:
+        upgrade_ids = [str(x).strip() for x in bulk_ids if str(x).strip()]
+    else:
+        single = (data.get("upgrade_id") or '').strip()
+        upgrade_ids = [single] if single else []
+    if not upgrade_ids:
+        return {"success": False, "message": "upgrade_id/upgrade_ids обязателен"}
+    # Cap bulk size — anti-spam + UI ergonomics
+    if len(upgrade_ids) > 10:
+        return {"success": False, "message": "Максимум 10 апгрейдов за раз"}
+    # Dedup в payload (защита если фронт прислал дубликаты)
+    upgrade_ids = list(dict.fromkeys(upgrade_ids))
+
+    async with db._connect() as conn:
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+
+            # Phase 1 — load & validate ALL upgrades. Collect total cost.
+            # Bulk failure mode: на первой проблеме ROLLBACK с понятным message.
+            validated = []  # list of (upgrade_id, name, cost)
+            total_cost = 0
+            for uid in upgrade_ids:
+                cur = await conn.execute(
+                    "SELECT name, required_upgrade_id, gold_cost, deprecated "
+                    "FROM bannerlord_clan_upgrades_catalog "
+                    "WHERE channel_id = ? AND upgrade_id = ?",
+                    (channel_id, uid))
+                row = await cur.fetchone()
+                if not row:
+                    await conn.execute("ROLLBACK")
+                    return {"success": False,
+                            "message": f"Апгрейд '{uid}' не найден"}
+                name, req, cost, deprecated = row
+                if deprecated:
+                    await conn.execute("ROLLBACK")
+                    return {"success": False,
+                            "message": f"'{name}' недоступен"}
+                cur = await conn.execute(
+                    "SELECT 1 FROM bannerlord_clan_upgrades_owned "
+                    "WHERE channel_id = ? AND username = ? AND upgrade_id = ?",
+                    (channel_id, username, uid))
+                if await cur.fetchone():
+                    await conn.execute("ROLLBACK")
+                    return {"success": False,
+                            "message": f"'{name}' уже куплено"}
+                # Prereq check — может быть в samem bulk batch'е выше (chain
+                # purchase). Учитываем both owned-in-DB и validated-in-list.
+                if req:
+                    cur = await conn.execute(
+                        "SELECT 1 FROM bannerlord_clan_upgrades_owned "
+                        "WHERE channel_id = ? AND username = ? AND upgrade_id = ?",
+                        (channel_id, username, req))
+                    has_prereq = await cur.fetchone() is not None
+                    if not has_prereq:
+                        # Check если prereq в bulk batch'е выше — chained buy.
+                        has_prereq = any(v[0] == req for v in validated)
+                    if not has_prereq:
+                        await conn.execute("ROLLBACK")
+                        return {"success": False,
+                                "message": f"Для '{name}' нужен сначала prereq '{req}'"}
+                validated.append((uid, name, cost))
+                total_cost += cost
+
+            # Phase 2 — gold check (sum), atomic.
+            cur = await conn.execute(
+                "SELECT gold FROM bannerlord_heroes WHERE channel_id = ? AND username = ?",
+                (channel_id, username))
+            hero_row = await cur.fetchone()
+            current_gold = (hero_row[0] if hero_row else 0) or 0
+            if current_gold < total_cost:
+                await conn.execute("ROLLBACK")
+                return {
+                    "success": False,
+                    "message": f"Нужно {total_cost:,}💰 (у тебя {current_gold:,}💰) для {len(validated)} апгрейдов",
+                }
+
+            # The mod debits real Hero.Gold. Ownership is committed only after
+            # its durable confirmation event, preventing cached-gold cashback.
+            cur = await conn.execute(
+                "SELECT data FROM module_actions WHERE channel_id=? "
+                "AND type='hero.buy_clan_upgrades' "
+                "AND status IN ('queued','dispatched','acked') "
+                "AND datetime(created_at)>=datetime('now','-1 day')", (channel_id,))
+            requested = set(upgrade_ids)
+            for pending_row in await cur.fetchall():
+                try:
+                    pending_data = json.loads(pending_row[0] or "{}")
+                except Exception:
+                    continue
+                if (pending_data.get("initiated_by") or "").lower() == username \
+                        and requested.intersection(pending_data.get("upgrade_ids") or []):
+                    await conn.execute("ROLLBACK")
+                    return {"success": False,
+                            "message": "Покупка этого апгрейда уже обрабатывается"}
+            action_id = uuid.uuid4().hex
+            payload = {
+                "initiated_by": username, "target": username,
+                "upgrade_ids": [v[0] for v in validated],
+                "upgrades": [{"upgrade_id": uid, "name": name, "gold_cost": cost}
+                             for uid, name, cost in validated],
+                "hero_gold_cost": total_cost,
+            }
+            await enqueue_mod_action(conn, channel_id, action_id,
+                                     "hero.buy_clan_upgrades", payload,
+                                     {"price": 0})
+            purchased_names = [v[1] for v in validated]
+
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            raise
+
+    if len(validated) == 1:
+        # Backward-compat response shape.
+        uid, name, cost = validated[0]
+        return {
+            "success":    True,
+            "pending":    True,
+            "upgrade_id": uid,
+            "message":    f"✨ Покупка {name} отправлена в игру (-{cost:,}💰)",
+        }
+    else:
+        log.info("[BNR-BULK] ch=%s user=@%s bought %d upgrades total=%d💰",
+                 channel_id, username, len(validated), total_cost)
+        return {
+            "success":   True,
+            "pending":   True,
+            "bulk":      True,
+            "count":     len(validated),
+            "upgrade_ids": [v[0] for v in validated],
+            "total_cost": total_cost,
+            "message":   f"✨ Куплено {len(validated)} апгрейдов: " +
+                         ", ".join(purchased_names[:3]) +
+                         (f" и ещё {len(purchased_names)-3}" if len(purchased_names) > 3 else "") +
+                         f" (-{total_cost:,}💰)",
+        }
+
+
+# ════════ Sprint 5.33 (BLT-parity HERITAGE) ════════════════════════════════════
+
+@router.get("/api/bannerlord/inheritance-log")
+async def bannerlord_inheritance_log(request: Request, limit: int = 20):
+    """История наследования — assets, переданные heir'у viewer'а после death.
+    Frontend "Наследие" section показывает audit entries для transparency.
+    """
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+    limit = max(1, min(int(limit or 20), 100))
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT id, parent_username, heir_hero_id, asset_type, asset_ref, "
+            "       asset_name, total_value, inherited_at "
+            "FROM bannerlord_inheritance_log "
+            "WHERE channel_id=? AND parent_username=? "
+            "ORDER BY inherited_at DESC LIMIT ?",
+            (channel_id, username, limit))
+        rows = await cur.fetchall()
+
+    items = [{
+        "id":              r[0],
+        "parent_username": r[1],
+        "heir_hero_id":    r[2],
+        "asset_type":      r[3],
+        "asset_ref":       r[4],
+        "asset_name":      r[5],
+        "total_value":     r[6] or 0,
+        "inherited_at":    r[7],
+    } for r in rows]
+    return {"success": True, "items": items}

@@ -1,0 +1,32 @@
+ShedLink 0.0.5 — Walkthrough Guide and Change Log
+
+REVIEW SESSION / GAME AVAILABILITY
+This extension integrates with games running on the broadcaster's PC. The review channel cannot remain live throughout the review period. Please contact nasulskii6@gmail.com to arrange a live review session and propose a time. We will confirm availability and run the required game and connector for the agreed session. Reviewers do not need to install the game or any game mod on their own computer. Game-dependent actions require the broadcaster's game to be running; an offline status outside an arranged session is expected.
+
+VIEWER WALKTHROUGH
+1. Open the review channel and open ShedLink using the extension control in the video player. On mobile, open the extension's mobile view.
+2. Accept Twitch's extension disclosures if shown. Allow the extension to share your Twitch identity when prompted to use account-specific features.
+3. Open the main viewer interface. Check the displayed profile and virtual currency balance. The interface is primarily in Russian.
+4. Explore quests, cases, minigames and the pet interface. Cases can be opened when available; opening a case does not require payment. The currency/drop-rate disclosures and contest rules are available inside the extension in Russian and English.
+5. During the scheduled game session, open the game integration section. Follow the character setup prompt if you do not have a character on this channel. The broadcaster will assist with the game environment.
+6. For Bannerlord, open the hero profile and inspect attributes, equipment and party information. Select an available action, read its displayed price and requirements, and confirm if prompted. Observe the resulting status in the extension and the game on stream. Some actions depend on the hero's current campaign state.
+7. Check a currently unavailable action and its displayed reason. If an action is accepted for processing, wait for its result before repeating it. A queued request is not an immediate game outcome.
+8. Other supported game integrations are tested in separate sessions with the corresponding game running; they are not expected to be online simultaneously.
+9. For broadcaster configuration, open the extension's Configure view in Twitch's Extensions Manager. Any live game demonstration or broadcaster-side steps can be coordinated using the contact above.
+
+VIRTUAL CURRENCY
+Crustics are internal activity points. They cannot be purchased with money or Bits, cashed out, or transferred between viewers. Game gold is a separate in-game resource. Check the currency indicated on each action before confirming.
+
+CHANGE LOG — 0.0.5
+- Added the free Tug of War minigame in place of Dice.
+- Improved cases and added batch opening and disclosures of tier drop rates.
+- Added bilingual contest rules and virtual-currency disclosures.
+- Improved viewer onboarding and action feedback.
+- Expanded Bannerlord hero, equipment, inventory, party-order, vassal and build interfaces.
+- Added equipment purchase options for heroes without party inventory, with a breakdown when replacing equipped items.
+- Added Bannerlord battle payout information and updated tournament/rebellion interfaces.
+- Improved expandable item, trait and gene information in the RimWorld catalogue.
+- Updated desktop and mobile extension assets.
+
+The game environment will be provided in an agreed review session; continuous live availability is not promised for this submission.
+Contact: nasulskii6@gmail.com

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://extension-files.twitch.tv; connect-src 'self' https://api.twitch.tv https://shedoy23.ru; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;">
+    <meta charset="UTF-8">
+    <!-- ОБЯЗАТЕЛЬНАЯ БИБЛИОТЕКА TWITCH -->
+    <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+    <title>Extension Config</title>
+    <style>
+        body {
+            background: #0e0e10;
+            color: #efeff1;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h2 {
+            color: #9147ff;
+            margin-bottom: 20px;
+        }
+        h3 {
+            color: #efeff1;
+            font-size: 14px;
+            margin: 0 0 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        p {
+            color: #adadb8;
+            line-height: 1.5;
+        }
+        .info-box {
+            background: #1f1f23;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #2d2d2f;
+            margin-top: 20px;
+        }
+        .link {
+            color: #9147ff;
+            text-decoration: none;
+        }
+        .link:hover {
+            text-decoration: underline;
+        }
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+        }
+        .toggle-btn {
+            background: #2d2d2f;
+            border: 1px solid #3a3a3e;
+            color: #efeff1;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        .toggle-btn.on { background: #9147ff; border-color: #9147ff; }
+        .toggle-btn.off { background: #5a5a5e; border-color: #5a5a5e; }
+        .toggle-btn:hover { opacity: .85; }
+        .toggle-status {
+            font-size: 12px;
+            color: #adadb8;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>⚙️ Настройки расширения</h2>
+
+        <div class="info-box">
+            <h3>🐾 Питомцы зрителей в overlay</h3>
+            <p style="font-size:13px;">
+                Показывать питомцев активных зрителей внизу overlay. Можно
+                выключить, если хочешь чистый стрим.
+            </p>
+            <div class="toggle-row">
+                <div>
+                    <div id="pets-toggle-label" style="font-weight:600;">Загрузка…</div>
+                    <div class="toggle-status" id="pets-toggle-status"></div>
+                </div>
+                <button id="pets-toggle-btn" class="toggle-btn">…</button>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <p>Расширение работает в штатном режиме.</p>
+            <p>Полное управление каналом — в кабинете стримера: <b>модерация озвучки
+               (просмотр, одобрение и блокировка сообщений зрителей)</b>, автосообщения,
+               настройки интеграции. Вход через Twitch.</p>
+            <!-- 2026-09-01: правило 4.6.2 требует обозначить уход с Twitch, а
+                 правило 7.2 (модерация UGC) выполнено именно там — ревьюер,
+                 который ищет модерацию внутри расширения, должен понять, куда
+                 идти. Заглушку «статистика будет доступна» убрал: обещание
+                 будущей функциональности в подаваемой сборке — типовая придирка. -->
+            <p><a href="https://shedoy23.ru/streamer" target="_blank" rel="noopener noreferrer" class="link">https://shedoy23.ru/streamer</a></p>
+            <p style="opacity:0.75;">Ссылка ведёт на внешний сайт — вы покинете Twitch.<br>
+               This link opens an external website — you are leaving Twitch.</p>
+        </div>
+    </div>
+
+<script src="config.js"></script>
+</body>
+</html>

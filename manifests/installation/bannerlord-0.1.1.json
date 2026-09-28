@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "integration_id": "bannerlord",
+  "release_version": "0.1.1",
+  "game": {
+    "id": "bannerlord",
+    "display_name": "Mount & Blade II: Bannerlord",
+    "supported_versions": [
+      "1.3"
+    ],
+    "process_names": [
+      "Bannerlord",
+      "TaleWorlds.MountAndBlade.Launcher"
+    ],
+    "version": {
+      "kind": "text_file",
+      "path": "bin/Win64_Shipping_Client/Version.xml",
+      "compatibility_pattern": "Value=\"v(\\d+\\.\\d+)\\.\\d+\""
+    },
+    "detection": [
+      {
+        "kind": "steam",
+        "app_id": 261550,
+        "install_dir": "Mount & Blade II Bannerlord"
+      },
+      {
+        "kind": "manual",
+        "required_paths": [
+          "bin/Win64_Shipping_Client/Version.xml",
+          "Modules/Native/SubModule.xml"
+        ]
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "id": "bannerlordlink_mod",
+      "source": {
+        "kind": "https",
+        "url": "https://shedoy23.ru/releases/BannerlordLink-0.1.1.zip"
+      },
+      "size_bytes": 218885,
+      "sha256": "58ce59857731273c64d4555c958876bef98fd77aeb3207f33a8080c926747c92",
+      "format": "zip",
+      "archive_root": "Shedoy23.BannerlordLink",
+      "signature": {
+        "algorithm": "rsa-pss-sha256",
+        "key_id": "shedlink-release-2026",
+        "value": "u1RGblRiAHsdwSxv84sURFB/64aFt1TQAjfxWX65M6U0wDkRfljUO++je2tO8QabJ0UwtakrmW/VpkMEuiGhgda1pyBHdorqS6EixJ56TKqyCHsb47ojwKOpboSmieDPNG99evpTne3VuM6H7ZxXl1hQvz3R23NpU3YY2sYDqT7hsBfOpTz/M8HTGa6gTpwc74YjfLiwqu4wAF2seC0qOKmeg1SY7J4FfdRGSWAaw/XCoUzb3c3q+NupKJ8YXf7VQTUTCWzmfWRIR/7tB/+eLgLsa/EcKbSWD4e1s6zZtlbt2fQwiONT3G4PXUtWvHgwg4ejo5/CXcM5kcNq7R8Q/M85Wf0D2XHF7Bgy7hPnxB90JwoixonPkjpreos7S99elEFbomFdtz0/HkafXIa3iOw2fnGyqa55ymyrHjD85PHTSldZAeqoe5YwCn7XRgyAR1iWedaTq476KJKg7Ua4DIapVPJMYrouvhcic85aQaslFQsDglVCxptWMss/pYquoipdwXRSWpf6tXnx8SEtp/gafWHdR4uNCW09upaIOyUAhmomkUCJlPcW8QrrSHZZbcREHnyfg3zvJE4JKmkqkNhr+vwCgBi7x5BEYP6vxsXu049N5tyr76ZjU/ZYcJWeHARkNW23TAw6hJCV/3WQ4fx76ut/9lsR+/lmZoQkh6A="
+      }
+    }
+  ],
+  "installation": {
+    "target": {
+      "base": "game_root",
+      "relative_path": "Modules/Shedoy23.BannerlordLink"
+    },
+    "staging": {
+      "base": "manager_temp",
+      "verify_before_replace": true
+    },
+    "replace": {
+      "mode": "atomic_directory_swap",
+      "require_game_stopped": true
+    },
+    "rollback": {
+      "enabled": true,
+      "preserve": [
+        "configuration_store",
+        "outcome_journal"
+      ]
+    },
+    "update": {
+      "mode": "verify_then_replace",
+      "preserve": [
+        "configuration_store",
+        "outcome_journal"
+      ]
+    },
+    "repair": {
+      "mode": "verify_then_replace",
+      "preserve": [
+        "configuration_store",
+        "outcome_journal"
+      ]
+    },
+    "uninstall": {
+      "enabled": true,
+      "preserve": [
+        "configuration_store",
+        "outcome_journal"
+      ]
+    }
+  },
+  "configuration": {
+    "store": {
+      "kind": "json",
+      "base": "game_root",
+      "relative_path": "Modules/Shedoy23.BannerlordLink/config.json"
+    },
+    "managed_fields": [
+      {
+        "name": "backend_url",
+        "selector": "/backend_url",
+        "value_source": "backend_url",
+        "secret": false
+      },
+      {
+        "name": "module_token",
+        "selector": "/module_token",
+        "value_source": "channel_module_token",
+        "secret": true
+      },
+      {
+        "name": "channel_id",
+        "selector": "/channel_id",
+        "value_source": "channel_id",
+        "secret": false
+      }
+    ],
+    "create_if_missing": true,
+    "preserve_unmanaged": true
+  },
+  "health": [
+    {
+      "id": "assembly_present",
+      "kind": "path_exists",
+      "path": "bin/Win64_Shipping_Client/BannerlordLink.dll",
+      "required": true
+    },
+    {
+      "id": "submodule_present",
+      "kind": "path_exists",
+      "path": "SubModule.xml",
+      "required": true
+    }
+  ],
+  "security": {
+    "publisher": "shedoy23",
+    "signature_status": "signed",
+    "allowed_write_roots": [
+      "game_root",
+      "manager_temp"
+    ],
+    "redact_fields": [
+      "module_token",
+      "authorization",
+      "cookie"
+    ]
+  },
+  "runtime": {
+    "manifest_version": "0.1.1",
+    "core_api_version": ">=1.0.0,<2.0.0"
+  },
+  "prerequisites": [
+    {
+      "id": "windows_x64",
+      "kind": "os",
+      "requirement": "Windows x64",
+      "required": true
+    },
+    {
+      "id": "bannerlord_installed",
+      "kind": "game",
+      "requirement": "Mount & Blade II: Bannerlord 1.3",
+      "required": true
+    },
+    {
+      "id": "harmony_installed",
+      "kind": "game_mod",
+      "requirement": "Bannerlord.Harmony",
+      "required": true
+    }
+  ],
+  "compatibility_messages": {
+    "invalid_game_path": "В указанной папке не найдены bin/Win64_Shipping_Client/Version.xml и Modules/Native.",
+    "unsupported_game_version": "Эта версия BannerlordLink собрана под Bannerlord 1.4. Для 1.3 используйте выпуск 0.1.1.",
+    "game_running": "Закройте Bannerlord: игра держит файл мода, и установка не сможет его заменить."
+  }
+}

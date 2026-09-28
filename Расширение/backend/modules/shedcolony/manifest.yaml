@@ -1,0 +1,76 @@
+# ShedColony module manifest — соответствует docs/MODULE_API.md §5.
+#
+# Зрители как колонисты в живой колонии MineColonies стримера.
+# Game-side connector: NeoForge-мод (D:\sheddev\shedcolony, GPL), ходит в этот
+# backend по REST long-poll (routes/module_api.py), как BannerlordLink.
+#
+# Маппинг на стандартный словарь платформы:
+#   player.linked  = колонист зрителя создан + привязан (citizen_id ↔ viewer_id)
+#   player.died    = колонист зрителя погиб
+#   colonist.spawn = заспавнить+привязать колониста зрителю (платный action)
+
+id: shedcolony
+version: 0.1.0
+core_api_version: ">=1.0.0,<2.0.0"
+display_name: "ShedColony"
+description: "Зрители как колонисты в колонии MineColonies стримера — создают и управляют своим колонистом через расширение, не играя в Minecraft."
+
+# Стандартные events (мод → backend):
+events:
+  - module.heartbeat
+  - module.session_start
+  - module.session_end
+  - player.linked
+  - player.died
+
+# Game-specific extensions:
+extensions:
+  events:
+    - colony.snapshot      # полный список колонистов на старте сессии (reconciliation)
+    - colony.capacity      # снимок свободных слотов (работы по типам + койки) для slot-availability UI
+    - colonist.state       # снимок состояния колониста (hp / работа / скиллы)
+    - colony.targets       # снимок выбираемых целей: доступные исследования + здания с очередью заказов + статус склада (для пикеров Фазы A/B)
+    - action.failed        # отложенный action упал после enqueue (хук рефанда)
+    - colony.catalog       # сверка каталога товаров с реестром СБОРКИ: чего в игре нет — гасим до покупки
+  actions:
+    - colonist.spawn           # создать + привязать колониста зрителю (1000 крустиков)
+    - colonist.assign_job      # нанять в свободную/занятую-NPC хату
+    - colonist.assign_home     # поселить (выселит NPC при нехватке коек)
+    - colonist.add_xp          # прокачать скилл (+1000 XP)
+    - colonist.fulfill_request # выполнить открытую просьбу колониста (Path C)
+    # Phase 7 — colonist care (own colonist, deterministic, grief-safe)
+    - colonist.feed            # насытить (saturation → 60)
+    - colonist.cure_disease    # вылечить болезнь
+    - colonist.heal            # восстановить HP (needs-entity)
+    - colonist.clear_mourn     # снять траур
+    - colonist.give_item       # выдать предмет из whitelist (еда)
+    - colonist.set_gender      # сменить пол (имя сохраняется)
+    - colonist.teleport        # призвать в центр колонии (расстопор, needs-entity)
+    - colonist.equip_leather   # надеть кожаную броню (полный сет, needs-entity)
+    - colonist.equip_iron      # надеть железную броню
+    - colonist.equip_diamond   # надеть алмазную броню
+    - colonist.happiness_boost # личный буст настроения (3 дня)
+    # Phase 8 — colony-level sinks (colony-wide, grief-safe)
+    - colony.spy_boost         # шпионы во время рейда (раскрыть рейдеров)
+    - colony.festival          # буст счастья всей колонии (3 дня)
+    - colony.spawn_visitor     # призвать визитёра в таверну
+    - colony.quest_unlock      # разблокировать СЛЕДУЮЩИЙ квест колонии (детерминированно, без RNG — 2026-07-04)
+    - colony.supply            # стак базового ресурса на склад (whitelist; ex-colony.donate)
+    # Phase A — развитие колонии + склад (colony-wide, детерминированные, grief-safe)
+    - colony.set_minimum_stock # задать неснижаемый запас предмета на складе (item + qty)
+    - colony.clear_backlog     # довыдать зданию материалы, которые оно ждёт (по выбранному зданию)
+    - colony.start_research    # профинансировать исследование (университет исследует со временем)
+    - colony.finish_research   # мгновенно завершить идущее исследование (+применить эффект)
+    # Phase C — гир-кластер (свой колонист: броня/оружие/инструменты/щит/настройки гвардейца)
+    - colonist.equip_netherite # надеть незеритовую броню (полный сет, needs-entity)
+    - colonist.equip_weapon    # вооружить гвардейца (лучший меч + лук по уровню башни; guard-only)
+    - colonist.give_shield     # выдать щит гвардейцу (guard-only)
+    - colonist.give_tools      # набор инструментов рабочему (лучший тир по уровню хаты)
+    - colonist.set_guard_task  # задача гвардейца: guard/patrol (guard-only)
+    - colonist.set_guard_retreat # отступление на низком HP: вкл/выкл (guard-only)
+    # Phase D — дёшево-вовлекающее: авто-режим рабочего места своего колониста (только ВКЛ, grief-safe)
+    - colonist.auto_work       # фермер→удобрение / лесник→пересадка / пастух→стрижка / компостер→земля
+    # Phase B — флагман: проспонсировать улучшение здания колонии (реальный work-order; стример онлайн)
+    - colony.upgrade_building  # апгрейд выбранного здания на +1 уровень (UP-only; refund при офлайне/без строителя/maxed)
+
+catalogs: []

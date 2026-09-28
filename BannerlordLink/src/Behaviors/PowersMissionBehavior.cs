@@ -1,0 +1,615 @@
+using System;
+using System.Reflection;
+using BannerlordLink.Net;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
+using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
+
+namespace BannerlordLink.Behaviors
+{
+    /// <summary>
+    /// MissionLogic который применяет passive powers к hero'ям зрителей
+    /// когда они spawn'ятся в Mission (battle/siege/tournament).
+    ///
+    /// Registered через BannerlordLinkModule.OnMissionBehaviorInitialize.
+    /// Bannerlord auto-calls этот override на каждой новой Mission.
+    ///
+    /// Применяемые powers (Sprint 4.2 MVP):
+    ///   - hp_multiplier  → agent.BaseHealthLimit × HealthLimit × Health
+    ///   - body_scale     → agent.AgentScale (visual + reach)
+    ///
+    /// Damage-modifying powers (ignore_armor_pct / armor_bypass_pct /
+    /// damage_reflect_pct) обрабатываются Harmony-patch'ем на
+    /// Mission.RegisterBlow — см. Patches/DamageHookPatch.cs (Sprint 4.4).
+    ///
+    /// Active timed buffs (rage / retribution_toggle) живут в
+    /// ActiveBuffState — этот MissionLogic вызывает RemoveExpired каждые
+    /// 2 сек (slow-tick) и Clear на end-mission (Sprint 4.5).
+    /// </summary>
+    public class PowersMissionBehavior : MissionLogic
+    {
+        private const float BUFF_TICK_INTERVAL = 2.0f;
+        // 2026-07-20 — быстрый тик для стоек/скорости (движок сбрасывает эти driven-
+        // properties при смене оружия/ранении; редкое переприменение → мигание).
+        private const float COMBAT_AI_INTERVAL = 0.5f;
+        private float _combatAiAcc = 0f;
+        private float _buffTickAcc;
+        private float _buildSnapshotAcc;
+
+        public override void AfterStart()
+        {
+            base.AfterStart();
+            try { EquipmentShopBehavior.Instance?.PublishBuilds(true); }
+            catch (Exception ex) { BannerlordLinkModule.Log("[HeroBuild] mission snapshot: " + ex.Message); }
+        }
+
+        // 2026-07-21 — «Невидимость» (docs/SPEC_ASSASSIN_INVIS.md). Ключ силы остался
+        // retribution_toggle: во фронте у него УЖЕ есть ярлык, а фронт заморожен на
+        // ревью Twitch (новый ключ = кнопки у зрителя просто нет). Переименуем в день
+        // разморозки — здесь константа, чтобы поменять в одном месте.
+        private const string STEALTH_KEY = "retribution_toggle";
+
+        // 2026-05-29 P1.2 (Stage 0 Phase 1) — feature flag для отключения
+        // per-tick particle re-burst. Сравнение с BLT-RC22 показало что они
+        // создают particle ОДИН раз (AgentPfx persistent looping) и НЕ дёргают
+        // CreateBurstParticle каждые 2 сек. См. docs/BLT_RC22_REFERENCE.md
+        // секция A.2 и refactor plan Phase 3 — full AgentPfx adoption.
+        //
+        // Сейчас (Phase 1) — просто отключаем re-burst. Это убирает
+        // 15 particle calls на каждые 30 сек активного buff'а на каждого
+        // viewer'а с активным buff'ом. В большой battle с 5+ buff'ами это
+        // 75+ particle calls сэкономлено за 30 сек. Понижает FMOD pressure
+        // на ~5-10%.
+        //
+        // Phase 3 заменит этот flag на persistent AgentPfx (BLT pattern).
+        private static readonly bool BUFF_TICK_PARTICLES_ENABLED = false;
+
+        // 2026-06-02 (BLT-parity POWER) — HP-множители в одном месте для тюнинга.
+        private const float BASE_HP_MULT = 2.5f;     // герой baseline (2026-06-05: 2→2.5, BLT-parity)
+        public  const float RETINUE_HP_MULT = 2f;     // свита (BLT StartRetinueHealthMultiplier=2)
+        // Ставится SummonHeroHandler'ом ВОКРУГ retinue SpawnTroop; применяется
+        // в OnAgentBuild (санкционированный тайминг — не крашит, в отличие от
+        // старого inline post-spawn сеттера, dump 28004).
+        public static float PendingRetinueHpMult = 1f;
+
+        public override void OnAgentBuild(Agent agent, Banner banner)
+        {
+            base.OnAgentBuild(agent, banner);
+            try { ApplyPassivePowers(agent); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] OnAgentBuild error: {ex.Message}");
+            }
+            // retinue HP×2 (pending-флаг от SummonHeroHandler) — к человеку-агенту.
+            try { ApplyPendingRetinueHp(agent); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] retinue HP warn: {ex.Message}");
+            }
+        }
+
+        private static void ApplyPendingRetinueHp(Agent agent)
+        {
+            float m = PendingRetinueHpMult;
+            if (m <= 1f || agent == null || !agent.IsHuman) return;
+            agent.BaseHealthLimit *= m;
+            agent.HealthLimit     *= m;
+            agent.Health          *= m;
+        }
+
+        public override void OnMissionTick(float dt)
+        {
+            base.OnMissionTick(dt);
+            _buildSnapshotAcc += dt;
+            if (_buildSnapshotAcc >= 10f)
+            {
+                _buildSnapshotAcc = 0;
+                try { EquipmentShopBehavior.Instance?.PublishBuilds(true); }
+                catch (Exception ex) { BannerlordLinkModule.Log("[HeroBuild] mission snapshot retry: " + ex.Message); }
+            }
+
+            // 2026-07-20 — боевой ИИ/стойки переприменяем ЧАСТО (0.5с), отдельно от
+            // тяжёлого тика баффов/яда (2с). Движок пересчитывает драйв-свойства при
+            // смене оружия/ранении и сбрасывает стойку к базовой — при редком тике это
+            // давало мигание («натиск то есть, то нет»). Быстрый тик держит стойку плотно.
+            _combatAiAcc += dt;
+            if (_combatAiAcc >= COMBAT_AI_INTERVAL)
+            {
+                _combatAiAcc = 0f;
+                try { ApplyCombatAiTick(); } catch (Exception ex)
+                { BannerlordLinkModule.Log($"[PowersMission] combat-AI tick error: {ex.Message}"); }
+                try { ApplySpeedBuffTick(); } catch (Exception ex)
+                { BannerlordLinkModule.Log($"[PowersMission] speed buff tick error: {ex.Message}"); }
+                try { ApplyStealthTick(); } catch (Exception ex)
+                { BannerlordLinkModule.Log($"[PowersMission] stealth tick error: {ex.Message}"); }
+            }
+
+            _buffTickAcc += dt;
+            if (_buffTickAcc < BUFF_TICK_INTERVAL) return;
+            _buffTickAcc = 0f;
+
+            // Sprint 5.33 (BLT-parity FX) — RemoveExpired теперь returns list.
+            // Caller react'ит на specific expirations (berserker_charge — reset
+            // speed back to 1.0×; poison_dot — engine cleanup).
+            try
+            {
+                var expired = ActiveBuffState.RemoveExpired();
+                if (expired.Count > 0) HandleExpiredBuffs(expired);
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] buff cleanup error: {ex.Message}");
+            }
+
+            // Sprint 5.33 (BLT-parity FX) — apply DoT damage to poisoned agents.
+            // Каждый tick (~2 сек) — damage = damagePerSec × BUFF_TICK_INTERVAL.
+            try { ApplyDotTicks(); }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log($"[PowersMission] DoT tick error: {ex.Message}");
+            }
+
+            // 2026-07-20 — ApplyCombatAiTick + ApplySpeedBuffTick ПЕРЕЕХАЛИ в быстрый
+            // тик (0.5с) выше: стойки/скорость движок сбрасывает чаще, чем раз в 2с.
+
+            // Sprint 5.30 #41 — periodic re-burst для timed buffs.
+            // 2026-05-29 P1.2 — отключено через BUFF_TICK_PARTICLES_ENABLED flag.
+            // CreateBurstParticle каждые 2 сек = FMOD pool pressure. См.
+            // комментарий у константы наверху файла.
+            if (BUFF_TICK_PARTICLES_ENABLED)
+            {
+                try { PlayBuffTickParticles(); }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log($"[PowersMission] buff tick fx error: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Sprint 5.33 (BLT-parity FX) — react на specific buff expirations.
+        /// berserker_charge → reset agent speed back to 1.0×.
+        /// poison_dot → engine cleanup (target.Index больше не tick'ается).</summary>
+        private static void HandleExpiredBuffs(
+            System.Collections.Generic.List<(string username, string powerKey, double value)> expired)
+        {
+            foreach (var (username, powerKey, _) in expired)
+            {
+                try
+                {
+                    if (powerKey == "berserker_charge")
+                    {
+                        var agent = FindAgentByUsername(username);
+                        if (agent != null && agent.IsActive())
+                        {
+                            // 2026-06-10 — сбрасываем НЕ в 1.0×, а в пассивную
+                            // скорость милишника (move_speed_pct), иначе berserk
+                            // терял свой пассивный добег после берсерк-чарджа.
+                            float restMult = GetPassiveSpeedMult(username);
+                            // 2026-07-20 — тем же рычагом, что и применение (см.
+                            // ApplySpeedMultiplier): SetMaximumSpeedLimit не влиял.
+                            BannerlordLink.Actions.ActivatePowerHandler
+                                .ApplySpeedMultiplier(agent, restMult);
+                            BannerlordLinkModule.Log(
+                                $"[FX expire] @{username} berserker_charge → speed reset ×{restMult:F2}");
+                        }
+                    }
+                    // poison_dot expire — no agent-side cleanup needed (we don't
+                    // mutate engine state on each tick, just RegisterBlow).
+
+                    // 2026-05-29 Stage 1 (BLT-RC22 pattern) — exit cue для
+                    // timed buffs. AgentPfx.Stop() уже произошёл в
+                    // ActiveBuffState.RemoveExpired. Здесь play one-shot
+                    // burst+sound chime чтобы viewer видел "buff закончился".
+                    // No-op для buff'ов которые НЕ имели persistent pfx
+                    // (instant powers — heal_burst/shield_break/disarm_burst
+                    // не попадают в expired list т.к. их duration=0).
+                    var pfxAgent = FindAgentByUsername(username);
+                    if (pfxAgent != null && pfxAgent.IsActive())
+                    {
+                        BannerlordLink.Util.PowerVisualFx.PlayDeactivation(pfxAgent, powerKey);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[FX expire] @{username} {powerKey} cleanup warn: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Sprint 5.33 (BLT-parity FX) — apply DoT damage to poisoned
+        /// agents. Each tick (~BUFF_TICK_INTERVAL sec): damage = dps × interval.
+        /// Lookup agent by index — может быть dead/disposed → skip.</summary>
+        private static void ApplyDotTicks()
+        {
+            if (Mission.Current == null) return;
+            var dots = ActiveBuffState.SnapshotDotTargets();
+            if (dots.Count == 0) return;
+
+            int applied = 0;
+            foreach (var (agentIdx, dps, _) in dots)
+            {
+                try
+                {
+                    Agent target = null;
+                    // Iterate Mission.Current.Agents — find by Index.
+                    foreach (var a in Mission.Current.Agents)
+                    {
+                        if (a == null) continue;
+                        if (a.Index == agentIdx) { target = a; break; }
+                    }
+                    if (target == null || !target.IsActive()) continue;
+                    // 2026-05-31 (audit) — не тикаем DoT в не-mortal/турнир/арена
+                    // миссиях (DisableDying), иначе lethal урон там, где движок
+                    // этого не ждёт (BLT BLTEffectsBehaviour gate'ит так же).
+                    if (target.CurrentMortalityState != Agent.MortalityState.Mortal
+                        || Mission.Current?.DisableDying == true) continue;
+                    int dmg = (int)Math.Max(1.0, dps * BUFF_TICK_INTERVAL);
+                    var blow = new Blow(target.Index)   // 2026-05-31 (audit): был Blow(-1) — невалидный owner-index
+                    {
+                        InflictedDamage = dmg,
+                        DamageType = DamageTypes.Pierce,
+                        DamageCalculated = true,
+                        BlowFlag = BlowFlags.None,
+                        BoneIndex = target.Monster?.ThoraxLookDirectionBoneIndex ?? (sbyte)0,
+                        GlobalPosition = target.Position,
+                        Direction = TaleWorlds.Library.Vec3.Forward,
+                        SwingDirection = TaleWorlds.Library.Vec3.Forward,
+                        WeaponRecord = new() { AffectorWeaponSlotOrMissileIndex = -1 },   // 2026-05-31 (audit): init weapon-record
+                    };
+                    AttackCollisionData cd = default;
+                    target.RegisterBlow(blow, cd);
+                    applied++;
+                    // Visual: re-pulse poison particle.
+                    BannerlordLink.Util.PowerVisualFx.PlayBuffTick(target, "poison_dot");
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log(
+                        $"[FX DoT] agent idx={agentIdx} tick warn: {ex.Message}");
+                }
+            }
+            if (applied > 0)
+            {
+                BannerlordLinkModule.Log(
+                    $"[FX DoT] applied {applied}/{dots.Count} poison ticks this round");
+            }
+        }
+
+        // 2026-06-10 — «умный боевой ИИ» (BLT StatModifyPower через
+        // AgentDrivenProperties). Задаём AI-способности боя боевым героям, чтобы
+        // они реально воевали, а не стояли столбом. Для мили это бой в гуще; для
+        // лучников — самозащита, когда враг дошёл вплотную (скорострельность/
+        // точность НЕ трогаем — иначе лучники станут ещё сильнее).
+        // ai_combat_pct (0..100) → 0..1 ability. Боевая СТОЙКА зрителя сдвигает
+        // баланс защита↔атака. Переприменяем на тике (движок пересчитывает
+        // driven-свойства). AgentDrivenProperties — НЕ collision-reaction →
+        // безопасно (BLT-паттерн).
+        private static readonly DrivenProperty[] _aiDefProps = new[]
+        {
+            DrivenProperty.AIBlockOnDecideAbility,
+            DrivenProperty.AIParryOnDecideAbility,
+            DrivenProperty.AIParryOnAttackAbility,
+        };
+        private static readonly DrivenProperty[] _aiOffProps = new[]
+        {
+            DrivenProperty.AIAttackOnDecideChance,
+            DrivenProperty.AIDecideOnAttackChance,
+        };
+        // разово залогированные за миссию герои (чтобы [CombatAI] applied не спамил каждый тик)
+        private static readonly System.Collections.Generic.HashSet<string> _aiLogged =
+            new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>2026-07-20 — держим множитель скорости у героев с активным
+        /// berserker_charge. Движок пересчитывает AgentDrivenProperties (снаряжение,
+        /// раны, стойка) и затирает разовое применение — поэтому переприменяем каждый
+        /// тик, пока бафф жив. Снятие делает OnBuffExpired (mult → 1.0).</summary>
+        private static void ApplySpeedBuffTick()
+        {
+            if (Mission.Current == null) return;
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || !a.IsHuman || !a.IsActive()) continue;
+                var hero = (a.Character as CharacterObject)?.HeroObject;
+                if (hero?.Name == null) continue;
+                string user = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
+                if (string.IsNullOrEmpty(user)) continue;
+                var mult = ActiveBuffState.GetValue(user, "berserker_charge");
+                if (BannerlordLink.Util.HeroBuildRuntime.State(user) != null)
+                {
+                    if (BannerlordLink.Util.MissionContext.IsArenaOrTournamentFight()) continue;
+                    mult = GetPassiveSpeedMult(user);
+                }
+                if (!mult.HasValue || mult.Value <= 1.0) continue;
+                BannerlordLink.Actions.ActivatePowerHandler.ApplySpeedMultiplier(a, (float)mult.Value);
+            }
+        }
+
+        /// <summary>2026-07-21 — «Невидимость» ассасина (docs/SPEC_ASSASSIN_INVIS.md).
+        /// Готовой невидимости в движке НЕТ, а выбор цели нативный (MBAPI.IMBAgent) —
+        /// Harmony его не перехватывает. Рабочий рычаг — публичный
+        /// <c>Agent.InvalidateTargetAgent</c>: раз в быстрый тик срываем врагам захват
+        /// невидимки, они теряют его и уходят к другим целям.
+        ///
+        /// Это НЕ неуязвимость: сплеш, шальные стрелы, конница на скаку и уже начатый
+        /// замах проходят — ассасина по-прежнему можно убить, его просто не фокусят.
+        /// Пока идёт окно раскрытия после его удара (StealthState) — не срываем.</summary>
+        private static void ApplyStealthTick()
+        {
+            if (Mission.Current == null) return;
+
+            // Дешёвый ранний выход: невидимок в бою почти всегда нет вообще,
+            // а тик горячий (0.5с) — не хотим гонять цикл по агентам впустую.
+            var actives = BannerlordLink.Net.ActiveBuffState.SnapshotActive();
+            if (actives == null || actives.Count == 0) return;
+            bool anyStealth = false;
+            foreach (var (_, key) in actives)
+                if (key == STEALTH_KEY) { anyStealth = true; break; }
+            if (!anyStealth) return;
+
+            float now = Mission.Current.CurrentTime;
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || !a.IsHuman || !a.IsActive()) continue;
+                var hero = (a.Character as CharacterObject)?.HeroObject;
+                if (hero?.Name == null) continue;
+                string user = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
+                if (string.IsNullOrEmpty(user)) continue;
+
+                var reveal = ActiveBuffState.GetValue(user, STEALTH_KEY);
+                if (!reveal.HasValue) continue;
+                // Только что ударил — на окно раскрытия его видно (наказание за жадность).
+                if (BannerlordLink.Net.StealthState.IsRevealed(user, now, (float)reveal.Value)) continue;
+
+                ScrubEnemyTargets(a);
+            }
+        }
+
+        /// <summary>Срывает захват цели у всех врагов, целящихся в <paramref name="hero"/>.
+        /// Возвращает число сброшенных захватов (для лога). Публичный — активка дёргает
+        /// его сразу при нажатии, не дожидаясь тика.</summary>
+        public static int ScrubEnemyTargets(Agent hero)
+        {
+            if (hero == null || !hero.IsActive() || Mission.Current == null) return 0;
+            int dropped = 0;
+            foreach (var e in Mission.Current.Agents)
+            {
+                if (e == null || e == hero || !e.IsHuman || !e.IsActive()) continue;
+                if (!e.IsEnemyOf(hero)) continue;
+                if (e.GetTargetAgent() != hero) continue;
+                e.InvalidateTargetAgent();
+                dropped++;
+            }
+            return dropped;
+        }
+
+        private static void ApplyCombatAiTick()
+        {
+            if (Mission.Current == null) return;
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || !a.IsHuman || !a.IsActive()) continue;
+                var hero = (a.Character as CharacterObject)?.HeroObject;
+                if (hero?.Name == null) continue;
+                string user = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
+                if (string.IsNullOrEmpty(user)) continue;
+                var pct = PowerCache.GetPowerValue(user, "ai_combat_pct");
+                if (!pct.HasValue || pct.Value <= 0) continue;
+                float v = (float)Math.Min(1.0, pct.Value / 100.0);
+
+                // Боевая стойка: defensive → крепче блок/парри, меньше инициативы
+                // атаки; aggressive → наоборот; balanced (или нет стойки) → ровно
+                // классовый уровень.
+                // 2026-07-20 — стойки усилены (владелец: «натиск не чувствовался»).
+                // Раньше сдвиг был ±0.15 от классового уровня — умеренно, в свалке терялось.
+                // Теперь стойка ЗАДАЁТ крайние значения напрямую (почти абсолют), а не
+                // «чуть-чуть от базы»: натиск = атака в потолок / блок в пол → герой рубится
+                // безрассудно; оборона = наоборот, глухая защита. Balanced — классовый уровень.
+                float def = v, off = v;
+                string stance = PowerCache.GetHeroStance(user);
+                if (stance == "defensive")
+                {
+                    def = 1.0f;                        // максимум блока/парри
+                    off = Math.Min(v, 0.20f);          // почти не инициирует атаку
+                }
+                else if (stance == "aggressive")
+                {
+                    def = 0.05f;                       // блок/парри почти отключены
+                    off = 1.0f;                        // атакует при любой возможности
+                }
+
+                try
+                {
+                    var p = a.AgentDrivenProperties;
+                    if (p == null) continue;
+                    foreach (var prop in _aiDefProps) p.SetStat(prop, def);
+                    foreach (var prop in _aiOffProps) p.SetStat(prop, off);
+                    a.UpdateCustomDrivenProperties();
+                    // разовое подтверждение на героя за миссию (диагностика: тик реально применился)
+                    if (_aiLogged.Add(user))
+                        BannerlordLinkModule.Log(
+                            $"[CombatAI] applied @{user} def={def:F2} off={off:F2} stance={stance ?? "balanced"}");
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log($"[CombatAI] @{user} warn: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Sprint 5.30 #41 — для каждого active buff, найти agent
+        /// и проиграть subtle particle. Делается каждые BUFF_TICK_INTERVAL.
+        /// Все exceptions per-buff catched — один сбой не валит весь tick.</summary>
+        private static void PlayBuffTickParticles()
+        {
+            if (Mission.Current == null) return;
+            var actives = BannerlordLink.Net.ActiveBuffState.SnapshotActive();
+            if (actives == null || actives.Count == 0) return;
+            foreach (var (username, powerKey) in actives)
+            {
+                Agent agent = FindAgentByUsername(username);
+                if (agent == null) continue;
+                BannerlordLink.Util.PowerVisualFx.PlayBuffTick(agent, powerKey);
+            }
+        }
+
+        private static Agent FindAgentByUsername(string username)
+        {
+            try
+            {
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || !a.IsHuman || !a.IsActive()) continue;
+                    var hero = (a.Character as CharacterObject)?.HeroObject;
+                    if (hero?.Name == null) continue;
+                    var extracted = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name.ToString());
+                    if (string.Equals(extracted, username, StringComparison.OrdinalIgnoreCase))
+                        return a;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        protected override void OnEndMission()
+        {
+            base.OnEndMission();
+            try { EquipmentShopBehavior.Instance?.PublishBuilds(false); }
+            catch (Exception ex) { BannerlordLinkModule.Log("[HeroBuild] end snapshot: " + ex.Message); }
+            ActiveBuffState.Clear();
+            BannerlordLink.Net.StealthState.Clear();
+            _aiLogged.Clear();
+        }
+
+        private static void ApplyPassivePowers(Agent agent)
+        {
+            if (agent == null || !agent.IsHuman) return;
+
+            // Резолв hero для agent через CharacterObject.HeroObject.
+            // Это работает для любых hero agents (party leaders, companions,
+            // wanderers в towns, etc.) без cast'ов на specific Origin types.
+            Hero hero = (agent.Character as CharacterObject)?.HeroObject;
+            if (hero == null) return;
+
+            string username = BannerlordLink.Util.HeroNaming.ExtractUsername(hero.Name?.ToString());
+            if (string.IsNullOrEmpty(username)) return;
+
+            // 2026-06-15 (bug #12) — в честном бою арены/турнира НЕ накладываем
+            // HP-множители: [BLink]-агент с ×2.5+ HP почти неубиваем → бой
+            // становится бесконечным («пассивный хил»). Турнир должен быть
+            // ванильно-честным. body_scale/move_speed ниже не трогаем (не про хил).
+            bool fairFight = BannerlordLink.Util.MissionContext.IsArenaOrTournamentMission();
+
+            // 2026-06-02 (BLT-parity POWER) — безусловный baseline HP×2 для КАЖДОГО
+            // [BLink]-героя на спавне (BLT StartHealthMultiplier=2, unconditional).
+            // ДО class-check → даже classless adopted-герой получает живучесть.
+            // Класс-power hp_multiplier (ниже) стэкается сверху (как BLT AddHealthPower).
+            if (!fairFight)
+            {
+                agent.BaseHealthLimit *= BASE_HP_MULT;
+                agent.HealthLimit     *= BASE_HP_MULT;
+                agent.Health          *= BASE_HP_MULT;
+            }
+            else
+            {
+                BannerlordLinkModule.Log(
+                    $"[PowersMission] @{username} — арена/турнир: HP-buff пропущен (честный бой, bug #12)");
+            }
+
+            var hc = PowerCache.GetHeroClass(username);
+            if (hc == null) return;  // adopted hero без выбранного класса
+
+            // ── hp_multiplier ──────────────────────────────────────────────
+            // Тоже скипаем в честном бою (fairFight выше) — иначе стэк HP сверху.
+            var hp = PowerCache.GetPowerValue(username, "hp_multiplier");
+            if (!fairFight && hp.HasValue && Math.Abs(hp.Value - 1.0) > 0.001)
+            {
+                float ratio = (float)hp.Value;
+                agent.BaseHealthLimit *= ratio;
+                agent.HealthLimit *= ratio;
+                agent.Health *= ratio;
+            }
+
+            // ── body_scale (Sprint 4.2.5) ─────────────────────────────────
+            // Agent.AgentScale read-only → through reflection на private
+            // Agent.SetInitialAgentScale. BLT использовал тот же подход.
+            var scale = PowerCache.GetPowerValue(username, "body_scale");
+            if (scale.HasValue && Math.Abs(scale.Value - 1.0) > 0.001)
+            {
+                TrySetAgentScale(agent, (float)scale.Value);
+            }
+
+            // ── move_speed_pct (2026-06-10 мили-баланс) — добег / анти-кайт ──
+            // Пеший милишник иначе не догоняет лучников и кайтящих конных.
+            // 2026-07-20 FIX — раньше тут был SetMaximumSpeedLimit (тот же нерабочий API,
+            // что у berserker_charge): он поднимает ПОТОЛОК скорости, до которого агент и
+            // так не добегает → пассивный добег НИКОГДА не работал. Теперь настоящий
+            // рычаг движка — AgentDrivenProperties (см. ApplySpeedMultiplier).
+            var spd = PowerCache.GetPowerValue(username, "move_speed_pct");
+            if (fairFight && BannerlordLink.Util.HeroBuildRuntime.State(username) != null) spd = null;
+            if (spd.HasValue && spd.Value > 0)
+            {
+                try
+                {
+                    BannerlordLink.Actions.ActivatePowerHandler.ApplySpeedMultiplier(
+                        agent, 1f + (float)(spd.Value / 100.0));
+                }
+                catch (Exception ex)
+                { BannerlordLinkModule.Log($"[PowersMission] move_speed warn: {ex.Message}"); }
+            }
+
+            BannerlordLinkModule.Log(
+                $"[PowersMission] @{username} ({hc.Value.classKey} L{hc.Value.level}): " +
+                $"hp×{hp ?? 1.0:F2} scale×{scale ?? 1.0:F2} spd+{spd ?? 0.0:F0}%");
+        }
+
+        /// <summary>2026-06-10 (мили-баланс) — «покоящийся» множитель скорости
+        /// героя (пассивный move_speed_pct). Чтобы при истечении berserker_charge
+        /// сбрасывать НЕ в 1.0×, а в пассивную скорость милишника.</summary>
+        public static float GetPassiveSpeedMult(string username)
+        {
+            var spd = PowerCache.GetPowerValue(username, "move_speed_pct");
+            return (spd.HasValue && spd.Value > 0) ? 1f + (float)(spd.Value / 100.0) : 1f;
+        }
+
+        /// <summary>Reflection call на private Agent.SetInitialAgentScale.
+        /// Cached MethodInfo, no expensive lookup per spawn.</summary>
+        private static MethodInfo _setScaleMethod;
+        private static bool _setScaleResolved;
+
+        private static void TrySetAgentScale(Agent agent, float scale)
+        {
+            if (!_setScaleResolved)
+            {
+                _setScaleResolved = true;
+                try
+                {
+                    _setScaleMethod = typeof(Agent).GetMethod(
+                        "SetInitialAgentScale",
+                        BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+                    if (_setScaleMethod == null)
+                    {
+                        BannerlordLinkModule.Log(
+                            "[PowersMission] SetInitialAgentScale method not found via reflection");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    BannerlordLinkModule.Log($"[PowersMission] scale reflection error: {ex.Message}");
+                }
+            }
+            if (_setScaleMethod == null) return;
+            try
+            {
+                _setScaleMethod.Invoke(agent, new object[] { scale });
+            }
+            catch (Exception ex)
+            {
+                BannerlordLinkModule.Log(
+                    $"[PowersMission] SetInitialAgentScale call failed: {ex.Message}");
+            }
+        }
+
+    }
+}

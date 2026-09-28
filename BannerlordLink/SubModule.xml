@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Module>
+	<Name value="BannerlordLink"/>
+	<Id value="Shedoy23.BannerlordLink"/>
+	<Version value="v0.1.3"/>
+	<DefaultModule value="true"/>
+	<SingleplayerModule value="true"/>
+	<Official value="false"/>
+	<!-- Минимум зависимостей — БЕЗ DLC (NavalDLC/StoryMode/CustomBattle).
+	     Юзер хочет работу независимо от DLC. -->
+	<DependedModules>
+		<DependedModule Id="Bannerlord.Harmony"/>
+		<DependedModule Id="Native"/>
+		<DependedModule Id="SandBoxCore"/>
+		<DependedModule Id="Sandbox"/>
+	</DependedModules>
+	<SubModules>
+		<SubModule>
+			<Name value="BannerlordLink"/>
+			<DLLName value="BannerlordLink.dll"/>
+			<SubModuleClassType value="BannerlordLink.BannerlordLinkModule"/>
+			<Tags>
+			</Tags>
+		</SubModule>
+	</SubModules>
+	<DependedModuleMetadatas>
+		<DependedModuleMetadata id="Bannerlord.Harmony" order="LoadBeforeThis"/>
+		<DependedModuleMetadata id="Native" order="LoadBeforeThis"/>
+		<DependedModuleMetadata id="SandBoxCore" order="LoadBeforeThis"/>
+		<DependedModuleMetadata id="Sandbox" order="LoadBeforeThis"/>
+	</DependedModuleMetadatas>
+	<Xmls>
+	</Xmls>
+</Module>

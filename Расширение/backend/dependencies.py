@@ -1,0 +1,823 @@
+"""
+dependencies.py — общие зависимости для всех роутеров.
+
+Хранит ссылки на db, bot, rate-limit и overlay-состояние.
+Инициализируется из main.py при старте. Роутеры импортируют отсюда — без цикла.
+"""
+
+import asyncio
+import logging
+import math
+import os
+import secrets
+import time as _time
+from collections import defaultdict
+from contextvars import ContextVar
+from typing import Optional, Tuple
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+
+from auth import verify_twitch_jwt
+from config import (
+    DEFAULT_CHANNEL_ID,
+    LOGIN_ATTEMPT_TTL,
+    RATE_LIMITS_BY_TIER,
+    RATE_LIMIT_DEFAULT_TIER,
+    sanitize_username,
+    validate_username,
+)
+
+logger = logging.getLogger("rimlink.dependencies")
+
+# ── Multi-tenant request context ──────────────────────────────────────────────
+# ContextVar автоматически пропагируется через `await` в рамках одной asyncio-task'и
+# и копируется в child task'и. Routes вызывают require_jwt_user / require_jwt_channel
+# в начале handler'а — это устанавливает channel_id в контекст. Все async DB-вызовы
+# дальше по цепочке (включая asyncio.create_task(...) для achievements и пр.)
+# автоматически видят правильный channel_id без явного проброса.
+#
+# Background loops (reward_points_loop, drop_loop, market_expiry_loop) НЕ ходят через
+# JWT — они передают channel_id явным параметром в db-helpers, что переопределяет
+# контекст-фоллбэк.
+_current_channel_id: ContextVar[Optional[int]] = ContextVar('current_channel_id', default=None)
+
+
+# ── M4.1: registered channels cache ───────────────────────────────────────────
+# In-memory set всех channel_id зарегистрированных в `channels` таблице.
+# Заполняется при startup из db.list_channels() и обновляется через
+# mark_channel_registered() при OAuth-регистрации (M4.3).
+#
+# Sync-проверка нужна потому что require_jwt_user/_channel — sync функции,
+# а делать async DB hop на каждый JWT-парсинг неприемлемо (TPS).
+#
+# Когерентность: если пользователь только что зарегистрировался и cache на этом
+# процессе ещё не обновлён (мульти-инстанс будущее) — получит 403 один раз,
+# на следующем запросе fallback в DB добавим в M5+.
+_registered_channels_cache: set = set()
+_channels_cache_initialized: bool = False
+
+# M99: каналы, ПРОШЕДШИЕ одобрение. Держим отдельным множеством, а не флагом
+# внутри регистрации, чтобы «зарегистрирован» и «работает» остались разными
+# состояниями: заявка принята — это уже не «канала нет», но ещё не «поехали».
+_approved_channels_cache: set = set()
+
+# M4 follow-up (в): login (lowercase) → channel_id mapping. Нужно IRC-боту
+# чтобы при входящем чат-сообщении из канала #foo резолвить broadcaster_id
+# для multi-tenant скоупинга. Заполняется одновременно с _registered_*.
+_channel_login_to_id: dict = {}
+
+# M5: channel_id → tier ('free' / 'pro' / 'vip'). Заполняется одновременно
+# с registered_channels_cache. Используется в check_channel_rate_limit для
+# применения tier-based квот. Updates при OAuth-регистрации; runtime tier
+# changes (admin upgrade) пока требуют рестарта — TODO M6+.
+_channel_tier_cache: dict = {}
+
+# Shared action buckets: channel_id; polling: (channel_id, "read", signed identity).
+# Ordinary viewers must not consume each other's automatic polling allowance.
+_channel_rate_buckets: dict = {}
+_CHANNEL_POLL_BUCKETS_MAX = 100_000
+
+
+def is_channel_registered(channel_id: int) -> bool:
+    """Зарегистрирован ли канал (есть запись в `channels`).
+
+    До init_registered_channels_cache() возвращает True (fail-open) —
+    защита от race на startup, когда первый запрос приходит до init.
+    После init — строгая проверка по кэшу.
+    """
+    if not _channels_cache_initialized:
+        return True
+    return channel_id in _registered_channels_cache
+
+
+def is_channel_approved(channel_id: int) -> bool:
+    """Прошёл ли канал одобрение владельца (M99).
+
+    До инициализации кэша — True (fail-open), той же логикой, что и
+    `is_channel_registered`: на старте первый запрос может прийти раньше
+    загрузки, и закрывать живой канал из-за гонки хуже, чем на пару секунд
+    пустить незнакомого.
+    """
+    if not _channels_cache_initialized:
+        return True
+    return channel_id in _approved_channels_cache
+
+
+def mark_channel_approved(channel_id: int, approved: bool = True) -> None:
+    """Обновить кэш одобрения без рестарта (админ нажал «одобрить»)."""
+    cid = int(channel_id)
+    if approved:
+        _approved_channels_cache.add(cid)
+    else:
+        _approved_channels_cache.discard(cid)
+
+
+def get_channel_id_by_login(login: str) -> Optional[int]:
+    """M4 follow-up (в): реверсный lookup для IRC-бота. Снимаем `#` префикс
+    и lowercase. Возвращает None если канал не зарегистрирован."""
+    if not login:
+        return None
+    return _channel_login_to_id.get(login.lstrip("#").lower())
+
+
+def get_channel_login_by_id(channel_id: int) -> Optional[str]:
+    """Прямой lookup channel_id → login. Используется чтобы slать сообщение
+    в правильный IRC-канал (twitchio оперирует именами каналов, не ID)."""
+    if channel_id is None:
+        return None
+    for login, cid in _channel_login_to_id.items():
+        if cid == int(channel_id):
+            return login
+    return None
+
+
+def set_request_channel_id(channel_id: int) -> None:
+    """Public setter для request-context ContextVar. Используется IRC-ботом
+    в начале event_message/event_raw_data — после этого все downstream
+    db-helpers видят правильный channel_id без явного проброса.
+    """
+    if channel_id and channel_id > 0:
+        _current_channel_id.set(int(channel_id))
+
+
+def mark_channel_registered(channel_id: int, login: Optional[str] = None,
+                              tier: Optional[str] = None) -> None:
+    """Добавить канал в cache. Вызывается M4.3 OAuth callback'ом
+    после db.upsert_channel(). Без этого канал получает 403 до рестарта.
+
+    M4 follow-up (в): login параметр обновляет login→id mapping чтобы
+    IRC-бот мог скоупить чат-сообщения от только что зарегистрированного
+    канала (если он успеет джойнить — late-join handled in future).
+
+    M5: tier параметр кэширует тариф для check_channel_rate_limit.
+    Default — RATE_LIMIT_DEFAULT_TIER (free), upsert_channel в OAuth flow
+    тоже создаёт запись с tier='free' для новых регистрантов."""
+    if channel_id and channel_id > 0:
+        cid = int(channel_id)
+        _registered_channels_cache.add(cid)
+        if login:
+            _channel_login_to_id[login.lower().lstrip("#")] = cid
+        _channel_tier_cache[cid] = (tier or RATE_LIMIT_DEFAULT_TIER).lower()
+
+
+async def init_registered_channels_cache(db) -> None:
+    """Загрузить registered channels из БД. Вызывается из main.py startup
+    ПОСЛЕ run_migrations() (m4_channels.apply должен был backfill'ить
+    существующего стримера)."""
+    global _channels_cache_initialized
+    rows = await db.list_channels()
+    _registered_channels_cache.clear()
+    _approved_channels_cache.clear()
+    _channel_login_to_id.clear()
+    _channel_tier_cache.clear()
+    for r in rows:
+        cid = int(r["channel_id"])
+        _registered_channels_cache.add(cid)
+        login = r.get("login")
+        if login:
+            _channel_login_to_id[login.lower()] = cid
+        tier = (r.get("tier") or RATE_LIMIT_DEFAULT_TIER).lower()
+        _channel_tier_cache[cid] = tier
+        if r.get("approved"):
+            _approved_channels_cache.add(cid)
+    _channels_cache_initialized = True
+    pending = len(_registered_channels_cache) - len(_approved_channels_cache)
+    print(f"✅ Registered channels cache: {len(_registered_channels_cache)} channels loaded "
+          f"(одобрено: {len(_approved_channels_cache)}, ожидают: {pending}; "
+          f"login→id map: {len(_channel_login_to_id)}, tier-cache: {len(_channel_tier_cache)})")
+
+
+# ── M5: Per-channel rate limits ──────────────────────────────────────────────
+
+def check_channel_rate_limit(channel_id: int, *, bucket_key=None) -> bool:
+    """True = разрешить, False = заблокировать (429).
+
+    Fixed window per минуту. Tier-based квоты:
+        free → 300 req/min (по умолчанию)
+        pro  → 1200 req/min
+        vip  → 6000 req/min
+    Override через .env RATE_LIMIT_FREE / _PRO / _VIP.
+
+    Auth helpers supply a per-viewer key for reads/presence, otherwise the
+    shared channel key. Background loops do not consume JWT request quotas.
+    """
+    tier = _channel_tier_cache.get(channel_id, RATE_LIMIT_DEFAULT_TIER)
+    limit = RATE_LIMITS_BY_TIER.get(tier, RATE_LIMITS_BY_TIER[RATE_LIMIT_DEFAULT_TIER])
+    now = _time.time()
+    key = int(channel_id) if bucket_key is None else bucket_key
+    bucket = _channel_rate_buckets.setdefault(key, {"count": 0, "reset": 0.0})
+    if now >= bucket["reset"]:
+        bucket["count"] = 0
+        bucket["reset"] = now + 60
+    bucket["count"] += 1
+    return bucket["count"] <= limit
+
+
+def _check_request_rate_limit(request: Request, channel_id: int, claims: dict) -> None:
+    """Polling scales with verified viewers; actions retain the shared quota.
+
+    Never key by a client-supplied username, IP or token text (token refresh must
+    not reset a quota). Missing identity falls back to the shared channel bucket.
+    Both auth helpers can run on one request; charge that request only once.
+    """
+    charged = getattr(request.state, "rate_limit_channels", None)
+    if charged is not None and channel_id in charged:
+        return
+    key = channel_id
+    identity = ("uid:" + str(claims["user_id"]) if claims.get("user_id")
+                else "opaque:" + str(claims["username"]) if claims.get("username") else "")
+    polling = request.method in ("GET", "HEAD") or (
+        request.method == "POST" and request.url.path in (
+            "/api/viewer/online", "/api/viewer/activity"))
+    if polling and identity:
+        candidate = (channel_id, "read", identity)
+        # Bound viewer bucket growth between cleanup passes; overflow stays limited.
+        if candidate in _channel_rate_buckets or len(_channel_rate_buckets) < _CHANNEL_POLL_BUCKETS_MAX:
+            key = candidate
+    if not check_channel_rate_limit(channel_id, bucket_key=key):
+        remaining = _channel_rate_buckets[key]["reset"] - _time.time()
+        _raise_channel_rate_limited(channel_id, retry_after=max(1, math.ceil(remaining)),
+                                    scope="viewer_poll" if isinstance(key, tuple) else "channel")
+    if charged is None:
+        charged = request.state.rate_limit_channels = set()
+    charged.add(channel_id)
+
+
+async def channel_rate_cleanup_loop():
+    """Чистит просроченные channel rate-limit бакеты раз в 5 минут.
+    Аналог rate_cleanup_loop для per-IP, но для per-channel."""
+    while True:
+        await asyncio.sleep(300)
+        now = _time.time()
+        expired = [cid for cid, b in _channel_rate_buckets.items() if now > b["reset"] + 120]
+        for cid in expired:
+            del _channel_rate_buckets[cid]
+
+
+def resolve_channel_id(channel_id: Optional[int] = None) -> int:
+    """Разрешить channel_id для DB-helper. **Строгая** версия (M4 follow-up а).
+
+    Приоритет:
+      1. Явный параметр (background loops, EventSub передающий broadcaster_id)
+      2. ContextVar (установленный require_jwt_user / require_jwt_channel в
+         JWT-routes ИЛИ set_request_channel_id в IRC-handlers)
+
+    Если ни то, ни другое не дало ответ — поднимает RuntimeError. Это значит:
+      - Request handler не вызвал require_jwt_*  → bug, надо исправить
+      - Background task не передал channel_id явно → bug, надо исправить
+      - Startup-time код не set'нул ContextVar → bug, надо исправить
+
+    Для интеграционных границ где channel_id легитимно неизвестен на текущем
+    уровне зрелости (мод без HMAC, IRC USERNOTICE pre-(в), admin до per-channel
+    UI) — используй `resolve_channel_id_or_default()` с явным fallback'ом
+    на DEFAULT_CHANNEL_ID. Этот fallback означает «знаю что в multi-tenant
+    может быть некорректно — TODO исправить когда дойдут руки».
+    """
+    if channel_id is not None and channel_id > 0:
+        return channel_id
+    ctx_value = _current_channel_id.get()
+    if ctx_value is not None and ctx_value > 0:
+        return ctx_value
+    raise RuntimeError(
+        "channel_id not resolvable: ни явный параметр, ни ContextVar не дали ответ. "
+        "Request handler должен вызвать require_jwt_user/_channel; background task — "
+        "передать channel_id= явно; startup-job — итерировать по каналам и set_request_channel_id. "
+        "Для legacy-точек без JWT см. resolve_channel_id_or_default()."
+    )
+
+
+def resolve_channel_id_or_default(channel_id: Optional[int] = None) -> int:
+    """Явная soft-версия — для integration boundaries где channel_id легитимно
+    неизвестен на текущем уровне зрелости платформы.
+
+    Семантически identical к `resolve_channel_id` сейчас (оба возвращают
+    DEFAULT_CHANNEL_ID если не разрешить из параметра/ContextVar). Цель —
+    discoverability: grep по `_or_default` показывает все legacy-точки,
+    которые нужно перевести на explicit channel_id перед тем как
+    `resolve_channel_id` станет строгим.
+
+    Текущие callers (M4.2):
+      - rimworld.py mod endpoints (TODO M4.5+: HMAC + channel_id из мода)
+      - main.py IRC bot handlers (TODO M4.5: channel.id из twitchio)
+      - main.py EventSub fallback (defensive — payload без broadcaster невозможен)
+      - routes/admin.py (TODO M4.4: per-channel admin UI)
+      - routes/craft.py (TODO M4.4: require_jwt_user)
+      - bot_core.py drop_loop crash-recovery cache
+    """
+    if channel_id is not None and channel_id > 0:
+        return channel_id
+    ctx_value = _current_channel_id.get()
+    if ctx_value is not None and ctx_value > 0:
+        return ctx_value
+    _warn_default_channel_used()
+    return DEFAULT_CHANNEL_ID
+
+
+# Как часто напоминать про одну и ту же точку подстановки (сек). Раз в 5 минут
+# на место вызова: цель — заметить, а не залить лог.
+_DEFAULT_CHANNEL_WARN_EVERY = 300
+_default_channel_warned: dict = {}
+
+
+def _warn_default_channel_used() -> None:
+    """Сказать в лог, что канал не был известен и подставился дефолтный.
+
+    Пока стример один, подстановка безобидна — дефолт и есть единственный
+    канал. Со вторым она означает, что чужие данные записались владельцу (или
+    наоборот), и молча. Именно молчание делает такие дефекты неубиваемыми:
+    ровно так пропажу channel.follow не замечали 17 дней.
+
+    Эти строки — рабочий список того, что обязано получить явный channel_id
+    ДО прихода второго стримера.
+    """
+    import sys
+    import time as _t
+
+    try:
+        frame = sys._getframe(2)          # кто вызвал resolve_*_or_default
+        site = f"{frame.f_code.co_filename.rsplit('/', 1)[-1].rsplit(chr(92), 1)[-1]}:{frame.f_lineno}"
+    except Exception:
+        site = "?"
+    now = _t.time()
+    last = _default_channel_warned.get(site, 0)
+    if now - last < _DEFAULT_CHANNEL_WARN_EVERY:
+        return
+    _default_channel_warned[site] = now
+    logger.warning(
+        "channel-default: канал не определён, подставлен DEFAULT_CHANNEL_ID=%s "
+        "(вызов из %s). Со вторым стримером это будет запись в ЧУЖОЙ канал.",
+        DEFAULT_CHANNEL_ID, site,
+    )
+
+# ── Shared state ──────────────────────────────────────────────────────────────
+_db  = None
+_bot = None
+
+# ── Twitch ID → login cache (общий для всех роутеров) ────────────────────────
+_twitch_login_cache: dict = {}
+
+def _login_cache_keys(user_id: str, opaque_id: str) -> list:
+    """Ключи, под которыми resolve_jwt_login будет искать этот логин."""
+    keys = []
+    if user_id:
+        keys.append(str(user_id))
+    if opaque_id:
+        keys.append(str(opaque_id))
+        clean = str(opaque_id).lstrip("U")
+        if clean and clean.isdigit():
+            keys.append(clean)
+    return keys
+
+
+def cache_twitch_login(user_id: str, opaque_id: str, login: str) -> None:
+    """Сохранить маппинг Twitch ID → логин в памяти процесса.
+
+    ВНИМАНИЕ: это только память. Пережить перезапуск помогает
+    `persist_twitch_login()` — зовите её рядом, из async-контекста.
+    """
+    for key in _login_cache_keys(user_id, opaque_id):
+        _twitch_login_cache[key] = login
+
+
+async def persist_twitch_login(user_id: str, opaque_id: str,
+                               login: str) -> None:
+    """Сохранить ту же связку в базу, чтобы она пережила рестарт (M122).
+
+    Зачем: до 07.09 связка жила ТОЛЬКО в памяти процесса, и перезапуск бэкенда
+    ослеплял все уже открытые панели — `require_jwt_user` переставал опознавать
+    зрителя, эндпоинты отвечали `unauthorized`, панель рисовала нули вместо
+    баланса. Ошибку глотаем намеренно и шумно: не сохранили — работаем как
+    раньше, на памяти, а не роняем вход зрителю.
+
+    Базу берём ВНУТРИ try, а не аргументом. Первая версия принимала `db`, и
+    вызов выглядел как `persist_twitch_login(get_db(), ...)` — из-за чего
+    `get_db()` вычислялся ДО входа в защиту, и на стенде без базы падал весь
+    резолв логина. Поймал `test_frontend_001_compat.py`. Урок в одну строку:
+    защита обязана накрывать и получение зависимости, а не только запись.
+    """
+    if not login:
+        return
+    keys = _login_cache_keys(user_id, opaque_id)
+    if not keys:
+        return
+    try:
+        db = get_db()
+        async with db._connect() as conn:
+            for key in keys:
+                await conn.execute(
+                    "INSERT INTO twitch_login_map (key, login, updated_at) "
+                    "VALUES (?, ?, CURRENT_TIMESTAMP) "
+                    "ON CONFLICT(key) DO UPDATE SET "
+                    "  login=excluded.login, updated_at=CURRENT_TIMESTAMP",
+                    (key, login))
+            await conn.commit()
+    except Exception as ex:
+        logger.warning("[login-map] не сохранили связку %s → %s: %s",
+                       keys, login, ex)
+
+
+async def warm_twitch_login_cache(db) -> int:
+    """Поднять связки из базы в память при старте (M122).
+
+    Это и есть починка причины: после перезапуска словарь больше не пустой,
+    поэтому открытые панели продолжают работать без перезагрузки страницы.
+    """
+    try:
+        async with db._connect() as conn:
+            cur = await conn.execute("SELECT key, login FROM twitch_login_map")
+            rows = await cur.fetchall()
+    except Exception as ex:
+        logger.warning("[login-map] прогрев не удался: %s", ex)
+        return 0
+    for key, login in rows:
+        if key and login:
+            _twitch_login_cache[str(key)] = login
+    return len(rows)
+
+def resolve_jwt_login(jwt_result: dict) -> str:
+    """Резолвим реальный логин из JWT-результата.
+
+    Priority:
+      1. jwt_result['username'] (= sub) если это уже **real login** (буквы,
+         не Twitch opaque ID типа U<digits>). Это case для preview-mode и
+         dev-tokens где мы сразу кладём login в sub claim.
+      2. Twitch login cache (заполняется через /api/whoami при первом
+         logged-in запросе зрителя).
+      3. Empty string — login not resolved.
+    """
+    opaque = str(jwt_result.get("username", "")).strip()
+    user_id = str(jwt_result.get("user_id", ""))
+    clean = opaque.lstrip("U")
+
+    import re as _re
+
+    # 1) Twitch opaque_user_id pattern: capital "U" + ≥15 base64url-style chars
+    #    (e.g. "U7SM4O56SUT9PGNKUOBVH", "U_TEHZVSSEAYA8BLBPEPK",
+    #    "UZH7V2U5P__VKNQOGKSII"). Реальные Twitch логины никогда не выглядят
+    #    так — это значит viewer НЕ нажал "Share Identity" на расширении.
+    #    Включаем '_' и '-' т.к. opaque IDs base64url (могут содержать).
+    #    Сразу падаем в cache lookup чтобы не утечь opaque в hero names.
+    #    Реальные числовые opaque (U<digits>, dev tokens) — ниже отдельно.
+    if _re.fullmatch(r"U[A-Za-z0-9_-]{15,}", opaque):
+        return (
+            _twitch_login_cache.get(user_id)
+            or _twitch_login_cache.get(opaque)
+            or _twitch_login_cache.get(clean)
+            or ""
+        )
+
+    # 2) Дополнительная защита: Twitch login максимум 25 символов и состоит
+    #    из [a-zA-Z0-9_]. Если строка длиннее 25 или содержит '_' в начале
+    #    + длиннее 18 — это похоже на opaque, не пускаем.
+    if opaque and len(opaque) > 25:
+        return (
+            _twitch_login_cache.get(user_id)
+            or _twitch_login_cache.get(opaque)
+            or _twitch_login_cache.get(clean)
+            or ""
+        )
+
+    # 3) Heuristic: real Twitch login содержит хотя бы одну букву + не U<digits>.
+    #    Twitch dev/preview opaque IDs формата U<12-cyfr>, e.g. U98319857.
+    #    Real logins типа "shedoy23" — буквы + цифры, lowercase, ≤25 chars.
+    if (opaque and len(opaque) <= 25
+            and _re.search(r"[a-z]", opaque.lower())
+            and not _re.fullmatch(r"U\d+", opaque)):
+        return opaque.lower()
+
+    # Cache fallback (legacy)
+    return (
+        _twitch_login_cache.get(user_id)
+        or _twitch_login_cache.get(opaque)
+        or _twitch_login_cache.get(clean)
+        or ""
+    )
+
+
+def _raise_channel_pending(channel_id: int) -> None:
+    """M99: канал зарегистрирован, но ещё не одобрен.
+
+    Ответ намеренно ОТЛИЧАЕТСЯ от «канала нет»: там зритель должен позвать
+    стримера, здесь звать некого — заявка уже подана и ждёт человека. Один и
+    тот же текст на два разных состояния заставил бы стримера регистрироваться
+    повторно и решить, что сломано.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "status": "channel_pending_approval",
+            "channel_id": channel_id,
+            "message": "Заявка стримера принята и ждёт подключения",
+        },
+    )
+
+
+def _raise_channel_not_registered(channel_id: int) -> None:
+    """M4.1: Канал не в реестре — попроси стримера зарегистрироваться.
+
+    Frontend ловит 403 + status='channel_not_registered' и показывает
+    «Стример не подключил расширение — попроси его зайти на shedoy23.ru/streamer».
+    """
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "status": "channel_not_registered",
+            "channel_id": channel_id,
+            "message": "Стример не подключил расширение к платформе",
+        },
+    )
+
+
+def _raise_channel_rate_limited(channel_id: int, *, retry_after: int = 60,
+                                scope: str = "channel") -> None:
+    """M5: Per-channel rate limit exceeded → 429."""
+    tier = _channel_tier_cache.get(channel_id, RATE_LIMIT_DEFAULT_TIER)
+    limit = RATE_LIMITS_BY_TIER.get(tier, RATE_LIMITS_BY_TIER[RATE_LIMIT_DEFAULT_TIER])
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        headers={"Retry-After": str(retry_after)},
+        detail={
+            "status": "channel_rate_limited",
+            "channel_id": channel_id,
+            "tier": tier,
+            "limit_per_min": limit,
+            "scope": scope,
+            "message": "Слишком много запросов. Попробуй через минуту.",
+        },
+    )
+
+
+def require_jwt_user(request: Request) -> Optional[Tuple[str, int]]:
+    """
+    Возвращает (sanitized_login, channel_id) или None.
+
+    None означает что endpoint должен вернуть {"success": False, "message": ...}.
+    Используется как замена `username` из request body — JWT-резолв
+    единственный достоверный источник имени зрителя И стримера.
+
+    Возвращает None если:
+      - JWT-токена нет в заголовке X-Twitch-JWT
+      - JWT невалиден или просрочен
+      - JWT валиден но логин не резолвится (зритель должен открыть
+        расширение и нажать «Login with Twitch» чтобы заполнить кэш)
+      - JWT не содержит channel_id (broadcaster context отсутствует —
+        не должно случаться в Twitch Extension JWT)
+
+    Поднимает HTTPException(403) если:
+      - JWT валиден, но channel_id не зарегистрирован в `channels`-реестре
+        (стример ещё не прошёл OAuth на shedoy23.ru/streamer)
+
+    channel_id — это broadcaster's Twitch user_id (int). Все TENANT-таблицы
+    скоупятся по нему. См. MULTITENANT_PLAN.md §E.
+    """
+    jwt_result = verify_twitch_jwt(request)
+    if jwt_result.get("status") != "valid":
+        return None
+    login = sanitize_username(resolve_jwt_login(jwt_result))
+    if not login or not validate_username(login):
+        return None
+    raw_channel = jwt_result.get("channel_id") or ""
+    try:
+        channel_id = int(raw_channel)
+    except (TypeError, ValueError):
+        return None
+    if channel_id <= 0:
+        return None
+    if not is_channel_registered(channel_id):
+        _raise_channel_not_registered(channel_id)
+    if not is_channel_approved(channel_id):
+        _raise_channel_pending(channel_id)
+    # M5: per-channel rate limit. После успешной registration check.
+    _check_request_rate_limit(request, channel_id, jwt_result)
+    # Кладём channel_id в контекст текущей request-task'и — все async db-вызовы
+    # дальше по цепочке (включая create_task(...) child'ов) автоматически
+    # увидят его через resolve_channel_id() без явного проброса.
+    _current_channel_id.set(channel_id)
+    return (login, channel_id)
+
+
+def require_jwt_channel(request: Request) -> Optional[int]:
+    """
+    Возвращает channel_id из JWT или None.
+
+    Облегчённая версия `require_jwt_user`: НЕ требует чтобы JWT-логин
+    резолвился (зритель мог не залогиниться через Twitch). Только проверяет
+    что JWT валиден и содержит broadcaster context.
+
+    Поднимает HTTPException(403) если канал не в реестре (M4.1).
+
+    Используется эндпоинтами где username приходит из body/mod-команды,
+    а JWT нужен только как «I'm in channel X»-контекст для multi-tenant
+    скоупинга. См. rimworld.py shop endpoints.
+    """
+    jwt_result = verify_twitch_jwt(request)
+    if jwt_result.get("status") != "valid":
+        return None
+    raw_channel = jwt_result.get("channel_id") or ""
+    try:
+        channel_id = int(raw_channel)
+    except (TypeError, ValueError):
+        return None
+    if channel_id <= 0:
+        return None
+    if not is_channel_registered(channel_id):
+        _raise_channel_not_registered(channel_id)
+    if not is_channel_approved(channel_id):
+        _raise_channel_pending(channel_id)
+    # M5: per-channel rate limit.
+    _check_request_rate_limit(request, channel_id, jwt_result)
+    # См. require_jwt_user — устанавливаем channel_id в context для авто-проброса.
+    _current_channel_id.set(channel_id)
+    return channel_id
+
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+_rate_buckets: dict = defaultdict(lambda: {"count": 0, "reset": 0.0})
+_RATE_LIMIT       = 30      # запросов в минуту на IP по умолчанию
+_RATE_BUCKETS_MAX = 10_000  # максимум уникальных IP в памяти
+
+# ── Overlay state ─────────────────────────────────────────────────────────────
+# _overlay_jackpot удалён 2026-05-12 (Phase 8.A.2 lexicon scrub — dead code,
+# casino вырезан в Phase 1.A; setter не вызывался, getter возвращал None)
+_overlay_drop    = None   # {id, username, item_name, rarity, ts}
+
+
+def set_db(db) -> None:
+    global _db
+    _db = db
+
+
+def set_bot(bot) -> None:
+    global _bot
+    _bot = bot
+
+
+def get_db():
+    """Возвращает экземпляр Database."""
+    if _db is None:
+        raise RuntimeError("Database не инициализирована. Вызовите set_db() в main.py")
+    return _db
+
+
+def get_bot():
+    """Возвращает экземпляр BotCore."""
+    if _bot is None:
+        raise RuntimeError("BotCore не инициализирован. Вызовите set_bot() в main.py")
+    return _bot
+
+
+# ── Rate limit helpers ────────────────────────────────────────────────────────
+
+def check_rate_limit(ip: str, limit: int = _RATE_LIMIT) -> bool:
+    """True = разрешить, False = заблокировать."""
+    now = _time.time()
+    b = _rate_buckets[ip]
+    if now > b["reset"]:
+        b["count"] = 0
+        b["reset"] = now + 60
+    b["count"] += 1
+    return b["count"] <= limit
+
+async def rate_cleanup_loop():
+    """Фоновая задача: чистит просроченные rate-limit бакеты раз в 5 минут."""
+    while True:
+        await asyncio.sleep(300)
+        now = _time.time()
+        expired = [ip for ip, b in _rate_buckets.items() if now > b["reset"] + 120]
+        for ip in expired:
+            del _rate_buckets[ip]
+        if len(_rate_buckets) > _RATE_BUCKETS_MAX:
+            oldest = sorted(_rate_buckets.items(), key=lambda x: x[1]["reset"])
+            for ip, _ in oldest[:len(_rate_buckets) - _RATE_BUCKETS_MAX]:
+                del _rate_buckets[ip]
+
+
+# ── Overlay state helpers ─────────────────────────────────────────────────────
+# set_overlay_jackpot удалён 2026-05-12 (Phase 8.A.2 lexicon scrub)
+
+def set_overlay_drop(data: Optional[dict]) -> None:
+    global _overlay_drop
+    _overlay_drop = data
+
+# _overlay_donate / set_overlay_donate удалены 2026-05-14 (Phase 8.F donate removal)
+# — direct ₽→крустики конвертация противоречит §5.2/§5.4 Twitch Extension
+# Guidelines (real-money flow вне Bits = денежная транзакция bypass'ом
+# revenue share). См. также Phase 1.D в COMPLIANCE_REWORK_PLAN.md где
+# /api/donate endpoint был удалён, но overlay state setter забыли убрать.
+
+def get_overlay_state() -> dict:
+    # "jackpot" key удалён 2026-05-12 (Phase 8.A.2 lexicon scrub)
+    # "donate" key удалён 2026-05-14 (Phase 8.F donate removal)
+    return {"drop": _overlay_drop}
+
+
+# ── Last event winner ─────────────────────────────────────────────────────────
+
+_last_event_winner = None  # {has_winner, winner, message, prize, ended_at}
+
+def set_last_event_winner(data: Optional[dict]) -> None:
+    global _last_event_winner
+    _last_event_winner = data
+
+def get_last_event_winner() -> Optional[dict]:
+    return _last_event_winner
+
+
+# ── Admin auth ────────────────────────────────────────────────────────────────
+
+_security = HTTPBasic()
+_failed_login_attempts: dict = {}
+_ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+_raw_admin_password = os.getenv("ADMIN_PASSWORD", "")
+if not _raw_admin_password:
+    _raw_admin_password = secrets.token_hex(16)
+    print(
+        "⚠️  ADMIN_PASSWORD не задан в .env — сгенерирован временный пароль.\n"
+        "    Он поменяется при следующем рестарте. Пропиши ADMIN_PASSWORD в .env, "
+        "чтобы не терять доступ к /admin."
+    )
+_ADMIN_PASSWORD = _raw_admin_password
+
+# Брутфорс-защита: блокируем IP после LOGIN_ATTEMPT_MAX неудач в окне LOGIN_ATTEMPT_TTL.
+# При успешном входе счётчик IP сбрасывается. Без этого 8-значный пароль подбирается
+# простым curl-скриптом за минуты.
+LOGIN_ATTEMPT_MAX = 10
+
+
+async def require_admin(credentials: HTTPBasicCredentials = Depends(_security), request: Request = None):
+    """Защита всех /admin и /api/admin роутов через HTTP Basic Auth.
+
+    async, чтобы ContextVar.set() в нашей фрейме видело endpoint
+    (sync deps fastapi пускает через threadpool, контекст теряется).
+    """
+    global _failed_login_attempts
+    now = _time.time()
+    ip  = (request.client.host if request and request.client else None) or credentials.username
+
+    _failed_login_attempts = {k: v for k, v in _failed_login_attempts.items()
+                               if now - v["first"] < LOGIN_ATTEMPT_TTL}
+
+    bucket = _failed_login_attempts.get(ip)
+    if bucket and bucket["count"] >= LOGIN_ATTEMPT_MAX:
+        retry_minutes = max(1, int((LOGIN_ATTEMPT_TTL - (now - bucket["first"])) / 60) + 1)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Слишком много неудачных попыток. Попробуй через {retry_minutes} мин.",
+        )
+
+    ok_user = secrets.compare_digest(credentials.username.encode(), _ADMIN_USERNAME.encode())
+    ok_pass = secrets.compare_digest(credentials.password.encode(), _ADMIN_PASSWORD.encode())
+
+    if ok_user and ok_pass:
+        _failed_login_attempts.pop(ip, None)
+        # 2026-05-14: устанавливаем default channel_id в ContextVar.
+        # Admin без JWT — legacy boundary (см. ARCHITECTURE.md §3.1).
+        # Без этого все admin endpoints зовущие db.X(channel_id=None)
+        # падали 500 на resolve_channel_id (например /api/admin/stats).
+        try:
+            set_request_channel_id(resolve_channel_id_or_default())
+        except Exception:
+            pass  # если default не настроен — пускаем, ошибка вылезет в endpoint
+        return
+
+    if ip not in _failed_login_attempts:
+        _failed_login_attempts[ip] = {"count": 0, "first": now}
+    _failed_login_attempts[ip]["count"] += 1
+    _failed_login_attempts[ip]["last"]   = now
+    count = _failed_login_attempts[ip]["count"]
+    print(f"🚨 Failed login #{count}/{LOGIN_ATTEMPT_MAX} for '{credentials.username}' from {ip}")
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Неверный логин или пароль",
+        headers={"WWW-Authenticate": "Basic"},
+    )
+
+
+# ── Stream check ──────────────────────────────────────────────────────────────
+
+async def require_stream_live(channel_id: Optional[int] = None) -> Optional[dict]:
+    """
+    Возвращает None если стрим идёт — можно продолжать.
+    Возвращает error-dict если стрим офлайн.
+    Использование: if err := await require_stream_live(): return err
+
+    Bug 4 fix (2026-05-10): channel_id опциональный — если None, берётся
+    из ContextVar (resolve_channel_id внутри _is_stream_live). Action-роуты,
+    где канал известен из JWT, могут передать его явно для надёжности.
+
+    Testing bypass (2026-05-14): TESTING_BYPASS_STREAM_LIVE=true в .env
+    отключает проверку — для функционального теста без стрима.
+    """
+    from config import TESTING_BYPASS_STREAM_LIVE
+    if TESTING_BYPASS_STREAM_LIVE:
+        return None
+
+    _STREAM_OFFLINE_MSG = {"success": False, "message": "⚡ Доступно только во время стрима"}
+    try:
+        live = await get_bot()._is_stream_live(channel_id=channel_id)
+        if not live:
+            return _STREAM_OFFLINE_MSG
+    except Exception:
+        pass  # при ошибке проверки не блокируем
+    return None

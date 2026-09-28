@@ -1,0 +1,219 @@
+# Bannerlord module manifest — соответствует docs/MODULE_API.md §5.
+#
+# Рабочий runtime-контракт для C# connector `BannerlordLink/` и backend adapter.
+# Installation/version metadata для будущего Manager намеренно будет отдельным
+# контрактом: этот manifest описывает только Module API capabilities.
+
+id: bannerlord
+version: 0.1.0
+core_api_version: ">=1.0.0,<2.0.0"
+display_name: "Mount & Blade II: Bannerlord"
+description: "Зрители живут в кампании стримера как герои: развиваются, сражаются, создают семьи, отряды и владения."
+icon: "icon.png"
+
+# Стандартные events (см. MODULE_API.md §7) — Bannerlord замапит свои
+# на эти универсальные:
+#   character_ref = hero_id (Bannerlord internal)
+#   player.linked = когда зритель пройдёт join-flow в моде
+#   player.died = смерть героя в бою
+#   player.state_update = изменение скиллов/экипировки
+events:
+  - module.heartbeat
+  - module.session_start
+  - module.session_end
+  - hero.inventory_snapshot
+  - module.catalog_update
+  - player.linked
+  - player.unlinked
+  - player.state_update
+  - player.died
+  - player.respawned
+  - world.event_occurred
+  - world.settlements_catalog   # Sprint 5.33 CATALOG-1 — mod pushes engine settlements catalog
+
+# Стандартные actions — стример сможет триггерить:
+#   player.spawn = заспавнить героя зрителя в текущую сцену
+#   world.trigger_event = битва, осада, торговец, и т.д.
+#   player.give_item = выдать оружие/доспехи/деньги
+actions:
+  - player.spawn
+  - player.heal
+  - player.respawn
+  - player.give_item
+  - player.equip_item
+  - player.modify_attribute
+  - world.trigger_event
+  # world.broadcast_message — снят 2026-06-11 как dead/drift: handler в моде есть
+  # (BroadcastMessageHandler.cs), но backend его НИКОГДА не диспетчит (нет admin-
+  # триггера). Вернуть строку, когда появится реальный эндпоинт-отправитель.
+
+# Bannerlord-specific extensions (RimWorld имеет pawn.gene_changed etc.):
+extensions:
+  events:
+    - hero.skill_changed
+    - hero.equipment_changed
+    - hero.relation_changed
+    - hero.faction_changed
+    - buff.activated      # Sprint 4.6: mod пушит при ActiveBuffState.Activate
+    - buff.expired        # Sprint 4.6: mod пушит при RemoveExpired
+    - hero.gear_tier_changed  # M20+: mod пушит после successful upgrade_gear
+    - module.heroes_snapshot  # M22+: mod пушит alive heroes на session_launched
+    - hero.retinue_changed    # M23+: mod пушит после recruit/upgrade troop
+    - hero.retinue_casualty   # 2026-05-29 (BLT RetinueDeathChance): войско свиты погибло навсегда
+    - hero.focus_changed      # Sprint 5.8: mod пушит после add_focus
+    - hero.attribute_changed  # Sprint 5.8: mod пушит после add_attribute
+    - hero.marriage_activated # 2026-07-25: мод пушил его с Sprint 5.33, но объявлен
+                              # НЕ был → бэк отбрасывал (event_not_in_manifest).
+                              # Брак в игре заключался, а единственное доказательство
+                              # этого терялось. Найден новым check_manifest_events.
+    - hero.clan_created       # Sprint 5.9: mod пушит после успешного clan create
+    - hero.kingdom_created    # Sprint 5.12: mod пушит после kingdom create
+    - hero.clan_left          # Sprint 5.12: mod пушит после leave_clan
+    - hero.kingdom_left       # Sprint 5.12: mod пушит после leave_kingdom
+    - hero.clan_joined        # Sprint 5.12: mod пушит после join_clan
+    - hero.kingdom_joined     # Sprint 5.12: mod пушит после join_kingdom
+    - hero.party_created      # Sprint 5.13: mod пушит после create_party
+    - tournament.queue_snapshot
+    - tournament.joined       # Sprint 5.3: viewer added to queue (mod paid Hero.Gold)
+    - tournament.left         # Sprint 5.3: viewer removed (refund / hero died / etc.)
+    - tournament.started      # Sprint 5.3: tournament fight started, participants frozen
+    - tournament.round_ended  # Sprint 5.3: round closed, bets resolved
+    - tournament.ended        # Sprint 5.3: final, winner gets prize
+    - battle.stats_snapshot   # Sprint 5.4: per-Mission stats для overlay (HP/kills/gold/xp)
+    - action.failed           # Sprint 5.29 BLT-parity #3: mod refused action → refund крустики
+    - action.partial          # 2026-09-06: действие выполнено НЕ ПОЛНОСТЬЮ (свита пришла не вся).
+                              # Деньги не возвращаем — действие сработало, — но зритель обязан узнать:
+                              # без этого «успех» и «получил обещанное» неотличимы.
+    - hero.heir_came_of_age   # Sprint 5.32 (BLT-parity M2): mod пушит когда ребёнок [BLink] hero'я взрослеет 18+
+    - hero.heir_died          # Sprint 5.32 (BLT-parity M2): heir умер ДО succession, mark alive=0
+    - hero.vassal_created     # Sprint 5.33 (BLT-parity VAS): backfill real clan_id after CreateClan
+    - hero.captured           # Sprint 5.33 (BLT-parity DIPLO): mod пушит при OnHeroPrisonerTaken
+    - hero.released           # Sprint 5.33 (BLT-parity DIPLO): mod пушит при освобождении из плена
+    - hero.policy_enacted     # Sprint 5.33 (BLT-parity DIPLO): mod пушит после EnactPolicyDecision passed
+    - hero.peace_concluded    # Sprint 5.33 (BLT-parity DIPLO): mod пушит после MakePeaceAction
+    - hero.workshop_profit_sync  # Sprint 5.33 (BLT-parity SHOP): mod OnDailyTick пушит net dinars
+    - hero.fief_tribute_sync     # Sprint 5.33 (BLT-parity FIEF): mod OnDailyTick для owned fief'ов
+    - hero.caravan_created       # Sprint 5.33 (BLT-parity CARAVAN): mod backfill engine party_id
+    - hero.caravan_profit_sync   # Sprint 5.33 (BLT-parity CARAVAN): daily diff PartyTradeGold
+    - hero.caravan_destroyed     # Sprint 5.33 (BLT-parity CARAVAN): MobilePartyDestroyed event
+    - hero.party_order_status    # Sprint 5.33 PORDER: sticky order set/release/expire/complete
+    - hero.properties_snapshot   # 2026-06-02 PROPERTIES-MIRROR: mod пушит полный snapshot fiefs/workshops/caravans → backend зеркалит (reconcile). БЕЗ этой строки бэк реджектил event_not_in_manifest → зеркало было мёртвым (поймано автотестом).
+    - hero.restore_profile       # 2026-06-15: на загрузке сейва мод ре-пушит per-save backend-only стейт (class/stance/gear_tier из SyncData). БЕЗ этой строки бэк реджектит event_not_in_manifest → класс не восстанавливается (тот же грабль, что properties_snapshot выше).
+    - hero.policy_result       # 2026-07-22 (багрепорт #23): мод сообщает ИТОГ заявки на закон (принят/снят). ACK от ActionPoller приходит ДО реальной работы и ничего не доказывает — без этого события заявка вечно висела 'pending': закон в игре действовал, а расширение показывало «на голосовании» и больше не давало нажать (уникальный индекс по pending).
+    - hero.restore_clan_upgrades # 2026-06-15: на загрузке сейва мод ре-пушит owned clan-upgrades ЭТОГО сейва (per-save, SyncData) → backend merge'ит после вайпа.
+    - hero.clan_upgrades_purchased # engine Hero.Gold debit succeeded; commit ownership
+    # world.settlements_catalog объявлен в base events (наверху, поэтому без префикса hero.)
+  actions:
+    - hero.create        # Adoption flow — spawn fresh wanderer + SetName(viewer)
+    - hero.set_class     # Sprint 4.1: класс + equipment apply
+    - power.activate     # Sprint 4.3: active power burst (heal_burst MVP)
+    - hero.upgrade_gear  # Sprint M20: 6-tier equipment progression
+    - hero.reequip_gear  # 2026-05-29: re-roll снаряги на текущем тире (фикс-утилита)
+    - hero.discard_item  # 2026-06-18: выбросить вещь из слота (освободить залоченную/перекованную)
+    - hero.add_skill
+    # hero.set_culture / hero.set_faction — сняты 2026-06-11 как dead/drift:
+    # в моде только stub-хендлеры (LOW priority), в backend не подключены.
+    - hero.recruit_troops
+    - hero.train_troops      # 2026-05-29 (BLT TrainingBehavior): bulk-upgrade свиты
+    - hero.join_tournament   # Sprint 5.3: BLT-style viewer tournament queue
+    - tournament.predict     # Sprint 5.3: бесплатный прогноз победителя (renamed 2026-06-29)
+    - hero.add_focus         # Sprint 5.8: focus point в skill (Hero.Gold tier-based)
+    - hero.add_attribute     # Sprint 5.8: attribute point (Hero.Gold flat 50K)
+    - hero.create_clan       # Sprint 5.9: BLT-style clan creation (Hero.Gold 1M)
+    - hero.create_kingdom    # Sprint 5.12: kingdom creation (Hero.Gold 5M)
+    - hero.leave_clan        # Sprint 5.12: leave own clan (free)
+    - hero.leave_kingdom     # Sprint 5.12: clan leaves kingdom (free)
+    - hero.join_clan         # Sprint 5.12: join existing clan (Hero.Gold 50K)
+    - hero.join_kingdom      # Sprint 5.12: clan joins kingdom (Hero.Gold 100K)
+    - hero.create_party      # Sprint 5.13: clan-leader creates MobileParty on world map (Hero.Gold 200K)
+    - hero.buy_clan_upgrades # engine-authoritative Hero.Gold purchase
+    - hero.smith_item        # Sprint 5.29 BLT-parity #6: trophy crafting (backend-only generation)
+    - hero.buy_equipment
+    - hero.equip_owned
+    - hero.unequip_owned
+    - hero.discard_owned
+    - hero.set_specialization
+    - hero.select_weapon_power
+    - hero.claim_starter
+    - hero.equip_trophy      # Sprint 5.29 BLT-parity #6 phase A: equip trophy into hero inventory
+    # Sprint 5.31 #45g (codegraph audit HIGH-2) — раньше manifest не знал
+    # о этих 4 actions потому что routes/bannerlord.py пишет в module_actions
+    # напрямую (bypass dispatch_action). Если когда-нибудь рефакторят на
+    # generic dispatch — manifest.supports_action() refuse'нёт. Добавлены
+    # явно чтобы такой регресс не случился.
+    - hero.set_gender        # Sprint 5.27a: gender swap (Hero.Gold 50K)
+    - hero.marry             # Sprint 5.27a: marry random NPC (Hero.Gold 50K)
+    - hero.divorce           # Sprint 5.27a: divorce current spouse (free)
+    - hero.make_baby         # Sprint 5.27a: pregnancy (Hero.Gold 100K)
+    # Sprint 5.32 (BLT-parity Detachment) — viewer-controlled formation commands
+    # для своего hero-agent'а внутри Mission. 6 actions: detach/attach + hold/
+    # charge/walls/gate (последние два — siege only). Pattern из Randomchair22-fork.
+    - hero.detach            # Вынуть из formation в свой отряд
+    - hero.attach            # Вернуть в parent formation
+    - hero.detach_hold       # Стоять (sniper-mode)
+    - hero.detach_charge     # Бежать на ближайшее enemy formation
+    - hero.detach_skirmish   # 2026-06-17 рич-приказ: бой-на-расстоянии (standoff+auto-target, ranged)
+    - hero.detach_raid       # 2026-06-17 рич-приказ: набег — конная орбита вокруг врага
+    - hero.detach_walls      # Siege: walls/ladders/towers
+    - hero.detach_gate       # Siege: nearest gate/barricade
+    # Sprint 5.32 (BLT-parity M2.1) — heir auto-activation на death героя.
+    # Backend pushes этот action в module_actions из _on_player_died.
+    - hero.activate_heir
+    # Sprint 5.33 (BLT-parity VAS) — vassal sub-clan management
+    - hero.create_vassal_clan
+    - hero.recruit_vassal_clan   # 2026-06-17: ruler hires fresh NPC vassal clan into kingdom (3M Hero.Gold, mod-charged)
+    - hero.rename_vassal
+    # Sprint 5.33 (BLT-parity SIEGE) — party strategic orders
+    - hero.party_order_set
+    - hero.party_order_release
+    # 2026-06-14 — «Армия» MVP: армия королевства (vanilla CreateArmy).
+    # Команды армии = существующие party orders (отдельных army-команд нет).
+    - hero.army_create
+    - hero.army_disband
+    # Sprint 5.33 (BLT-parity DIPLO) — kingdom politics + ransom (Lait fork)
+    - hero.enact_policy        # king-only: propose policy для kingdom'а (1500⦷)
+    - hero.make_peace          # king-only: peace offer с enemy kingdom (2000⦷)
+    - hero.pay_ransom          # any viewer: chip into ransom pool (500⦷)
+    # 2026-06-14 — дипломатия через голосование кланов (vanilla Kingdom.AddDecision)
+    - kingdom.propose_war      # предложить войну (1000⦷)
+    - kingdom.propose_peace    # предложить мир (1500⦷)
+    # Sprint 5.33 (BLT-parity SHOP) — workshops passive income loop
+    - hero.buy_workshop        # 1000⦷ entry — viewer покупает workshop в town
+    - hero.sell_workshop       # free — engine refund 50% capital
+    # Sprint 5.33 (BLT-parity FIEF) — fief tribute boost
+    - hero.tribute_boost       # 2000⦷ — 7-day +50% multiplier на один fief
+    # Sprint 5.33 (BLT-parity CARAVAN) — mobile passive income trilogy closer
+    - hero.buy_caravan         # 1500⦷ + 15K Hero.Gold — создать caravan
+    - hero.sell_caravan        # free — transfer к MainHero
+    # Sprint 5.33 (BLT-parity FAM) — viewer↔viewer marriage proposals между
+    # взрослыми детьми. Backend hold'ит proposals в bannerlord_marriage_proposals
+    # (m49). При accept'е enqueue mod-action `hero.activate_marriage` (mod
+    # физически жениет 2 heroes через Hero.Spouse). Plus child customization.
+    - hero.propose_marriage
+    - hero.respond_marriage_proposal
+    - hero.cancel_proposal
+    - hero.rename_child
+    - hero.change_child_looks
+    - hero.respec_child_skills
+    - hero.activate_marriage
+    # 2026-07-29 (аудит работы 0.0.2) — ровно тот же случай, что и блок про
+    # 4 action'а выше: оба живые (кнопка в панели + цена в ACTION_PRICES_DEFAULT
+    # + хендлер в моде), но пишутся в module_actions напрямую из
+    # routes/bannerlord.py, минуя dispatch_action — поэтому manifest про них не
+    # знал. Сегодня безвредно; на переходе к generic dispatch
+    # supports_action() их зарежет, и сломается то, что «всегда работало».
+    - hero.reforge_quality   # 2026-06-15 «Кузница»: перековка качества надетого предмета
+    - hero.set_combat_stance # 2026-06-10: боевая стойка (defensive/balanced/aggressive), free
+
+# Каталоги — те же что RimWorld (универсальный shape entry per MODULE_API.md §9):
+catalogs:
+  - equipment
+  - shop          # цены героев / снаряжения / войск
+  - events        # битвы / осады / торговцы / и т.д.
+
+# UI-слоты для frontend (детали в будущем MODULE_UI.md):
+ui_slots:
+  - shop_panel
+  - event_trigger_panel
+  - hero_inspector       # вместо player_inspector у RimWorld — другое имя
+                          # подходящее под культурный контекст игры

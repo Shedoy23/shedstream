@@ -1,0 +1,58 @@
+ M BannerlordLink/src/Actions/ActionRegistry.cs
+ M BannerlordLink/src/Actions/DiplomacyHandlers.cs
+ M BannerlordLink/src/Actions/EquipmentShopHandlers.cs
+ M BannerlordLink/src/Actions/PartyOrderHandlers.cs
+ M BannerlordLink/src/Behaviors/EquipmentShopBehavior.cs
+ M BannerlordLink/src/Behaviors/PartyOrderBehavior.cs
+ M BannerlordLink/tests/EquipmentShopHarness/EngineStubs.cs
+ M BannerlordLink/tests/EquipmentShopHarness/Program.cs
+ M BannerlordLink/tests/NativeInventoryHarness/Program.cs
+ M BannerlordLink/tests/NativeInventoryHarness/Stubs.cs
+ M BannerlordLink/tests/NoPartyEquipmentHarness/Program.cs
+ M DEFERRED.md
+ M LESSONS.md
+ M STATUS.md
+ M docs/BANNERLORD_BATTLE_ORDERS_AUDIT_2026-09-21.md
+ M scripts/test-bannerlord-equipment-ui.cjs
+ M Расширение/admin/admin.html
+ M Расширение/backend/main.py
+ M Расширение/backend/modules/bannerlord/_adapter.py
+ M Расширение/backend/modules/bannerlord/builds.py
+ M Расширение/backend/modules/bannerlord/equipment_shop.py
+ M Расширение/backend/modules/bannerlord/manifest.yaml
+ M Расширение/backend/modules/bannerlord/refusals.py
+ M Расширение/backend/routes/admin.py
+ M Расширение/backend/routes/bannerlord.py
+ M Расширение/backend/routes/bannerlord_admin.py
+ M Расширение/backend/routes/bannerlord_party_orders.py
+ M Расширение/backend/routes/promo.py
+ M Расширение/backend/routes/streamer.py
+ M Расширение/backend/templates/streamer_dashboard.html
+ M Расширение/backend/tests/test_bannerlord_equipment_shop.py
+ M Расширение/backend/tests/test_bannerlord_hero_reconcile.py
+ M Расширение/backend/tests/test_bannerlord_inventory_state.py
+ M Расширение/backend/tests/test_bannerlord_no_party_purchase.py
+ M Расширение/docs/CONTEXT_BANNERLORD.md
+ M Расширение/docs/RELEASE_RECORD.md
+ M Расширение/docs/REVIEW_SUBMISSION.md
+ M Расширение/frontend/extension.html
+ M Расширение/frontend/mobile.html
+ M Расширение/frontend/viewer-bannerlord-builds.js
+ M Расширение/frontend/viewer-bannerlord-equipment.js
+ M Расширение/frontend/viewer-bannerlord.js
+ M Расширение/frontend/viewer.css
+?? BannerlordLink/src/Actions/BuyClanUpgradesHandler.cs
+?? docs/BANNERLORD_HERO_SYNC_2026-09-21.md
+?? docs/BANNERLORD_NATIVE_INVENTORY_2026-09-21.md
+?? docs/BANNERLORD_NO_PARTY_EQUIPMENT_2026-09-21.md
+?? docs/GUILD_FAMILY_PETS_VISION_2026-09-27.md
+?? docs/SHEDLINK_EXTENSION_AUDIT_2026-09-23.md
+?? docs/SHEDLINK_PANELS_BACKEND_AUDIT_2026-09-23.md
+?? docs/SHEDLINK_PANELS_PRODUCT_REVIEW_2026-09-24.md
+?? scripts/test-bannerlord-build-status.cjs
+?? scripts/test-bannerlord-no-party-equipment-ui.cjs
+?? scripts/test-bannerlord-vassal-rename-ui.cjs
+?? Расширение/backend/migrations/m127_bannerlord_inventory_state.py
+?? Расширение/backend/tests/test_clan_upgrade_purchase_and_party_expiry.py
+?? Расширение/backend/tests/test_panels_contract.py
+?? Расширение/docs/TWITCH_SUBMISSION_0.0.5_2026-09-23.txt

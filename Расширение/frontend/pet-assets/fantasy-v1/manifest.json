@@ -1,0 +1,320 @@
+[
+  {
+    "id": "necro_cat",
+    "name": "Кот-некромант",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 46,
+        "top": 57,
+        "width": 428,
+        "height": 421
+      },
+      {
+        "left": 539,
+        "top": 58,
+        "width": 461,
+        "height": 420
+      },
+      {
+        "left": 1054,
+        "top": 58,
+        "width": 443,
+        "height": 420
+      },
+      {
+        "left": 37,
+        "top": 539,
+        "width": 462,
+        "height": 427
+      },
+      {
+        "left": 564,
+        "top": 602,
+        "width": 409,
+        "height": 352
+      },
+      {
+        "left": 1052,
+        "top": 529,
+        "width": 444,
+        "height": 438
+      }
+    ],
+    "source": "exec-9d012116-bb0d-46b4-b9ef-c37e3aaf353b.png"
+  },
+  {
+    "id": "chest_mimic",
+    "name": "Сундук-мимик",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 76,
+        "top": 75,
+        "width": 379,
+        "height": 404
+      },
+      {
+        "left": 608,
+        "top": 70,
+        "width": 381,
+        "height": 407
+      },
+      {
+        "left": 1098,
+        "top": 70,
+        "width": 364,
+        "height": 406
+      },
+      {
+        "left": 77,
+        "top": 545,
+        "width": 417,
+        "height": 423
+      },
+      {
+        "left": 602,
+        "top": 649,
+        "width": 330,
+        "height": 299
+      },
+      {
+        "left": 1036,
+        "top": 536,
+        "width": 450,
+        "height": 432
+      }
+    ],
+    "source": "exec-47d06842-5dae-497c-a2b2-46562eefbc9c.png"
+  },
+  {
+    "id": "mushroom_grandpa",
+    "name": "Грибной дедушка",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 79,
+        "top": 62,
+        "width": 388,
+        "height": 430
+      },
+      {
+        "left": 582,
+        "top": 65,
+        "width": 407,
+        "height": 430
+      },
+      {
+        "left": 1099,
+        "top": 67,
+        "width": 392,
+        "height": 428
+      },
+      {
+        "left": 69,
+        "top": 545,
+        "width": 413,
+        "height": 426
+      },
+      {
+        "left": 572,
+        "top": 589,
+        "width": 393,
+        "height": 383
+      },
+      {
+        "left": 1075,
+        "top": 545,
+        "width": 445,
+        "height": 427
+      }
+    ],
+    "source": "exec-8eca9fbf-3012-40b0-b5a8-bbce8a8fb07f.png"
+  },
+  {
+    "id": "baker_dragon",
+    "name": "Дракончик-пекарь",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 48,
+        "top": 51,
+        "width": 380,
+        "height": 438
+      },
+      {
+        "left": 546,
+        "top": 52,
+        "width": 406,
+        "height": 437
+      },
+      {
+        "left": 1053,
+        "top": 59,
+        "width": 407,
+        "height": 430
+      },
+      {
+        "left": 42,
+        "top": 546,
+        "width": 396,
+        "height": 435
+      },
+      {
+        "left": 571,
+        "top": 618,
+        "width": 399,
+        "height": 353
+      },
+      {
+        "left": 1071,
+        "top": 532,
+        "width": 408,
+        "height": 449
+      }
+    ],
+    "source": "exec-88f997e7-2359-4c16-ae46-aa6c9e0d8363.png"
+  },
+  {
+    "id": "blanket_ghost",
+    "name": "Призрак в пледе",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 60,
+        "top": 84,
+        "width": 407,
+        "height": 419
+      },
+      {
+        "left": 546,
+        "top": 95,
+        "width": 414,
+        "height": 403
+      },
+      {
+        "left": 1058,
+        "top": 103,
+        "width": 412,
+        "height": 389
+      },
+      {
+        "left": 58,
+        "top": 580,
+        "width": 411,
+        "height": 396
+      },
+      {
+        "left": 570,
+        "top": 630,
+        "width": 404,
+        "height": 352
+      },
+      {
+        "left": 1039,
+        "top": 547,
+        "width": 442,
+        "height": 435
+      }
+    ],
+    "source": "exec-16fd2cf9-4892-4c92-beff-eb878cc425e9.png"
+  },
+  {
+    "id": "frog_samurai",
+    "name": "Лягушка-самурай",
+    "rarity": "rare",
+    "price": 500000,
+    "frames": [
+      "south",
+      "east",
+      "walk-2",
+      "wave",
+      "sleep",
+      "cheer"
+    ],
+    "boxes": [
+      {
+        "left": 62,
+        "top": 38,
+        "width": 382,
+        "height": 454
+      },
+      {
+        "left": 580,
+        "top": 60,
+        "width": 398,
+        "height": 432
+      },
+      {
+        "left": 1114,
+        "top": 60,
+        "width": 368,
+        "height": 432
+      },
+      {
+        "left": 67,
+        "top": 521,
+        "width": 373,
+        "height": 457
+      },
+      {
+        "left": 578,
+        "top": 612,
+        "width": 362,
+        "height": 343
+      },
+      {
+        "left": 1076,
+        "top": 521,
+        "width": 406,
+        "height": 457
+      }
+    ],
+    "source": "exec-7b433f4f-0102-4ab9-b590-1c3ce50b29a7.png"
+  }
+]

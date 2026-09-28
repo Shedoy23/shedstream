@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "integration_id": "rimworld",
+  "release_version": "0.1.1",
+  "runtime": {
+    "manifest_version": "0.1.1",
+    "core_api_version": ">=1.0.0,<2.0.0"
+  },
+  "game": {
+    "id": "rimworld",
+    "display_name": "RimWorld",
+    "supported_versions": ["1.5", "1.6"],
+    "process_names": ["RimWorldWin64"],
+    "version": {
+      "kind": "text_file",
+      "path": "Version.txt",
+      "compatibility_pattern": "^\\d+\\.\\d+"
+    },
+    "detection": [
+      { "kind": "steam", "app_id": 294100, "install_dir": "RimWorld" },
+      {
+        "kind": "manual",
+        "required_paths": ["RimWorldWin64.exe", "Mods"]
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "id": "windows_x64",
+      "kind": "os",
+      "requirement": "Windows x64",
+      "required": true
+    },
+    {
+      "id": "rimworld_installed",
+      "kind": "game",
+      "requirement": "RimWorld 1.5 or 1.6",
+      "required": true
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "rimlink_mod",
+      "source": {
+        "kind": "https",
+        "url": "https://shedoy23.ru/releases/RimLink-0.1.1.zip"
+      },
+      "size_bytes": 63673,
+      "sha256": "4e9656cb84b574691482938967928b0c50ad3cafd3cb7e41e79a12cb7ed42381",
+      "format": "zip",
+      "archive_root": "RimLink",
+      "signature": {
+        "algorithm": "rsa-pss-sha256",
+        "key_id": "shedlink-release-2026",
+        "value": "q+SNLzFNqfmkzHoI3ct3YxUPRSAcHWkbk+JYHirb3etbiskue+23O9IUutJJrop21dV28NQovwmQaKigN4SPazjSOb1Lmac7DVPYkupDPeKyCpqFMDd8YGU0JlxE1Fy2QC3/aZ5VTc2RpHWiKhusg/eNsHkOpZVOu9oKUJXhxBvHJhVn/kW49dTP+2aTu0/1ogdEujZEGoecLkYClhxn4epWYJ8WpDuV887+FWy4VAwtzvVDjTmmcXxyHrZaJZpV5CayjPLJInZBx4GY8OlMBw5aCxTRMfgD5iQD1DPLsB/dR9XeBmt2X8luMn/T1FpkrNFxwVPFEIC4OT0XwDs5kdsXzyCulkQHU57dgkA90xZXNrjPwf5REPTU2feK9/aigCN6emuVBlhoThofLEfcCZkGx4rEKa45b6vMN1cneYO//5DX7786/nSKmEXPLVSvDluEvaK+NoSqcHS11qHsA0eAQxNF3NAZ6dWrsHJtJF/KzvVwFoila6m3pX95SU8yo0CPTFlE270nLQAL8fx3lNlegFNWY/FK9XnE/2JmOaG3YB5ZF8cFZK2qdL9Ck5WYChRIXkN2zO60sSESSVDEiJSok4cHv3xEf14qFJ0Mslq/haq6xlGyOq7kZ+JwTweUkMY/kE+EaJcot9BsxyUBavqiFVCQIcoGy0UkUZw/PGg="
+      }
+    }
+  ],
+  "installation": {
+    "target": { "base": "game_root", "relative_path": "Mods/RimLink" },
+    "staging": { "base": "manager_temp", "verify_before_replace": true },
+    "replace": { "mode": "atomic_directory_swap", "require_game_stopped": true },
+    "rollback": { "enabled": true, "preserve": ["configuration_store", "outcome_journal"] },
+    "update": { "mode": "verify_then_replace", "preserve": ["configuration_store", "outcome_journal"] },
+    "repair": { "mode": "verify_then_replace", "preserve": ["configuration_store", "outcome_journal"] },
+    "uninstall": { "enabled": true, "preserve": ["configuration_store", "outcome_journal"] }
+  },
+  "configuration": {
+    "store": {
+      "kind": "xml",
+      "base": "windows_local_low",
+      "relative_path": "Ludeon Studios/RimWorld by Ludeon Studios/Config/Mod_RimLink_RimLinkMod.xml"
+    },
+    "create_if_missing": true,
+    "preserve_unmanaged": true,
+    "managed_fields": [
+      {
+        "name": "server_url",
+        "selector": "/SettingsBlock/ModSettings/serverUrl",
+        "value_source": "backend_url",
+        "secret": false
+      },
+      {
+        "name": "module_token",
+        "selector": "/SettingsBlock/ModSettings/moduleToken",
+        "value_source": "channel_module_token",
+        "secret": true
+      }
+    ]
+  },
+  "health": [
+    {
+      "id": "assembly_present",
+      "kind": "path_exists",
+      "path": "Assemblies/RimLink.dll",
+      "required": true
+    },
+    {
+      "id": "mod_heartbeat",
+      "kind": "module_heartbeat",
+      "module_id": "rimworld",
+      "required": true
+    },
+    {
+      "id": "authenticated_handshake",
+      "kind": "backend_handshake",
+      "module_id": "rimworld",
+      "required": true
+    }
+  ],
+  "compatibility_messages": {
+    "invalid_game_path": "В выбранной папке не найдены RimWorldWin64.exe и Mods.",
+    "unsupported_game_version": "Эта версия RimLink поддерживает RimWorld 1.5 и 1.6.",
+    "game_running": "Закрой RimWorld перед установкой, обновлением или восстановлением мода."
+  },
+  "security": {
+    "publisher": "shedoy23",
+    "signature_status": "signed",
+    "allowed_write_roots": ["game_root", "manager_temp", "windows_local_low"],
+    "redact_fields": ["module_token", "authorization", "cookie"]
+  }
+}

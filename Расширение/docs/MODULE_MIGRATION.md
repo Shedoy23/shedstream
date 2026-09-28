@@ -1,0 +1,111 @@
+# Module Migration Plan — RimWorld
+
+**Status:** Step 1 (foundation) задеплоен в репо. Steps 2+ — поэтапно.
+**Context:** [PLATFORM_VISION.md](../../PLATFORM_VISION.md) этап 3 / [MODULE_API.md](MODULE_API.md).
+
+Цель: вынести `backend/rimworld.py` (~1981 строк) в `backend/modules/rimworld/` так, чтобы ядро платформы знало RimWorld только через Module API. Это разблокирует подключение второго модуля (Bannerlord, Minecraft, …) тем же интерфейсом.
+
+---
+
+## Зачем поэтапно
+
+Полная миграция = многонедельная работа с риском регрессов на проде. Поэтому делаем шагами по 1-2 часа каждый. Между шагами система **рабочая** — старые `/api/rimworld/*` эндпоинты не отключаются пока не покрыты Module API эквивалентами.
+
+---
+
+## Шаги (укрупнённо)
+
+### Step 1 — Foundation ✅
+- [x] `modules/_base.py`: `ModuleAdapter` ABC, `ModuleManifest`, `ModuleEnvelope`
+- [x] `modules/_loader.py`: `discover_modules()` из manifest.yaml (PyYAML с fallback)
+- [x] `modules/rimworld/manifest.yaml`: capabilities из `rimworld.py` + C# мода
+- [x] `modules/rimworld/_adapter.py`: stub-уровень, реальная логика — следующие шаги
+- [x] `routes/module_api.py`: `GET /v1/modules`, `GET /v1/module/<id>/info`, `POST /v1/module/<id>/hello`
+- [x] `discover_modules()` вызов в `main.on_startup`
+
+### Step 2 — Read events from connector ✅ (infrastructure done, real handlers — Step 3)
+Цель: мод начинает слать события через Module API параллельно с легаси `/api/rimworld/*`.
+
+- [x] `POST /v1/module/<id>/events` endpoint в `routes/module_api.py`. Принимает массив envelope'ов. Валидирует через `manifest.supports_event()`.
+- [x] Token auth (§4 спеки): `Authorization: Bearer <module-token>`. Token = HMAC-SHA256(`channel_id|module_id|expires_at`, MODULE_TOKEN_SECRET). Long-lived (1 year). Issuance: `GET /api/streamer/module-token?module_id=X` (cookie-protected, M4.4 dashboard).
+- [x] `RimWorldAdapter.handle_event` — диспатчер по `env.type`. **Lifecycle events** (session_start/_end/heartbeat/catalog_update) implemented (либо реальный handler, либо log+skip с TODO).
+- [ ] **Реальные db.* writes** для player.* и pawn.* events — ОТЛОЖЕНО в Step 3 (чтобы не дублировать с легаси /api/rimworld/* которые ещё активны).
+- [x] Идемпотентность: per-channel in-memory ring (5000 envelope id'ов), повторный envelope = ACK с `{duplicate: true}`.
+
+### Step 3 — Action queue (core → connector) ✅ (infrastructure done; routes wrapper migration — отдельная подзадача)
+Цель: `player.spawn` вместо `POST /api/rimworld/spawn` идёт через action queue.
+
+- [x] Таблица `module_actions` (см. `migrations/m5_module_actions.py`). PK auto-increment служит cursor'ом для long-poll. Композитные индексы для polling и ACK lookup.
+- [x] `RimWorldAdapter.dispatch_action(channel_id, env)` — реальная имплементация: manifest validation + INSERT через `db.enqueue_action`.
+- [x] `GET /v1/module/<id>/actions?since=<cursor>` — long-poll до 25 сек, проверяет БД каждую секунду. `fetch_pending_actions` атомарно помечает dispatched.
+- [x] `POST /v1/module/<id>/ack` — idempotent ACK (повторный ACK = `{acked: false}`, cross-channel ACK = false).
+- [ ] **Wrapper migration НЕ в этом коммите**: routes/spawn/heal в `rimworld.py` пока вызывают свои функции напрямую. Перевод на `dispatch_action` — отдельная подзадача step 5/6 чтобы избежать big-bang риска.
+
+### Step 4 — Catalogs publish/consume ✅ (Module-API path; legacy redirect — отдельный wrapper task)
+
+- [x] Generic `module_catalogs` table (migration m6) — обслуживает все модули (rimworld + future bannerlord/minecraft).
+- [x] `module.catalog_update` handler (RimWorldAdapter._on_catalog_update): replace-семантика через `db.replace_module_catalog`. Validates catalog ∈ {shop, events}, entries is list.
+- [x] `module.session_start` теперь реально clear'ит каталоги канала через `db.clear_module_catalogs` (per MULTITENANT_PLAN.md §H).
+- [x] `GET /v1/module/<id>/catalog/<type>` — frontend (зритель/стример) читает каталог. 3-phase auth resolution: JWT → session cookie → ?channel_id.
+- [ ] **Legacy redirect НЕ в этом коммите**: `/api/rimworld/catalog/shop` и `/api/rimworld/catalog/events` пока продолжают читать из старых rimworld-specific таблиц (shop_catalog, rimworld_event_catalog). Перевод на module_catalogs — отдельная wrapper task в Step 6.
+
+### Step 5 — Real handle_event writes для player.* (под feature flag) ✅
+Цель: connector через Module API может реально создавать/обновлять pawns в БД, не дублируя легаси `/api/rimworld/*` (опасно регрессом).
+
+- [x] Feature flag `MODULE_API_PLAYER_EVENTS_ENABLED` (default false). При false — log only.
+- [x] db.upsert_player_pawn / mark_player_alive / remove_player_pawn helpers (UPSERT, UPDATE, DELETE).
+- [x] RimWorldAdapter._on_player_event dispatcher для player.linked/_unlinked/_state_update/_died/_respawned.
+- [ ] **pawn.\* extension events** (trait/gene/implant/xenotype) — log+skip; обработка отложена в Step 6 (требует записи в rimworld_pawn_traits/_genes/_hediffs которые легаси sync_pawns_bulk уже наполняет).
+
+### Step 6 — Decommission legacy + Bannerlord validation
+- [ ] Постепенно удаляем `/api/rimworld/*` routes по мере покрытия в Module API. Либо превращаем в shim-форвардер.
+- [ ] `rimworld.py` исчезает или ужимается до compatibility wrapper (~50 строк).
+- [ ] Catalog read endpoints `/api/rimworld/catalog/*` редиректить на `/v1/module/rimworld/catalog/*` (или удалять).
+- [ ] pawn.\* extension events — реальные writes в `rimworld_pawn_traits/_genes/_hediffs`.
+- [ ] Создать `modules/bannerlord/manifest.yaml + _adapter.py` для архитектурной валидации: ничего RimWorld-specific не утекло в core. Если утекло — refactor.
+
+### Step 6 — Add Bannerlord module (validation)
+- [ ] Создаём `modules/bannerlord/` с своим manifest.yaml + adapter.
+- [ ] Тот же handshake / events / actions работают без core-кода.
+- [ ] Проверка: ничего RimWorld-specific не утекло в core. Если утекло — refactor.
+
+---
+
+## Mapping table — текущие routes → Module API
+
+| Текущий endpoint | Тип Module API | Куда мигрирует |
+|---|---|---|
+| `POST /api/rimworld/link` | event `player.linked` | Step 2 |
+| `POST /api/rimworld/unlink` | event `player.unlinked` | Step 2 |
+| `POST /api/rimworld/sync_pawns` | event `player.state_update` (bulk) | Step 2 |
+| `POST /api/rimworld/spawn` | action `player.spawn` | Step 3 |
+| `POST /api/rimworld/heal` | action `player.heal` | Step 3 |
+| `POST /api/rimworld/resurrect` | action `player.respawn` | Step 3 |
+| `POST /api/rimworld/equip` | action `player.equip_item` | Step 3 |
+| `POST /api/rimworld/give_item` | action `player.give_item` | Step 3 |
+| `POST /api/rimworld/trigger_event` | action `world.trigger_event` | Step 3 |
+| `POST /api/rimworld/add_trait` | action `pawn.add_trait` (extension) | Step 3 |
+| `POST /api/rimworld/add_gene` | action `pawn.add_gene` (extension) | Step 3 |
+| `POST /api/rimworld/set_passion` | action `pawn.set_passion` (extension) | Step 3 |
+| `GET  /api/rimworld/catalog/shop` | catalog `shop` | Step 4 |
+| `GET  /api/rimworld/catalog/events` | catalog `events` | Step 4 |
+
+---
+
+## Риски
+
+1. **Регресс на проде во время миграции.** Mitigation: dual-path — legacy /api/rimworld/* живёт пока новый Module API не покрыт.
+2. **Утечка RimWorld-specifics в core.** Mitigation: при добавлении Bannerlord (Step 6) любой RimWorld-named код в core/ — обязательно рефакторить.
+3. **C# мод нужен под Module API.** Это работа в `RimLink/Source/`, не охвачена этим документом. Можно пилотировать с Python-симулятором connector'а.
+
+---
+
+## История
+
+| Дата | Шаг | Изменения |
+|---|---|---|
+| 2026-05-08 | Step 1 | Foundation: ModuleAdapter ABC, manifest.yaml, loader, /v1/module/* routes. RimWorldAdapter — stub. Existing rimworld.py не тронут. |
+| 2026-05-08 | Step 2 | Events endpoint + token auth + dedup. POST /v1/module/<id>/events. issue/verify_module_token (HMAC, 1-year TTL). GET /api/streamer/module-token (cookie-protected). RimWorldAdapter.handle_event — dispatcher с lifecycle handlers (session_*, catalog_update logged). Реальные db-writes для player.*/pawn.* отложены в Step 3. |
+| 2026-05-08 | Step 3 | Action queue. Migration m5_module_actions (table + 2 indexes). db.enqueue_action/fetch_pending_actions/ack_action helpers. RimWorldAdapter.dispatch_action — реальная имплементация. GET /v1/module/<id>/actions long-poll (25s timeout, 1s interval). POST /v1/module/<id>/ack idempotent. Wrapper migration legacy routes на dispatch_action — отложен в Step 5/6. |
+| 2026-05-08 | Step 4 | Catalog publish/consume. Migration m6_module_catalogs (generic table). db.replace_module_catalog/get_module_catalog/clear_module_catalogs helpers. RimWorldAdapter._on_catalog_update real impl + _on_session_start_business clear (MULTITENANT_PLAN §H). GET /v1/module/<id>/catalog/<type> с 3-phase auth (JWT → cookie → ?channel_id). Legacy /api/rimworld/catalog/* redirect — Step 6. |
+| 2026-05-08 | Step 5 | Real handle_event для player.\*. Feature flag MODULE_API_PLAYER_EVENTS_ENABLED (default false → log only). db helpers upsert_player_pawn/mark_player_alive/remove_player_pawn. RimWorldAdapter._on_player_event dispatcher для player.linked/_unlinked/_state_update/_died/_respawned. pawn.\* extension events — log+skip (Step 6). |

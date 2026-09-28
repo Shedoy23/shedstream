@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup Condition="'$(BaselineSourceDir)' == ''">
+    <Compile Include="../../src/Behaviors/HeroDetachmentBehavior.cs" Link="HeroDetachmentBehavior.cs" />
+    <Compile Include="../../src/Actions/DetachmentHandlers.cs" Link="DetachmentHandlers.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(BaselineSourceDir)' != ''">
+    <Compile Include="$(BaselineSourceDir)/HeroDetachmentBehavior.cs" /><Compile Include="$(BaselineSourceDir)/DetachmentHandlers.cs" />
+  </ItemGroup>
+  <ItemGroup><PackageReference Include="Newtonsoft.Json" Version="13.0.3" /></ItemGroup>
+</Project>
+

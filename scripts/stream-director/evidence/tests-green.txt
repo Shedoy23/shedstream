@@ -1,0 +1,35 @@
+✔ midnight rollover uses next date (3.4422ms)
+✔ date comes from filename, not a dated backup directory (0.8621ms)
+✔ one battle, distinct heroes, dead included, resolved outcome (11.3777ms)
+✔ enemy viewer victory is not player victory (0.3423ms)
+✔ mission without resolved payout does not claim defeat or battle (0.2629ms)
+✔ deployment without final result is an unfinished battle (0.3442ms)
+✔ payout without start never invents battle start (0.2467ms)
+✔ talking about assault never proves actual assault (0.2047ms)
+✔ pauses, disconnected clock and restart are not extrapolated (0.2813ms)
+✔ split recording boundary not mapped across files (0.3298ms)
+✔ stale or empty thoughts do not show as current AI orders (0.3771ms)
+✔ no clock means explicit unsynced, never wall clock as video time (0.791ms)
+✔ final Participation side overrides preliminary spawn side (0.6416ms)
+✔ unresolved mission and next battle never share heroes (0.3284ms)
+✔ deduplicated journal replay does not duplicate episodes (0.319ms)
+✔ rounded deployment timestamp joins link mission in same second (0.284ms)
+✔ full date in session overrides midnight inference (0.229ms)
+✔ report marks internal recording gap and refuses a continuous clip (0.3782ms)
+✔ OBS only asks for status; password absent from requests after auth (3.1182ms)
+✔ OBS connection restricted to loopback (23.172ms)
+✔ auth matches known deterministic challenge (0.2054ms)
+✔ late old-recording reply is ignored after restart (0.7493ms)
+✔ partial multibyte line waits until completed; restart does not reread (19.8928ms)
+✔ truncated source restarts at new head (6.3459ms)
+✔ crashed journal append removes only incomplete final record (4.7345ms)
+✔ failed partial append rolls back cursor and is retried without loss (16.9592ms)
+✔ second observer cannot write the same state directory (15.9781ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 167.7659

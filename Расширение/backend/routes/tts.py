@@ -1,0 +1,678 @@
+"""
+routes/tts.py — Озвучка сообщений зрителями (Sprint 5.23, 2026-05-21).
+
+Платный TTS-донат: зритель за 5000💎 (TTS_COST) отправляет текст до 200
+символов, overlay'й стрима воспроизводит mp3 через <audio>. Cooldown
+30s между сообщениями.
+
+Server-side TTS через gTTS (Google Translate TTS, free, ru-RU). На submit
+генерируем mp3, сохраняем как BLOB в tts_messages.audio_data. Overlay
+получает audio_url, играет через Audio().
+
+Архитектурное решение (Sprint 5.23 patch): изначально пробовали Web
+Speech API — speechSynthesis.speak() прямо в overlay.html. OBS Browser
+Source (Chromium-CEF) этот API поддерживает плохо: speak() не выводит
+аудио надёжно, события onend/onerror не всегда срабатывают. Переключение
+на серверный mp3 — robust для OBS.
+
+Endpoints:
+  Viewer (JWT):
+    POST /api/tts/submit             — debit + gTTS-генерация + queue
+  Overlay (public):
+    GET  /api/overlay/tts/pending    — oldest pending + audio_url
+    POST /api/overlay/tts/played     — mark played после <audio> ended
+    GET  /api/tts/audio/{id}.mp3     — раздаёт mp3 из BLOB'а
+
+  Streamer (session cookie, M102 — модерация UGC, M107 — гейт одобрения):
+    GET  /api/streamer/tts/queue     — очередь + история + состояние гейта
+    POST /api/streamer/tts/approve   — одобрить (без этого не звучит, M107)
+    POST /api/streamer/tts/hide      — скрыть сообщение (остаётся в истории)
+    POST /api/streamer/tts/block     — заблокировать/разблокировать зрителя
+    POST /api/streamer/tts/settings  — переключатель гейта
+
+Compliance:
+  • Crystal-burn (no real $) — §5.2 OK.
+  • **Модерация (M102, 2026-07-29).** Раньше здесь стояло «без модерации текста
+    (per решение)» — для UGC это не проходит: Twitch требует у расширений с
+    пользовательским контентом удаление, блокировку автора и историю, иначе
+    одобрение затягивается. Теперь есть: блок-лист зрителей (отказ ДО оплаты),
+    скрытие сообщения из очереди с сохранением в истории, кто и когда скрыл.
+  • **Гейт одобрения (M107, 2026-08-01).** Проверка правил показала, что
+    реактивной модерации МАЛО. Guidelines §7.2 дословно: «Extensions must
+    provide broadcasters with the ability to review, and reject or approve any
+    image or other audio-visual user content». Озвучка на оверлее — это оно и
+    есть, а «reject» после того, как звук прозвучал, — не reject: оверлей
+    опрашивает очередь раз в 3с, стример не успевает. Теперь сообщение не
+    звучит, пока стример не одобрил.
+    Переключатель «пропускать без модерации» есть (решение владельца), и это
+    правилам не противоречит: расширение ПРЕДОСТАВЛЯЕТ возможность, отказ от
+    неё на своём канале — её использование. **Но умолчание = гейт включён, и
+    менять умолчание нельзя:** ревьюер смотрит расширение из коробки, и
+    выключенная по умолчанию модерация — ровно то, что §7.2 запрещает.
+  • §7.3 (имя автора видно) — закрыто: оверлей рисует `🎤 @ник` над текстом.
+  • **Чего ещё нет:** синхронизации с банами канала Twitch и AutoMod-проверки.
+    Submission Best Practices формулируют AutoMod через «must», но нужен scope
+    `moderation:read`, которого у токенов нет; его добавление потребует
+    повторной авторизации от каждого стримера. Решение владельца отдельно,
+    см. DEFERRED. Остаточный риск на ревью — есть.
+"""
+import asyncio
+import io
+import logging
+
+from fastapi import APIRouter, Request
+from fastapi.responses import Response
+
+from config import TTS_COST, TTS_COOLDOWN_S, TTS_MAX_LEN, TTS_PENDING_TTL_S
+from dependencies import (
+    get_db, require_jwt_user, require_stream_live,
+    resolve_channel_id_or_default,
+)
+from notices import add_notice_tx
+
+router = APIRouter()
+log = logging.getLogger("rimlink.tts")
+
+_AUTH_FAIL = {"success": False, "message": "❌ Требуется авторизация Twitch"}
+
+
+# ─── Модерация (M102) ────────────────────────────────────────────────────────
+
+async def is_tts_blocked(db, channel_id: int, username: str) -> bool:
+    """Заблокирован ли зритель для озвучки на этом канале.
+
+    Общая точка для эндпоинта и теста. Отдельная от Twitch-банов: наши права
+    не позволяют читать баны канала (нужен scope `moderation:read`), поэтому
+    это собственный список стримера.
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT 1 FROM tts_blocked_users "
+            "WHERE channel_id=? AND username=?",
+            (channel_id, username))
+        return await cur.fetchone() is not None
+
+
+async def _reject_and_refund(db, channel_id: int, msg_id: int, by: str,
+                            notice: str) -> tuple:
+    """Пометить заявку отклонённой и вернуть деньги, если она не звучала.
+
+    Возвращает (сделали ли что-то, сколько вернули). Единственное место, где
+    озвучка получает терминальный исход: и ручной отказ стримера, и истечение
+    срока идут сюда. Двух копий этого SQL быть не должно — две записи одного
+    факта расходятся молча (правило «одна запись — одно место»).
+
+    Возврат берётся из строки (`cost`), а не из текущего конфига: цена могла
+    измениться между оплатой и решением, вернуть надо ровно списанное. Уже
+    озвученное сообщение денег не возвращает — услуга оказана.
+    """
+    refunded = 0
+    username = ""
+    async with db._connect() as conn:
+        # BEGIN IMMEDIATE: проверку «ещё не отклонено» и начисление держим в
+        # одной транзакции, иначе два клика стримера (или клик одновременно с
+        # тиком подметалки) вернут деньги дважды.
+        await conn.execute("BEGIN IMMEDIATE")
+        try:
+            cur = await conn.execute(
+                "SELECT username, cost, status FROM tts_messages "
+                "WHERE channel_id=? AND id=? AND moderated_by IS NULL",
+                (channel_id, msg_id))
+            row = await cur.fetchone()
+            if row is None:
+                await conn.execute("ROLLBACK")
+                return (False, 0)
+
+            username, cost, status = row[0], int(row[1] or 0), row[2]
+            await conn.execute(
+                "UPDATE tts_messages "
+                "SET moderated_by=?, moderated_at=CURRENT_TIMESTAMP "
+                "WHERE channel_id=? AND id=? AND moderated_by IS NULL",
+                (by, channel_id, msg_id))
+
+            if status == "pending" and cost > 0:
+                await db.add_points_tx(conn, username, cost, channel_id)
+                await add_notice_tx(
+                    conn, channel_id, username, "refund",
+                    notice.format(cost=cost), cost)
+                refunded = cost
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            raise
+
+    if refunded:
+        log.info("[TTS] ch=%s msg=%s закрыт (%s) — возвращено %d💎 @%s",
+                 channel_id, msg_id, by, refunded, username)
+    return (True, refunded)
+
+
+async def hide_tts_message(db, channel_id: int, msg_id: int, by: str) -> bool:
+    """Убрать сообщение из очереди озвучки, сохранив его в истории.
+
+    Возвращает True, если что-то реально скрыли. Идемпотентно: повторный вызов
+    вернёт False, а не «скрыл ещё раз».
+
+    Отклонение НЕозвученного сообщения возвращает деньги и говорит об этом
+    зрителю (07.09). До этого у платного действия не было терминального исхода:
+    гейт одобрения включён по умолчанию, а отказ только помечал строку —
+    5000💎 списаны, эффекта нет, возврата нет, зритель не извещён.
+    """
+    handled, _ = await _reject_and_refund(
+        db, channel_id, msg_id, by,
+        "Стример отклонил озвучку — {cost}💎 возвращены")
+    return handled
+
+
+async def expire_stale_tts_requests(db) -> tuple:
+    """Вернуть деньги за заявки, которые никто не одобрил и не отклонил.
+
+    Гейт одобрения включён по умолчанию, поэтому «стример не открыл очередь» —
+    это реальный и самый частый исход на чужом канале, а не экзотика. Без срока
+    такая заявка висела вечно: деньги списаны, эффекта нет, статус зрителю не
+    показывается (решение владельца 2026-09-07, срок — `TTS_PENDING_TTL_S`).
+
+    Истёкшая заявка помечается отклонённой, поэтому после возврата прозвучать
+    уже не может: одобрить её нельзя (`approve_tts_message` требует
+    `moderated_by IS NULL`), и оверлей её не берёт. Иначе поздний клик стримера
+    дал бы зрителю и деньги, и озвучку.
+
+    Возвращает (сколько заявок закрыто, сколько крустиков возвращено).
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT channel_id, id FROM tts_messages "
+            "WHERE status='pending' AND moderated_by IS NULL "
+            "  AND approved_at IS NULL "
+            "  AND (strftime('%s','now') - strftime('%s', created_at)) > ? "
+            "ORDER BY created_at ASC",
+            (TTS_PENDING_TTL_S,))
+        stale = await cur.fetchall()
+
+    closed = 0
+    refunded_total = 0
+    for channel_id, msg_id in stale:
+        # Каждая заявка — своя транзакция: одна сбойная строка не должна
+        # отменить возвраты остальным.
+        handled, refunded = await _reject_and_refund(
+            db, int(channel_id), int(msg_id), "auto-expired",
+            "Стример не успел решить по озвучке — {cost}💎 возвращены")
+        if handled:
+            closed += 1
+            refunded_total += refunded
+    return (closed, refunded_total)
+
+
+async def tts_requires_approval(db, channel_id: int) -> bool:
+    """Включён ли на канале гейт предварительного одобрения (M107).
+
+    Умолчание — ВКЛЮЧЁН, в том числе если строки настроек нет вообще: канал без
+    записи не должен оказаться каналом без модерации. Так же трактует Twitch
+    (Guidelines §7.2 — стример обязан иметь возможность одобрить или отклонить
+    контент ДО эфира).
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT require_approval FROM channel_tts_settings WHERE channel_id=?",
+            (channel_id,))
+        row = await cur.fetchone()
+    return True if row is None else bool(row[0])
+
+
+async def set_tts_require_approval(db, channel_id: int, required: bool) -> None:
+    """Переключить гейт. Выключение — осознанный выбор стримера на своём канале."""
+    async with db._connect() as conn:
+        await conn.execute(
+            "INSERT INTO channel_tts_settings (channel_id, require_approval, updated_at) "
+            "VALUES (?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(channel_id) DO UPDATE SET "
+            "  require_approval=excluded.require_approval, "
+            "  updated_at=CURRENT_TIMESTAMP",
+            (channel_id, 1 if required else 0))
+        await conn.commit()
+
+
+async def approve_tts_message(db, channel_id: int, msg_id: int) -> bool:
+    """Одобрить сообщение — после этого оверлей его возьмёт. True если одобрили.
+
+    Скрытое сообщение одобрить нельзя: `moderated_by IS NULL` в условии не даёт
+    отменить собственный отказ кликом мимо.
+    """
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "UPDATE tts_messages SET approved_at=CURRENT_TIMESTAMP "
+            "WHERE channel_id=? AND id=? AND status='pending' "
+            "  AND moderated_by IS NULL AND approved_at IS NULL",
+            (channel_id, msg_id))
+        affected = cur.rowcount
+        await conn.commit()
+    return affected > 0
+
+
+async def next_pending_for_overlay(db, channel_id: int):
+    """Следующее сообщение для оверлея, или None.
+
+    Общая точка для эндпоинта и теста — чтобы тест проверял ТОТ ЖЕ запрос,
+    который реально обслуживает оверлей, а не свою копию.
+
+    M107: если на канале включён гейт, берём только одобренные. Выключенный
+    гейт возвращает прежнее поведение — играем сразу.
+    """
+    gated = await tts_requires_approval(db, channel_id)
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            # Скрытое модерацией сообщение остаётся в истории, но не звучит.
+            # Статус не меняем — у таблицы жёсткий CHECK на два значения.
+            "SELECT id, username, message, created_at "
+            "FROM tts_messages "
+            "WHERE channel_id = ? AND status = 'pending' "
+            "  AND moderated_by IS NULL "
+            + ("  AND approved_at IS NOT NULL " if gated else "") +
+            "ORDER BY created_at ASC LIMIT 1",
+            (channel_id,))
+        return await cur.fetchone()
+
+
+async def set_tts_block(db, channel_id: int, username: str, blocked: bool,
+                        by: str = "", reason: str = "") -> None:
+    """Включить/снять блокировку озвучки для зрителя."""
+    async with db._connect() as conn:
+        if blocked:
+            await conn.execute(
+                "INSERT OR REPLACE INTO tts_blocked_users "
+                "(channel_id, username, blocked_by, reason) VALUES (?, ?, ?, ?)",
+                (channel_id, username, by, reason))
+        else:
+            await conn.execute(
+                "DELETE FROM tts_blocked_users WHERE channel_id=? AND username=?",
+                (channel_id, username))
+        await conn.commit()
+
+
+def _generate_tts_mp3(text: str) -> bytes:
+    """Sync gTTS вызов — генерирует mp3 в память. Запускаем через
+    asyncio.to_thread из async endpoint'а чтобы не блочить event loop.
+    Raises Exception если gTTS API недоступен (offline / rate-limit)."""
+    from gtts import gTTS
+    buf = io.BytesIO()
+    gTTS(text=text, lang='ru', slow=False).write_to_fp(buf)
+    return buf.getvalue()
+
+
+@router.post("/api/tts/submit")
+async def tts_submit(request: Request):
+    """Зритель отправляет сообщение → debit крустиков + queue для overlay'я.
+
+    Body: {"message": str}
+    """
+    if err := await require_stream_live():
+        return err
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+
+    from dependencies import get_bot
+    await get_bot().touch_viewer(username)
+
+    data = await request.json()
+    message = str(data.get("message", "") or "").strip()
+    if not message:
+        return {"success": False, "message": "Сообщение не может быть пустым"}
+    if len(message) > TTS_MAX_LEN:
+        return {
+            "success": False,
+            "message": f"Слишком длинно (макс {TTS_MAX_LEN} символов)",
+        }
+
+    db = get_db()
+
+    # Модерация (M102): заблокированный стримером зритель не озвучивается.
+    # Проверка ДО оплаты — отказ не должен стоить крустиков.
+    if await is_tts_blocked(db, channel_id, username):
+        return {
+            "success": False,
+            "message": "🔇 Стример отключил тебе озвучку",
+        }
+
+    # Cooldown check — stateless, читаем последнее сообщение этого юзера
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT (strftime('%s','now') - strftime('%s', created_at)) "
+            "FROM tts_messages WHERE username = ? AND channel_id = ? "
+            "ORDER BY created_at DESC LIMIT 1",
+            (username, channel_id)
+        )
+        row = await cur.fetchone()
+        if row and row[0] is not None and row[0] < TTS_COOLDOWN_S:
+            remaining = TTS_COOLDOWN_S - int(row[0])
+            return {
+                "success": False,
+                "message": f"⏳ Подожди ещё {remaining}s",
+            }
+
+    # Balance check (debit ПОСЛЕ успешной gTTS генерации чтобы при
+    # сетевой ошибке gTTS юзер не потерял крустики)
+    points = await db.get_points(username)
+    if points < TTS_COST:
+        return {
+            "success": False,
+            "message": f"Нужно {TTS_COST}💎 (у тебя {points}💎)",
+        }
+
+    # Generate mp3 через gTTS. Sync вызов → в thread pool.
+    try:
+        audio_bytes = await asyncio.to_thread(_generate_tts_mp3, message)
+    except Exception as e:
+        print(f"[tts] gTTS generation failed: {type(e).__name__}: {e}")
+        return {
+            "success": False,
+            "message": "❌ Ошибка TTS-сервиса, попробуй позже",
+        }
+
+    if not audio_bytes:
+        return {"success": False, "message": "❌ Пустой результат TTS"}
+
+    # Debit + queue — атомарно в одной транзакции, с ПОВТОРНОЙ проверкой кулдауна
+    # внутри неё: TOCTOU-фикс (два параллельных запроса иначе оба проходят ранний
+    # чек и оба списывают) + debit-without-effect (списание и INSERT — одна tx).
+    async with db._connect() as conn:
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+            cur = await conn.execute(
+                "SELECT (strftime('%s','now') - strftime('%s', created_at)) "
+                "FROM tts_messages WHERE username = ? AND channel_id = ? "
+                "ORDER BY created_at DESC LIMIT 1",
+                (username, channel_id))
+            crow = await cur.fetchone()
+            if crow and crow[0] is not None and crow[0] < TTS_COOLDOWN_S:
+                await conn.execute("ROLLBACK")
+                remaining = TTS_COOLDOWN_S - int(crow[0])
+                return {"success": False, "message": f"⏳ Подожди ещё {remaining}s"}
+            if not await db.remove_points_tx(conn, username, TTS_COST, channel_id):
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "Не удалось списать"}
+            await conn.execute(
+                "INSERT INTO tts_messages "
+                "(channel_id, username, message, cost, audio_data) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (channel_id, username, message, TTS_COST, audio_bytes)
+            )
+            await conn.commit()
+        except Exception:
+            await conn.execute("ROLLBACK")
+            raise
+
+    # Тост обязан назвать, что это ЗАЯВКА, когда исход отложен (правило
+    # «платное + асинхронное» в CLAUDE.md). При включённом гейте «озвучится
+    # скоро» — обещание за стримера: сообщение прозвучит только после его
+    # одобрения, а при отказе деньги вернутся. Гейт включён по умолчанию,
+    # поэтому прежний текст был неверен на большинстве каналов.
+    if await tts_requires_approval(db, channel_id):
+        toast = (f"🎤 Заявка отправлена (-{TTS_COST}💎). Прозвучит после "
+                 f"одобрения стримера; при отказе крустики вернутся")
+    else:
+        toast = f"🎤 Озвучится скоро (-{TTS_COST}💎)"
+
+    return {
+        "success": True,
+        "message": toast,
+        "cost": TTS_COST,
+    }
+
+
+@router.get("/api/overlay/tts/pending")
+async def tts_pending(channel_id: int = 0):
+    """Overlay-poll: oldest pending message для канала (или null).
+
+    Public endpoint — overlay.html не имеет Twitch auth context.
+    """
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
+
+    db = get_db()
+    row = await next_pending_for_overlay(db, channel_id)
+
+    if not row:
+        return {"success": True, "message": None}
+
+    return {
+        "success": True,
+        "message": {
+            "id":         row[0],
+            "username":   row[1],
+            "text":       row[2],
+            "created_at": row[3],
+            "audio_url":  f"/api/tts/audio/{row[0]}.mp3?channel_id={channel_id}",
+        },
+    }
+
+
+@router.get("/api/tts/audio/{msg_id}.mp3")
+async def tts_audio(msg_id: int, channel_id: int = 0):
+    """Раздаёт mp3 для конкретного message id из audio_data BLOB.
+
+    Public — overlay.html без auth. id + channel_id указаны в URL (overlay
+    берёт готовый audio_url из /api/overlay/tts/pending). Скоуп по channel_id —
+    иначе любой overlay скачивает аудио чужого канала по голому id.
+    Кеширование браузером отключено (Cache-Control: no-cache).
+    """
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT audio_data FROM tts_messages WHERE id = ? AND channel_id = ?",
+            (msg_id, channel_id)
+        )
+        row = await cur.fetchone()
+
+    if not row or not row[0]:
+        return Response(status_code=404)
+
+    return Response(
+        content=row[0],
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@router.post("/api/overlay/tts/played")
+async def tts_played(request: Request):
+    """Overlay → mark message played после speechSynthesis.onend.
+
+    Body: {"id": int, "channel_id": int}
+    Скоуп по channel_id — иначе overlay чужого канала может пометить
+    played'нутым (и тем самым «проглотить») TTS этого канала.
+    """
+    data = await request.json()
+    try:
+        msg_id = int(data.get("id", 0))
+    except (TypeError, ValueError):
+        return {"success": False, "message": "Неверный id"}
+    if msg_id <= 0:
+        return {"success": False, "message": "id обязателен"}
+    try:
+        channel_id = int(data.get("channel_id", 0))
+    except (TypeError, ValueError):
+        channel_id = 0
+    if channel_id <= 0:
+        channel_id = resolve_channel_id_or_default()
+
+    # A2 (2026-07-02): мутацию гейтим overlay-токеном (id+channel_id публичны →
+    # без токена грифер гасил бы платное TTS). Токен в URL OBS-оверлея.
+    from routes.streamer import verify_overlay_token  # lazy import: avoid cycle
+    if not verify_overlay_token(channel_id, (data.get("overlay_token") or "").strip()):
+        return {"success": False, "message": "overlay token invalid"}
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "UPDATE tts_messages "
+            "SET status = 'played', played_at = CURRENT_TIMESTAMP "
+            "WHERE id = ? AND channel_id = ? AND status = 'pending'",
+            (msg_id, channel_id)
+        )
+        await conn.commit()
+        updated = cur.rowcount
+
+    return {"success": True, "updated": updated}
+
+
+# ─── Эндпоинты модерации для дашборда стримера (M102) ────────────────────────
+#
+# Авторизация — та же session cookie, что у остальных /api/streamer/*
+# (стример прошёл OAuth через /streamer). Не JWT зрителя: это действия
+# владельца канала над чужим контентом.
+
+
+@router.get("/api/streamer/tts/queue")
+async def streamer_tts_queue(request: Request):
+    """Очередь озвучки + последняя история. Для дашборда."""
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT id, username, message, status, created_at, moderated_by, approved_at "
+            "FROM tts_messages WHERE channel_id=? "
+            "ORDER BY created_at DESC LIMIT 50",
+            (channel_id,))
+        rows = await cur.fetchall()
+        cur = await conn.execute(
+            "SELECT username, reason, blocked_at FROM tts_blocked_users "
+            "WHERE channel_id=? ORDER BY blocked_at DESC",
+            (channel_id,))
+        blocked = await cur.fetchall()
+
+    return {
+        "success": True,
+        "require_approval": await tts_requires_approval(db, channel_id),
+        "messages": [
+            {"id": r[0], "username": r[1], "text": r[2], "status": r[3],
+             "created_at": r[4], "hidden_by": r[5], "approved_at": r[6],
+             # Что показать стримеру одним словом, чтобы он не собирал состояние
+             # из трёх полей глазами.
+             "state": ("скрыто" if r[5] else
+                       "прозвучало" if r[3] == "played" else
+                       "одобрено" if r[6] else "ждёт решения")}
+            for r in rows
+        ],
+        "blocked": [
+            {"username": b[0], "reason": b[1], "blocked_at": b[2]}
+            for b in blocked
+        ],
+    }
+
+
+@router.post("/api/streamer/tts/approve")
+async def streamer_tts_approve(request: Request):
+    """Одобрить сообщение — только после этого оверлей его озвучит.
+
+    Закрывает Twitch Extensions Guidelines §7.2: стример обязан иметь
+    возможность одобрить или отклонить контент, а не только убрать его задним
+    числом (задним числом «отклонить» звук, который уже прозвучал, нельзя).
+    """
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    body = await request.json()
+    try:
+        msg_id = int(body.get("id") or 0)
+    except (TypeError, ValueError):
+        msg_id = 0
+    if msg_id <= 0:
+        return {"success": False, "message": "Нужен id сообщения"}
+
+    approved = await approve_tts_message(get_db(), channel_id, msg_id)
+    return {
+        "success": True,
+        "approved": approved,
+        "message": "Одобрено — прозвучит в течение пары секунд" if approved
+                   else "Нельзя одобрить: уже одобрено, скрыто или прозвучало",
+    }
+
+
+@router.post("/api/streamer/tts/settings")
+async def streamer_tts_settings(request: Request):
+    """Переключатель «пропускать без модерации».
+
+    Body: {"require_approval": bool}
+
+    Выключать МОЖНО — правило Twitch требует, чтобы расширение ПРЕДОСТАВЛЯЛО
+    стримеру возможность одобрять контент; отказ от неё на своём канале и есть
+    её использование. Но умолчание — включено, и менять умолчание нельзя:
+    ревьюер смотрит расширение в состоянии из коробки.
+    """
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    body = await request.json()
+    required = bool(body.get("require_approval", True))
+    await set_tts_require_approval(get_db(), channel_id, required)
+    return {
+        "success": True,
+        "require_approval": required,
+        "message": ("Озвучка ждёт твоего одобрения" if required
+                    else "Озвучка идёт в эфир сразу, без модерации"),
+    }
+
+
+@router.post("/api/streamer/tts/hide")
+async def streamer_tts_hide(request: Request):
+    """Убрать сообщение из очереди. В истории оно остаётся — Twitch требует
+    хранить историю UGC, а не стирать её."""
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    body = await request.json()
+    try:
+        msg_id = int(body.get("id") or 0)
+    except (TypeError, ValueError):
+        msg_id = 0
+    if msg_id <= 0:
+        return {"success": False, "message": "Нужен id сообщения"}
+
+    hidden = await hide_tts_message(get_db(), channel_id, msg_id,
+                                    by=str(channel_id))
+    return {
+        "success": True,
+        "hidden": hidden,
+        "message": "Сообщение скрыто" if hidden else "Уже было скрыто",
+    }
+
+
+@router.post("/api/streamer/tts/block")
+async def streamer_tts_block(request: Request):
+    """Заблокировать/разблокировать зрителя для озвучки.
+
+    Body: {"username": str, "blocked": bool, "reason": str}
+    """
+    from routes.bannerlord_admin import _require_streamer_session
+    ok, channel_id, msg = _require_streamer_session(request)
+    if not ok:
+        return {"success": False, "message": msg}
+
+    body = await request.json()
+    username = str(body.get("username") or "").strip().lower()
+    if not username:
+        return {"success": False, "message": "Нужен username"}
+    blocked = bool(body.get("blocked", True))
+    reason = str(body.get("reason") or "")[:200]
+
+    await set_tts_block(get_db(), channel_id, username, blocked,
+                        by=str(channel_id), reason=reason)
+    return {
+        "success": True,
+        "blocked": blocked,
+        "message": f"@{username}: озвучка {'выключена' if blocked else 'включена'}",
+    }

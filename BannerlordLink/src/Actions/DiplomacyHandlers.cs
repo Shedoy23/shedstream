@@ -30,7 +30,7 @@ namespace BannerlordLink.Actions
             string username = (data["initiated_by"]?.ToString() ?? data["target"]?.ToString() ?? "")
                               .Trim().ToLowerInvariant();
             string kingdomId = (data["kingdom_id"]?.ToString() ?? "").Trim();
-            string policyId = (data["policy_id"]?.ToString() ?? "").Trim();
+            string policyId = data["policy_id"]?.ToString() ?? "";
             string policyName = data["policy_name"]?.ToString() ?? policyId;
             string actionId = ActionFeedback.GetActionId(data);
 

@@ -104,13 +104,32 @@ async def equipment(db):
     print('PASS equipment: preserve game required_level, retain legacy fallback')
 
 
+async def opaque_state_ids(db):
+    from routes import bannerlord as route
+    from modules.bannerlord._adapter import BannerlordAdapter
+    from modules._base import ModuleEnvelope
+    async with db._connect() as conn:
+        await conn.execute('INSERT INTO bannerlord_attributes(channel_id,username,attribute,value) VALUES(?,?,?,?)',
+                           (CHANNEL_ID, 'alice', 'ArcanePower', 7))
+        await conn.commit()
+    route.require_jwt_user = lambda request: ('alice', CHANNEL_ID)
+    hero = await route.bannerlord_my_hero(_make_anon_request())
+    assert hero['attributes'].get('ArcanePower') == 7, ('game attribute ID modified', hero['attributes'])
+    await BannerlordAdapter(None)._on_skill_changed(CHANNEL_ID, ModuleEnvelope(
+        id='skill', kind='event', type='hero.skill_changed', ts=100,
+        data=dict(username='alice', skill_key='ArcaneSkill', level=12)))
+    hero = await route.bannerlord_my_hero(_make_anon_request())
+    assert any(s['skill_key'] == 'ArcaneSkill' for s in hero['skills']), ('game skill ID modified', hero['skills'])
+    print('PASS opaque game state identifiers')
+
+
 async def main():
     failures = []
     with tempfile.TemporaryDirectory() as tmp:
         os.environ['DB_PATH'] = str(Path(tmp) / 'import.db')
         db = await _build_db(str(Path(tmp) / 'catalogs.db'))
         try:
-            for check in (run, equipment):
+            for check in (run, equipment, opaque_state_ids):
                 try:
                     await check(db)
                 except Exception as error:

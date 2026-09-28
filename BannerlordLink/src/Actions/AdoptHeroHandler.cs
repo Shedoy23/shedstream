@@ -55,7 +55,7 @@ namespace BannerlordLink.Actions
 
             // Runtime culture StringId is opaque: preserve case for modded IDs.
             // Null/empty means an explicitly random culture.
-            string culture = (data["culture"]?.ToString() ?? "").Trim();
+            string culture = data["culture"]?.ToString() ?? "";
             string actionId = ActionFeedback.GetActionId(data);
 
             // Enqueue creation на main thread — НЕ ждём.

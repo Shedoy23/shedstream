@@ -64,6 +64,8 @@ def main() -> int:
     # RuntimeGameCatalogs returns these through a variable; literal-call scanning
     # above cannot see the actual culture refusals reaching PostFailed.
     codes.update({"culture_not_found", "culture_no_wanderer_templates"})
+    # ProgressionPurchase selects debit/compensation failures in a ternary.
+    codes.update({"progression_charge_failed", "progression_compensation_failed"})
     uncovered = sorted(c for c in codes if describe(c) == _FALLBACK)
     print(f"  кодов отказа в моде: {len(codes)}")
     print(f"  без своей фразы:     {len(uncovered)}")

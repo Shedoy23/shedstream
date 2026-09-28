@@ -36,10 +36,11 @@ function harness(response) {
     vm.runInContext(source,context);
     vm.runInContext('_smartInnerHTML=(el,html)=>{el.innerHTML=html;return true;};',context);
     context._bannerlordBuyAction=(action,data)=>{calls.push({action,data});};
+    const realHero=context.loadBannerlordHero;
     context.loadBannerlordHero=()=>{};
     context.state={has_hero:true,hero:{gold:999999},skills:[{skill_key:'Mod.Skill',level:99,focus:7}],attributes:{'Mod.Attribute':12}};
     async function render(){await context.loadBannerlordShop();vm.runInContext('_bannerlordLastHero=state;loadBannerlordProgression();',context);}
-    return {context,element,calls,render,setResponse:value=>{current=value;}};
+    return {context,element,calls,render,realHero,setResponse:value=>{current=value;}};
 }
 function snapshot(){return {success:true,ready:true,context:{save_id:'save-A',equipment_session_id:'session-A',hero_id:'hero-A'},progression:{version:1,
     skills:[{id:'Mod.Skill',level:123,focus:7,native_focus_limit:12,focus_limit:9,focus_options:[{amount:1,cost_gold:731,available:true}],xp_available:true}],
@@ -122,4 +123,25 @@ test('rendered purchase handlers do not send previous viewer offers after reauth
     h.context.authToken='other-viewer';
     await focus.listeners.click();await xp.listeners.click();
     assert.equal(h.calls.length,0);
+});
+test('outer shop response cannot bind old offers under the next viewer token',async()=>{
+    const h=harness(snapshot()),fetch=h.context.fetch;let release;
+    h.element('bannerlord-shop-list').innerHTML='Current viewer';
+    h.context.fetch=url=>url.endsWith('/shop')?new Promise(resolve=>{release=resolve;}):fetch(url);
+    const request=h.context.loadBannerlordShop();while(!release) await Promise.resolve();
+    h.context.authToken='other-viewer';release({json:async()=>({success:true,items:[]})});await request;
+    assert.equal(h.element('bannerlord-shop-list').innerHTML,'Current viewer');
+});
+test('outer hero response cannot render the previous viewer after token changes',async()=>{
+    const h=harness(snapshot());let release;
+    h.element('hero-body').innerHTML='Current viewer';
+    h.context.fetch=()=>new Promise(resolve=>{release=resolve;});
+    const request=h.realHero();h.context.authToken='other-viewer';
+    release({json:async()=>({success:false,message:'Old viewer response'})});await request;
+    assert.equal(h.element('hero-body').innerHTML,'Current viewer');
+});
+test('XP price is exact even when compact formatting would round it',async()=>{
+    const response=snapshot();response.xp_offers[0].price=1234;
+    const h=harness(response);await h.render();
+    assert.match(h.element('bannerlord-shop-list').innerHTML,/1[\s\u00a0\u202f]?234/);
 });

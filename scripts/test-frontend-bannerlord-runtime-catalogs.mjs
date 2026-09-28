@@ -10,8 +10,25 @@ const escape = value => String(value ?? '').replaceAll('&','&amp;').replaceAll('
 const catalog = entries => ({available:true, reason:null, entries});
 function harness(catalogs = {}) {
     const elements = new Map();
+    const decode = value => value.replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&amp;','&');
+    const makeElement = id => ({id, _html:'', nodes:[], listeners:{},
+        get innerHTML(){return this._html;},
+        set innerHTML(html){
+            this._html=html;
+            this.nodes=[...html.matchAll(/<(?:button|div)\b[^>]*>/g)].map(([tag])=>{
+                const attrs=Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(([,key,value])=>[key,decode(value)]));
+                const node={...makeElement(attrs.id), disabled:/\sdisabled(?:\s|>)/.test(tag), dataset:{}, getAttribute:key=>attrs[key], className:attrs.class||''};
+                for(const [key,value] of Object.entries(attrs)) if(key.startsWith('data-')) node.dataset[key.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=value;
+                if(attrs.id) elements.set(attrs.id,node);
+                return node;
+            });
+        },
+        querySelector:()=>null,
+        querySelectorAll(selector){return this.nodes.filter(node=>selector==='[data-bnr-culture]' ? 'bnrCulture' in node.dataset : selector.startsWith('.') && node.className.split(' ').includes(selector.slice(1)));},
+        addEventListener(name,handler){this.listeners[name]=handler;}, replaceChildren(){this.innerHTML='';}
+    });
     const element = id => {
-        if (!elements.has(id)) elements.set(id, {id, innerHTML:'', querySelector:()=>null, querySelectorAll:()=>[], addEventListener(){}, replaceChildren(){}});
+        if (!elements.has(id)) elements.set(id,makeElement(id));
         return elements.get(id);
     };
     const requests = [];
@@ -42,6 +59,24 @@ test('creation renders the game catalog and escapes mod labels/IDs; no vanilla s
     assert.match(html,/&lt;img src=x&gt;/);
     assert.doesNotMatch(html,/data-bnr-culture="empire"|<img src=x>/);
     assert.match(html,/<button[^>]*data-bnr-culture="no_template"[^>]*disabled/s);
+});
+test('creation click keeps exact ID and the catalog render save/session even after a new snapshot', async()=>{
+    const h=harness({save_id:'save-A',equipment_session_id:'session-A',cultures:catalog([{id:'mod_"culture',name:'A'}])});
+    const calls=[];
+    h.context._bannerlordBuyAction=(action,payload)=>calls.push({action,payload});
+    await h.context.loadBannerlordHero();
+    vm.runInContext('_bnrContentCatalogs={save_id:"save-B",equipment_session_id:"session-B"};',h.context);
+    h.element('hero-body').querySelectorAll('[data-bnr-culture]')[0].listeners.click();
+    h.element('bnr-adopt-random').listeners.click();
+    assert.equal(calls[0].payload.culture,'mod_"culture');
+    assert.equal(calls[0].payload.content_context?.save_id,'save-A');
+    assert.equal(calls[0].payload.content_context?.equipment_session_id,'session-A');
+    assert.equal(calls[1].payload.content_context?.save_id,'save-A');
+    const legacy=harness({});
+    legacy.context._bannerlordBuyAction=(action,payload)=>calls.push({action,payload});
+    await legacy.context.loadBannerlordHero();
+    legacy.element('bnr-adopt-random').listeners.click();
+    assert.equal(calls.at(-1).payload.content_context,undefined);
 });
 test('missing or failed culture catalogs never invent six cultures', async()=>{
     for (const response of [{}, {cultures:{available:false,reason:'not_synced',entries:[]}}, new Error('offline')]) {

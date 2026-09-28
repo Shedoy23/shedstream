@@ -1088,7 +1088,8 @@ PARTY_CREATE_COST = 200_000       # MobileParty создание (стартов
 RECRUIT_VASSAL_COST = 3_000_000   # 3M динаров — единственный ограничитель (лимита нет)
 # leave_clan и leave_kingdom — бесплатно
 
-# Sprint 5.8: focus cost tier-based (mirror C# AddFocusHandler.FOCUS_TIER_COSTS).
+# Frozen 0.0.5 config compatibility only. The 0.0.6 progression purchase path
+# reads authenticated game quotes and never uses these game-price constants.
 FOCUS_TIER_COSTS = [30_000, 40_000, 50_000, 60_000, 75_000]
 ATTRIBUTE_COST = 50_000  # flat Hero.Gold per attribute point
 
@@ -1616,6 +1617,27 @@ async def bannerlord_equipment_shop(request: Request):
             "message": refusal(ctx["reason"])["message"] if ctx["reason"] else ""}
 
 
+@router.get("/api/bannerlord/progression")
+async def bannerlord_progression(request: Request):
+    auth = require_jwt_user(request)
+    if not auth:
+        return _AUTH_FAIL
+    username, channel_id = auth
+    from modules.bannerlord.progression import context, present, reason_text
+    async with get_db()._connect() as conn:
+        await conn.execute('BEGIN')
+        ctx = await context(conn, channel_id, username)
+        await conn.rollback()
+    offers = []
+    for base, xp in sorted(ADD_SKILL_XP_PRESETS.items()):
+        perk = _resolve_perks(request, 'hero.add_skill', base, username, channel_id, {})
+        why = ctx['reason'] or (None if ctx['progression'].get('random_xp_available') is True else ctx['progression'].get('random_xp_reason') or 'progression_unavailable')
+        offers.append(dict(id=str(base), crusticov=base, price=perk[0], xp=xp,
+                           available=not why, reason=why, reason_text=reason_text(why)))
+    return dict(success=True, ready=ctx['ready'], pending=ctx['pending'], reason=ctx['reason'],
+                message=reason_text(ctx['reason']), context=ctx['context'], progression=present(ctx['progression']), xp_offers=offers)
+
+
 @router.get("/api/bannerlord/build")
 async def bannerlord_build(request: Request):
     auth = require_jwt_user(request)
@@ -2032,46 +2054,6 @@ async def _prepare_action(username, channel_id, action_type, data):
         data["xp"] = ADD_SKILL_XP_PRESETS[crusticov]
         # skill_key может быть пустым = random skill в mod
 
-    # Sprint 5.8: hero.add_focus — БЕСПЛАТНО в крустиках, mod списывает
-    # Hero.Gold tier-based. Validation skill_key + pre-check Hero.Gold.
-    if action_type == "hero.add_focus":
-        skill_key = (data.get("skill_key") or "").strip()
-        try:
-            amount = int(data.get("amount") or 1)
-        except (TypeError, ValueError):
-            amount = 1
-        amount = max(1, min(5, amount))
-
-        if skill_key and not _GAME_KEY_RE.match(skill_key):
-            return {
-                "success": False,
-                "message": "Неверное имя навыка "
-                           f"(допустимы буквы, цифры и «_», до 48 символов; "
-                           f"ванильные: {', '.join(sorted(KNOWN_SKILLS))})",
-            }
-        if skill_key and skill_key not in KNOWN_SKILLS:
-            # Не отказ: сборка могла добавить свой навык, и знает об этом игра,
-            # а не мы. Пишем в лог, чтобы такие случаи было видно.
-            print(f"[bannerlord] add_skill: незнакомый навык {skill_key!r} "
-                  f"(ch={channel_id}, @{username}) — пропускаем в мод, решать ему")
-
-        # Pre-check Hero.Gold (cached). Worst case: amount=1 → 30K.
-        # Точная стоимость зависит от текущего focus в skill (mod знает),
-        # но мы здесь делаем conservative check на самый низкий tier.
-        # Mod сам проверит реальную стоимость и откажет если не хватит.
-        hero_gold = await _fetch_hero_gold(channel_id, username)
-        min_needed = FOCUS_TIER_COSTS[0] * amount  # хотя бы amount × cheapest tier
-        if hero_gold < min_needed:
-            return {
-                "success": False,
-                "message": f"Минимум {min_needed:,}💰 динаров нужно "
-                           f"(у тебя {hero_gold:,}💰).",
-            }
-        data["skill_key"] = skill_key  # '' = random
-        data["amount"] = amount
-        data["hero_gold_cost_min"] = min_needed  # for UI display
-        data["price"] = 0   # крустики free
-
     # Sprint 5.8: hero.add_attribute — БЕСПЛАТНО в крустиках, mod списывает
     # Hero.Gold flat 50K per point.
     # player.modify_attribute — легаси-двойник hero.add_attribute, закрыт 09.09.
@@ -2080,9 +2062,8 @@ async def _prepare_action(username, channel_id, action_type, data):
     # ветки здесь у него не было ВООБЩЕ: `points` приезжал из тела запроса, а
     # `ModifyAttributeHandler.cs:28` берёт его как есть — проверяет только
     # `points != 0`, потолка нет — и зовёт `AddAttribute(attr, points)`.
-    # Рядом живёт настоящий путь: `hero.add_attribute` зажимает количество в
-    # 1..10, проверяет имя характеристики и берёт ATTRIBUTE_COST = 50 000
-    # динаров ЗА КАЖДОЕ очко. То есть двойник давал тот же эффект за 50
+    # Исторически настоящий путь hero.add_attribute ограничивал количество
+    # и проверял цену в динарах. Теперь он выбирает предложение игры. То есть двойник давал тот же эффект за 50
     # крустиков вместо 50 000 динаров и в неограниченном количестве одним
     # вызовом. Фронт его не вызывает нигде — попасть сюда можно только прямым
     # запросом, поэтому отказ ничего у зрителя не отнимает.
@@ -2101,42 +2082,14 @@ async def _prepare_action(username, channel_id, action_type, data):
                        "(🎯) — это действие больше не обслуживается.",
         }
 
-    if action_type == "hero.add_attribute":
-        attr_key = (data.get("attribute_key") or "").strip()
-        try:
-            amount = int(data.get("amount") or 1)
-        except (TypeError, ValueError):
-            amount = 1
-        amount = max(1, min(10, amount))
-
-        if attr_key and not _GAME_KEY_RE.match(attr_key):
-            return {
-                "success": False,
-                "message": "Неверное имя характеристики "
-                           f"(допустимы буквы, цифры и «_», до 48 символов; "
-                           f"ванильные: {', '.join(sorted(KNOWN_ATTRIBUTES))})",
-            }
-        if attr_key and attr_key not in KNOWN_ATTRIBUTES:
-            print(f"[bannerlord] add_attribute: незнакомая характеристика {attr_key!r} "
-                  f"(ch={channel_id}, @{username}) — пропускаем в мод, решать ему")
-
-        cost = ATTRIBUTE_COST * amount
-        hero_gold = await _fetch_hero_gold(channel_id, username)
-        if hero_gold < cost:
-            # 5.27s diagnostic: log refuse так стример видит причину в supervisor.
-            print(f"[bannerlord:{channel_id}] hero.add_attribute REFUSE @{username} "
-                  f"attr={attr_key or 'random'} cost={cost} hero_gold={hero_gold}")
-            return {
-                "success": False,
-                "message": f"Нужно {cost:,}💰 динаров у героя (у тебя {hero_gold:,}💰). "
-                           "Заработай в битвах или конвертируй крустики в gold.",
-            }
-        print(f"[bannerlord:{channel_id}] hero.add_attribute QUEUE @{username} "
-              f"attr={attr_key or 'random'} amount={amount} cost={cost}")
-        data["attribute_key"] = attr_key  # '' = random
-        data["amount"] = amount
-        data["hero_gold_cost"] = cost
-        data["price"] = 0
+    if action_type in {'hero.add_skill', 'hero.add_focus', 'hero.add_attribute'}:
+        from modules.bannerlord.progression import validate
+        async with get_db()._connect() as conn:
+            await conn.execute('BEGIN')
+            progression_refusal = await validate(conn, channel_id, username, action_type, data)
+            await conn.rollback()
+        if progression_refusal:
+            return progression_refusal
 
     # Sprint 5.27a: hero.set_gender — gender swap (50k💰 Hero.Gold).
     # Body: {gender: "male"|"female"}. Mod auto-flips spouse если есть
@@ -2861,7 +2814,7 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                     prev_action_id, prev_type, prev_status, prev_owner = idem_row
                     from modules.bannerlord.equipment_shop import ACTION_TYPES
                     from modules.bannerlord.builds import ACTION_TYPES as BUILD_ACTIONS
-                    if action_type in ACTION_TYPES | BUILD_ACTIONS | {'power.activate'} and (prev_owner != username or prev_type != action_type):
+                    if action_type in ACTION_TYPES | BUILD_ACTIONS | {'power.activate','hero.add_skill','hero.add_focus','hero.add_attribute'} and (prev_owner != username or prev_type != action_type):
                         await conn.rollback()
                         return {"success": False, "reason": "client_action_conflict", "message": "Идентификатор действия уже использован"}
                     await conn.execute("ROLLBACK")
@@ -2876,6 +2829,15 @@ async def _charge_execute_enqueue(action_type, data, price, username, channel_id
                         "action_id":        prev_action_id,
                         "idempotent_replay": True,
                     }
+
+            from modules.bannerlord.progression import ACTION_TYPES as PROGRESSION_ACTIONS, validate as validate_progression
+            if action_type in PROGRESSION_ACTIONS:
+                progression_refusal = await validate_progression(conn, channel_id, username, action_type, data, prepared=True, price=price)
+                if progression_refusal:
+                    await conn.rollback()
+                    return progression_refusal
+                if action_type != 'hero.add_skill':
+                    price = 0
 
             if action_type == 'hero.create':
                 from modules.bannerlord.content_catalogs import validate_create
@@ -3328,6 +3290,20 @@ async def _bannerlord_buy_action_locked(request, username, channel_id, action_ty
 
     if action_type not in _PURCHASABLE_ACTIONS:
         return {"success": False, "message": f"Action '{action_type}' не разрешён"}
+
+    # Completed acceptance is replayed before volatile quotes/cooldowns are checked.
+    # Ownership/type guards are also repeated by the atomic outbox path.
+    from modules.bannerlord.progression import ACTION_TYPES as PROGRESSION_ACTIONS
+    if action_type in PROGRESSION_ACTIONS and isinstance(data.get('client_action_id'), str) and data['client_action_id'].strip():
+        async with get_db()._connect() as conn:
+            previous = await (await conn.execute(
+                "SELECT action_id,type,json_extract(data,'$.initiated_by') FROM module_actions "
+                "WHERE channel_id=? AND module_id='bannerlord' AND client_action_id=? LIMIT 1",
+                (channel_id, data['client_action_id'].strip()))).fetchone()
+        if previous:
+            if previous[1] != action_type or previous[2] != username:
+                return dict(success=False, reason='client_action_conflict', message='Идентификатор действия уже использован')
+            return dict(success=True, action_id=previous[0], idempotent_replay=True, message='Действие уже принято')
 
     # ROADMAP 2.3 — учёт использования фич (best-effort, не блокирует действие).
     from feature_usage import record_feature_use

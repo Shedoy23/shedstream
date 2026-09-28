@@ -28,6 +28,8 @@ namespace BannerlordLink.Behaviors
         private volatile bool _published;
         private volatile bool _publishing;
         private EquipmentSessionHandshake _handshake;
+        private long _catalogSequence;
+        private CatalogSnapshotBatch _pendingCatalogs;
         internal static readonly string[] AllSlots = { "weapon0", "weapon1", "weapon2", "weapon3", "head", "body", "leg", "gloves", "cape", "horse", "horseharness" };
 
         internal static ItemRoster PartyInventory(Hero hero)
@@ -253,14 +255,18 @@ namespace BannerlordLink.Behaviors
             try
             {
                 bool publishCatalog = !_published || _catalogRefresh.Elapsed.TotalMinutes >= 5;
-                string catalog = null;
-                if (publishCatalog)
+                if (publishCatalog && _pendingCatalogs == null)
                 {
                     var rows = new JArray(MBObjectManager.Instance.GetObjectTypeList<ItemObject>()
                         .Where(Sellable).Select(item => Describe(item, null)));
-                    catalog = new JObject { ["catalog"] = "equipment", ["save_id"] = Campaign.Current.UniqueGameId,
+                    var equipmentCatalog = new JObject { ["catalog"] = "equipment", ["save_id"] = Campaign.Current.UniqueGameId,
                         ["equipment_session_id"] = SessionId,
                         ["entries"] = rows }.ToString(Formatting.None);
+                    // Complete snapshots (including empty lists) are materialized
+                    // here, while the campaign objects belong to the game thread.
+                    var catalogs = RuntimeGameCatalogs.Build(Campaign.Current.UniqueGameId, SessionId, ++_catalogSequence);
+                    catalogs.Insert(0, equipmentCatalog);
+                    _pendingCatalogs = new CatalogSnapshotBatch(catalogs);
                 }
                 var snapshots = new List<string>();
                 foreach (var hero in Campaign.Current.AliveHeroes.Where(h => h != null && !string.IsNullOrEmpty(Username(h))))
@@ -275,16 +281,17 @@ namespace BannerlordLink.Behaviors
                     try
                     {
                         if (!await _handshake.EnsureAsync((payload, timestamp) => backend.PostEventAsync("bannerlord", "module.session_start", payload, timestamp))) return;
-                        if (catalog != null)
+                        if (_pendingCatalogs != null)
                         {
-                            if (!await backend.PostEventAsync("bannerlord", "module.catalog_update", catalog))
+                            if (!await _pendingCatalogs.PublishAsync(payload => backend.PostEventAsync("bannerlord", "module.catalog_update", payload)))
                             { _published = false; return; }
+                            _pendingCatalogs = null;
                             _catalogRefresh.Restart();
                         }
                         foreach (string json in snapshots) await backend.PostEventAsync("bannerlord", "hero.inventory_snapshot", json);
                         _published = true;
                     }
-                    catch (Exception ex) { BannerlordLinkModule.Log("[EquipmentShop] publish will retry: " + ex.Message); }
+                    catch (Exception ex) { _published = false; BannerlordLinkModule.Log("[EquipmentShop] publish will retry: " + ex.Message); }
                     finally { _publishing = false; }
                 });
             }

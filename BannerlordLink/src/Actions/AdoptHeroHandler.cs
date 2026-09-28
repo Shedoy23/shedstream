@@ -53,21 +53,23 @@ namespace BannerlordLink.Actions
                 return Task.FromResult<(bool, string)>((false, "no target username in action data"));
             }
 
-            // Optional culture choice: data.culture = empire/sturgia/vlandia/
-            // aserai/khuzait/battania (lowercase). Null/empty = random.
-            string culture = (data["culture"]?.ToString() ?? "").Trim().ToLowerInvariant();
+            // Runtime culture StringId is opaque: preserve case for modded IDs.
+            // Null/empty means an explicitly random culture.
+            string culture = (data["culture"]?.ToString() ?? "").Trim();
             string actionId = ActionFeedback.GetActionId(data);
 
             // Enqueue creation на main thread — НЕ ждём.
             // ACK backend'у уйдёт success=true сейчас (action accepted),
             // финальный результат — через player.linked event позже.
-            MainThreadDispatcher.Enqueue(() => CreateHeroOnMainThread(username, culture, actionId));
+            string requestedSave = data["save_id"]?.ToString();
+            string requestedSession = data["equipment_session_id"]?.ToString();
+            MainThreadDispatcher.Enqueue(() => CreateHeroOnMainThread(username, culture, actionId, requestedSave, requestedSession));
 
             return Task.FromResult<(bool, string)>((true, null));
         }
 
         private static void CreateHeroOnMainThread(string username, string requestedCulture,
-            string actionId)
+            string actionId, string requestedSave, string requestedSession)
         {
             try
             {
@@ -77,6 +79,15 @@ namespace BannerlordLink.Actions
                     BannerlordLinkModule.Log($"[hero.create] @{username}: Campaign не started, skip");
                     PostCreateFailedEvent(username, "campaign_not_started");
                     ActionFeedback.PostFailed(actionId, "campaign_not_started");
+                    return;
+                }
+
+                var sessionError = RuntimeGameCatalogs.ValidateSession(requestedSave, requestedSession,
+                    Campaign.Current.UniqueGameId, BannerlordLink.Behaviors.EquipmentShopBehavior.Instance?.SessionId);
+                if (sessionError != null)
+                {
+                    PostCreateFailedEvent(username, sessionError);
+                    ActionFeedback.PostFailed(actionId, sessionError);
                     return;
                 }
 
@@ -105,40 +116,18 @@ namespace BannerlordLink.Actions
                     return;
                 }
 
-                // Get all wanderer templates. Filter по requested culture
-                // (data.culture). Если culture пустой / unknown / нет templates
-                // для неё — fallback на random любой wanderer.
-                var allWanderers = MBObjectManager.Instance
-                    .GetObjectTypeList<CharacterObject>()
-                    .Where(c => c.Occupation == Occupation.Wanderer)
-                    .ToList();
-
-                if (allWanderers.Count == 0)
+                // Discovery and execution share the same runtime selection.
+                // Explicit unavailable cultures must never become another culture.
+                var pool = RuntimeGameCatalogs.CreationTemplates(requestedCulture, out var cultureError);
+                if (cultureError != null)
                 {
-                    BannerlordLinkModule.Log($"[hero.create] @{username}: no wanderer templates found");
-                    PostCreateFailedEvent(username, "no_wanderer_templates");
-                    ActionFeedback.PostFailed(actionId, "no_wanderer_templates");
+                    BannerlordLinkModule.Log($"[hero.create] @{username}: {cultureError} ({requestedCulture})");
+                    PostCreateFailedEvent(username, cultureError);
+                    ActionFeedback.PostFailed(actionId, cultureError);
                     return;
                 }
 
                 var rng = new Random();
-                List<CharacterObject> pool = allWanderers;
-                if (!string.IsNullOrEmpty(requestedCulture))
-                {
-                    var filtered = allWanderers
-                        .Where(c => string.Equals(c.Culture?.StringId, requestedCulture,
-                            StringComparison.OrdinalIgnoreCase))
-                        .ToList();
-                    if (filtered.Count > 0)
-                    {
-                        pool = filtered;
-                    }
-                    else
-                    {
-                        BannerlordLinkModule.Log(
-                            $"[hero.create] @{username}: no wanderers for culture '{requestedCulture}', fallback random");
-                    }
-                }
                 var template = pool[rng.Next(pool.Count)];
 
                 // 1. Create the hero

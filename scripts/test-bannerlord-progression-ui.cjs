@@ -106,3 +106,20 @@ test('generic catalog cannot create an alternate progression purchase button',as
     h.context.fetch=url=>url.endsWith('/shop')?Promise.resolve({json:async()=>({success:true,items:[{action_type:'hero.add_focus',name:'Bypass',price:1},{action_type:'hero.add_skill',name:'Bypass XP',price:1},{action_type:'hero.add_attribute',name:'Bypass Attr',price:1}]})}):fetch(url);
     await h.render();assert.equal(h.element('bannerlord-shop-list').querySelectorAll('[data-bnr-buy]').length,0);
 });
+test('late progression response from previous viewer cannot repopulate current offers',async()=>{
+    const h=harness(snapshot());let release;
+    h.context.fetch=()=>new Promise(resolve=>{release=resolve;});
+    const old=h.context._loadBnrProgression();
+    h.context.authToken='other-viewer';
+    release({ok:true,json:async()=>snapshot()});await old;
+    vm.runInContext('_bannerlordLastHero=state;loadBannerlordProgression();',h.context);
+    assert.equal(h.element('bnr-progression-slot').querySelectorAll('.bnr-prog-focus-btn')[0].disabled,true);
+});
+test('rendered purchase handlers do not send previous viewer offers after reauthorization',async()=>{
+    const h=harness(snapshot());await h.render();
+    const focus=h.element('bnr-progression-slot').querySelectorAll('.bnr-prog-focus-btn')[0];
+    const xp=h.element('bannerlord-shop-list').querySelectorAll('[data-bnr-skillxp]')[0];
+    h.context.authToken='other-viewer';
+    await focus.listeners.click();await xp.listeners.click();
+    assert.equal(h.calls.length,0);
+});

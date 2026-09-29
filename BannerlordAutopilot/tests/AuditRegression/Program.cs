@@ -359,6 +359,7 @@ internal static partial class Program
         HopelessBattleTests();
         SiegeReliabilityTests();
         SiegeTransitionTests();
+        ArmyAssemblyTests();
         DonationTests();
 
         Console.WriteLine("\n[находка 2] наблюдение ничего не меняет");

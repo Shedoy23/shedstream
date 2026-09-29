@@ -65,6 +65,35 @@ internal static partial class Program
             Check(p.MemberRoster.GetTroopRoster().Where(e=>e.Character==target).Sum(e=>e.Number)<=1, "после несовпадения прокачка этого захода прекращена");
             Check(AutopilotLog.Lines.Any(l=>l.Contains("ПРОКАЧКА ОСТАНОВЛЕНА") && l.Contains("бойцов было")), "журнал называет числа несовпадения");
         });
+        // Native SetElementXp clamps BEFORE AddToCounts removes a troop.
+        foreach (var sample in new[] { (Count: 5, Xp: 6300), (Count: 2, Xp: 2885) })
+        Try("troop upgrades accept native pre-removal cap " + sample.Xp, () => {
+            Fresh(); MakeWorld(gold:500, prisoners:false); SetLimit("MinGoldReserve",0);
+            var p=MobileParty.MainParty; Campaign.Current.Behaviors.Add(new TestViewTracker());
+            var target=new CharacterObject { Name="trained" };
+            var source=new CharacterObject { Name="recruit", UpgradeTargets=new[] { target }, TestUpgradeXpCost=900 };
+            p.MemberRoster.AddToCounts(source,sample.Count,xpChange:sample.Xp);
+            Campaign.Current.Models.PartyWageModel.TestTotalWage=(party,roster)=>10;
+            TroopRoster.TestOnSetXp = (r,i,xp) => r==p.MemberRoster
+                ? Math.Min(xp,r.GetElementCopyAtIndex(i).Number*900) : xp;
+            try { TroopUpgrades.Run(p); } finally { TroopRoster.TestOnSetXp=null; }
+            Check(!AutopilotLog.Lines.Any(l=>l.Contains("ПРОКАЧКА ОСТАНОВЛЕНА")), "native pre-removal XP cap continues " + sample.Xp);
+            Check(p.MemberRoster.GetTroopRoster().Where(e=>e.Character==target).Sum(e=>e.Number)==sample.Count,
+                "all affordable upgrades finish after native cap " + sample.Xp);
+            Check(Hero.MainHero.Gold==500-sample.Count*20, "every upgraded troop charged once " + sample.Xp);
+        });
+        Try("troop upgrades reject unrelated XP loss", () => {
+            Fresh(); MakeWorld(gold:500, prisoners:false); SetLimit("MinGoldReserve",0);
+            var p=MobileParty.MainParty; Campaign.Current.Behaviors.Add(new TestViewTracker());
+            var target=new CharacterObject { Name="trained" };
+            var source=new CharacterObject { Name="recruit", UpgradeTargets=new[] { target } };
+            p.MemberRoster.AddToCounts(source,3,xpChange:300);
+            Campaign.Current.Models.PartyWageModel.TestTotalWage=(party,roster)=>10;
+            TroopRoster.TestOnSetXp=(r,i,xp)=>r==p.MemberRoster ? xp-1 : xp;
+            try { TroopUpgrades.Run(p); } finally { TroopRoster.TestOnSetXp=null; }
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("ПРОКАЧКА ОСТАНОВЛЕНА")), "unexpected XP loss still stops upgrades");
+            Check(p.MemberRoster.GetTroopRoster().Where(e=>e.Character==target).Sum(e=>e.Number)==1, "unexpected XP loss does not trigger further spending");
+        });
         // 22.09 10:56:57: «опыт остатка был 1798, ждали 1248, стал 1100» — 1100 = 2 бойца
         // x 550. Игра держит опыт стопки не выше «бойцов x цена повышения»
         // (PartyBase.OnXpChanged) и после уменьшения стопки срезает излишек. Ручное
@@ -104,7 +133,8 @@ namespace TaleWorlds.CampaignSystem
         public CharacterObject[] UpgradeTargets=Array.Empty<CharacterObject>();
         public ItemCategory UpgradeRequiresItemFromCategory;
         public bool TestPerkBlocked;
-        public int GetUpgradeXpCost(PartyBase party,int index)=>100;
+        public int TestUpgradeXpCost=100;
+        public int GetUpgradeXpCost(PartyBase party,int index)=>TestUpgradeXpCost;
         public int GetUpgradeGoldCost(PartyBase party,int index)=>20;
     }
 }
@@ -122,6 +152,7 @@ namespace TaleWorlds.CampaignSystem.Roster
         public int FindIndexOfTroop(CharacterObject troop)=>_data.FindIndex(e=>e.Character==troop);
         public TroopRosterElement GetElementCopyAtIndex(int index)=>_data[index];
         public int GetElementXp(int index)=>_data[index].Xp;
-        public void SetElementXp(int index,int xp) { var e=_data[index]; e.Xp=xp; _data[index]=e; }
+        public static Func<TroopRoster,int,int,int> TestOnSetXp;
+        public void SetElementXp(int index,int xp) { var e=_data[index]; e.Xp=TestOnSetXp==null ? xp : TestOnSetXp(this,index,xp); _data[index]=e; }
     }
 }

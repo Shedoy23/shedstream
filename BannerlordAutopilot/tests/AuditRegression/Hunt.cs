@@ -124,6 +124,41 @@ internal static partial class Program
             Check(MobileParty.MainParty.DefaultBehavior == AiBehavior.PatrolAroundPoint,
                 "больше 6 часов не догнать — возвращаемся к обычным целям: " + MobileParty.MainParty.DefaultBehavior);
         });
+        foreach (float speed in new[] { 5f, 6f })
+        Try("chase: close moving target without progress times out " + speed, () => {
+            var (b, enemy)=HuntWorld(men:100);
+            var target=HuntTarget("undogоняемый",20,4,enemy,lord:false,speed:speed);
+            Scores((AiBehavior.PatrolAroundPoint,new Settlement { Name="Устокол" },2.25f));
+            CampaignTime.TestHours=0; HourlyTick(b);
+            for(int h=1;h<=8;h++) { CampaignTime.TestHours=h; HourlyTick(b); }
+            Check(MobileParty.MainParty.DefaultBehavior!=AiBehavior.EngageParty, "constant close gap is not endless pursuit " + speed);
+            CampaignTime.TestHours=9; HourlyTick(b);
+            Check(MobileParty.MainParty.TargetParty!=target || MobileParty.MainParty.DefaultBehavior!=AiBehavior.EngageParty,
+                "failed close interception is not immediately selected again " + speed);
+            target.IsMoving=false;
+            CampaignTime.TestHours=10; HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.EngageParty && MobileParty.MainParty.TargetParty==target,
+                "stationary target releases chase cooldown " + speed);
+        });
+        Try("chase: cumulative closing distance permits faster near interception", () => {
+            var (b, enemy)=HuntWorld(men:100);
+            var target=HuntTarget("перехват",20,4,enemy,lord:false,speed:6f);
+            CampaignTime.TestHours=0; HourlyTick(b);
+            for(int h=1;h<=10;h++) {
+                target.Position=new CampaignVec2 { X=4f-h*.12f };
+                CampaignTime.TestHours=h; HourlyTick(b);
+            }
+            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.EngageParty && MobileParty.MainParty.TargetParty==target,
+                "small cumulative progress prevents timeout");
+        });
+        Try("chase: invisible target cannot hold the party", () => {
+            var (b, enemy)=HuntWorld(men:100);
+            var target=HuntTarget("скрывшийся",20,4,enemy,lord:false,speed:6f);
+            Scores((AiBehavior.PatrolAroundPoint,new Settlement { Name="Устокол" },2.25f));
+            CampaignTime.TestHours=0; HourlyTick(b); target.IsVisible=false;
+            CampaignTime.TestHours=6; HourlyTick(b);
+            Check(MobileParty.MainParty.DefaultBehavior!=AiBehavior.EngageParty, "invisible target releases chase");
+        });
         Try("охота: цель ушла в поселение — погоню не держим", () =>
         {
             var (b, enemy) = HuntWorld(men: 100);

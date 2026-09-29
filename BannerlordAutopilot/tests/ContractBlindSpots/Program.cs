@@ -13,7 +13,7 @@ internal static class Program
         bool accepted = EngineContract.Verify();
         Console.WriteLine("несовместимый API: " + (accepted ? "ПРИНЯТ — дефект контракта" : "отвергнут — верно"));
         Console.WriteLine(EngineContract.Report);
-                bool catchesOriginalDefects = EngineContract.Report.Contains("PartyThinkParams.AIBehaviorScores")
+        bool catchesOriginalDefects = EngineContract.Report.Contains("PartyThinkParams.AIBehaviorScores")
             && EngineContract.Report.Contains("AIBehaviorData.Party")
             && EngineContract.Report.Contains("GetActionForPatrollingAroundPoint");
         Console.WriteLine("original incompatible members diagnosed: " + catchesOriginalDefects);

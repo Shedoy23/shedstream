@@ -159,6 +159,31 @@ internal static partial class Program
             CampaignTime.TestHours=6; HourlyTick(b);
             Check(MobileParty.MainParty.DefaultBehavior!=AiBehavior.EngageParty, "invisible target releases chase");
         });
+        Try("chase: timeout actually cancels movement without alternative scores", () => {
+            var (b, enemy)=HuntWorld(men:100);
+            var target=HuntTarget("без вариантов",20,4,enemy,lord:false,speed:6f);
+            CampaignTime.TestHours=0; HourlyTick(b);
+            for(int h=1;h<=8;h++) { CampaignTime.TestHours=h; HourlyTick(b); }
+            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.Hold,
+                "timed-out chase stops even with zero replacement proposals");
+        });
+        foreach(string route in new[] { "initiative", "scores" })
+        foreach(string state in new[] { "faster", "stationary", "engaged" })
+        Try("chase generic " + route + " " + state, () => {
+            var (b, enemy)=HuntWorld(men:100);
+            var target=HuntTarget("generic",20,15,enemy,lord:false,speed:6f);
+            MobileParty.All.Remove(target); // Force the native proposal path, not custom hunt.
+            if(state=="stationary") target.IsMoving=false;
+            if(state=="engaged") target.MapEvent=new MapEvent();
+            if(route=="initiative") {
+                Campaign.Current.Models.MobilePartyAIModel.NextBehavior=AiBehavior.EngageParty;
+                Campaign.Current.Models.MobilePartyAIModel.NextTarget=target;
+                Campaign.Current.Models.MobilePartyAIModel.NextScore=3.5f;
+            } else Scores((AiBehavior.EngageParty,target,3.5f));
+            CampaignTime.TestHours=0; HourlyTick(b);
+            bool chasing=MobileParty.MainParty.DefaultBehavior==AiBehavior.EngageParty && MobileParty.MainParty.TargetParty==target;
+            Check(chasing==(state!="faster"), "generic route respects chase feasibility " + route + " " + state);
+        });
         Try("охота: цель ушла в поселение — погоню не держим", () =>
         {
             var (b, enemy) = HuntWorld(men: 100);

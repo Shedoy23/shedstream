@@ -10,6 +10,20 @@ internal static partial class Program
 {
     static void CampaignCommitmentTests()
     {
+        foreach(bool inquiry in new[] {false,true})
+        Try("deferred campaign execution guard "+inquiry, () => {
+            var b=Fresh(); var castle=ConquestWorld(food:200,gold:5000,wounded:0); castle.Militia=1;
+            Settlement.All.Add(castle); var p=MobileParty.MainParty; p.Party.PartySizeLimit=10;
+            Enable(b);
+            var apply=typeof(AutopilotBehavior).GetMethod("ApplyDecision",BindingFlags.Instance|BindingFlags.NonPublic);
+            var goal=new AIBehaviorData(castle,AiBehavior.BesiegeSettlement,MobileParty.NavigationType.Default,false,false,false);
+            apply.Invoke(b,new object[] {p,goal,8f});
+            p.SetMoveModeHold();
+            if(inquiry) { TaleWorlds.Library.InformationManager.TestInquiryActive=true; HourlyTick(b); }
+            else { ((TestFaction)p.MapFaction).Enemies.Clear(); apply.Invoke(b,new object[] {p,goal,8f}); }
+            Check(!p.IsMoving,"pending march is not issued through modal or after peace: "+inquiry);
+        });
+
         foreach (string scenario in new[] { "hunt", "patrol", "margin", "overload", "peace", "stronger", "food" })
         Try("committed siege campaign " + scenario, () => {
             var b = Fresh(); var castle = ConquestWorld(food:200, gold:5000, wounded:0);
@@ -22,13 +36,12 @@ internal static partial class Program
             Enable(b);
             typeof(AutopilotBehavior).GetMethod("ApplyDecision", BindingFlags.Instance|BindingFlags.NonPublic)
                 .Invoke(b,new object[] {p,new AIBehaviorData(castle,AiBehavior.BesiegeSettlement,MobileParty.NavigationType.Default,false,false,false),8f});
-            if(scenario=="hunt") HuntTarget("minor distraction",3,8,castle.MapFaction);
+            if(scenario=="hunt") HuntTarget("minor distraction",3,8,castle.MapFaction,speed:3f);
             if(scenario=="patrol") CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(market,AiBehavior.PatrolAroundPoint,MobileParty.NavigationType.Default,false,false,false),99f));
             if(scenario=="margin") p.TotalWeightCarried=96;
             if(scenario=="overload") p.TotalWeightCarried=150;
             if(scenario=="peace") ((TestFaction)p.MapFaction).Enemies.Clear();
             if(scenario=="stronger") castle.Militia=100;
-            if(scenario=="food") p.ItemRoster.TestAdd(new ItemObject { IsFood=true },0); // explicit consumption shortage below
             if(scenario=="food") p.FoodChange=-100;
             HourlyTick(b);
             if(scenario=="peace" || scenario=="stronger" || scenario=="food")
@@ -37,6 +50,9 @@ internal static partial class Program
                 Check(p.TargetSettlement==market,"real overload routes to safe market");
                 b.PollState(); // free-map poll used to clear offensive ownership during diversion
                 p.TotalWeightCarried=20; p.ItemRoster.TestAdd(loot,-5);
+                var alternative=new Settlement { Name="Another castle",IsCastle=true,MapFaction=castle.MapFaction,Militia=1 };
+                Settlement.All.Add(alternative);
+                CampaignEventDispatcher.NextScores.Add((new AIBehaviorData(alternative,AiBehavior.BesiegeSettlement,MobileParty.NavigationType.Default,false,false,false),99f));
                 HourlyTick(b);
                 Check(p.TargetSettlement==castle && p.DefaultBehavior==AiBehavior.GoToSettlement,"original siege resumes after unloading");
             }

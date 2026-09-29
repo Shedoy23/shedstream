@@ -119,7 +119,7 @@ internal static partial class Program
             HourlyTick(b);
             Check(party.TargetSettlement!=first,
                 "после обхода доступных мест не начинаем круг заново до истечения срока");
-            party.MemberRoster.AddToCounts(new CharacterObject(),80);
+            party.MemberRoster.AddToCounts(Veteran(),80);
             HourlyTick(b);
             Check(party.TargetSettlement==castle && SiegeTarget(b)==castle,
                 "на 90/100 приоритет набора закончился и вернулся поход");
@@ -165,8 +165,9 @@ internal static partial class Program
             castle.Militia=7; for(int hour=0; hour<6; hour++) HourlyTick(b);
             Check(AutopilotLog.Lines.Any(l => l.Contains("ПОХОД: прекращаем цель «Пограничный замок»")
                 && l.Contains("защитники 7.0 — нужен перевес x1.5, надо 10.5")
-                && l.Contains("далее PatrolAroundPoint")),
-                "после роста обороны записаны обе силы и следующий приказ");
+                ),
+                "после роста обороны записаны обе силы");
+            Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.PatrolAroundPoint, "после отмены осады выбран штатный патруль");
         });
         Try("близкий вражеский отряд входит в риск осады", () => {
             var b=Fresh(); var castle=ConquestWorld(); castle.Militia=4; Settlement.All.Add(castle);

@@ -166,6 +166,8 @@ namespace BannerlordAutopilot
 
         private bool StartArmy(MobileParty party, AIBehaviorData data, float score)
         {
+            if (data.AiBehavior == AiBehavior.BesiegeSettlement && SiegeRecentlyRejected(data.Party as Settlement))
+                return false;
             var members = AffordableArmyMembers(party);
             if (members.Count == 0) return false;
             var model = Campaign.Current.Models.ArmyManagementCalculationModel;
@@ -221,14 +223,35 @@ namespace BannerlordAutopilot
             }
             if (_gatheringArmy != party.Army) return false;
             if (_mode != Mode.Apply || !MapIsActiveScreen() || InformationManager.IsAnyInquiryActive()) return true;
-            bool assembled = _invitedParties.All(p => p.Army != party.Army || p.AttachedTo == party);
-            if (assembled || CampaignTime.Now.ToHours - _gatheringSince >= 24)
+            int arrived = _invitedParties.Count(p => p.IsActive && p.Army == party.Army && p.AttachedTo == party);
+            int departed = _invitedParties.Count(p => !p.IsActive || p.Army != party.Army);
+            int pending = _invitedParties.Count - arrived - departed;
+            bool timedOut = CampaignTime.Now.ToHours - _gatheringSince >= 24;
+            if (pending == 0 || timedOut)
             {
                 _gatheringArmy = null;
-                AutopilotLog.Write("АРМИЯ: сбор завершён; продолжаем штатную цель");
+                AutopilotLog.Write("АРМИЯ: сбор завершён — " + (pending > 0 ? "истекли 24 игровых часа"
+                    : departed > 0 ? "потеря приглашений" : "прибыли все")
+                    + "; прибыли " + arrived + "/" + _invitedParties.Count + ", выбыли " + departed
+                    + ", ещё в пути " + pending + "; фактическая сила "
+                    + SiegeAttackerStrength(party).ToString("F1", CultureInfo.InvariantCulture));
                 string invalid = WhyNotApplicable(_armyObjective);
+                if (invalid == null && _armyObjective.AiBehavior == AiBehavior.BesiegeSettlement)
+                    invalid = SiegeTargetRejection(party, _armyObjective.Party as Settlement);
                 if (invalid == null) ApplyDecision(party, _armyObjective, _armyObjectiveScore);
-                else AutopilotLog.Write("АРМИЯ: цель после сбора требует пересчёта: " + invalid);
+                else
+                {
+                    AutopilotLog.Write("АРМИЯ: цель после сбора требует пересчёта: " + invalid);
+                    var rejected = _armyObjective.Party as Settlement;
+                    if (_armyObjective.AiBehavior == AiBehavior.BesiegeSettlement)
+                    {
+                        NoteSiegeRejection(rejected, invalid);
+                        if (_offensiveSiege == rejected) _offensiveSiege = null;
+                    }
+                    party.SetMoveModeHold();
+                    _hasPendingDecision = false; _lastTargetKey = null;
+                    _hoursSinceThink = ThinkPeriodHours;
+                }
             }
             else KeepTimeRunning(party);
             return true;

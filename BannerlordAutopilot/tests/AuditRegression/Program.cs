@@ -360,6 +360,7 @@ internal static partial class Program
         SiegeReliabilityTests();
         SiegeTransitionTests();
         ArmyAssemblyTests();
+        CampaignCommitmentTests();
         DonationTests();
 
         Console.WriteLine("\n[находка 2] наблюдение ничего не меняет");

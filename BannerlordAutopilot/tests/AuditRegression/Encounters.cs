@@ -54,6 +54,30 @@ internal static partial class Program
 
     static void EncounterTests()
     {
+        foreach (string id in new[] { "village_farmer_loot", "player_decided_to_fight_villagers", "player_decided_to_take_everything_villagers" })
+        foreach (string scenario in new[] { "enemy", "neutral", "not-target", "not-villager", "disabled", "inquiry", "other-speaker" })
+        Try("29.09 villager dialogue: " + id + "/" + scenario, () =>
+        {
+            var b = Fresh(); Enable(b);
+            var ours = new TestFaction(); var other = new TestFaction();
+            if (scenario != "neutral") ours.Enemies.Add(other);
+            MobileParty.MainParty.MapFaction = ours;
+            var villagers = new MobileParty { MapFaction = other, IsVillager = scenario != "not-villager" };
+            MobileParty.MainParty.TargetParty = scenario == "not-target" ? new MobileParty() : villagers;
+            MobileParty.MainParty.DefaultBehavior = AiBehavior.EngageParty;
+            PlayerEncounter.Current = new PlayerEncounter(); PlayerEncounter.EncounteredMobileParty = villagers;
+            var c = Campaign.Current.ConversationManager;
+            c.ConversationParty = scenario == "other-speaker" ? new MobileParty() : villagers;
+            c.IsConversationInProgress = true;
+            c.CurOptions.Add(new TaleWorlds.CampaignSystem.Conversation.ConversationSentenceOption
+                { Id = id, IsClickable = scenario != "disabled" });
+            TaleWorlds.Library.InformationManager.TestInquiryActive = scenario == "inquiry";
+            b.PollDialogs();
+            Check(c.Selected.SequenceEqual(scenario == "enemy" ? new[] { id } : Array.Empty<string>()),
+                "native villager reply only for clickable pursued enemy: " + scenario + "/" + id);
+            Check(PlayerEncounter.FinishCalls == 0, "dialogue is never force-finished");
+        });
+
         Try("послебоевая благодарность: знакомство при оставшейся вражеской встрече", () =>
         {
             var b = Fresh(); Enable(b);

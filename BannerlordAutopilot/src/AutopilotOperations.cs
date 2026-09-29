@@ -21,6 +21,26 @@ namespace BannerlordAutopilot
         private PlayerEncounter _simulationEncounter;
         private object _finishedSimulation;
 
+        // The generic safety reason alone cannot distinguish a lost owned
+        // transition from an unrelated encounter (29 September, 09:16/12:35).
+        // Read before ResetOperations; diagnostics do not authorize any action.
+        internal string DescribeOperationState(MobileParty party)
+        {
+            var siege = party?.SiegeEvent;
+            return "menu=" + (MenuDriver.CurrentMenuId ?? "<none>")
+                + "; operation=" + (_operationSettlement?.StringId ?? "<none>")
+                + "; offensive=" + (_offensiveSiege?.StringId ?? "<none>")
+                + "; defense=" + (_defenseTarget?.StringId ?? "<none>")
+                + "; current=" + (party?.CurrentSettlement?.StringId ?? "<none>")
+                + "; encounterSettlement=" + (PlayerEncounter.EncounterSettlement?.StringId ?? "<none>")
+                + "; encounteredParty=" + (PlayerEncounter.EncounteredMobileParty?.Name?.ToString() ?? "<none>")
+                + "; siege=" + (siege?.BesiegedSettlement?.StringId ?? "<none>")
+                + "; campLeader=" + (siege?.BesiegerCamp?.LeaderParty?.Name?.ToString() ?? "<none>")
+                + "; memberOfCamp=" + (siege?.BesiegerCamp != null && party?.BesiegerCamp == siege.BesiegerCamp)
+                + "; mapEvent=" + (party?.MapEvent != null)
+                + "; encounterBattle=" + (PlayerEncounter.Battle != null);
+        }
+
         private bool TrySendTroopsWhenWounded()
         {
             if (_mode != Mode.Apply || Hero.MainHero?.IsWounded != true

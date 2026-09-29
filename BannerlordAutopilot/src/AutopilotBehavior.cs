@@ -451,6 +451,10 @@ namespace BannerlordAutopilot
             bool wasApply = _mode == Mode.Apply;
             _mode = Mode.Off;
             AutopilotLog.Write("ВЫКЛЮЧЕНИЕ: " + reason);
+            // Preserve ownership and menu before ResetSession clears them. This
+            // also runs from the exception guard: diagnostics must never throw.
+            try { AutopilotLog.Write("ОПЕРАЦИЯ ПРИ ВЫКЛЮЧЕНИИ: " + DescribeOperationState(MobileParty.MainParty)); }
+            catch (Exception ex) { AutopilotLog.Write("ОПЕРАЦИЯ ПРИ ВЫКЛЮЧЕНИИ: недоступно: " + ex.GetType().Name); }
             StreamStatus.SetActive(false);
             ArmAutoResume(reason, wasApply);
 
@@ -1464,12 +1468,18 @@ namespace BannerlordAutopilot
                         || id == "player_decided_to_force_fight"))
                         || line.Contains("WOBy5UfY") || line.Contains("EhxS7NQ4")
                         || line.Contains("QZ6IcCIm") || line.Contains("ha53qb7v");
+                    // VillagerCampaignBehavior has its own demand/attack IDs;
+                    // the caravan IDs never advance these conversations (29.09).
+                    // The encounter/war/target guards above still own the decision.
+                    bool villagerFight = target.IsVillager && (id == "village_farmer_loot"
+                        || id == "player_decided_to_fight_villagers"
+                        || id == "player_decided_to_take_everything_villagers");
                     bool allowed = target.IsBandit
                         ? id == "common_encounter_ultimatum" || id == "common_bandit_surrender_accepted"
                           || id == "bandit_start_defender_1" || id == "bandit_start_defender_3"
                         : IsTravelIntroduction(id) || id == "main_option_hostile_1_2"
                           || id == "player_verify_attack_on_enemy_lord" || id == "545"
-                          || caravanFight;
+                          || caravanFight || villagerFight;
                     if (allowed && options[i].IsClickable)
                     {
                         string selected = options[i].Id;

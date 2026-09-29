@@ -119,10 +119,10 @@ namespace BannerlordAutopilot
             }
         }
 
-        /// <summary>Игра держит опыт стопки не выше «бойцов x самая дорогая цена
-        /// повышения» (PartyBase.OnXpChanged) и после уменьшения стопки срезает
-        /// излишек — ручное повышение делает то же. 22.09 10:56:57 это приняли за
-        /// ошибку учёта: «был 1798, ждали 1248, стал 1100» (2 x 550).</summary>
+        /// <summary>SetElementXp invokes PartyBase.OnXpChanged before the source
+        /// count is reduced. Excess XP is capped at the OLD stack size times the
+        /// highest upgrade cost. Size-change subscribers may also clamp again
+        /// after removal. Accept only these exact caps, never arbitrary XP loss.</summary>
         private static bool RemainderXpMatches(MobileParty party, CharacterObject source,
             TroopRosterElement before, int xpCost, int actual)
         {
@@ -131,7 +131,8 @@ namespace BannerlordAutopilot
             int maxCost = 0;
             for (int i = 0; i < source.UpgradeTargets.Length; i++)
                 maxCost = Math.Max(maxCost, source.GetUpgradeXpCost(party.Party, i));
-            return actual == Math.Min(expected, (before.Number - 1) * maxCost);
+            return actual == Math.Min(expected, before.Number * maxCost)
+                || actual == Math.Min(expected, (before.Number - 1) * maxCost);
         }
 
         private static int ItemCount(MobileParty party, EquipmentElement item)

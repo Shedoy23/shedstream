@@ -159,13 +159,14 @@ internal static partial class Program
             CampaignTime.TestHours=6; HourlyTick(b);
             Check(MobileParty.MainParty.DefaultBehavior!=AiBehavior.EngageParty, "invisible target releases chase");
         });
-        Try("chase: timeout actually cancels movement without alternative scores", () => {
+        foreach(string failure in new[] { "timeout", "invisible", "inactive" })
+        Try("chase: cancel movement without alternatives " + failure, () => {
             var (b, enemy)=HuntWorld(men:100);
             var target=HuntTarget("без вариантов",20,4,enemy,lord:false,speed:6f);
             CampaignTime.TestHours=0; HourlyTick(b);
             for(int h=1;h<=8;h++) { CampaignTime.TestHours=h; HourlyTick(b); }
             Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.Hold,
-                "timed-out chase stops even with zero replacement proposals");
+                "invalid chase stops even with zero replacement proposals " + failure);
         });
         foreach(string route in new[] { "initiative", "scores" })
         foreach(string state in new[] { "faster", "stationary", "engaged" })

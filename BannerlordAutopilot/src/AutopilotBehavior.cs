@@ -267,6 +267,8 @@ namespace BannerlordAutopilot
             ResetPrisonerScreen();
             _lootEncounter = null;
             ResetOperations();
+            _committedSiege = null;
+            ResetChase();
             _banditGatheredBattle = null;
             _banditGatherPreviewFault = false;
             _ticksThisSession = 0;
@@ -2133,6 +2135,7 @@ namespace BannerlordAutopilot
             RecheckPressureRaid(party);
             if (waitingIn != null && HoldPostBattleRest(party, waitingIn, true)) return;
             if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
+            if (_committedSiege != null && (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive())) return;
 
             if (_mode == Mode.Apply && ControlsParty(party) && !party.IsCurrentlyAtSea
                 && MapIsActiveScreen() && !InformationManager.IsAnyInquiryActive())
@@ -2140,6 +2143,7 @@ namespace BannerlordAutopilot
                 try
                 {
                     TroopUpgrades.Run(party);
+                    if (ContinueSiegeCampaign(party, waitingIn)) return;
                     // Охота раньше набора и разгрузки: бой рядом по силам важнее
                     // похода за добровольцами (владелец 23.09: «если есть
                     // возможность рядом дать — дать»). Оборона и отдых — выше.
@@ -2802,6 +2806,8 @@ namespace BannerlordAutopilot
 
                 var decision = new AIBehaviorData(target, AiBehavior.EngageParty,
                     MobileParty.NavigationType.Default, false, false, false);
+                string chaseReason = ChaseRejectedReason(party, target);
+                if (chaseReason != null) return false;
                 AutopilotLog.Write("ближняя угроза по штатной модели: атакуем «" + target.Name
                                    + "», оценка " + score.ToString("F3", CultureInfo.InvariantCulture));
                 ApplyDecision(party, decision, score);
@@ -2900,7 +2906,8 @@ namespace BannerlordAutopilot
                     {
                         return "без партии";
                     }
-                    return InLeftForeignBattle(target) ? "в чужом бою, из которого мы ушли" : null;
+                    return InLeftForeignBattle(target) ? "в чужом бою, из которого мы ушли"
+                        : ChaseRejectedReason(MobileParty.MainParty, target);
                 default:
                     return "вне области автопилота";
             }
@@ -2913,6 +2920,17 @@ namespace BannerlordAutopilot
         private void ApplyDecision(MobileParty party, AIBehaviorData data, float score)
         {
             var settlement = data.Party as Settlement;
+            if (data.AiBehavior == AiBehavior.BesiegeSettlement)
+            {
+                string invalid = !ControlsParty(party) ? "следуем другой армии"
+                    : WhyNotApplicable(data) ?? SiegeTargetRejection(party, settlement);
+                if (invalid != null)
+                {
+                    if (_committedSiege == settlement) _committedSiege = null;
+                    AutopilotLog.Write("ПОХОД: отложенный приказ отменён: " + invalid);
+                    return;
+                }
+            }
             if (data.AiBehavior == AiBehavior.DefendSettlement)
             {
                 // A pending departure may execute later than the hourly selection.
@@ -2959,11 +2977,13 @@ namespace BannerlordAutopilot
                         // партию игрока действительно двигает, а осаду начинает штатный пункт
                         // меню у ворот — ровно как это делает человек.
                         _offensiveSiege = settlement;
+                        _committedSiege = settlement;
                         SetPartyAiAction.GetActionForVisitingSettlement(
                             party, settlement, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
                         break;
                     case AiBehavior.DefendSettlement:
                         // Native Defend resets MoveTargetPoint to our current position;
+                        _committedSiege = null;
                         // only visiting sets the point that actually moves MainParty.
                         SetPartyAiAction.GetActionForVisitingSettlement(
                             party, settlement, data.NavigationType, data.IsFromPort, data.IsTargetingPort);
@@ -3018,7 +3038,7 @@ namespace BannerlordAutopilot
                         SetPartyAiAction.GetActionForEngagingParty(
                             party, (MobileParty)data.Party, data.NavigationType, data.IsFromPort);
                         _combatTarget = (MobileParty)data.Party;
-                        _huntConfirmedHours = CampaignTime.Now.ToHours;
+                        BeginChase(party, (MobileParty)data.Party);
                         break;
 
                     default:

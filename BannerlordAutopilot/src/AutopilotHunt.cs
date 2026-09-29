@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -36,6 +37,67 @@ namespace BannerlordAutopilot
         /// чтобы партия не развернулась на миг «не догнать».</summary>
         private const float HuntHoldHours = 6f;
         private double _huntConfirmedHours = double.MinValue;
+        private MobileParty _chaseProgressTarget;
+        private float _chaseBestDistance;
+        private const float ChaseProgressDistance = .5f;
+        private readonly Dictionary<MobileParty, double> _chaseCooldown = new Dictionary<MobileParty, double>();
+
+        internal void ResetChase()
+        {
+            _chaseProgressTarget = null;
+            _huntConfirmedHours = double.MinValue;
+            _chaseCooldown.Clear();
+        }
+
+        internal void BeginChase(MobileParty party, MobileParty target)
+        {
+            if (_chaseProgressTarget == target && CampaignTime.Now.ToHours >= _huntConfirmedHours) return;
+            _chaseProgressTarget = target;
+            _chaseBestDistance = (float)Math.Sqrt(party.Position.DistanceSquared(target.Position));
+            _huntConfirmedHours = CampaignTime.Now.ToHours;
+        }
+
+        internal string ChaseRejectedReason(MobileParty party, MobileParty target)
+        {
+            if (party == null || target == null) return "нет партии для погони";
+            if (!target.IsActive || !target.IsVisible) return "цель неактивна или скрылась из виду";
+            double now = CampaignTime.Now.ToHours;
+            float distance = (float)Math.Sqrt(party.Position.DistanceSquared(target.Position));
+            // A stopped, engaged or slower party can actually be caught again.
+            if (!target.IsMoving || target.MapEvent != null || target.Speed < party.Speed)
+            {
+                _chaseCooldown.Remove(target);
+                if (_chaseProgressTarget == target) {
+                    _huntConfirmedHours = now;
+                    _chaseBestDistance = distance;
+                }
+                return null;
+            }
+            if (_chaseCooldown.TryGetValue(target, out double until))
+            {
+                if (now < until) return "погоня не сокращала расстояние, цель временно пропущена";
+                _chaseCooldown.Remove(target);
+                if (_chaseProgressTarget == target) _chaseProgressTarget = null;
+            }
+            bool active = party.DefaultBehavior == AiBehavior.EngageParty && party.TargetParty == target;
+            if (active)
+            {
+                BeginChase(party, target);
+                if (_chaseBestDistance - distance >= ChaseProgressDistance)
+                {
+                    _chaseBestDistance = distance;
+                    _huntConfirmedHours = now;
+                }
+                if (now - _huntConfirmedHours <= HuntHoldHours) return null;
+                _chaseCooldown[target] = now + HuntHoldHours;
+                AutopilotLog.Write("ОХОТА: прекращаем погоню за «" + target.Name
+                    + "» — расстояние не сокращается 6 ч.; скорость цели "
+                    + target.Speed.ToString("F2", CultureInfo.InvariantCulture) + ", наша "
+                    + party.Speed.ToString("F2", CultureInfo.InvariantCulture) + "; повтор через 6 ч.");
+                return "цель не медленнее нас, за 6 ч. не сблизились";
+            }
+            return distance > HuntCatchDistance ? "цель не медленнее нас и далеко для перехвата" : null;
+        }
 
         /// <summary>Почему сейчас не охотимся (null — можно). Это режим
         /// «Восстановление»: после поражения сначала набрать армию, иначе
@@ -82,7 +144,7 @@ namespace BannerlordAutopilot
                     || !party.MapFaction.IsAtWarWith(enemy.MapFaction)) continue;
                 float distance = (float)Math.Sqrt(party.Position.DistanceSquared(enemy.Position));
                 if (distance > radius) continue;
-                if (enemy.IsMoving && enemy.Speed > party.Speed && distance > HuntCatchDistance) continue;
+                if (ChaseRejectedReason(party, enemy) != null) continue;
                 if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil
                     && ReferenceEquals(enemy, _stuckTarget)) continue;
                 float theirs = army ? enemy.Army.EstimatedStrength : enemy.Party.EstimatedStrength;
@@ -104,7 +166,7 @@ namespace BannerlordAutopilot
             }
             if (party.DefaultBehavior == AiBehavior.EngageParty && party.TargetParty == best)
             {
-                _huntConfirmedHours = CampaignTime.Now.ToHours;
+                BeginChase(party, best);
                 return true;
             }
 
@@ -120,7 +182,7 @@ namespace BannerlordAutopilot
                 best.Name, bestTheirs.ToString("F0", CultureInfo.InvariantCulture), ours.ToString("F0", CultureInfo.InvariantCulture));
             ApplyDecision(party, new AIBehaviorData(best, AiBehavior.EngageParty,
                 MobileParty.NavigationType.Default, false, false, false), 1f);
-            _huntConfirmedHours = CampaignTime.Now.ToHours;
+            BeginChase(party, best);
             return true;
         }
 
@@ -139,10 +201,10 @@ namespace BannerlordAutopilot
             if (_mode != Mode.Apply || !ControlsParty(party) || _fleeFrom != null
                 || party.IsCurrentlyAtSea || party.SiegeEvent != null || party.BesiegedSettlement != null
                 || HuntBlocked(party, allowOwnArmy: true) != null) return false;
-            if (CampaignTime.Now.ToHours - _huntConfirmedHours > HuntHoldHours) return false;
-            if (!target.IsActive || target.CurrentSettlement != null || target.MapEvent != null
+            if (!target.IsActive || !target.IsVisible || target.CurrentSettlement != null || target.MapEvent != null
                 || target.MapFaction == null || party.MapFaction == null
                 || !party.MapFaction.IsAtWarWith(target.MapFaction) || InLeftForeignBattle(target)) return false;
+            if (ChaseRejectedReason(party, target) != null) return false;
             float theirs = target.Army != null ? target.Army.EstimatedStrength : target.Party.EstimatedStrength;
             if (SiegeAttackerStrength(party) < theirs * (target.Army != null ? HuntArmyMinRatio : HuntMinRatio)) return false;
             return Math.Sqrt(party.Position.DistanceSquared(target.Position)) <= radius;
@@ -150,13 +212,30 @@ namespace BannerlordAutopilot
 
         private bool HoldCurrentChase(MobileParty party, float radius)
         {
+            // A rejected order remains active in the engine until replaced. Stop
+            // only our own free-map chase; zero scored alternatives must not mean
+            // another six hours of moving after a rejected target.
+            var ownedTarget = _combatTarget;
+            if (_mode == Mode.Apply && ControlsParty(party) && _fleeFrom == null
+                && party.MapEvent == null && party.CurrentSettlement == null
+                && party.SiegeEvent == null && party.BesiegedSettlement == null && !party.IsCurrentlyAtSea
+                && TaleWorlds.CampaignSystem.Encounters.PlayerEncounter.Current == null
+                && ownedTarget != null && party.DefaultBehavior == AiBehavior.EngageParty
+                && party.TargetParty == ownedTarget)
+            {
+                string rejected = ChaseRejectedReason(party, ownedTarget);
+                if (rejected != null)
+                {
+                    party.SetMoveModeHold();
+                    _combatTarget = null;
+                    AutopilotLog.Write("ОХОТА: приказ погони снят — " + rejected);
+                    return false;
+                }
+            }
             if (!HoldsChase(party, radius)) return false;
             var target = party.TargetParty;
-            if (!target.IsMoving || target.Speed <= party.Speed
-                || party.Position.DistanceSquared(target.Position) <= HuntCatchDistance * HuntCatchDistance)
-                _huntConfirmedHours = CampaignTime.Now.ToHours;
-            else
-                AutopilotLog.Write("ОХОТА: продолжаем погоню за «" + target.Name + "» — цель на миг вне досягаемости, не разворачиваемся");
+            if (target.IsMoving && target.Speed >= party.Speed)
+                AutopilotLog.Write("ОХОТА: продолжаем погоню за «" + target.Name + "» — проверяем сближение, не разворачиваемся");
             return true;
         }
 

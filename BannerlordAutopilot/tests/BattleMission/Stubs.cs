@@ -58,7 +58,7 @@ namespace TaleWorlds.MountAndBlade {
   public AssignPlayerRoleInTeamMissionController RoleController;
   public T GetMissionBehavior<T>() where T:class => (Deployment as T) ?? (EndLogic as T) ?? (SiegeHandler as T) ?? (RoleController as T);
  }
- public class MissionResult { public bool BattleResolved; }
+
  public class BattleEndLogic { public enum ExitResult { True, False, NeedsPlayerConfirmation } public Mission Mission; public bool AllowExit = true; public int Calls; public ExitResult TryExit() { Calls++; if (!AllowExit) return ExitResult.False; Mission.ExitCalls++; return ExitResult.True; } }
 }
 namespace TaleWorlds.MountAndBlade.Missions.Handlers {
@@ -78,5 +78,18 @@ namespace BannerlordAutopilot {
   internal void OnOperationMissionEnded() {}
   internal void Disable(string reason){CurrentMode=Mode.Off;}
  }
+ internal static class Thoughts { internal static readonly List<string> Events = new(); internal static void Say(string key, string target, params object[] args) => Events.Add(key); }
  internal static class AutopilotLog { internal static readonly List<string> Lines = new(); internal static void Write(string text) => Lines.Add(text); }
+}
+
+namespace TaleWorlds.Core {
+ public enum BattleState { None, AttackerVictory, DefenderVictory }
+ // Matches Core.MissionResult: resolved is derived from the outcome, not independent.
+ public class MissionResult {
+  public bool PlayerVictory {get;private set;} public bool PlayerDefeated {get;private set;}
+  public bool BattleResolved => PlayerVictory || PlayerDefeated;
+  public MissionResult(BattleState battleState, bool playerVictory, bool playerDefeated, bool enemyRetreated) {
+   PlayerVictory=playerVictory; PlayerDefeated=playerDefeated;
+  }
+ }
 }

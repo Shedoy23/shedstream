@@ -40,7 +40,7 @@ namespace TaleWorlds.CampaignSystem.Party {
  public class MobileParty {
   public enum NavigationType { None, Default }
   public static MobileParty MainParty = new();
-  public bool IsActive=true, IsMoving; public object MapEvent,Army,SiegeEvent;
+  public bool IsActive=true, IsMoving; public TestMapEvent MapEvent; public object Army,SiegeEvent;
   public Settlement CurrentSettlement, BesiegedSettlement, LastVisitedSettlement, TargetSettlement;
   public MobilePartyAi Ai=new(); public AiBehavior DefaultBehavior=AiBehavior.GoToSettlement;
   public Position Position; public string Name="Player";
@@ -73,3 +73,25 @@ namespace BannerlordAutopilot {
  }
 }
 
+namespace TaleWorlds.CampaignSystem.ComponentInterfaces { public class MobilePartyAIModel {} }
+// Type shells needed to compile the expanded reflection contract. Deliberately
+// omit members: this fixture must remain incompatible, never model a valid API.
+namespace TaleWorlds.Library {
+ public struct Vec2 {} public class InquiryData {} public static class InformationManager {}
+ public class MBReadOnlyList<T> {}
+}
+namespace TaleWorlds.CampaignSystem {
+ public class GameModels {} public class Kingdom {} public class Army { public enum ArmyTypes {} } public class Clan {}
+}
+namespace TaleWorlds.CampaignSystem.Party { public class PartyBase {} }
+namespace TaleWorlds.CampaignSystem.Actions {
+ public static class ChangeClanInfluenceAction {} public static class DisbandArmyAction {}
+}
+namespace TaleWorlds.CampaignSystem.Settlements { public class Town {} }
+namespace TaleWorlds.Localization { public class TextObject {} }
+namespace TaleWorlds.Core { public enum BattleSideEnum {} }
+namespace TaleWorlds.CampaignSystem.Party {
+ public class TestMapEvent { public TestMapEventSide AttackerSide, DefenderSide; }
+ public class TestMapEventSide { public PartyBase LeaderParty; }
+}
+namespace TaleWorlds.CampaignSystem.Siege { public class SiegeEvent { public BesiegerCamp BesiegerCamp; } public class BesiegerCamp {} }

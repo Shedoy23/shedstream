@@ -297,6 +297,8 @@ internal static partial class Program
         EquipmentTradeTests();
         TroopUpgradeTests();
         BanditGatheringTests();
+        DeserterGatheringTests();
+        LordGatheringTests();
         ProgressTests();
         Try("random default and lord introduction", () => {
             var b=Fresh(); b.RandomDialogsEnabled=new AutopilotBehavior().RandomDialogsEnabled; Enable(b);

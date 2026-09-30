@@ -216,6 +216,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public void EnableAi() {}
  }
  public partial class MobileParty : IMapPoint {
+  public bool IsCurrentlyUsedByAQuest { get; set; }
   public static TaleWorlds.Library.MBReadOnlyList<MobileParty> All { get; } = new();
   public bool IsVisible { get; set; } = true;
   public bool IsMilitia { get; set; }
@@ -267,6 +268,7 @@ namespace TaleWorlds.CampaignSystem.Party {
 }
 namespace TaleWorlds.CampaignSystem.Encounters {
  public class PlayerEncounter {
+  public bool IsJoinedBattle { get; set; }
   public static PartyBase EncounteredParty => Current == null ? null : EncounteredMobileParty?.Party ?? EncounterSettlement?.Party;
   public bool Defender; public static bool PlayerIsDefender => Current.Defender;
   public static PlayerEncounter Current; public static Settlement EncounterSettlement;

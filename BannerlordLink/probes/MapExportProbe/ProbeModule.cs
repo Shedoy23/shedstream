@@ -22,7 +22,12 @@ namespace ShedLink.MapExportProbe
     public sealed class ProbeModule : MBSubModuleBase
     {
         private enum Phase { Idle, Requested, SamplingTerrain, Finished }
-        private const int GridSide = 16, SamplesPerTick = 8;
+        // v4 (30.09, Claude): grid fine enough to draw a map from data instead of a photo.
+        // Columns fixed, rows follow the campaign aspect ratio; hard cap keeps the export bounded.
+        private const int GridColumns = 96, MaxGridRows = 128, MaxSamplesPerTick = 64;
+        private const double TimeoutSeconds = 90, BatchBudgetMs = 2, CheckpointSeconds = 1;
+        private int _gridRows;
+        private double _lastCheckpoint;
         private static int _used, _requested, _cancelled;
         private static string _status = "Disabled. Photo unsupported; manual data command required.";
         private readonly Stopwatch _clock = new Stopwatch();
@@ -33,7 +38,7 @@ namespace ShedLink.MapExportProbe
         private Scene _borrowedScene;
         private MapScreen _screen;
         private Vec2 _min, _max;
-        private JArray _terrainSamples;
+        private JArray _surface, _campaignHeight, _terrainHeight;
         private int _sampleIndex;
         private bool _hasHeightmap;
 
@@ -77,19 +82,24 @@ namespace ShedLink.MapExportProbe
                 if (Volatile.Read(ref _cancelled) != 0) { Stop("cancelled", null); return; }
                 if (_phase == Phase.Requested) { Begin(); return; }
                 if (!StillOnSameReadyMap()) { Stop("map_changed_or_not_ready", null); return; }
-                if (_clock.Elapsed.TotalSeconds > 5) { Stop("data_timeout", null); return; }
-                _report["nextSampleIndex"] = _sampleIndex;
-                WriteReport(); // Durable batch boundary before native terrain queries.
+                if (_clock.Elapsed.TotalSeconds > TimeoutSeconds) { Stop("data_timeout", null); return; }
+                int total = GridColumns * _gridRows;
+                if (_clock.Elapsed.TotalSeconds - _lastCheckpoint >= CheckpointSeconds)
+                {
+                    // Durable progress about once a second (not every tick: the grid JSON is ~100 KB).
+                    _lastCheckpoint = _clock.Elapsed.TotalSeconds;
+                    _report["nextSampleIndex"] = _sampleIndex;
+                    WriteReport();
+                }
                 var batch = Stopwatch.StartNew();
-                for (int count = 0; count < SamplesPerTick && _sampleIndex < GridSide * GridSide; ++count)
+                for (int count = 0; count < MaxSamplesPerTick && _sampleIndex < total; ++count)
                 {
                     if (Volatile.Read(ref _cancelled) != 0) { Stop("cancelled", null); return; }
-                    if (_clock.Elapsed.TotalSeconds > 5) { Stop("data_timeout", null); return; }
                     SampleTerrain(_sampleIndex++);
                     // Yield after a query if the small time budget expired; cannot interrupt a native call.
-                    if (batch.Elapsed.TotalMilliseconds >= 2) break;
+                    if (batch.Elapsed.TotalMilliseconds >= BatchBudgetMs) break;
                 }
-                if (_sampleIndex == GridSide * GridSide) Stop("data_complete_geography_unverified", null);
+                if (_sampleIndex == total) Stop("data_complete_geography_unverified", null);
             }
             catch (Exception ex) { Stop("managed_exception", ex); }
         }
@@ -107,9 +117,9 @@ namespace ShedLink.MapExportProbe
             {
                 ["schema"] = "shedlink.map-data-probe.v1", ["attemptUtc"] = DateTime.UtcNow.ToString("o"),
                 ["status"] = "started", ["runtimeValidated"] = false, ["mode"] = "data-only",
-                ["probeRevision"] = "native-crash-photo-blocked.v3", ["photoSupported"] = false,
+                ["probeRevision"] = "map-data-grid.v4", ["photoSupported"] = false,
                 ["rendererObjectsCreated"] = false, ["sharedSceneBorrowedForQueriesOnly"] = true,
-                ["limitations"] = new JArray("Coarse terrain samples are not a photograph or a mesh export.",
+                ["limitations"] = new JArray("Terrain samples are not a photograph or a mesh export.",
                     "Native terrain queries remain untested over the full grid and cannot be interrupted by managed timeout.",
                     "Navmesh surface does not identify every visual texture, coastline or water body.",
                     "No scene/player camera/lighting/visibility changes, native releases, save changes or network.")
@@ -155,15 +165,19 @@ namespace ShedLink.MapExportProbe
                 if (town && village && hideout) break;
             }
             Sample(landmarks, "boundsCenter", null, new CampaignVec2(new Vec2((_min.x + _max.x) / 2, (_min.y + _max.y) / 2), true));
-            _terrainSamples = new JArray();
+            // Managed campaign objects only: no native calls, read in one pass.
+            _report["factions"] = Factions();
+            _report["settlements"] = Settlements();
+            _gridRows = GridRows(_min.x, _max.x, _min.y, _max.y);
+            _surface = new JArray(); _campaignHeight = new JArray(); _terrainHeight = new JArray();
             _report["terrainGrid"] = new JObject
             {
-                ["width"] = GridSide, ["height"] = GridSide, ["maxSamplesPerTick"] = SamplesPerTick,
-                ["layout"] = "row-major, columns increase world X, rows increase world Y",
+                ["width"] = GridColumns, ["height"] = _gridRows, ["maxSamplesPerTick"] = MaxSamplesPerTick,
+                ["layout"] = "row-major flat arrays, columns increase world X, rows increase world Y",
                 ["placement"] = "nodes include campaign bound endpoints; no Y flip",
                 ["coordinateUnits"] = "campaign world coordinates", ["interpolation"] = "none",
-                ["surfaceSource"] = "valid land navmesh face only; not a water mask",
-                ["samples"] = _terrainSamples
+                ["surfaceSource"] = "land navmesh face type, else sea navmesh face type prefixed 'sea:', else null",
+                ["surface"] = _surface, ["campaignHeight"] = _campaignHeight, ["terrainHeight"] = _terrainHeight
             };
             _phase = Phase.SamplingTerrain;
             _report["phase"] = _phase.ToString();
@@ -181,38 +195,89 @@ namespace ShedLink.MapExportProbe
                 && _screen.MapScene == _borrowedScene && _borrowedScene.IsLoadingFinished();
         }
 
-        private static double GridCoordinate(double min, double max, int index)
+        private static bool FiniteD(double v) { return !double.IsNaN(v) && !double.IsInfinity(v); }
+
+        private static int GridRows(double minX, double maxX, double minY, double maxY)
         {
-            if (double.IsNaN(min) || double.IsInfinity(min) || double.IsNaN(max) || double.IsInfinity(max)
-                || max <= min || index < 0 || index >= GridSide)
+            if (!FiniteD(minX) || !FiniteD(maxX) || !FiniteD(minY) || !FiniteD(maxY) || maxX <= minX || maxY <= minY)
+                throw new ArgumentException("Invalid finite bounds.");
+            double rows = Math.Round(GridColumns * (maxY - minY) / (maxX - minX));
+            return (int)Math.Max(2, Math.Min(MaxGridRows, rows));
+        }
+
+        private static double GridCoordinate(double min, double max, int index, int count)
+        {
+            if (!FiniteD(min) || !FiniteD(max) || max <= min || count < 2 || count > MaxGridRows || index < 0 || index >= count)
                 throw new ArgumentException("Invalid finite bounds or grid index.");
-            return min + (max - min) * index / (GridSide - 1);
+            return min + (max - min) * index / (count - 1);
         }
 
         private void SampleTerrain(int index)
         {
-            int column = index % GridSide, row = index / GridSide;
-            var xy = new Vec2((float)GridCoordinate(_min.x, _max.x, column), (float)GridCoordinate(_min.y, _max.y, row));
-            var position = new CampaignVec2(xy, true);
-            var sample = new JObject { ["column"] = column, ["row"] = row, ["xy"] = XY(xy) };
-            var face = _campaign.MapSceneWrapper.GetFaceIndex(in position);
-            sample["landFaceValid"] = face.IsValid();
-            sample["navmeshSurface"] = face.IsValid()
-                ? (JToken)_campaign.MapSceneWrapper.GetFaceTerrainType(face).ToString() : JValue.CreateNull();
+            int column = index % GridColumns, row = index / GridColumns;
+            var xy = new Vec2((float)GridCoordinate(_min.x, _max.x, column, GridColumns),
+                (float)GridCoordinate(_min.y, _max.y, row, _gridRows));
+            var land = new CampaignVec2(xy, true);
+            var face = _campaign.MapSceneWrapper.GetFaceIndex(in land);
+            string surface = null;
+            if (face.IsValid()) surface = _campaign.MapSceneWrapper.GetFaceTerrainType(face).ToString();
+            else
+            {
+                var sea = new CampaignVec2(xy, false);
+                var seaFace = _campaign.MapSceneWrapper.GetFaceIndex(in sea);
+                if (seaFace.IsValid()) surface = "sea:" + _campaign.MapSceneWrapper.GetFaceTerrainType(seaFace);
+            }
+            _surface.Add(surface);
             // Invalid navmesh has no campaign height; don't synthesize Plain or zero.
             float height = 0;
-            bool heightValid = face.IsValid() && _campaign.MapSceneWrapper.GetHeightAtPoint(in position, ref height) && Finite(height);
-            sample["campaignHeight"] = heightValid ? (JToken)height : JValue.CreateNull();
-            sample["terrainHeight"] = JValue.CreateNull();
+            bool heightValid = face.IsValid() && _campaign.MapSceneWrapper.GetHeightAtPoint(in land, ref height) && Finite(height);
+            _campaignHeight.Add(heightValid ? (JToken)Math.Round(height, 2) : JValue.CreateNull());
+            JToken terrain = JValue.CreateNull();
             if (_hasHeightmap)
             {
                 float terrainHeight;
                 Vec3 normal;
                 _borrowedScene.GetTerrainHeightAndNormal(xy, out terrainHeight, out normal);
-                if (Finite(terrainHeight)) sample["terrainHeight"] = terrainHeight;
+                if (Finite(terrainHeight)) terrain = Math.Round(terrainHeight, 2);
             }
-            _terrainSamples.Add(sample);
+            _terrainHeight.Add(terrain);
         }
+
+        private static JArray Factions()
+        {
+            var result = new JArray();
+            foreach (var kingdom in Kingdom.All)
+                result.Add(new JObject
+                {
+                    ["id"] = kingdom.StringId, ["name"] = kingdom.Name?.ToString(),
+                    ["color"] = Hex(kingdom.Color), ["color2"] = Hex(kingdom.Color2), ["eliminated"] = kingdom.IsEliminated
+                });
+            return result;
+        }
+
+        private static JArray Settlements()
+        {
+            var result = new JArray();
+            foreach (var settlement in Settlement.All)
+            {
+                string kind = settlement.IsTown ? "town" : settlement.IsCastle ? "castle"
+                    : settlement.IsVillage ? "village" : settlement.IsHideout ? "hideout" : null;
+                if (kind == null) continue;
+                var faction = settlement.MapFaction;
+                var clan = settlement.OwnerClan;
+                result.Add(new JObject
+                {
+                    ["id"] = settlement.StringId, ["name"] = settlement.Name?.ToString(), ["kind"] = kind,
+                    ["xy"] = XY(settlement.Position.ToVec2()),
+                    ["bound"] = settlement.IsVillage ? settlement.Village?.Bound?.StringId : null,
+                    ["factionId"] = faction?.StringId, ["factionName"] = faction?.Name?.ToString(),
+                    ["factionColor"] = faction == null ? null : Hex(faction.Color),
+                    ["clanId"] = clan?.StringId, ["clanName"] = clan?.Name?.ToString()
+                });
+            }
+            return result;
+        }
+
         private void Sample(JArray samples, string kind, string id, CampaignVec2 position)
         {
             var sample = new JObject { ["kind"] = kind, ["id"] = id, ["xy"] = XY(position.ToVec2()), ["isOnLand"] = position.IsOnLand };
@@ -251,7 +316,7 @@ namespace ShedLink.MapExportProbe
                 _report["status"] = reason;
                 _report["stoppedPhase"] = _phase.ToString();
                 _report["elapsedSeconds"] = _clock.Elapsed.TotalSeconds;
-                _report["completedSamples"] = _terrainSamples == null ? 0 : _terrainSamples.Count;
+                _report["completedSamples"] = _surface == null ? 0 : _surface.Count;
                 if (ex != null) _report["error"] = ex.ToString();
             }
             _status = reason + (ex == null ? "" : ": " + ex.Message) + "; output: " + (_folder ?? "not created");
@@ -270,6 +335,7 @@ namespace ShedLink.MapExportProbe
 
         private void WriteReport() { File.WriteAllText(Path.Combine(_folder, "probe.json"), _report.ToString(Formatting.Indented)); }
         private static bool Finite(float value) { return !float.IsNaN(value) && !float.IsInfinity(value); }
+        private static string Hex(uint argb) { return "#" + (argb & 0xFFFFFF).ToString("X6"); }
         private static JArray XY(Vec2 v) { return new JArray(v.x, v.y); }
         private static JArray XYZ(Vec3 v) { return new JArray(v.x, v.y, v.z); }
     }

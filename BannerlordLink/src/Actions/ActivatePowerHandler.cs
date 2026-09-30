@@ -116,9 +116,15 @@ namespace BannerlordLink.Actions
                 {
                     if (data["weapon_type"]?.ToString() != build.SelectedWeaponType)
                     { BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "weapon_power_not_selected"); return; }
+                    // 30.09, владелец (вариант «а»), багрепорты #65/#74/#75: оружие в бою
+                    // меняет ИИ героя, и проверка «в руках» отказывала на 14% нажатий. Хватает,
+                    // что оружие надето: эффект и так срабатывает только при ударе этим
+                    // оружием (HeroBuildPolicy.AllowsHit в DamageHookPatch).
+                    bool weaponReady = BannerlordLink.Util.HeroBuildRuntime.Wielded(agent, build.SelectedWeaponType)
+                        || BannerlordLink.Util.HeroBuildRuntime.Equipped(buildHero, build.SelectedWeaponType);
                     string refusal = BannerlordLink.Util.HeroBuildPolicy.CanActivate(build, powerKey,
-                        BannerlordLink.Util.HeroBuildRuntime.Wielded(agent, build.SelectedWeaponType),
-                        DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                        weaponReady, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    if (refusal == "required_weapon_not_wielded") refusal = "required_weapon_not_equipped";
                     if (refusal != null) { BannerlordLink.Util.ActionFeedback.PostFailed(actionId, refusal); return; }
                     var selected = BannerlordLink.Util.HeroBuildPolicy.Power(build.SelectedWeaponType);
                     int skill = buildHero.GetSkillValue(BannerlordLink.Util.HeroBuildRuntime.Skill(selected.Skill));

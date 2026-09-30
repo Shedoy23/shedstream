@@ -1,8 +1,8 @@
 <!-- Local integration update 2026-09-30 -->
 
-## 30.09 — новая живая проверка Map Export Probe после исправления timeout
+## 30.09 — фото probe остановлен после native crash; pending data-only проверка
 
-Первый разрешённый ручной запуск дал данные карты и `phase_timeout`, PNG нет. Владелец поручил «Разбирайся»: локально исправлен порядок enable/readiness, targeted compile exit 0. Новый кандидат не установлен и не запускался. Следующий шаг требует нового сигнала: установка при закрытой игре и одна ручная проверка; горячая замена, повтор capture и рестарт сейчас запрещены. [Причина и точное свидетельство](BannerlordLink/probes/MapExportProbe/TIMEOUT_DIAGNOSIS.md), [инструкция/лимиты](BannerlordLink/probes/MapExportProbe/README.md). GPU/save/cleanup ещё не доказаны. Автоэкспорт всей карты и сайт вне задачи.
+Enable-before-readiness версия `5526ABA0…` дала native AV на включённом втором view; пользователь отключил probe и играет. По поручению исправлять локально подготовлен кандидат без renderer API: capture всегда unsupported; отдельная ручная data-команда экспортирует coarse16×16 grid. Compile exit0, offline14/14; native grid не проверена в игре. Только после нового сигнала и закрытия игры — установка probe-компонента с сохранением текущего автопилота, затем отдельное разрешение на один data export. Photo root cause и фотографический путь не исправлены; никаких слепых повторов, загрузки отдельной сцены или shared-scene setup mutations. [Native evidence/границы вывода/план](BannerlordLink/probes/MapExportProbe/NATIVE_CRASH_REVIEW.md), [инструкция](BannerlordLink/probes/MapExportProbe/README.md).
 
 [Изолированная интеграция питомцев и исправление CI: решения, проверки и отложенные изменения](docs/INTEGRATION_2026-09-30.md). API/lifecycle исправлены только в этой локальной кандидатной ветке; публикации и деплоя не было.
 

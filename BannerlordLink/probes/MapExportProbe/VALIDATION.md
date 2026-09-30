@@ -1,5 +1,40 @@
 # Проверка кандидата 2026-09-30
 
+## После native crash: фото заблокировано, локальный data-only кандидат
+
+Первый enable-before-readiness кандидат был установлен позже и вызвал native AV.
+Разбор фактов и пределов выводов: [NATIVE_CRASH_REVIEW](NATIVE_CRASH_REVIEW.md).
+Точный native root cause не установлен; это НЕ исправление фотографического рендера.
+
+Фото-команда отказывает без очереди/расхода попытки. Camera/SceneView/Texture,
+primary-renderer calls и native cleanup исключены из этой версии. Отдельная
+manual data-команда: 256 точек, максимум восемь за tick, бюджет 2ms между запросами,
+managed timeout пять секунд, map/cancel guards. [Актуальная инструкция](README.md).
+
+Offline contract закоммичен до исправления (`06ae30a0`): на прежней DLL `5526ABA0…`
+**5 проверок / 5 FAIL, exit 1**. После исправления **14 проверок / 0 FAIL, exit 0**.
+Проверены выполнение бывшей capture-команды, отсутствие постановки render work,
+граница renderer API по скомпилированному IL, отдельное подтверждение data,
+лишние аргументы/one-shot/cancel, endpoints/world-Y/nonfinite/index bounds.
+Не выполнялись game ticks, module instance или native calls. Это не renderer test.
+Первый harness-прогон выявил недостающий managed resolver для Native module DLL;
+после добавления resolver красный прогон завершился ожидаемым ненулевым кодом.
+
+Direct Roslyn compile net472/x64, один source, `/parallel-`, `/warnaserror+`:
+**exit 0**, diagnostics нет. Local DLL SHA256:
+`0B751D94AE5318E28965757575F61823F68B9C8743DDB834D7EB2C192B64D1B3`.
+`SubModule.xml`: v0.0.2, название явно сообщает photo disabled, прежний Module Id.
+System.Drawing reference исключена. Targets прочитаны; MSBuild/imports/restore/
+autodeploy/game outputs отсутствуют. `git diff --check`: exit 0.
+
+Новый кандидат не установлен. Installed DLL после работы остаётся `5526ABA0…`;
+пользователь отключил модуль. Автопилот/игра/конфиги/сейвы не менялись.
+Installed SceneTableau отдельно прочитан точечной декомпиляцией, без запуска сцены.
+Data grid native queries ещё runtime-unverified. Следующий тест только по новому
+сигналу после установки при закрытой игре; никаких photo capture/автоповторов.
+
+Ниже — исторические проверки предыдущих кандидатов.
+
 ## Исправление после первого runtime timeout — только локально
 
 Первый установленный кандидат дал JSON с bounds/landmarks и `phase_timeout`,

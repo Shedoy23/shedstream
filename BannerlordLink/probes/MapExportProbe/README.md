@@ -1,116 +1,63 @@
-# Ручной Map Export Probe — эксперимент для Bannerlord 1.4.8
+# Ручной Map Data Probe — фото отключено после native crash
 
-Этот отдельный необязательный модуль проверяет доступ к текущей карте и одну
-попытку ортографического снимка 256×256. Обычный BannerlordLink не меняется.
-Основа: `Shedoy23/shedstream/main`, `7e382b1ca648a2719206f5ba2bec680ca557ca4f`.
-Первый установленный кандидат дал данные карты и `phase_timeout`, PNG нет.
-Исправленная версия подготовлена и собрана **только локально, не установлена**.
-Разбор и точное свидетельство: [TIMEOUT_DIAGNOSIS](TIMEOUT_DIAGNOSIS.md).
+Это локальный диагностический кандидат Bannerlord 1.4.8. Фото не исправлено:
+прежний второй SceneView на живой campaign Scene вызвал native access violation.
+Подробности, ограничения штатного tableau и свидетельство:
+[NATIVE_CRASH_REVIEW](NATIVE_CRASH_REVIEW.md). Кандидат не установлен.
 
-## Ограничения
+Старая команда `shedmap_probe.capture confirm-after-stream` теперь всегда
+возвращает unsupported, не создаёт задания и не расходует data-попытку.
+Рендерный код удалён из кандидата; предыдущие версии сохранены в Git history.
+Это защита от повторения известного опасного пути, а не исправление фотографии.
 
-- Экспорт выключен до точной ручной команды с подтверждением. Одна принятая
-  попытка на процесс, включая отказ/таймаут; загрузка сейва не сбрасывает лимит.
-- Нет Harmony, сетевых запросов, автоматического campaign behaviour,
-  горячих клавиш, автоэкспорта мира или связи с сайтом.
-- Основная камера, entities, visibility и освещение общей сцены не меняются.
-  Изображение может содержать игровые party meshes; они не скрываются.
-- Отдельный SceneView получает собственные camera, color/depth targets.
-  Он включается с выключенным сохранением, проходит ограниченный прогрев
-  (минимум пять engine frames и обе проверки готовности), затем получает одно
-  окно сохранения до продвижения engine frame и выключается.
-  Продвижение engine frame **не доказывает завершение GPU/сохранения файла**.
-- Ready checks: campaign/map state, отсутствие Mission/меню, тот же MapScreen,
-  IsReady, загрузка сцены, готовность штатного вида; собственный вид проверяется
-  после включения. Причина изменения и старая неудачная попытка:
-  [TIMEOUT_DIAGNOSIS](TIMEOUT_DIAGNOSIS.md).
-  Во время попытки смена карты/кампании отменяет работу.
-- Каждый этап ожидания ограничен пятью реальными секундами между тиками.
-  Этот watchdog не может прервать зависший нативный вызов или остановленный
-  application loop. Managed catch не защищает от native crash.
-- Cleanup выключает собственный вид и вызывает `AddClearTask(true)`
-  (**только этот view**); спустя четыре application ticks отдаёт owned references
-  через `ManualInvalidate`/`Texture.Release`. На unload ticks не гарантированы,
-  поэтому references отдаются сразу после постановки clear task.
-  Заимствованная Scene не очищается/не освобождается. Нет принудительного
-  уничтожения camera, `ReleaseImmediately`, глобального GPU release или GC.
-  `NativeObject.ManualInvalidate` статически проверен: снижает refcount один раз
-  и исключает повторное снижение финализатором. Реальный native task/GPU lifecycle
-  всё ещё требует наблюдения после стрима.
+Отдельная команда `shedmap_probe.data confirm-data-only` вручную ставит одно
+задание за процесс: локальный JSON identity/bounds/landmarks и сетка рельефа
+16×16. Автоматического запуска, загрузки отдельной сцены, картинки, сети,
+публикации на сайт или динамического автоэкспорта нет.
 
-## Что сохраняется локально
+- Один export за процесс, включая отказ/таймаут; лишние аргументы запрещены.
+- Ready guard: тот же Campaign/MapScreen/map state, не Mission/меню,
+  MapScreen.IsReady и IsLoadingFinished; повторная проверка перед каждым batch.
+- Всего до 256 точек, до восьми за application tick; после запроса уступает
+  следующему тику при превышении бюджета 2ms. Пятиминутного/долгого обхода нет:
+  общий managed timeout пять секунд. Нативный вызов этим таймером не прервать.
+- Сетка включает границы карты; row-major, X и Y возрастают в игровых координатах.
+  Строка 0 у minY. Grid не переворачивает Y; это должен учитывать будущий viewer.
+- Height/normal API и navmesh face/type используются только для чтения.
+  Invalid face и отсутствующая высота сохраняются как null. Surface — тип
+  land navmesh, а не текстура/точная береговая линия/маска воды.
+- Основная камера, SceneView, lighting, visibility, entities и сейвы не меняются.
+  Нет Camera/SceneView/Texture allocation, primary-view readiness calls,
+  native clear/release/invalidation или GPU cleanup. Borrowed Scene только читается.
+- Native queries по полной сетке ещё не проверены в игре. Data-only снижает
+  конкретный риск дополнительного рендера, но не обещает отсутствие любых native crashes.
 
-Фиксированный корень `%LOCALAPPDATA%\ShedLink\MapExportProbe`, внутри новая
-папка UTC+GUID для каждой попытки. Пользовательский output path не принимается.
+Выход: `%LOCALAPPDATA%\ShedLink\MapExportProbe\<UTC-GUID>\probe.json`.
+Schema `shedlink.map-data-probe.v1`; revision `native-crash-photo-blocked.v3`.
+JSON содержит mode=data-only/photoSupported=false, этап, очередной индекс batch,
+количество завершённых точек, ошибки и raw coordinates. PNG не создаётся.
+`runtimeValidated=false` сохраняется: успешное выполнение не доказывает географию.
 
-`probe.json`: campaign id, тип wrapper, имя и module path сцены, active modules,
-XML/navmesh CRC, campaign/scene bounds, камера, до пяти landmarks
-(main party, первое town/village/hideout, центр bounds), высоты и валидные
-land/sea navmesh types, этап/последние readiness checks/engine frames,
-итог/исключения/cleanup. Нет hardcoded городов.
-`borderMaxMarkerZ` — Z маркера границы, не максимальная высота рельефа.
-
-`snapshot.png`: только если движок сохранит файл. JSON подтверждает наличие PNG
-лишь после проверки signature, стабильного размера и декодирования 256×256.
-Назначение native filename/path API, полнота рельефа, географическое соответствие,
-culling, отсутствие влияния второго вида на игровой кадр/производительность
-**runtime не проверены**. При отказе получается JSON без выдуманного изображения.
-Имена с двойным `.png` принимаются только в собственной уникальной папке.
-
-Не использовать CRC как полный hash модового мира: он не доказывает неизменность
-terrain/текстур. Этот probe не строит production `mapId` и не задаёт фильтрацию
-зрителям. Физические material arrays не читает: campaign loader их инвалидирует.
-Сцена не загружается вторым экземпляром; всего несколько контрольных запросов.
-
-## Компиляция: отдельно от игры
+## Только локальная сборка и offline checks
 
 ```powershell
 pwsh -NoProfile -File .\build-probe.ps1 -ConfirmBuild
+pwsh -NoProfile -File .\tests\run-contract.ps1 -ConfirmTests -ProbeDll .\bin\Win64_Shipping_Client\ShedLink.MapExportProbe.dll
 ```
 
-Скрипт напрямую вызывает установленный Roslyn (`SDK 9.0.310`) с reference pack
-net472 и DLL установленной игры. Один source, `/parallel-`, без compiler server,
-MSBuild imports, restore, project references, pre/postbuild/deploy targets.
-`bin/Win64_Shipping_Client` и `build-evidence` создаются только рядом со скриптом.
-Нет команды установки. При другой машине сначала проверить/обновить пути входов.
+Одна direct Roslyn compilation, net472/x64, `/parallel-`, без MSBuild/restore,
+compiler server, hooks, install/autodeploy/postbuild. Outputs только рядом с probe.
+Offline harness читает managed IL и вызывает лишь команды/чистый координатный helper:
+не создаёт module instance, не выполняет application ticks и не запускает игру.
+[Проверки и хеш кандидата](VALIDATION.md).
 
-## После стрима — пока НЕ выполнено
+## Следующий шаг — пока не выполнять
 
-1. Дождаться окончания стрима; игру закрывает сам владелец. Не заменять
-   установленный BannerlordLink общей сборкой ради этого эксперимента.
-2. Проверить успешную компиляцию и hash DLL из `build-evidence`.
-3. При закрытой игре вручную создать отдельный
-   `<game>/Modules/Shedoy23.MapExportProbe`, скопировать **только** этот
-   `SubModule.xml` и `bin/Win64_Shipping_Client/ShedLink.MapExportProbe.dll`.
-   Не копировать game DLL dependencies. Этот документ ничего не устанавливает.
-4. В launcher вручную выбрать диагностический модуль после Sandbox; проверить,
-   что обычный набор модов не изменился. Запустить игру обычным способом.
-5. Загрузить campaign на глобальной карте, закрыть игровые меню, дождаться полной
-   загрузки. Открыть встроенную developer console обычным способом; если console
-   недоступна, остановиться и отдельно согласовать её включение. Probe не меняет
-   `engine_config.txt`, cheat mode или другие настройки.
-6. Только после стрима ввести:
-   `shedmap_probe.capture confirm-after-stream`, закрыть console и оставаться
-   на карте не менее 15 секунд. `shedmap_probe.status` показывает очередь/итог,
-   а **не** гарантированный снимок. `shedmap_probe.cancel` просит отмену.
-7. Проверить JSON: ready/identity/bounds/landmarks, итог, cleanup errors.
-   Если есть PNG, проверить вручную ориентацию/покрытие и совпадение нескольких
-   landmark coordinates. Сравнить игровой кадр/камеру до и после; проверить
-   отсутствие заметной задержки и ошибок. Валидный PNG может оказаться пустым.
-8. При неуспехе сохранить JSON/лог; не запускать автоматически другую стратегию.
-   Native сохранение/render lifecycle — гипотеза до этого прогона.
-9. По окончании эксперимента при закрытой игре отключить диагностический модуль
-   в launcher. Сейв не содержит добавленных behaviours/data.
-
-## Статическое основание
-
-Исследованы local DLL v1.4.8, Steam build 24573425/revision 119303:
-`Campaign.MapSceneWrapper`, `MapScreen.Instance.MapScene`, Scene bounds/height/CRC,
-Camera.SetViewVolume, SceneView и унаследованные View save/target методы.
-Console attribute и `CollectCommandLineFunctions` public, ищут команды в загруженных
-сборках с reference на TaleWorlds.Library. Фактическая регистрация в launcher
-с выбранным отдельным модулем всё ещё требует runtime проверки.
-
-Штатный `SceneLayer` по умолчанию делает `ClearAll(true,true)` при finalize;
-его здесь намеренно нет. Прототип — собственный код, игровые assets/чужой
-TOR Live Map код не скопированы. Статическая проверка не заменяет live evidence.
+Модуль оставлять отключённым. Нужен новый сигнал об установке при закрытой игре;
+заменять только DLL/XML probe по манифесту, сохраняя обновлённый автопилот.
+После обычной загрузки для отдельно разрешённой проверки на готовой, сохранённой,
+поставленной на паузу global map: одна команда `shedmap_probe.data confirm-data-only`.
+Закрыть console, ждать минимум шесть секунд. Проверить итог/256 samples/координаты
+и landmarks в JSON. При отказе/таймауте остановиться; повторов/фото-команды нет.
+`shedmap_probe.status` показывает состояние; `shedmap_probe.cancel` отменяет data.
+Без нового разрешения нет установки, запуска, вмешательства или загрузки новой Scene.

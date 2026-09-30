@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Threading;
 using Newtonsoft.Json;
@@ -15,41 +14,45 @@ using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.ModuleManager;
 using TaleWorlds.MountAndBlade;
-using Camera = TaleWorlds.Engine.Camera;
 using Path = System.IO.Path;
 
 namespace ShedLink.MapExportProbe
 {
-    // Optional standalone module. No campaign behaviour, patches, network or automatic capture.
+    // No renderer objects, game patches, automatic export, or network. Photo path is unsupported.
     public sealed class ProbeModule : MBSubModuleBase
     {
-        private enum Phase { Idle, Requested, WaitingForView, SaveWindow, WaitingForFile, Cleanup, Finished }
+        private enum Phase { Idle, Requested, SamplingTerrain, Finished }
+        private const int GridSide = 16, SamplesPerTick = 8;
         private static int _used, _requested, _cancelled;
-        private static string _status = "Disabled. Manual capture required.";
+        private static string _status = "Disabled. Photo unsupported; manual data command required.";
         private readonly Stopwatch _clock = new Stopwatch();
         private Phase _phase;
-        private int _cleanupTicks;
         private string _folder;
         private JObject _report;
         private Campaign _campaign;
         private Scene _borrowedScene;
         private MapScreen _screen;
-        private SceneView _view;
-        private Camera _camera;
-        private Texture _target, _depth;
-        private long _previousFileLength = -1;
-        private bool _cleanupQueued;
-        private int _viewEnabledFrame, _saveArmedFrame, _phaseTicks;
+        private Vec2 _min, _max;
+        private JArray _terrainSamples;
+        private int _sampleIndex;
+        private bool _hasHeightmap;
 
         [CommandLineFunctionality.CommandLineArgumentFunction("capture", "shedmap_probe")]
         public static string Capture(List<string> args)
         {
-            if (args == null || args.Count != 1 || args[0] != "confirm-after-stream")
-                return "Usage AFTER STREAM: shedmap_probe.capture confirm-after-stream";
+            // Fail closed even with the former valid confirmation. Never consume/queue an attempt.
+            return "Photo export unsupported after native crash; no render/capture work queued. Data-only mode is a separate command.";
+        }
+
+        [CommandLineFunctionality.CommandLineArgumentFunction("data", "shedmap_probe")]
+        public static string Data(List<string> args)
+        {
+            if (args == null || args.Count != 1 || args[0] != "confirm-data-only")
+                return "Manual data only: shedmap_probe.data confirm-data-only";
             if (Interlocked.CompareExchange(ref _used, 1, 0) != 0)
-                return "One attempt per process; no retry or automatic export.";
+                return "One data attempt per process; no retry or automatic export.";
             Interlocked.Exchange(ref _requested, 1);
-            _status = "Queued; no snapshot confirmed. Close console and stay on campaign map.";
+            _status = "Data-only queued; no photograph. Close console and stay on campaign map.";
             return _status;
         }
 
@@ -60,7 +63,7 @@ namespace ShedLink.MapExportProbe
         public static string Cancel(List<string> args)
         {
             Interlocked.Exchange(ref _cancelled, 1);
-            return "Cancellation requested; cleanup runs on application thread.";
+            return "Data cancellation requested; no renderer cleanup is needed.";
         }
 
         protected override void OnApplicationTick(float dt)
@@ -71,75 +74,47 @@ namespace ShedLink.MapExportProbe
             if (_phase == Phase.Idle || _phase == Phase.Finished) return;
             try
             {
-                if (_phase == Phase.Cleanup)
-                {
-                    if (++_cleanupTicks >= 4) FinishCleanup();
-                    return;
-                }
                 if (Volatile.Read(ref _cancelled) != 0) { Stop("cancelled", null); return; }
                 if (_phase == Phase.Requested) { Begin(); return; }
                 if (!StillOnSameReadyMap()) { Stop("map_changed_or_not_ready", null); return; }
-                ++_phaseTicks;
-                if (_clock.Elapsed.TotalSeconds > 5) { Stop("phase_timeout", null); return; }
-                if (_phase == Phase.WaitingForView)
+                if (_clock.Elapsed.TotalSeconds > 5) { Stop("data_timeout", null); return; }
+                _report["nextSampleIndex"] = _sampleIndex;
+                WriteReport(); // Durable batch boundary before native terrain queries.
+                var batch = Stopwatch.StartNew();
+                for (int count = 0; count < SamplesPerTick && _sampleIndex < GridSide * GridSide; ++count)
                 {
-                    bool ready = _view.ReadyToRender();
-                    bool sceneReady = _view.CheckSceneReadyToRender();
-                    _report["lastViewReadyToRender"] = ready;
-                    _report["lastSceneReadyToRender"] = sceneReady;
-                    _report["warmupEngineFrameDelta"] = Utilities.EngineFrameNo - _viewEnabledFrame;
-                    if (Utilities.EngineFrameNo - _viewEnabledFrame < 5 || !ready || !sceneReady) return;
-                    // Installed MapScreen enables its view before readiness checks.
-                    // Only our view is enabled here; saving remained off during warmup.
-                    _view.SetSaveFinalResultToDisk(true);
-                    _saveArmedFrame = Utilities.EngineFrameNo;
-                    _report["saveArmedEngineFrame"] = _saveArmedFrame;
-                    _phase = Phase.SaveWindow;
-                    _phaseTicks = 0;
-                    _report["phase"] = _phase.ToString();
-                    _clock.Restart();
-                    WriteReportSafely();
-                    return;
+                    if (Volatile.Read(ref _cancelled) != 0) { Stop("cancelled", null); return; }
+                    if (_clock.Elapsed.TotalSeconds > 5) { Stop("data_timeout", null); return; }
+                    SampleTerrain(_sampleIndex++);
+                    // Yield after a query if the small time budget expired; cannot interrupt a native call.
+                    if (batch.Elapsed.TotalMilliseconds >= 2) break;
                 }
-                if (_phase == Phase.SaveWindow)
-                {
-                    // Application ticks alone do not establish a render opportunity.
-                    // Engine frame progression still does NOT prove GPU/save completion.
-                    if (Utilities.EngineFrameNo <= _saveArmedFrame) return;
-                    _report["saveWindowEndEngineFrame"] = Utilities.EngineFrameNo;
-                    DisableOwnView();
-                    _phase = Phase.WaitingForFile;
-                    _phaseTicks = 0;
-                    _report["phase"] = _phase.ToString();
-                    _clock.Restart();
-                    WriteReportSafely();
-                    return;
-                }
-                if (_phase == Phase.WaitingForFile) CheckOutput();
+                if (_sampleIndex == GridSide * GridSide) Stop("data_complete_geography_unverified", null);
             }
             catch (Exception ex) { Stop("managed_exception", ex); }
         }
 
         private void Begin()
         {
+            _clock.Restart();
             string localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrWhiteSpace(localData) || !Path.IsPathRooted(localData))
                 throw new IOException("No absolute LocalApplicationData directory; refusing relative output.");
-            _folder = Path.Combine(localData,
-                "ShedLink", "MapExportProbe", DateTime.UtcNow.ToString("yyyyMMddTHHmmssZ") + "-" + Guid.NewGuid().ToString("N"));
+            _folder = Path.Combine(localData, "ShedLink", "MapExportProbe",
+                DateTime.UtcNow.ToString("yyyyMMddTHHmmssZ") + "-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_folder);
             _report = new JObject
             {
-                ["schema"] = "shedlink.map-probe.v1", ["attemptUtc"] = DateTime.UtcNow.ToString("o"),
-                ["status"] = "started", ["runtimeValidated"] = false,
-                ["probeRevision"] = "enable-before-readiness.v2",
-                ["baseCommit"] = "7e382b1ca648a2719206f5ba2bec680ca557ca4f",
-                ["sharedScene"] = true, ["sceneObjectsMayAppearInImage"] = true,
-                ["renderSize"] = new JArray(256, 256),
-                ["limitations"] = new JArray("Native render/save/cleanup are experimental.",
-                    "No shared scene visibility, entities, lighting or player camera changes.",
-                    "PNG validity does not prove geographic coverage or independent culling.")
+                ["schema"] = "shedlink.map-data-probe.v1", ["attemptUtc"] = DateTime.UtcNow.ToString("o"),
+                ["status"] = "started", ["runtimeValidated"] = false, ["mode"] = "data-only",
+                ["probeRevision"] = "native-crash-photo-blocked.v3", ["photoSupported"] = false,
+                ["rendererObjectsCreated"] = false, ["sharedSceneBorrowedForQueriesOnly"] = true,
+                ["limitations"] = new JArray("Coarse terrain samples are not a photograph or a mesh export.",
+                    "Native terrain queries remain untested over the full grid and cannot be interrupted by managed timeout.",
+                    "Navmesh surface does not identify every visual texture, coastline or water body.",
+                    "No scene/player camera/lighting/visibility changes, native releases, save changes or network.")
             };
+            WriteReport();
             _campaign = Campaign.Current;
             _screen = MapScreen.Instance;
             _borrowedScene = _screen == null ? null : _screen.MapScene;
@@ -151,22 +126,23 @@ namespace ShedLink.MapExportProbe
             _report["sceneXmlCrc"] = _borrowedScene.GetSceneXMLCRC();
             _report["navmeshCrc"] = _borrowedScene.GetNavigationMeshCRC();
             _report["containsTerrain"] = _borrowedScene.ContainsTerrain;
-            _report["hasTerrainHeightmap"] = _borrowedScene.HasTerrainHeightmap;
+            _hasHeightmap = _borrowedScene.HasTerrainHeightmap;
+            _report["hasTerrainHeightmap"] = _hasHeightmap;
             var modules = new JArray();
             foreach (var module in ModuleHelper.GetActiveModules())
                 modules.Add(new JObject { ["id"] = module.Id, ["folder"] = module.FolderPath });
             _report["activeModules"] = modules;
-            Vec2 min, max;
-            float borderMarkerZ;
-            _campaign.MapSceneWrapper.GetMapBorders(out min, out max, out borderMarkerZ);
-            if (!Finite(min.x) || !Finite(min.y) || !Finite(max.x) || !Finite(max.y)
-                || max.x <= min.x || max.y <= min.y || !Finite(borderMarkerZ))
+            float markerZ;
+            _campaign.MapSceneWrapper.GetMapBorders(out _min, out _max, out markerZ);
+            if (!Finite(_min.x) || !Finite(_min.y) || !Finite(_max.x) || !Finite(_max.y)
+                || _max.x <= _min.x || _max.y <= _min.y || !Finite(markerZ))
             { Stop("invalid_campaign_bounds", null); return; }
-            _report["campaignBounds"] = new JObject { ["min"] = XY(min), ["max"] = XY(max), ["borderMaxMarkerZ"] = borderMarkerZ };
+            _report["campaignBounds"] = new JObject { ["min"] = XY(_min), ["max"] = XY(_max), ["borderMaxMarkerZ"] = markerZ };
             Vec3 sceneMin, sceneMax;
             _borrowedScene.GetBoundingBox(out sceneMin, out sceneMax);
             _report["sceneBounds"] = new JObject { ["min"] = XYZ(sceneMin), ["max"] = XYZ(sceneMax) };
             var landmarks = new JArray();
+            _report["landmarks"] = landmarks;
             if (MobileParty.MainParty != null) Sample(landmarks, "mainParty", MobileParty.MainParty.StringId, MobileParty.MainParty.Position);
             bool town = false, village = false, hideout = false;
             foreach (var settlement in Settlement.All)
@@ -178,55 +154,21 @@ namespace ShedLink.MapExportProbe
                 if (kind != null) Sample(landmarks, kind, settlement.StringId, settlement.Position);
                 if (town && village && hideout) break;
             }
-            Sample(landmarks, "boundsCenter", null, new CampaignVec2(new Vec2((min.x + max.x) / 2, (min.y + max.y) / 2), true));
-            _report["landmarks"] = landmarks;
-            float terrainMin, terrainMax;
-            terrainMin = terrainMax = 0;
-            bool terrainRange = _borrowedScene.HasTerrainHeightmap && _borrowedScene.GetTerrainMinMaxHeight(out terrainMin, out terrainMax);
-            float top = borderMarkerZ;
-            if (Finite(sceneMax.z)) top = Math.Max(top, sceneMax.z);
-            if (terrainRange && Finite(terrainMax)) top = Math.Max(top, terrainMax);
-            float span = Math.Max(max.x - min.x, max.y - min.y);
-            float bottom = terrainRange && Finite(terrainMin) ? terrainMin : 0;
-            if (Finite(sceneMin.z)) bottom = Math.Min(bottom, sceneMin.z);
-            float altitude = top + Math.Max(100, span * 0.1f);
-            float far = Math.Max(200, altitude - bottom + 100);
-            if (!Finite(altitude) || !Finite(far) || !Finite(span)) { Stop("invalid_camera_extent", null); return; }
-            _camera = Camera.CreateCamera();
-            _view = SceneView.CreateSceneView();
-            if (_camera == null || _view == null) throw new InvalidOperationException("Native camera/view allocation failed.");
-            _view.SetEnable(false);
-            var frame = MatrixFrame.Identity; // Camera.Direction == -Frame.rotation.u: identity looks down -Z.
-            frame.origin = new Vec3((min.x + max.x) / 2, (min.y + max.y) / 2, altitude);
-            _camera.Frame = frame;
-            _camera.SetViewVolume(false, -span / 2, span / 2, -span / 2, span / 2, 1, far);
-            _report["camera"] = new JObject { ["origin"] = XYZ(frame.origin), ["orthographicSpan"] = span, ["near"] = 1, ["far"] = far };
-            _target = Texture.CreateRenderTarget("shedmap_probe_" + Guid.NewGuid().ToString("N"), 256, 256, false, false);
-            _depth = Texture.CreateDepthTarget("shedmap_probe_depth_" + Guid.NewGuid().ToString("N"), 256, 256);
-            if (_target == null || _depth == null) throw new InvalidOperationException("Native texture allocation failed.");
-            _view.SetScene(_borrowedScene);
-            _view.SetCamera(_camera);
-            _view.SetRenderTarget(_target);
-            _view.SetDepthTarget(_depth);
-            _view.SetRenderWithPostfx(false);
-            _view.SetAcceptGlobalDebugRenderObjects(false);
-            _view.SetResolutionScaling(false);
-            _view.SetRenderOnDemand(false);
-            _view.SetFilePathToSaveResult(_folder + Path.DirectorySeparatorChar);
-            _view.SetFileNameToSaveResult("snapshot.png");
-            _view.SetFileTypeToSave(View.TextureSaveFormat.TextureTypePng);
-            _view.SetSaveFinalResultToDisk(false);
-            // Standalone SceneTableau also enables its SceneView before querying readiness.
-            // Do not initialize resources or mutate visibility/lighting on the shared scene.
-            _view.SetEnable(true);
-            _viewEnabledFrame = Utilities.EngineFrameNo;
-            _report["viewEnabledEngineFrame"] = _viewEnabledFrame;
-            _status = "Owned view enabled for bounded warmup; no snapshot confirmed. Output: " + _folder;
-            _phase = Phase.WaitingForView;
-            _phaseTicks = 0;
+            Sample(landmarks, "boundsCenter", null, new CampaignVec2(new Vec2((_min.x + _max.x) / 2, (_min.y + _max.y) / 2), true));
+            _terrainSamples = new JArray();
+            _report["terrainGrid"] = new JObject
+            {
+                ["width"] = GridSide, ["height"] = GridSide, ["maxSamplesPerTick"] = SamplesPerTick,
+                ["layout"] = "row-major, columns increase world X, rows increase world Y",
+                ["placement"] = "nodes include campaign bound endpoints; no Y flip",
+                ["coordinateUnits"] = "campaign world coordinates", ["interpolation"] = "none",
+                ["surfaceSource"] = "valid land navmesh face only; not a water mask",
+                ["samples"] = _terrainSamples
+            };
+            _phase = Phase.SamplingTerrain;
             _report["phase"] = _phase.ToString();
-            _clock.Restart();
             WriteReport();
+            _status = "Sampling bounded data grid; photo remains unsupported. Output: " + _folder;
         }
 
         private bool StillOnSameReadyMap()
@@ -236,10 +178,41 @@ namespace ShedLink.MapExportProbe
                 && Game.Current != null && _screen != null && ReferenceEquals(MapScreen.Instance, _screen)
                 && ReferenceEquals(Game.Current.GameStateManager.ActiveState, _screen.MapState)
                 && _screen.IsReady && !_screen.IsInMenu && _borrowedScene != null
-                && _screen.MapScene == _borrowedScene && _borrowedScene.IsLoadingFinished()
-                && _screen.SceneLayer != null && _screen.SceneLayer.SceneView.CheckSceneReadyToRender();
+                && _screen.MapScene == _borrowedScene && _borrowedScene.IsLoadingFinished();
         }
 
+        private static double GridCoordinate(double min, double max, int index)
+        {
+            if (double.IsNaN(min) || double.IsInfinity(min) || double.IsNaN(max) || double.IsInfinity(max)
+                || max <= min || index < 0 || index >= GridSide)
+                throw new ArgumentException("Invalid finite bounds or grid index.");
+            return min + (max - min) * index / (GridSide - 1);
+        }
+
+        private void SampleTerrain(int index)
+        {
+            int column = index % GridSide, row = index / GridSide;
+            var xy = new Vec2((float)GridCoordinate(_min.x, _max.x, column), (float)GridCoordinate(_min.y, _max.y, row));
+            var position = new CampaignVec2(xy, true);
+            var sample = new JObject { ["column"] = column, ["row"] = row, ["xy"] = XY(xy) };
+            var face = _campaign.MapSceneWrapper.GetFaceIndex(in position);
+            sample["landFaceValid"] = face.IsValid();
+            sample["navmeshSurface"] = face.IsValid()
+                ? (JToken)_campaign.MapSceneWrapper.GetFaceTerrainType(face).ToString() : JValue.CreateNull();
+            // Invalid navmesh has no campaign height; don't synthesize Plain or zero.
+            float height = 0;
+            bool heightValid = face.IsValid() && _campaign.MapSceneWrapper.GetHeightAtPoint(in position, ref height) && Finite(height);
+            sample["campaignHeight"] = heightValid ? (JToken)height : JValue.CreateNull();
+            sample["terrainHeight"] = JValue.CreateNull();
+            if (_hasHeightmap)
+            {
+                float terrainHeight;
+                Vec3 normal;
+                _borrowedScene.GetTerrainHeightAndNormal(xy, out terrainHeight, out normal);
+                if (Finite(terrainHeight)) sample["terrainHeight"] = terrainHeight;
+            }
+            _terrainSamples.Add(sample);
+        }
         private void Sample(JArray samples, string kind, string id, CampaignVec2 position)
         {
             var sample = new JObject { ["kind"] = kind, ["id"] = id, ["xy"] = XY(position.ToVec2()), ["isOnLand"] = position.IsOnLand };
@@ -270,115 +243,32 @@ namespace ShedLink.MapExportProbe
             samples.Add(sample);
         }
 
-        private void CheckOutput()
-        {
-            string path = Path.Combine(_folder, "snapshot.png");
-            // Native filename extension handling is unverified; inspect only our unique run folder.
-            if (!File.Exists(path)) path += ".png";
-            if (!File.Exists(path)) return;
-            long length = new FileInfo(path).Length;
-            if (length <= 0 || length != _previousFileLength) { _previousFileLength = length; return; }
-            try
-            {
-                if (length > 2 * 1024 * 1024) { Stop("unexpected_png_size", null); return; }
-                using (var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    var signature = new byte[8];
-                    if (stream.Read(signature, 0, 8) != 8 || BitConverter.ToString(signature) != "89-50-4E-47-0D-0A-1A-0A")
-                        throw new InvalidDataException("Output is not PNG.");
-                    stream.Position = 0;
-                    using (var image = Image.FromStream(stream, true, true))
-                    {
-                        if (image.Width != 256 || image.Height != 256) throw new InvalidDataException("Wrong PNG dimensions.");
-                        _report["png"] = new JObject { ["path"] = path, ["bytes"] = length, ["width"] = image.Width, ["height"] = image.Height };
-                    }
-                }
-                Stop("png_valid_geography_unverified", null);
-            }
-            catch (IOException) { /* Native writer may still have the file open; bounded by phase timeout. */ }
-            catch (ArgumentException) { /* Incomplete PNG: wait, then timeout; never claim success. */ }
-        }
-
-        private void DisableOwnView()
-        {
-            if (_view == null) return;
-            _view.SetEnable(false);
-            _view.SetSaveFinalResultToDisk(false);
-        }
-
         private void Stop(string reason, Exception ex)
         {
-            if (_phase == Phase.Cleanup || _phase == Phase.Finished) return;
+            if (_phase == Phase.Finished) return;
             if (_report != null)
             {
                 _report["status"] = reason;
                 _report["stoppedPhase"] = _phase.ToString();
-                _report["phaseElapsedSeconds"] = _clock.Elapsed.TotalSeconds;
-                _report["phaseTicks"] = _phaseTicks;
-                _report["stopEngineFrame"] = Utilities.EngineFrameNo;
+                _report["elapsedSeconds"] = _clock.Elapsed.TotalSeconds;
+                _report["completedSamples"] = _terrainSamples == null ? 0 : _terrainSamples.Count;
                 if (ex != null) _report["error"] = ex.ToString();
             }
             _status = reason + (ex == null ? "" : ": " + ex.Message) + "; output: " + (_folder ?? "not created");
-            _phase = Phase.Cleanup;
-            _cleanupTicks = 0;
-            // Queue clearing of OUR view only. Never ClearAll(true,...), SceneLayer, or borrowed scene invalidation.
-            TryCleanup("disableView", DisableOwnView);
-            if (_view != null) TryCleanup("queueClearOwnView", delegate { _view.AddClearTask(true); _cleanupQueued = true; });
-            WriteReportSafely();
-        }
-
-        private void FinishCleanup()
-        {
-            // Use NativeObject's ordinary reference-count lifetime, not forced native destruction/GPU release.
-            // Retain all owned wrappers for four application ticks after the clear request.
-            if (_view != null) TryCleanup("releaseViewReference", delegate { _view.ManualInvalidate(); });
-            if (_camera != null) TryCleanup("releaseCameraReference", delegate { _camera.ManualInvalidate(); });
-            ReleaseTexture("releaseColorReference", _target);
-            ReleaseTexture("releaseDepthReference", _depth);
-            _view = null; _camera = null; _target = null; _depth = null;
+            // Borrowed wrappers only: no native clear/release/invalidation or deferred GPU tasks.
             _borrowedScene = null; _screen = null; _campaign = null;
-            if (_report != null) { _report["cleanupClearQueued"] = _cleanupQueued; _report["cleanupReferenceReleaseAttempted"] = true; }
             _phase = Phase.Finished;
-            WriteReportSafely();
-        }
-
-        private void ReleaseTexture(string label, Texture texture)
-        {
-            if (texture == null) return;
-            TryCleanup(label, delegate
-            {
-                if (texture.RenderTargetComponent != null) texture.Release();
-                else texture.ManualInvalidate();
-            });
-        }
-
-        private void TryCleanup(string label, Action action)
-        {
-            try { action(); }
-            catch (Exception ex)
-            {
-                if (_report != null) _report[label + "Error"] = ex.ToString();
-                _status = "Cleanup error: " + label + "; inspect probe.json.";
-            }
+            if (_report == null || _folder == null) return;
+            try { WriteReport(); } catch (Exception error) { _status += "; JSON write failed: " + error.Message; }
         }
 
         protected override void OnSubModuleUnloaded()
         {
-            if (_phase != Phase.Idle && _phase != Phase.Finished)
-            {
-                Stop("module_unloaded", null);
-                // No more ticks guaranteed: relinquish references; engine owns queued-task lifetime.
-                FinishCleanup();
-            }
+            if (_phase != Phase.Idle && _phase != Phase.Finished) Stop("module_unloaded", null);
             base.OnSubModuleUnloaded();
         }
 
         private void WriteReport() { File.WriteAllText(Path.Combine(_folder, "probe.json"), _report.ToString(Formatting.Indented)); }
-        private void WriteReportSafely()
-        {
-            if (_report == null || _folder == null) return;
-            try { WriteReport(); } catch (Exception ex) { _status += "; JSON write failed: " + ex.Message; }
-        }
         private static bool Finite(float value) { return !float.IsNaN(value) && !float.IsInfinity(value); }
         private static JArray XY(Vec2 v) { return new JArray(v.x, v.y); }
         private static JArray XYZ(Vec3 v) { return new JArray(v.x, v.y, v.z); }

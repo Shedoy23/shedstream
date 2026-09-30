@@ -1,6 +1,6 @@
 <!-- Local integration update 2026-09-30 -->
 
-**30.09 — ручной экспорт карты: первый запуск дал JSON, PNG нет (`phase_timeout`).** Вероятная причина — ожидание готовности выключенного SceneView; штатный код включает его прежде проверки. Исправление собрано только локально (exit 0), не установлено/не проверено в игре. [Разбор и старое свидетельство](BannerlordLink/probes/MapExportProbe/TIMEOUT_DIAGNOSIS.md), [проверка и хеш новой DLL](BannerlordLink/probes/MapExportProbe/VALIDATION.md). Повторного capture/перезапуска не было.
+**30.09 — photo probe отключён после native AV.** Фото не исправлено: точной функции/причины без стека нет. Локально заблокирована capture-команда, удалён renderer path; отдельный data-only JSON grid16×16. Direct compile exit0, offline guards14/14 (старый код red5/5). Новый кандидат НЕ УСТАНОВЛЕН, runtime ещё не проверен. [Разбор и план](BannerlordLink/probes/MapExportProbe/NATIVE_CRASH_REVIEW.md), [хеш/проверки](BannerlordLink/probes/MapExportProbe/VALIDATION.md). Игру/автопилот не меняли, новых capture не было.
 
 [Изолированная интеграция питомцев и исправление CI: решения, проверки и отложенные изменения](docs/INTEGRATION_2026-09-30.md). API/lifecycle исправлены только в этой локальной кандидатной ветке; публикации и деплоя не было.
 

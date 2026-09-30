@@ -16,7 +16,7 @@ $outputDir = Join-Path $probeRoot 'bin\Win64_Shipping_Client'
 $evidenceDir = Join-Path $probeRoot 'build-evidence'
 New-Item -ItemType Directory -Path $outputDir,$evidenceDir -Force | Out-Null
 $outputDll = Join-Path $outputDir 'ShedLink.MapExportProbe.dll'
-$references = @('mscorlib.dll','System.dll','System.Core.dll','System.Drawing.dll') | ForEach-Object { Join-Path $referenceRoot $_ }
+$references = @('mscorlib.dll','System.dll','System.Core.dll') | ForEach-Object { Join-Path $referenceRoot $_ }
 $references += Join-Path $referenceRoot 'Facades\netstandard.dll'
 $references += @('TaleWorlds.Core','TaleWorlds.Library','TaleWorlds.DotNet','TaleWorlds.Engine','TaleWorlds.MountAndBlade',
     'TaleWorlds.CampaignSystem','TaleWorlds.SaveSystem','TaleWorlds.Localization','TaleWorlds.ObjectSystem',

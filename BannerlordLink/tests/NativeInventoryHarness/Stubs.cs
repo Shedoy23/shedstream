@@ -44,7 +44,7 @@ namespace TaleWorlds.CampaignSystem.Roster {
 }
 namespace TaleWorlds.CampaignSystem {
  public class Party { public string StringId="party1",Name="Party"; public Roster.ItemRoster ItemRoster=new(); public Hero LeaderHero; }
- public class Hero { public string StringId="hero1",Name="[BLink] alice"; public bool IsAlive=true,IsPrisoner; public int Level=30,Gold=10000; public Party PartyBelongedTo,PartyBelongedToAsPrisoner; public TaleWorlds.Core.Equipment BattleEquipment=new(); }
+ public class Hero { public string StringId="hero1",Name="[BLink] alice"; public bool IsAlive=true,IsPrisoner; public int Level=30,Gold=10000; public Hero Father,Mother; public Party PartyBelongedTo,PartyBelongedToAsPrisoner; public TaleWorlds.Core.Equipment BattleEquipment=new(); }
  public class Campaign { public static Campaign Current=new(); public string UniqueGameId="save1"; public List<Hero> AliveHeroes=new(); }
  public abstract class CampaignBehaviorBase { public abstract void RegisterEvents(); public abstract void SyncData(IDataStore store); }
  public interface IDataStore { void SyncData<T>(string key,ref T value); }
@@ -72,8 +72,8 @@ namespace BannerlordLink.Actions {
  public static class HeroLookup { public static TaleWorlds.CampaignSystem.Hero Hero; public static TaleWorlds.CampaignSystem.Hero FindByUsername(string name)=>Hero; }
 }
 namespace BannerlordLink.Util {
- public class HeroBuildState {}
- public static class HeroBuildRuntime { public static JObject Snapshot(TaleWorlds.CampaignSystem.Hero hero,HeroBuildState state,bool? missionOverride=null)=>null; }
+ 
+ internal static class HeroBuildRuntime { internal static JObject Snapshot(TaleWorlds.CampaignSystem.Hero hero,HeroBuildState state,bool? missionOverride=null)=>null; }
  public static class HeroNaming {
   public static bool IsAdopted(string name)=>name?.StartsWith("[BLink] ")==true;
   public static string ExtractUsername(string name)=>IsAdopted(name)?name.Substring(8).ToLowerInvariant():null;

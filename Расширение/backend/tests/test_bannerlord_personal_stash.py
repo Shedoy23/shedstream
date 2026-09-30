@@ -97,6 +97,19 @@ async def main():
             assert result['success'], 'swap from a full stash frees a place — allowed'
             await settle()
 
+            # 30.09: own-party inventory and personal stash are independently available.
+            state.update(party_available=True, party_reason=None, party_id='party', party_name='Отряд',
+                         stash_available=True, stash_count=1)
+            await publish()
+            shop = json.loads((await route.bannerlord_equipment_shop(request)).body)
+            shown = next(x for x in shop['inventory'] if x['owned_id'] == 'st1')
+            assert shown['source'] == 'party', 'own party: frozen panel must expose personal stash item buttons too'
+            assert 'Личный сундук героя (1/10)' in shop['party_inventory']['party_name'], shop['party_inventory']
+            result = await act('hero.equip_owned', owned_id='st1', slot='weapon0', source='party')
+            assert result['success'], result
+            assert (await payload(result))['source'] == 'legacy', 'own party: actual source stays personal stash'
+            await settle()
+
             # 25.09 (владелец): покупки и снятое идут в сундук и при своём отряде —
             # 10 мест держатся и там.
             await settle()

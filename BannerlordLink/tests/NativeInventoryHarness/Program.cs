@@ -177,6 +177,23 @@ class Program {
    && heir.BattleEquipment[EquipmentIndex.Weapon0].IsEmpty,"heir inherits the stash with reforges; equipped gear stays with the dead");
   Check(behavior.InheritStash(heir,"alice",new[]{lonely,bobDead})==0,"inheritance is not repeated");
   Check(behavior.Read(bobDead).Items.Count(x=>x.Slot==null)==1,"another viewer's stash is not taken");
+  heir.PartyBelongedTo=new Party{LeaderHero=heir};
+  data=JObject.Parse(behavior.Snapshot(heir,behavior.Read(heir)));
+  Check((bool?)data["inventory_state"]?["stash_available"]==true
+    &&(bool?)data["inventory_state"]?["party_available"]==true,"personal stash remains available alongside real own party inventory");
+  var recovered=new Hero{StringId="active-heir",Name="[BLink] alice",Father=lonely};
+  var recoveredLedger=behavior.Read(recovered);
+  Check(recoveredLedger.Build!=null,"already activated native heir gets missing build from dead viewer-parent relationship");
+  Check(behavior.GetBuild("alice")!=null,"recovered heir build is saved and available to weapon powers");
+  Check(behavior.Read(new Hero{StringId="old-viewer",Name="[BLink] bob"}).Build==null,"ordinary legacy viewer is not migrated");
+  Check(behavior.Read(new Hero{StringId="foreign-parent",Name="[BLink] alice",Father=bobDead}).Build==null,"another viewer parent does not authorize build recovery");
+  Check(behavior.Read(new Hero{StringId="living-parent",Name="[BLink] alice",Mother=new Hero{Name="[BLink] alice"}}).Build==null,"living parent is not a succession");
+  var preserved=new Hero{StringId="has-build",Name="[BLink] alice",Mother=lonely};
+  var pl=behavior.Read(preserved);pl.Build=new HeroBuildState{Specialization="marksman",SelectedWeaponType="bow",StarterKit="archer",WeaponPowerCooldownUntil=12345};behavior.Store(preserved,pl);
+  behavior.InitializeBuild(preserved);pl=behavior.Read(preserved);
+  Check(pl.Build.Specialization=="marksman"&&pl.Build.SelectedWeaponType=="bow"&&pl.Build.StarterKit=="archer"&&pl.Build.WeaponPowerCooldownUntil==12345,"repeated initialization preserves heir choices starter and cooldown");
+  var motherHeir=new Hero{StringId="mother-heir",Name="[BLink] alice",Mother=lonely};
+  Check(behavior.Read(motherHeir).Build!=null,"maternal succession recovers build too");
   Console.WriteLine($"{checks} checks, {failures} failures"); return failures==0?0:1;
  }
 }

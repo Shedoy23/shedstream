@@ -1,0 +1,140 @@
+{
+  "status": "INSTALLED_AND_DEPLOYED",
+  "recorded_at": "2026-09-30T13:02:32.027366",
+  "authorization": "owner: Выкатывай фиксы",
+  "game": {
+    "status": "INSTALLED",
+    "installed_at": "2026-09-30T12:56:32.9661841+05:00",
+    "rollback": "D:\\shedlink-build\\dll-rollback\\20260930-125631-555-heir-prisoners",
+    "game_stopped_before_install": true,
+    "files": [
+      {
+        "source": "D:\\shedlink-build\\pending-20260930-autopilot-prisoners-trade\\BannerlordAutopilot.dll",
+        "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.dll",
+        "module": "Shedoy23.BannerlordAutopilot",
+        "name": "BannerlordAutopilot.dll",
+        "candidate_sha256": "8A35C0AD8610583006AE40C03833808316B6C1B9AA01934BDD4031020DB94B0A",
+        "previous_sha256": "2158DDCCA49392A91EE53745837C1E06FED27F0FE6549A2D49442C2BCBD993B1",
+        "source_commit": "8874c1bc8016660a3982dd302e65d1d9cc0dd715"
+      },
+      {
+        "source": "D:\\shedlink-build\\pending-20260930-autopilot-prisoners-trade\\BannerlordAutopilot.pdb",
+        "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.pdb",
+        "module": "Shedoy23.BannerlordAutopilot",
+        "name": "BannerlordAutopilot.pdb",
+        "candidate_sha256": "898B629F050DF6BAF51952D9CB1E50579E6BB8CD845CDD287DD62DC44DA04FE0",
+        "previous_sha256": "EDCC18C4D95420C29EB3A581506A6AE73D484954E4D24B19F5FB17DAFBF46DE0",
+        "source_commit": "8874c1bc8016660a3982dd302e65d1d9cc0dd715"
+      },
+      {
+        "source": "D:\\shedlink-build\\pending-20260930-link-heir-stash\\BannerlordLink.dll",
+        "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordLink\\bin\\Win64_Shipping_Client\\BannerlordLink.dll",
+        "module": "Shedoy23.BannerlordLink",
+        "name": "BannerlordLink.dll",
+        "candidate_sha256": "1561AF9C87BA0B53869C726735168EFF2CD5C8C9B51DDD48A54459A82AF28F4F",
+        "previous_sha256": "8826A05DDC470A68FDC49B17861017B8395119714D89751FF693186BF1F10F8D",
+        "source_commit": "87ad486f092641894a23be2517313dd94f628b1a"
+      },
+      {
+        "source": "D:\\shedlink-build\\pending-20260930-link-heir-stash\\BannerlordLink.pdb",
+        "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordLink\\bin\\Win64_Shipping_Client\\BannerlordLink.pdb",
+        "module": "Shedoy23.BannerlordLink",
+        "name": "BannerlordLink.pdb",
+        "candidate_sha256": "9C185B0A02A7F4DD88E75F88E056DF7AED2DE4B69AF977AD3D4FB570D7DCB27D",
+        "previous_sha256": "15BB34994AA7D8DDFC4814C7DD7142494B54302F2CDEC8A5675F3AD12404C399",
+        "source_commit": "87ad486f092641894a23be2517313dd94f628b1a"
+      }
+    ],
+    "hashes_match": true,
+    "game_started": false,
+    "live_game_verified": false
+  },
+  "server": {
+    "status": "DEPLOYED",
+    "deployed_at": "2026-09-30T07:48:00.123012+00:00",
+    "backup": "/root/shedlink-rollbacks/20260930-074431-heir-stash",
+    "source_commit": "87ad486f",
+    "installed": {
+      "_adapter.py": "77c7cd323de7419844b16c926d3ddfda484a61d8bed736cee6aea968ac73a467",
+      "equipment_shop.py": "4ef0d9860fbcf21bc8fd2df016ab337f971267f300068ad1e5da4dcd6b4e2615"
+    },
+    "changed_backend_files": [
+      "modules/bannerlord/_adapter.py",
+      "modules/bannerlord/equipment_shop.py"
+    ],
+    "frontend_files_unchanged": 273,
+    "frozen_zips_unchanged": 2,
+    "service": "twitchbot                        RUNNING   pid 2818118, uptime 0:00:03",
+    "health": {
+      "status": "ok",
+      "db": "ok"
+    },
+    "fresh_stderr_errors": [],
+    "db_integrity_before": "ok",
+    "db_restored": false
+  },
+  "checks": {
+    "game_hashes_match": true,
+    "game_files_changed": [
+      "X:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/Shedoy23.BannerlordAutopilot/bin/Win64_Shipping_Client/BannerlordAutopilot.dll",
+      "X:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/Shedoy23.BannerlordAutopilot/bin/Win64_Shipping_Client/BannerlordAutopilot.pdb",
+      "X:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/Shedoy23.BannerlordLink/bin/Win64_Shipping_Client/BannerlordLink.dll",
+      "X:/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord/Modules/Shedoy23.BannerlordLink/bin/Win64_Shipping_Client/BannerlordLink.pdb"
+    ],
+    "other_module_files_unchanged": 212,
+    "local_frozen_files_unchanged": 64,
+    "live_game_verified": false,
+    "game_started_by_agent": false
+  },
+  "public": {
+    "health": {
+      "http": 200,
+      "sha256": "56cfae419491a995b8509a909281a1c76a842f556963712eba5c92c7e48c13cf",
+      "body": {
+        "status": "ok",
+        "db": "ok"
+      }
+    },
+    "extension.html": {
+      "http": 200,
+      "sha256": "879bb89ca112f3c54e5dd0ccac4cbcbfd46590de8269dd85e687194f54259f25"
+    },
+    "mobile.html": {
+      "http": 200,
+      "sha256": "3376b698d6bd899be0da90a3efcabb91d8b8580d768d4ebf3a2afe15a6af60a6"
+    }
+  },
+  "link_rebuild_equivalence": {
+    "candidate_dll_sha256": "1561AF9C87BA0B53869C726735168EFF2CD5C8C9B51DDD48A54459A82AF28F4F",
+    "rebuild_dll_sha256": "E2046F89FAACECDD0ADB08AAAFF8E43CAB1E3872DA5D709FEE8865AAC2AB5316",
+    "rebuild_pdb_sha256": "4ACB6F6C767DCD8739AF587EBCCA312F4E08E9A0AFFBA3BE38B323BAADA16099",
+    "candidate_il_sha256": "E31627B5E9D55D882B0D245C19B3A0A93A75E3230EBBC3A8A6A5E8E3D776F05E",
+    "rebuild_il_sha256": "E31627B5E9D55D882B0D245C19B3A0A93A75E3230EBBC3A8A6A5E8E3D776F05E",
+    "il_lines": 169876,
+    "il_identical": true,
+    "source_matches_commit": "87ad486f",
+    "release_build": "0 errors / 0 warnings"
+  },
+  "validation": {
+    "autopilot": "AuditRegression1019/0; Contract512; Release0/0; linked source matches immutable tested candidate",
+    "link": "NativeInventory53/0; BuildHarness79; fresh Release0/0; full IL identical to immutable tested candidate",
+    "fresh_server_backend": [
+      "test_bannerlord_heir_inheritance.py exit0",
+      "test_bannerlord_personal_stash.py exit0",
+      "test_membership_clear.py exit0",
+      "test_bannerlord_equipment_shop.py exit0",
+      "test_bannerlord_build.py exit0",
+      "test_state_update_ordering.py exit0",
+      "test_frozen_client_0_0_5.py exit0"
+    ]
+  },
+  "local_server_backup": "D:\\shedlink-build\\deploy-20260930-heir-autopilot\\server-rollback",
+  "local_server_backup_integrity": "ok",
+  "live_game_verified": false,
+  "database_rows_corrected": false,
+  "old_false_fief_history_still_deferred": [
+    8,
+    9,
+    10
+  ]
+}

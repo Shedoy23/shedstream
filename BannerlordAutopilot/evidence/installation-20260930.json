@@ -1,0 +1,26 @@
+{
+  "InstalledAt": "2026-09-30T08:20:54.7233902+05:00",
+  "SourceCommit": "1bc02bc5",
+  "Rollback": "D:\\shedlink-build\\dll-rollback\\20260930-082053-655-autopilot-recovery",
+  "GameWasClosed": true,
+  "LiveGameplayVerified": false,
+  "Files": [
+    {
+      "Source": "D:\\shedlink-build\\pending-20260930-autopilot-recovery\\BannerlordAutopilot.dll",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.dll",
+      "Backup": "D:\\shedlink-build\\dll-rollback\\20260930-082053-655-autopilot-recovery\\BannerlordAutopilot.dll",
+      "OldHash": "FA91F9F8D6F6D7084EFE7DBC739A902F3ABB65B75152311907F032BAF5DABDE8",
+      "NewHash": "2EB714F0903C688C5FA0CA6E1D7F453C4556D61A27FD1CFB7B9EDB92236010F8"
+    },
+    {
+      "Source": "D:\\shedlink-build\\pending-20260930-autopilot-recovery\\BannerlordAutopilot.pdb",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.pdb",
+      "Backup": "D:\\shedlink-build\\dll-rollback\\20260930-082053-655-autopilot-recovery\\BannerlordAutopilot.pdb",
+      "OldHash": "04917F2CB52FBC35EF40150750EF5E9FBE3AC6D941BCA9EE3442E483471531B5",
+      "NewHash": "BE9CA666A41D389313C181A0ACE729C527218E285F70BD3A556EB00F1EEE6C8A"
+    }
+  ],
+  "InstalledDllMd5": "19532BBC80E051EAF890E1B5BD24D10E",
+  "AuditChecks": 916,
+  "RandomEventsUnchanged": true
+}

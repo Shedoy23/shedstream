@@ -436,6 +436,8 @@ namespace BannerlordLink
                     Log("FiefTributeSyncBehavior registered (daily fief tribute → backend payout)");
 
                     // Sprint 5.33 (BLT-parity CARAVAN) — caravan tracker (DailyTick + MobilePartyDestroyed).
+                    // 30.09, багрепорт #81: герой зрителя не сидит в плену вечно без войны.
+                    campaignStarter.AddBehavior(new StuckPrisonerReleaseBehavior());
                     campaignStarter.AddBehavior(new CaravanTrackerBehavior());
                     Log("CaravanTrackerBehavior registered (caravan profit + destroyed event)");
 

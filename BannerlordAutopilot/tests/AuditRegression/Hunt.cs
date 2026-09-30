@@ -35,6 +35,7 @@ internal static partial class Program
 
     static void HuntTests()
     {
+        RecoveryTests();
         Try("охота: лорд сильнее нас, но в пределах 0,8x — нападаем", () =>
         {
             var (b, enemy) = HuntWorld(men: 90);

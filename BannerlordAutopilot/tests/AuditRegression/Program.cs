@@ -361,6 +361,7 @@ internal static partial class Program
         SiegeTransitionTests();
         ArmyAssemblyTests();
         CampaignCommitmentTests();
+        DecisionDiagnosticsTests();
         DonationTests();
 
         Console.WriteLine("\n[находка 2] наблюдение ничего не меняет");

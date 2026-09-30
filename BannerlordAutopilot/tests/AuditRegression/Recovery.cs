@@ -8,6 +8,17 @@ internal static partial class Program
 {
     static void RecoveryTests()
     {
+        Try("emergency defense overrides recovery while waiting", () => {
+            var b=Fresh(); ConquestWorld(food:200,gold:1000,wounded:4);
+            var p=MobileParty.MainParty; p.Party.PartySizeLimit=10; Enable(b);
+            ArriveTown(new Settlement {Name="recovery",IsTown=true,MapFaction=p.MapFaction});
+            b.PollState();
+            var own=OwnSiege();
+            HourlyTick(b); b.PollState();
+            Check(p.CurrentSettlement==null && p.TargetSettlement==own,
+                "60% healthy can leave recovery for authorized emergency defense");
+        });
+
         foreach(string route in new[] { "hunt", "initiative", "scores" })
         foreach(string health in new[] { "69", "70", "hero" })
         Try("recovery gates voluntary attack " + route + " " + health, () => {

@@ -286,6 +286,19 @@ internal static partial class Program
         // Экран стрима — только во временную папку: иначе тесты пишут в настоящий
         // файл, который читает OBS, и на стриме всплывёт тестовая строка.
         BannerlordAutopilot.StreamStatus.FilePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "autopilot_stream_test.txt");
+        if (args.Length == 1 && args[0] == "--army-continuity")
+        {
+            EngineContract.Verify();
+            ArmyContinuityTests();
+            ArmyAssemblyTests();
+            CampaignCommitmentTests();
+            SiegeTransitionTests();
+            SiegeFrontierTests();
+            SiegeReliabilityTests();
+            ConquestTests();
+            Console.WriteLine("Army continuity: " + passed + " ok / " + failed + " FAIL");
+            return failed;
+        }
         if (args.Length == 1 && args[0] == "--siege-frontier")
         {
             EngineContract.Verify();
@@ -374,6 +387,7 @@ internal static partial class Program
         SiegeReliabilityTests();
         SiegeTransitionTests();
         ArmyAssemblyTests();
+        ArmyContinuityTests();
         CampaignCommitmentTests();
         DecisionDiagnosticsTests();
         DonationTests();

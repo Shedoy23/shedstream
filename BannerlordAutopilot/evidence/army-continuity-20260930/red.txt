@@ -1,0 +1,280 @@
+  ok    entry accepts exactly x1.2 and rejects below
+  FAIL  entry accepts exactly x1.2 and rejects below
+  FAIL  march continues above x1.1, cancels below x1.1
+  ok    march continues above x1.1, cancels below x1.1
+  ok    army created
+  FAIL  still awaits near sufficient pending force at 24 hours
+  FAIL  arrivals after 24 hours enable actual march
+  ok    unattached future force cannot march after bounded wait
+  ok    time while off does not expire resumed gathering
+  FAIL  same gathering objective survives toggle
+  ok    foreign replacement army does not inherit stale goal
+  FAIL  same rejected potential army cannot spend influence again when 12 hours expire
+  ok    observed defense reduction unlocks retry
+  FAIL  insufficient actual force invites reinforcement into same army
+  FAIL  reinforced existing army marches after actual arrival
+  ok    150-hour lower-bound arrival cannot justify bounded assembly
+  ok    assembly starts: arrived
+  ok    only actually sufficient assembled troops march: arrived
+  ok    assembly outcome distinguishes actual arrivals: arrived
+  ok    assembly starts: departed
+  ok    only actually sufficient assembled troops march: departed
+  ok    assembly outcome distinguishes actual arrivals: departed
+  ok    failed actual strength records siege cooldown: departed
+  ok    same rejected target cannot spend influence on immediate reassembly: departed
+  ok    assembly starts: inactive
+  ok    only actually sufficient assembled troops march: inactive
+  ok    assembly outcome distinguishes actual arrivals: inactive
+  ok    failed actual strength records siege cooldown: inactive
+  ok    same rejected target cannot spend influence on immediate reassembly: inactive
+  ok    assembly starts: timeout
+  ok    only actually sufficient assembled troops march: timeout
+  ok    assembly outcome distinguishes actual arrivals: timeout
+  ok    failed actual strength records siege cooldown: timeout
+  ok    same rejected target cannot spend influence on immediate reassembly: timeout
+  ok    assembly starts: pending
+  ok    pending invitee is still awaited before deadline
+  ok    pending march is not issued through modal or after peace: False
+  ok    pending march is not issued through modal or after peace: True
+  ok    valid committed siege survives distraction: hunt
+  ok    valid committed siege survives distraction: patrol
+  ok    valid committed siege survives distraction: margin
+  ok    real overload routes to safe market
+  ok    original siege resumes after unloading
+  ok    invalid or unprepared campaign is cancelled: peace
+  ok    invalid or unprepared campaign is cancelled: stronger
+  ok    invalid or unprepared campaign is cancelled: food
+  ok    disable logs operation menu before session reset
+  ok    only owned native completion is clicked: siege_attacker_defeated
+  ok    known completion stays enabled, unknown encounter remains protected: siege_attacker_defeated
+  ok    only owned native completion is clicked: siege_attacker_left
+  ok    known completion stays enabled, unknown encounter remains protected: siege_attacker_left
+  ok    only owned native completion is clicked: unrelated
+  ok    known completion stays enabled, unknown encounter remains protected: unrelated
+  ok    only owned native completion is clicked: different_settlement
+  ok    known completion stays enabled, unknown encounter remains protected: different_settlement
+  ok    native allied join ends encounter and remains in active siege wait
+  ok    allied assault remains owned after native camp transition
+  ok    own does not consume enemy top-three quota
+  ok    friendly does not consume enemy top-three quota
+  ok    neutral does not consume enemy top-three quota
+  ok    null does not consume enemy top-three quota
+  ok    village does not consume enemy top-three quota
+  ok    raid does not consume enemy top-three quota
+  ok    hostile_siege does not consume enemy top-three quota
+  ok    third eligible enemy is allowed
+  ok    fourth eligible enemy is rejected
+  ok    quota diagnostic identifies home, distance and enemy count
+  ok    peace immediately removes former enemies from quota
+  ok    equal-distance enemy does not count as strictly closer; radius 100 allowed
+  ok    radius above 100 rejected
+  ok    radius diagnostic differs from quota
+  ok    three joinable allied sieges remain eligible enemies
+  ok    kingdom members do not occupy hostile quota
+  ok    affiliation's current peace rejects former target
+  ok    kingdom members do not occupy hostile quota
+  ok    affiliation's current peace rejects former target
+  ok    no-home radius 100 ignores quota as before
+  ok    no-home distance over 100 rejected
+  ok    null clan keeps no-home fallback
+  ok    null target rejected
+  ok    null party rejected
+  ok    raid target rejected by same eligibility as ranking
+  ok    unjoinable siege target rejected
+  ok    null target faction rejected
+  ok    own target rejected
+  ok    neutral target rejected
+  ok    null attacking faction rejected
+  ok    independent issued siege reaches enemy target
+  ok    native issued siege reaches enemy target
+  ok    one daily geographic summary
+  ok    geographic-only failure does not claim insufficient strength
+  ok    daily summary carries a rejected target and anchor
+  ok    ������㯭� ����: ���� ��室 ��� �몫�祭��
+  ok    ������㯭�� �ᠤ� �� �롨ࠥ��� ᭮�� �ࠧ� ��᫥ ��室�
+  ok    �१ ���� ��஢�� �ᮢ ���஭� ᭮�� ࠧ�襭�
+  ok    ������ �९���� �� �६� �ᥤ���� �� �ਣ࠭�筠�
+  ok    ������� 楫� ࠧ�襭� �� ���� ���୮�� ��������
+  ok    ���祭��� �������� �� ࠧ�蠥� ������ �ᠤ�
+  ok    ᢮� 䥮� ��� �ᠤ�� ���뢠�� 12 �ᮢ ����
+  ok    ���񪨩 ᫠�� 䥮� �� �⠭������ 楫�� �ᠤ�
+  ok    ���࠭��� 䥮� ࠧ��� ���� ����� �� ⥪�饣� ���鸞
+  ok    ���񪨩 ᫠�� 䥮� �� �⠭������ 楫�� �ᠤ�
+  ok    ���࠭��� 䥮� ࠧ��� ���� ����� �� ⥪�饣� ���鸞
+  ok    �।��� �஢��� 2 - �ᠤ� ���:
+  ok    ��稭� ����ᠭ� ���� ࠧ
+  ok    �������� �� �������� �� �� ������
+  ok    ��⭮� �।������� �ᠤ� �⪫�����
+  ok    � �ய�᪠� ������� ��稭�
+  ok    ����祭�� 4 + ��� ����� 4 = 8, ��� ���� 12 - �� ���
+  ok    ࠧ����� ����� � ��ୠ��
+  ok    ��� � 40 ��� ���� �७��: ����� �ᠤ� False
+  ok    ��� � 60 ��� ���� �७��: ����� �ᠤ� True
+  ok    ��� � 150 ��� ���� �७��: ����� �ᠤ� True
+  ok    8 ���⭨��� ��⨢ 10 - ��� ��ॢ�� x1,5 �� ���
+  ok    ��稭� ����ᠭ� ���� ࠧ �� ��஢� ��⪨
+  ok    �� ᫥���騥 ��⪨ ������ ���������
+  ok    �।��� �஢��� (10*2+30*5)/40=4.25 - ���
+  ok    ᬥ�� ����ᠭ�
+  ok    �� 10/100 ����ࠥ� ���殢 ࠭�� ����㯭�� �ᠤ�
+  ok    ��᫥ ���饭�� ��ࢮ� ��ॢ�� �롨ࠥ� �����, � �� �����塞 ���
+  ok    ��᫥ ��室� ����㯭�� ���� �� ��稭��� ��� ������ �� ���祭�� �ப�
+  ok    �� 90/100 �ਮ��� ����� �����稫�� � ������ ��室
+  ok    ������� ���� � <��ॢ�� � �����>
+  ok    ������� ���� � <�㦠� ����>
+  ok    �室 �� ᢮�� ����ᠭ � ��ୠ�
+  ok    6 ���⭨��� �� ���� 10 - ��ॢ�� x1,5 ����, ���; ��த ��� ��ॢ�� �⢥࣭��
+  ok    ᫠�� ����� ᭠砫� ��࠭
+  ok    ��᫥ ��� ���஭� ����ᠭ� ��� ᨫ�
+  ok    ��᫥ �⬥�� �ᠤ� ��࠭ ���� ������
+  ok    ����९����� ��蠥� ��ॢ�� x1,5
+  ok    8 ���⭨���: ����� �� 10 �㦥� ��ॢ�� x1,5 (12), �ନ� �� 20 ��� ����
+  ok    8 ���⭨���, ��� 10, � ��म� 20: �ନ� True
+  ok    8 ���⭨���, ��� 10, � ��म� 20: �ନ� False
+  ok    ��稭�, ��祬� ������ �������, ����ᠭ�
+  ok    8 ���⭨���, ��� 10, � ��म� 20: �ନ� False
+  ok    ��稭�, ��祬� ������ �������, ����ᠭ�
+  ok    PatrolAroundPoint: �ନ� ���饭�
+  ok    ���� ����ᠭ � ��稭��
+  ok    � ���⮥ ���ﭨ� �� ᯫ��񭭮��� �� ���: �������� 2
+  ok    BesiegeSettlement: �ନ� �� ����
+  ok    ᥬ������� ����� ������� ��易⥫��
+  ok    � ��ୠ�� ࠧ���쭮 ����� ��୨���, ����祭�� � ������ �ࠣ
+  ok    ������� �� �⤠�� �ਪ�� �ᠤ�
+  ok    do not press Done while native simulation is still finishing
+  ok    press Done once after native simulation completion
+  ok    surrender only as sole option: forced
+  ok    captivity keeps autopilot active
+  ok    surrender only as sole option: escape
+  ok    surrender only as sole option: healthy
+  ok    surrender only as sole option: modal
+  ok    surrender only as sole option: observe
+  ok    raid notice respects apply
+  ok    raid notice reaches native encounter without disabling
+  ok    raid notice respects observe
+  ok    raid notice respects inquiry
+  ok    raid notice respects disabled
+  ok    escape confirmation respects apply
+  ok    escape debrief continues without disabling
+  ok    escape confirmation respects observe
+  ok    escape confirmation respects inquiry
+  ok    simulation fallback only for wounded hero
+  ok    ongoing simulation is not closed
+  ok    modal window blocks simulation confirmation
+  ok    finished owned simulation confirmed exactly once
+  ok    simulation fallback only for wounded hero
+  ok    cannot bypass low morale or no healthy troops
+  ok    1000 gold hires two, but not third: remaining gold covers new wages for seven days
+  ok    cleared encounter still closes village_player_raid_ended
+  ok    cleared encounter still closes village_raid_ended_leaded_by_someone_else
+  ok    cleared encounter still closes village_raid_diplomatically_ended
+  ok    cleared encounter still closes village_looted
+  ok    only land field battle at village is supported: village
+  ok    F11 can resume a village field battle
+  ok    only land field battle at village is supported: naval
+  ok    only land field battle at village is supported: raid
+  ok    only land field battle at village is supported: castle
+  ok    lord at village goes through fixed combat conversation
+  ok    � ���� �諨 ��⭮, ��⮯���� �த������ ᭠������
+  ok    �� �ॢ�頥� �ଥ���� 楫� � ������� ��室 ��᫥ �⪠�� ᡮ�
+  ok    �� ���� ������ �ନ� � �� ���⨬ �� ����
+  ok    ���� �� �������饣�, ������ False
+  ok    ���� �� �������饣�, ������ True
+  ok    ॠ��� ��� ���⭨�� �ନ� ࠧ���
+  ok    �ਮ��� ��室/᭠������, ���ᯥ祭� True
+  ok    �� ᫥���饣� ������� ������� �� ���墠�뢠�� ��室 ��� ᭠������
+  ok    �ਮ��� ��室/᭠������, ���ᯥ祭� False
+  ok    �� ᫥���饣� ������� ������� �� ���墠�뢠�� ��室 ��� ᭠������
+  ok    ᯫ��񭭮��� ॠ�쭮 ��������� ⮫쪮 � ����㯭�� ᢮�� �ନ�
+  ok    ᯨ�뢠���� ஢�� ��⭠� 業�, �����⨬ ��� ���⮪
+  ok    ᯫ��񭭮��� ॠ�쭮 ��������� ⮫쪮 � ����㯭�� ᢮�� �ନ�
+  ok    ᯨ�뢠���� ஢�� ��⭠� 業�, �����⨬ ��� ���⮪
+  ok    ᯫ��񭭮��� ॠ�쭮 ��������� ⮫쪮 � ����㯭�� ᢮�� �ନ�
+  ok    ᯨ�뢠���� ஢�� ��⭠� 業�, �����⨬ ��� ���⮪
+  ok    ᯫ��񭭮��� ॠ�쭮 ��������� ⮫쪮 � ����㯭�� ᢮�� �ନ�
+  ok    ᯨ�뢠���� ஢�� ��⭠� 業�, �����⨬ ��� ���⮪
+  ok    ᯫ��񭭮��� ॠ�쭮 ��������� ⮫쪮 � ����㯭�� ᢮�� �ନ�
+  ok    ᯨ�뢠���� ஢�� ��⭠� 業�, �����⨬ ��� ���⮪
+  ok    ᯫ��񭭮��� ॠ�쭮 ��������� ⮫쪮 � ����㯭�� ᢮�� �ନ�
+  ok    ᯨ�뢠���� ஢�� ��⭠� 業�, �����⨬ ��� ���⮪
+  ok    ᯫ��񭭮��� ॠ�쭮 ��������� ⮫쪮 � ����㯭�� ᢮�� �ନ�
+  ok    ᯨ�뢠���� ஢�� ��⭠� 業�, �����⨬ ��� ���⮪
+  ok    ⮫쪮 ����㯭�� ��⭠� ������, �� �ᠤ���� ��ࠡ��稪�
+  ok    ⮫쪮 ����㯭�� ��⭠� ������, �� �ᠤ���� ��ࠡ��稪�
+  ok    ⮫쪮 ����㯭�� ��⭠� ������, �� �ᠤ���� ��ࠡ��稪�
+  ok    ⮫쪮 ����㯭�� ��⭠� ������, �� �ᠤ���� ��ࠡ��稪�
+  ok    ⮫쪮 ����㯭�� ��⭠� ������, �� �ᠤ���� ��ࠡ��稪�
+  ok    ��⭠� 楫� ३�� �ᯮ�����
+  ok    ३� ����饭 �१ ���� ������, �६� ����
+  ok    �����襭�� ३�� ���⢥ত���
+  ok    �ନ� ���� ࠧ����� � 楫��
+  ok    �ନ� ᮧ���� � �ਣ����� ����� � ����⮩ ���ﭨ��
+  ok    ᮡ࠭��� �ନ� �த������ ����㯫����
+  ok    ����� ᮧ���� ������祭��� �ନ�
+  ok    ᫥������� ������ �� �몫�砥� ��⮯���� � �த������ �६�
+  ok    ��᫥��⢨� ��墠� �� �襭�� ��������, ������� True
+  ok    ��᫥��⢨� ��墠� �� �襭�� ��������, ������� False
+  ok    ����㯭�� ������� 楫� ��࠭� �०�� ������
+  ok    4 �⥭� + 6 ������� ��⨢ ���� 10 (��ண x1.2): �室�� True
+  ok    ��稭� � ࠧ������ ����ᠭ� ���� ࠧ
+  ok    � ࠧ����� ����� �������, ����� � ���
+  ok    4 �⥭� + 6 ������� ��⨢ ���� 10 (��ண x1.2): �室�� False
+  ok    4 �⥭� + 0 ������� ��⨢ ���� 10 (��ண x1.2): �室�� False
+  ok    �� �����窨 ��������: �室�� False (�����窨 �� ������: 4+3=7, x1.2=8.4 ? 10; �����: 4+9=13)
+  ok    �ନ� �� ����: �室�� True (�����窨 �� ������: 4+3=7, x1.2=8.4 ? 10; �����: 4+9=13)
+  ok    �� �����窨 �������: �室�� True (�����窨 �� ������: 4+3=7, x1.2=8.4 ? 10; �����: 4+9=13)
+  ok    ������� 6 + �⥭� 4 ��⨢ ���� 10 - �ᠤ� �﫨
+  ok    �१ 13 �ᮢ ������� �� �����, �⥭� 4 �� ���� 10 - �� ������ 10 � �� ���
+  ok    � ��ୠ�� �����, �� ��﫨 �����������
+  ok    �१ 3 ��� ������ ��諠 - �९���� ᭮�� �� ᨫ��
+  ok    �⥭� 12, ���� 10 (���� ��� x1,5), � ����६ 20 - ���: GoToSettlement  �ᠦ����� �����
+  ok    �襭�� ����ᠭ� � ᨫ��� ������
+  ok    �㦮� ������ �� ��� - �९���� �ய�᪠��
+  ok    ��諨 � ������: join_siege_event
+  ok    �室 ����ᠭ
+  ok    �������� - ��⥫�: �� ���ଠ, �� �室�:
+  ok    ��� � ����� � ���騬 �६����, � �� �⮨�: UnstoppableFastForward
+  ok    ������ ��⮢ - ����: menu_siege_strategies_lead_assault,menu_siege_strategies_lead_assault
+  ok    ��稭� ����ᠭ�
+  ok    ������ �� ����஥� - ���ଠ ���
+  ok    ������㥬 ���஭�� - �⠢�� ����� ���⥣�� (��ந� ��設�); ���� �� �ண���: True
+  ok    ������ ����, ��� ����஢
+  ok    ������㥬 ���஭�� - �⠢�� ����� ���⥣�� (��ந� ��設�); ���� �� �ண���: False
+  ok    ������ ����, ��� ����஢
+  ok    �� ��墠⪥ ��� �室�� ����������� ����� ���ଠ
+  ok    ��ண 7/7/70, ��墠⪠ 0
+  ok    ��ண 7/7/70, ��墠⪠ 1
+  ok    ��ண 7/7/70, ��墠⪠ 2
+  ok    ��ண 7/7/70, ��墠⪠ 3
+  ok    �ਪ��, ����� ॠ�쭮 ������� ����� ��ப�
+  ok    楫� ��⠥��� �०���: �ਪ�� �� ��ॢ뤠���� ����� ��
+  ok    ���� ����, ��஦ �������� �� �ࠡ��뢠��
+  ok    � ���� �ࠦ�᪮� �९��� �ᠤ� ��稭����� ���� �㭪⮬ ����
+  ok    ��室 � �९��� �����祭
+  ok    ���� �ᮢ ��� �������� �� ����� �६��� ����祭� � ����ᠭ�
+  ok    ��������� ��襭� � Hold - ���� ������ �ਬ�� �ਪ�� �� 㦥 �뤠��� � �������� �� �����
+  ok    ��᫥ ���� ����ᯥ��� ��ॢ뤠� 楫� ��� � ������� � ��ୠ�
+  ok    ��� ����� �� ��ন��� �� 楫�, �� ���ன �� ���堫
+  ok    ���� ����� ���������, ��஦ �� ���訢�����
+  ok    ���� ᮡ��� �� �६� �ᠤ� ࠧ��࠭� �����, � �� ��⠢���� 祫�����
+  ok    �ᠤ� ����, ��設� �⤠�� ��⭮� ���⥣��, ࠭���� ���ଠ ���
+  ok    ��筠� ���⥣�� ��᫥ ����୮�� ������ �ᠤ� �� ��⠢��� ��⮯���� ��� ��ந⥫��⢠
+  ok    ��⮢����� AI ����᪠�� �����業�� ����
+  ok    ��� ����㯠⥫쭠� �ᠤ� �����ঠ�� ������ ���ᨥ�
+  ok    ������������ �ନ� �⠪����� ��⭮� �������, ��⮯���� �� �몫�祭
+  ok    ��᫥ �������� ��� �������� ��ந⥫��⢠ �ᠤ� ������������
+  ok    ��᫥ ����� ��� PlayerEncounter ��࠭ ���� ��室 �ᠤ� �� ��⮢����
+  ok    ��᫥ ����� ��� PlayerEncounter ��࠭ ���� ��室 �ᠤ� �� ��⮢����
+  ok    ������, �⠪����訩 ��� �ᠤ�� ������, �ਭ�� ��� �ਭ������騩 ����樨 ���
+  ok    ��� � ��㣮� �९��� �� ��ᢠ������� �ᠤ�
+  ok    ���᪮� ��� �� ��ᢠ������� ��宯�⭮� �ᠤ�
+  ok    ��� �������饣� �ᠤ���� ������ �ந������ ��� �� ��ᢠ�������
+  ok    ������, �⠪����訩 ��� �ᠤ�� ������, �ਭ�� ��� �ਭ������騩 ����樨 ���
+  ok    ��� � ��㣮� �९��� �� ��ᢠ������� �ᠤ�
+  ok    ���᪮� ��� �� ��ᢠ������� ��宯�⭮� �ᠤ�
+  ok    ��� �������饣� �ᠤ���� ������ �ந������ ��� �� ��ᢠ�������
+  ok    ������, �⠪����訩 ��� �ᠤ�� ������, �ਭ�� ��� �ਭ������騩 ����樨 ���
+  ok    ��� � ��㣮� �९��� �� ��ᢠ������� �ᠤ�
+  ok    ���᪮� ��� �� ��ᢠ������� ��宯�⭮� �ᠤ�
+  ok    ��� �������饣� �ᠤ���� ������ �ந������ ��� �� ��ᢠ�������
+Army continuity: 271 ok / 8 FAIL

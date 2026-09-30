@@ -216,6 +216,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public void EnableAi() {}
  }
  public partial class MobileParty : IMapPoint {
+  public string StringId { get; set; }
   public bool IsCurrentlyUsedByAQuest { get; set; }
   public static TaleWorlds.Library.MBReadOnlyList<MobileParty> All { get; } = new();
   public bool IsVisible { get; set; } = true;

@@ -11,7 +11,12 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
-CELL = 8  # pixels per grid node
+CELL = 8  # max pixels per grid node
+TARGET_WIDTH = 1536  # dense grids get smaller cells so the picture stays ~1.5k px wide
+
+
+def cell_size(width):
+    return max(2, min(CELL, round(TARGET_WIDTH / width)))
 
 # TerrainType names from the navmesh; unknown names fall back to grey.
 SURFACE_COLORS = {
@@ -58,8 +63,9 @@ def world_to_pixel(report, xy):
     grid = report["terrainGrid"]
     width, height = grid["width"], grid["height"]
     (min_x, min_y), (max_x, max_y) = report["campaignBounds"]["min"], report["campaignBounds"]["max"]
-    px = (xy[0] - min_x) / (max_x - min_x) * (width - 1) * CELL + CELL / 2
-    py = (height - 1 - (xy[1] - min_y) / (max_y - min_y) * (height - 1)) * CELL + CELL / 2
+    c = cell_size(width)
+    px = (xy[0] - min_x) / (max_x - min_x) * (width - 1) * c + c / 2
+    py = (height - 1 - (xy[1] - min_y) / (max_y - min_y) * (height - 1)) * c + c / 2
     return px, py
 
 
@@ -71,7 +77,10 @@ def render(report, settlements_layer=True):
     if len(surface) != width * height:
         raise ValueError(f"grid incomplete: {len(surface)} of {width * height} samples "
                          f"(status {report.get('status')})")
-    image = Image.new("RGB", (width * CELL, height * CELL), NO_DATA)
+    c = cell_size(width)
+    bounds = report["campaignBounds"]
+    spacing = (bounds["max"][0] - bounds["min"][0]) / max(1, width - 1)  # world units between nodes
+    image = Image.new("RGB", (width * c, height * c), NO_DATA)
     draw = ImageDraw.Draw(image)
     for row in range(height):
         for col in range(width):
@@ -80,9 +89,11 @@ def render(report, settlements_layer=True):
             # Relief: light from the west, brighter where terrain rises to the east.
             h, west = heights[i], heights[i - 1] if col > 0 else None
             if h is not None and west is not None and surface[i] and not surface[i].startswith("sea:"):
-                color = shade(color, 1 + max(-0.25, min(0.25, (h - west) * 0.05)))
-            top = (height - 1 - row) * CELL  # flip: world Y up
-            draw.rectangle([col * CELL, top, col * CELL + CELL - 1, top + CELL - 1], fill=color)
+                # Slope, not raw height step: a denser grid must not flatten the relief.
+                slope = (h - west) / spacing
+                color = shade(color, 1 + max(-0.25, min(0.25, slope * 0.38)))
+            top = (height - 1 - row) * c  # flip: world Y up
+            draw.rectangle([col * c, top, col * c + c - 1, top + c - 1], fill=color)
 
     if not settlements_layer:
         return image  # the website draws settlements itself, interactively

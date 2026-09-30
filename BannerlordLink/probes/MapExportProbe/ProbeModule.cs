@@ -23,9 +23,12 @@ namespace ShedLink.MapExportProbe
     {
         private enum Phase { Idle, Requested, SamplingTerrain, Finished }
         // v4 (30.09, Claude): grid fine enough to draw a map from data instead of a photo.
+        // v5: 4x denser. v4 did 7680 nodes in 1.04 s on Calradia without a hitch, so ~124k
+        // nodes take ~20 s at the same 2 ms/tick budget; the map is static, one export is enough.
         // Columns fixed, rows follow the campaign aspect ratio; hard cap keeps the export bounded.
-        private const int GridColumns = 96, MaxGridRows = 128, MaxSamplesPerTick = 64;
-        private const double TimeoutSeconds = 90, BatchBudgetMs = 2, CheckpointSeconds = 1;
+        // Checkpoint every 5 s: the JSON grows to ~2.5 MB and is rewritten on the game thread.
+        private const int GridColumns = 384, MaxGridRows = 384, MaxSamplesPerTick = 256;
+        private const double TimeoutSeconds = 180, BatchBudgetMs = 2, CheckpointSeconds = 5;
         private int _gridRows;
         private double _lastCheckpoint;
         private static int _used, _requested, _cancelled;
@@ -117,7 +120,7 @@ namespace ShedLink.MapExportProbe
             {
                 ["schema"] = "shedlink.map-data-probe.v1", ["attemptUtc"] = DateTime.UtcNow.ToString("o"),
                 ["status"] = "started", ["runtimeValidated"] = false, ["mode"] = "data-only",
-                ["probeRevision"] = "map-data-grid.v4", ["photoSupported"] = false,
+                ["probeRevision"] = "map-data-grid.v5", ["photoSupported"] = false,
                 ["rendererObjectsCreated"] = false, ["sharedSceneBorrowedForQueriesOnly"] = true,
                 ["limitations"] = new JArray("Terrain samples are not a photograph or a mesh export.",
                     "Native terrain queries remain untested over the full grid and cannot be interrupted by managed timeout.",

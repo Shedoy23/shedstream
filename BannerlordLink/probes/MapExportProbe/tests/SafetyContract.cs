@@ -111,13 +111,13 @@ internal static class SafetyContract
         Check(coordinate != null, "terrain grid coordinate helper exists");
         if (coordinate != null)
         {
-            Check((double)Call("GridCoordinate", 62d, 790d, 0, 96) == 62d && (double)Call("GridCoordinate", 62d, 790d, 95, 96) == 790d, "grid endpoints align with campaign bounds");
+            Check((double)Call("GridCoordinate", 62d, 790d, 0, 384) == 62d && (double)Call("GridCoordinate", 62d, 790d, 383, 384) == 790d, "grid endpoints align with campaign bounds");
             Check((double)Call("GridCoordinate", 30d, 640d, 1, 80) > 30d, "rows increase in world Y without hidden flip");
             bool rejected = false;
             try { Call("GridCoordinate", double.NaN, 790d, 0, 96); } catch (TargetInvocationException e) { rejected = e.InnerException is ArgumentException; }
             Check(rejected, "non-finite bounds are rejected");
             rejected = false;
-            try { Call("GridCoordinate", 62d, 790d, 96, 96); } catch (TargetInvocationException e) { rejected = e.InnerException is ArgumentException; }
+            try { Call("GridCoordinate", 62d, 790d, 384, 384); } catch (TargetInvocationException e) { rejected = e.InnerException is ArgumentException; }
             Check(rejected, "grid index cannot exceed grid size");
             rejected = false;
             try { Call("GridCoordinate", 62d, 790d, 0, 100000); } catch (TargetInvocationException e) { rejected = e.InnerException is ArgumentException; }
@@ -127,8 +127,8 @@ internal static class SafetyContract
         Check(rows != null, "grid rows helper exists");
         if (rows != null)
         {
-            Check((int)Call("GridRows", 62d, 790d, 30d, 640d) == 80, "Calradia bounds give 96x80 grid (aspect kept)");
-            Check((int)Call("GridRows", 0d, 10d, 0d, 100000d) == 128, "tall map is capped at 128 rows (export stays bounded)");
+            Check((int)Call("GridRows", 62d, 790d, 30d, 640d) == 322, "Calradia bounds give 384x322 grid (aspect kept)");
+            Check((int)Call("GridRows", 0d, 10d, 0d, 100000d) == 384, "tall map is capped at 384 rows (export stays bounded)");
             Check((int)Call("GridRows", 0d, 100000d, 0d, 1d) == 2, "flat map keeps at least two rows (endpoints)");
             bool rejected = false;
             try { Call("GridRows", 0d, double.PositiveInfinity, 0d, 1d); } catch (TargetInvocationException e) { rejected = e.InnerException is ArgumentException; }

@@ -19,6 +19,9 @@ async def run():
             async with db._connect() as c:
                 count=(await (await c.execute("SELECT count(*) FROM bannerlord_daily_claims WHERE action_id='daily-old'")).fetchone())[0]
                 assert count==0,'failed daily consumed the claim'
+                # 30.09, багрепорт #73: зритель видит, что дейлик не сгорел, без ложного «крустики вернутся».
+                note=(await (await c.execute("SELECT text FROM viewer_notices WHERE username='alice' ORDER BY rowid DESC LIMIT 1")).fetchone())
+                assert note and 'Дейлик не потрачен' in note[0] and 'рустики' not in note[0], f'daily notice: {note}'
                 await c.execute("INSERT INTO bannerlord_daily_claims(channel_id,username,claim_date,reward_type,action_id) VALUES (?, 'alice', DATE('now'), 'gold','daily-new')",(base.CHANNEL_ID,))
                 await c.commit()
             await base._send_failed('daily-old','skill_xp_not_applied:Medicine')

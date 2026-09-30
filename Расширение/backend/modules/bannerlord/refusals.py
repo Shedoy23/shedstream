@@ -24,6 +24,8 @@
 попытки выдать поломку за правило игры.
 """
 
+import re
+
 # Точные коды. Ключ — то, что реально шлёт мод (см. ActionFeedback.PostFailed).
 _EXACT = {
     "already_selected": "Этот вариант уже выбран.",
@@ -277,12 +279,53 @@ _OUR_FAULT_TEXT = ("Не получилось — сбой на стороне �
 _FALLBACK = "Игра отказала в этом действии."
 
 
-def describe(reason: str) -> str:
+# 30.09, багрепорт #73: бесплатный дейлик получал «Крустики вернутся» — денег не
+# было, а дейлик панель считала потраченным. Для бесплатных действий обещание
+# возврата вырезаем; дейлику говорим, что попытка не сгорела.
+_MONEY_PROMISE = re.compile(r"[\s,]*(?:[—–-]\s*)?[Кк]рустики вернутся\s*(?:[.—–-])?\s*")
+_DAILY_KEPT = "Дейлик не потрачен — можно нажать ещё раз."
+
+# 30.09, багрепорты #65/#74/#75: зритель не понимал, какое оружие нужно и почему
+# оно «не в руках», хотя надето. Оружие в бою меняет ИИ героя.
+_WEAPON_NAMES = {
+    "bow": "лук", "crossbow": "арбалет", "shield": "щит", "one_handed": "одноручное оружие",
+    "two_handed": "двуручное оружие", "polearm": "древковое оружие", "thrown": "метательное оружие",
+}
+
+
+def _without_money_promise(text: str) -> str:
+    out = _MONEY_PROMISE.sub(" ", text).strip()
+    out = re.sub(r"(^|[.!?]\s+)([а-яё])", lambda m: m.group(1) + m.group(2).upper(), out)
+    if out and out[-1] not in ".!?":
+        out += "."
+    return out
+
+
+def describe(reason: str, *, free: bool = False, daily: bool = False,
+             weapon: str | None = None) -> str:
     """Код отказа → фраза для панели зрителя.
 
     Неизвестный код НЕ превращается в пустоту и не показывается сырым:
     зритель получает общую честную формулировку, а сам код остаётся в логе.
+    free — действие было бесплатным: обещание вернуть крустики убирается.
+    daily — это дейлик: он не сгорел, можно нажать снова.
+    weapon — тип оружия заявки (power.activate): называем, что нужно в руках.
     """
+    text = _describe(reason)
+    head = (reason or "").split(":", 1)[0].strip().lower()
+    if head == "required_weapon_not_wielded" and weapon:
+        name = _WEAPON_NAMES.get(weapon.strip().lower())
+        if name:
+            text = (f"В руках героя должно быть {name}: в бою оружие меняет сам ИИ героя — "
+                    "попробуй, когда он его возьмёт. Крустики вернутся.")
+    if free or daily:
+        text = _without_money_promise(text)
+    if daily:
+        text = f"{text} {_DAILY_KEPT}"
+    return text
+
+
+def _describe(reason: str) -> str:
     code = (reason or "").strip()
     if not code:
         return _FALLBACK

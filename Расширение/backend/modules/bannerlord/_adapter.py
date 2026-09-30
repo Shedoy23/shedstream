@@ -867,7 +867,9 @@ class BannerlordAdapter(ModuleAdapter):
                     # зритель нажал, ничего не произошло, объяснения нет.
                     await add_notice_tx(
                         conn, channel_id, username, "refused",
-                        describe_refusal(reason), 0)
+                        describe_refusal(reason, free=True,
+                                         daily=parsed.get("_daily") is True,
+                                         weapon=parsed.get("weapon_type")), 0)
                     await conn.commit()
                     logger.info(
                         "[bannerlord:%s] action.failed action_id=%s NO_REFUND "
@@ -906,7 +908,7 @@ class BannerlordAdapter(ModuleAdapter):
                 # мы и чиним), либо объяснение к невозвращённым крустикам.
                 await add_notice_tx(
                     conn, channel_id, username, "refund",
-                    describe_refusal(reason), price)
+                    describe_refusal(reason, weapon=parsed.get("weapon_type")), price)
                 await conn.commit()
                 logger.info(
                     "[bannerlord:%s] REFUND ok action_id=%s user=%s +%s💎 reason=%s",

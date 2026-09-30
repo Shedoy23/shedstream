@@ -107,6 +107,7 @@ from routes.bannerlord_settlements import router as bannerlord_settlements_route
 from routes.bannerlord_admin import router as bannerlord_admin_router  # Sprint 5.33 RESET-1 — streamer admin tools
 from routes.bannerlord_boosty import router as bannerlord_boosty_router  # Sprint 5.31 #45
 from routes.dev_login   import router as dev_login_router  # /dev test page (2026-05-16)
+from routes.campaign_map import router as campaign_map_router  # /map/<login> — карта кампании (2026-09-30)
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
 app.include_router(duel_router)
 app.include_router(viewer_router)
@@ -163,6 +164,7 @@ app.include_router(bannerlord_settlements_router)  # Sprint 5.33 CATALOG-2 — l
 app.include_router(bannerlord_admin_router)  # Sprint 5.33 RESET-1 — streamer admin tools
 app.include_router(bannerlord_boosty_router)    # Sprint 5.31 #45 — Boosty subs
 app.include_router(dev_login_router)   # 2026-05-16: /dev OAuth test page
+app.include_router(campaign_map_router)  # 2026-09-30: публичная карта кампании канала
 
 # Phase A (2026-05-16): EventSub generic router (/eventsub + legacy alias
 # /eventsub/channel-points). Заменил inline-обработчик и старую

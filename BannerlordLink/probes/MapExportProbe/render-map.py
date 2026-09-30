@@ -47,7 +47,17 @@ def shade(color, factor):
     return tuple(max(0, min(255, int(c * factor))) for c in color)
 
 
-def render(report):
+def world_to_pixel(report, xy):
+    """Campaign coordinates -> picture pixel (centre of the node's cell, Y flipped)."""
+    grid = report["terrainGrid"]
+    width, height = grid["width"], grid["height"]
+    (min_x, min_y), (max_x, max_y) = report["campaignBounds"]["min"], report["campaignBounds"]["max"]
+    px = (xy[0] - min_x) / (max_x - min_x) * (width - 1) * CELL + CELL / 2
+    py = (height - 1 - (xy[1] - min_y) / (max_y - min_y) * (height - 1)) * CELL + CELL / 2
+    return px, py
+
+
+def render(report, settlements_layer=True):
     grid = report["terrainGrid"]
     width, height = grid["width"], grid["height"]
     surface = grid["surface"]
@@ -68,12 +78,11 @@ def render(report):
             top = (height - 1 - row) * CELL  # flip: world Y up
             draw.rectangle([col * CELL, top, col * CELL + CELL - 1, top + CELL - 1], fill=color)
 
-    (min_x, min_y), (max_x, max_y) = report["campaignBounds"]["min"], report["campaignBounds"]["max"]
+    if not settlements_layer:
+        return image  # the website draws settlements itself, interactively
 
     def to_pixel(xy):
-        px = (xy[0] - min_x) / (max_x - min_x) * (width - 1) * CELL + CELL / 2
-        py = (height - 1 - (xy[1] - min_y) / (max_y - min_y) * (height - 1)) * CELL + CELL / 2
-        return px, py
+        return world_to_pixel(report, xy)
 
     settlements = sorted(report.get("settlements", []),
                          key=lambda s: SETTLEMENT_RADIUS.get(s.get("kind"), 2))

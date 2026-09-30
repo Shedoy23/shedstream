@@ -255,7 +255,7 @@ if ($Backend -or $Staging) {
 #   chat / EventSub / PubSub. On-demand: start it for a test, stop when done.
 if ($Staging) {
     $sTar = Join-Path ([IO.Path]::GetTempPath()) 'shedstream_staging.tar'
-    $sExcl = @('--exclude=*.db','--exclude=*.db-wal','--exclude=*.db-shm','--exclude=*.db-journal','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')
+    $sExcl = @('--exclude=*.db','--exclude=*.db-wal','--exclude=*.db-shm','--exclude=*.db-journal','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv','--exclude=campaign_maps')
     $sPaths = @('backend','frontend','admin')
     $sTarArgs = @('-cf', $sTar) + $sExcl + @('-C', $ExtDir) + $sPaths
     Info "STAGING tar [$($sPaths -join ', ')] (excl db/.env/pycache)..."
@@ -340,7 +340,7 @@ if ($Backend) {
 
 if ($paths.Count -gt 0) {
     $tar = Join-Path ([IO.Path]::GetTempPath()) 'shedstream_deploy.tar'
-    $excl = @('--exclude=*.db','--exclude=*.db-wal','--exclude=*.db-shm','--exclude=*.db-journal','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv')
+    $excl = @('--exclude=*.db','--exclude=*.db-wal','--exclude=*.db-shm','--exclude=*.db-journal','--exclude=*.pyc','--exclude=__pycache__','--exclude=.env','--exclude=venv','--exclude=.venv','--exclude=campaign_maps')
     $tarArgs = @('-cf', $tar) + $excl + @('-C', $ExtDir) + $paths
     Info "tar [$($paths -join ', ')] (excl db/.env/pycache)..."
     if (-not $DryRun) { & tar @tarArgs; if ($LASTEXITCODE -ne 0){ throw "tar failed" } }

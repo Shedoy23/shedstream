@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Карта — {{ title }}</title>
+<style>
+  :root { --bg:#12151c; --panel:rgba(20,24,33,.92); --line:#2c3342; --text:#e8e6df; --muted:#9aa1ad; --accent:#e0b04a; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font:14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow:hidden; }
+  #stage { position:fixed; inset:0; touch-action:none; cursor:grab; }
+  #stage.drag { cursor:grabbing; }
+  #world { position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform; }
+  #world img { display:block; image-rendering:auto; user-select:none; -webkit-user-drag:none; }
+  #world svg { position:absolute; left:0; top:0; overflow:visible; }
+  .s { cursor:pointer; stroke:#111; }
+  .s.dim { opacity:.18; }
+  .s.hit { stroke:var(--accent); stroke-width:3; }
+  .lbl { font-weight:600; fill:#fff; stroke:#000; stroke-width:3px; paint-order:stroke; pointer-events:none; }
+  .panel { position:fixed; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    backdrop-filter:blur(6px); }
+  #side { left:12px; top:12px; width:260px; max-height:calc(100% - 24px); display:flex; flex-direction:column; }
+  #side header { padding:12px 14px 8px; border-bottom:1px solid var(--line); }
+  #side h1 { margin:0; font-size:16px; }
+  #side .sub { color:var(--muted); font-size:12px; }
+  #search { margin:10px 14px 4px; padding:8px 10px; border-radius:6px; border:1px solid var(--line);
+    background:#0d1016; color:var(--text); font:inherit; }
+  #results { margin:0 14px; }
+  #results div { padding:4px 6px; border-radius:4px; cursor:pointer; }
+  #results div:hover { background:#232a38; }
+  .kinds { display:flex; flex-wrap:wrap; gap:6px 12px; padding:8px 14px; border-bottom:1px solid var(--line); }
+  .kinds label { color:var(--muted); cursor:pointer; }
+  #factions { overflow:auto; padding:6px 8px 10px; }
+  .f { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; }
+  .f:hover { background:#232a38; }
+  .f.on { background:#2d3444; }
+  .f i { width:12px; height:12px; border-radius:3px; flex:none; border:1px solid #0008; }
+  .f span { flex:1; } .f em { color:var(--muted); font-style:normal; font-size:12px; }
+  #card { right:12px; top:12px; width:250px; padding:12px 14px; display:none; }
+  #card h2 { margin:0 0 6px; font-size:16px; }
+  #card .row { color:var(--muted); } #card .row b { color:var(--text); font-weight:500; }
+  #card button { position:absolute; right:8px; top:6px; background:none; border:0; color:var(--muted);
+    font-size:18px; cursor:pointer; }
+  #zoom { right:12px; bottom:12px; display:flex; flex-direction:column; }
+  #zoom button { width:38px; height:38px; background:none; border:0; color:var(--text); font-size:20px; cursor:pointer; }
+  #zoom button + button { border-top:1px solid var(--line); }
+  #toggle { display:none; }
+  #msg { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); }
+  @media (max-width: 640px) {
+    #side { left:8px; right:8px; top:8px; width:auto; max-height:55%; }
+    #side.closed > :not(header) { display:none; }
+    #toggle { display:block; position:absolute; right:10px; top:10px; background:none; border:1px solid var(--line);
+      color:var(--text); border-radius:6px; padding:3px 8px; }
+    #card { left:8px; right:8px; top:auto; bottom:8px; width:auto; }
+    #zoom { bottom:auto; top:50%; }
+  }
+</style>
+</head>
+<body>
+<div id="stage"><div id="world"><img id="terrain" alt=""><svg id="marks"></svg></div></div>
+<div id="msg">Загрузка карты…</div>
+
+<aside id="side" class="panel closed">
+  <header>
+    <h1>Кальрадия — {{ title }}</h1>
+    <div class="sub">Карта из данных игры · {{ exported }}</div>
+    <button id="toggle" type="button">Фильтры</button>
+  </header>
+  <input id="search" type="search" placeholder="Найти город, замок, деревню…" autocomplete="off">
+  <div id="results"></div>
+  <div class="kinds">
+    <label><input type="checkbox" data-kind="town" checked> города</label>
+    <label><input type="checkbox" data-kind="castle" checked> замки</label>
+    <label><input type="checkbox" data-kind="village" checked> деревни</label>
+    <label><input type="checkbox" data-kind="hideout"> логова</label>
+  </div>
+  <div id="factions"></div>
+</aside>
+
+<div id="card" class="panel"><button type="button" aria-label="Закрыть">×</button><div id="cardBody"></div></div>
+<div id="zoom" class="panel"><button type="button" data-z="1.4">+</button><button type="button" data-z="0.7">−</button></div>
+
+<script>
+(function () {
+  "use strict";
+  var DATA_URL = {{ data_url }}, IMAGE_URL = {{ image_url }};
+  var KIND = { town: "Город", castle: "Замок", village: "Деревня", hideout: "Логово" };
+  var RADIUS = { town: 7, castle: 5, village: 3, hideout: 2.5 };
+  var LABEL_AT = { town: 0, castle: 1.6, village: 3.2 };  // scale from which names show
+  var stage = document.getElementById("stage"), world = document.getElementById("world");
+  var svg = document.getElementById("marks"), img = document.getElementById("terrain");
+  var view = { x: 0, y: 0, k: 1 }, data, W, H, marks = [], labels = [], factionOn = null;
+  var shown = { town: true, castle: true, village: true, hideout: false };
+  var NS = "http://www.w3.org/2000/svg";
+
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var a in attrs) e.setAttribute(a, attrs[a]);
+    parent.appendChild(e); return e;
+  }
+  function text(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+
+  function apply() {
+    world.style.transform = "translate(" + view.x + "px," + view.y + "px) scale(" + view.k + ")";
+    // Markers and labels keep their on-screen size while the terrain scales.
+    var inv = 1 / view.k;
+    marks.forEach(function (m) { m.el.setAttribute("r", RADIUS[m.s.kind] * Math.max(inv, 0.35)); });
+    labels.forEach(function (l) {
+      var visible = shown[l.s.kind] && view.k >= LABEL_AT[l.s.kind];
+      l.el.style.display = visible ? "" : "none";
+      l.el.setAttribute("font-size", 13 * inv);
+      l.el.setAttribute("x", l.s.x + 9 * inv); l.el.setAttribute("y", l.s.y + 4 * inv);
+    });
+  }
+  function clampK(k) { return Math.min(12, Math.max(fitScale() * 0.8, k)); }
+  function fitScale() { return Math.min(innerWidth / W, innerHeight / H); }
+  function fit() {
+    view.k = fitScale();
+    view.x = (innerWidth - W * view.k) / 2; view.y = (innerHeight - H * view.k) / 2; apply();
+  }
+  function zoomAt(px, py, factor) {
+    var k = clampK(view.k * factor), f = k / view.k;
+    view.x = px - (px - view.x) * f; view.y = py - (py - view.y) * f; view.k = k; apply();
+  }
+  function centerOn(s, k) {
+    view.k = clampK(k || Math.max(view.k, 3));
+    view.x = innerWidth / 2 - s.x * view.k; view.y = innerHeight / 2 - s.y * view.k; apply();
+  }
+
+  // Pan / pinch with pointer events (mouse, touch, pen).
+  var pts = new Map(), last = null, moved = false;
+  stage.addEventListener("pointerdown", function (e) {
+    stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    moved = false; stage.classList.add("drag");
+  });
+  stage.addEventListener("pointermove", function (e) {
+    if (!pts.has(e.pointerId)) return;
+    var prev = pts.get(e.pointerId), cur = { x: e.clientX, y: e.clientY };
+    if (pts.size === 1) {
+      view.x += cur.x - prev.x; view.y += cur.y - prev.y;
+      if (Math.abs(cur.x - prev.x) + Math.abs(cur.y - prev.y) > 1) moved = true; apply();
+    } else if (pts.size === 2) {
+      var other; pts.forEach(function (p, id) { if (id !== e.pointerId) other = p; });
+      var d0 = Math.hypot(prev.x - other.x, prev.y - other.y), d1 = Math.hypot(cur.x - other.x, cur.y - other.y);
+      if (d0 > 0) zoomAt((cur.x + other.x) / 2, (cur.y + other.y) / 2, d1 / d0); moved = true;
+    }
+    pts.set(e.pointerId, cur);
+  });
+  function up(e) { pts.delete(e.pointerId); if (!pts.size) stage.classList.remove("drag"); }
+  stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
+  stage.addEventListener("wheel", function (e) {
+    e.preventDefault(); zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.2 : 1 / 1.2);
+  }, { passive: false });
+  document.querySelectorAll("#zoom button").forEach(function (b) {
+    b.addEventListener("click", function () { zoomAt(innerWidth / 2, innerHeight / 2, +b.dataset.z); });
+  });
+  addEventListener("resize", function () { if (W) apply(); });
+
+  function showCard(s) {
+    var rows = [["Тип", KIND[s.kind]], ["Фракция", s.factionName], ["Клан", s.clanName], ["Относится к", s.boundName]];
+    document.getElementById("cardBody").innerHTML = "<h2>" + text(s.name) + "</h2>" + rows
+      .filter(function (r) { return r[1]; })
+      .map(function (r) { return '<div class="row">' + r[0] + ": <b>" + text(r[1]) + "</b></div>"; }).join("");
+    document.getElementById("card").style.display = "block";
+    marks.forEach(function (m) { m.el.classList.toggle("hit", m.s === s); });
+  }
+  document.querySelector("#card button").addEventListener("click", function () {
+    document.getElementById("card").style.display = "none";
+    marks.forEach(function (m) { m.el.classList.remove("hit"); });
+  });
+
+  function refresh() {
+    marks.forEach(function (m) {
+      m.el.style.display = shown[m.s.kind] ? "" : "none";
+      m.el.classList.toggle("dim", factionOn !== null && m.s.factionId !== factionOn);
+    });
+    document.querySelectorAll(".f").forEach(function (f) { f.classList.toggle("on", f.dataset.id === factionOn); });
+    apply();
+  }
+  document.querySelectorAll(".kinds input").forEach(function (c) {
+    c.addEventListener("change", function () { shown[c.dataset.kind] = c.checked; refresh(); });
+  });
+  document.getElementById("toggle").addEventListener("click", function () {
+    document.getElementById("side").classList.toggle("closed");
+  });
+
+  var search = document.getElementById("search"), results = document.getElementById("results");
+  search.addEventListener("input", function () {
+    var q = search.value.trim().toLowerCase(); results.innerHTML = "";
+    if (q.length < 2) return;
+    data.settlements.filter(function (s) { return s.name.toLowerCase().indexOf(q) >= 0; }).slice(0, 8)
+      .forEach(function (s) {
+        var d = document.createElement("div"); d.textContent = s.name + " · " + KIND[s.kind];
+        d.addEventListener("click", function () {
+          shown[s.kind] = true; document.querySelector('[data-kind="' + s.kind + '"]').checked = true;
+          refresh(); centerOn(s); showCard(s);
+        });
+        results.appendChild(d);
+      });
+  });
+
+  function build() {
+    W = data.image.width; H = data.image.height;
+    svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    var order = { hideout: 0, village: 1, castle: 2, town: 3 };
+    data.settlements.slice().sort(function (a, b) { return order[a.kind] - order[b.kind]; }).forEach(function (s) {
+      var c = el("circle", { cx: s.x, cy: s.y, r: RADIUS[s.kind], fill: s.color, "class": "s" }, svg);
+      c.addEventListener("click", function (e) { if (!moved) { e.stopPropagation(); showCard(s); } });
+      marks.push({ s: s, el: c });
+    });
+    data.settlements.forEach(function (s) {
+      if (!(s.kind in LABEL_AT)) return;
+      var t = el("text", { "class": "lbl" }, svg); t.textContent = s.name; labels.push({ s: s, el: t });
+    });
+    var counts = {};
+    data.settlements.forEach(function (s) {
+      if (s.kind === "town" || s.kind === "castle") counts[s.factionId] = (counts[s.factionId] || 0) + 1;
+    });
+    var box = document.getElementById("factions");
+    data.factions.slice().sort(function (a, b) { return (counts[b.id] || 0) - (counts[a.id] || 0); })
+      .forEach(function (f) {
+        var d = document.createElement("div"); d.className = "f"; d.dataset.id = f.id;
+        d.innerHTML = '<i style="background:' + text(f.color) + '"></i><span>' + text(f.name) +
+          "</span><em>" + (counts[f.id] || 0) + "</em>";
+        d.addEventListener("click", function () { factionOn = factionOn === f.id ? null : f.id; refresh(); });
+        box.appendChild(d);
+      });
+    document.getElementById("msg").remove();
+    fit(); refresh();
+  }
+
+  fetch(DATA_URL).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (d) {
+      data = d; img.onload = build;
+      img.onerror = function () { document.getElementById("msg").textContent = "Не удалось загрузить рельеф карты."; };
+      img.src = IMAGE_URL;
+    })
+    .catch(function () { document.getElementById("msg").textContent = "Не удалось загрузить карту."; });
+})();
+</script>
+</body>
+</html>

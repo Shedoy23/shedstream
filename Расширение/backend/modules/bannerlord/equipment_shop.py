@@ -72,7 +72,7 @@ async def context(conn, channel_id, username, *, require_party=False, for_shop=F
         slots = {"count": count if count >= 0 else 0,
                  "capacity": cap if type(cap) is int and cap > 0 else 10}
     stash = None
-    if party_reason == 'no_party_inventory' and state.get('stash_available') is True:
+    if party_reason in (None, 'no_party_inventory') and (state.get('stash_available') is True or (party_reason is None and slots is not None)):
         count, cap = state.get('stash_count'), state.get('stash_capacity')
         stash = {"count": count if type(count) is int and count >= 0 else 0,
                  "capacity": cap if type(cap) is int and cap > 0 else 10}
@@ -88,8 +88,10 @@ async def context(conn, channel_id, username, *, require_party=False, for_shop=F
             "party_inventory": {"available": manage_reason is None, "reason": manage_reason,
                                 "message": refusal(manage_reason)['message'] if manage_reason else '',
                                 "party_id": state.get('party_id') if not party_reason else None,
-                                "party_name": state.get('party_name') if not party_reason else
-                                f"Личный сундук героя ({stash['count']}/{stash['capacity']})" if stash else None},
+                                "party_name": (f"{state.get('party_name') or 'Багаж отряда'} · Личный сундук героя ({stash['count']}/{stash['capacity']})"
+                                               if stash and not party_reason else
+                                               f"Личный сундук героя ({stash['count']}/{stash['capacity']})" if stash else
+                                               state.get('party_name') if not party_reason else None)},
             "stash": stash,
             "stash_slots": slots or stash,
             "build": build if isinstance(build, dict) else {},

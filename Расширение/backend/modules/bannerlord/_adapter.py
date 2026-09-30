@@ -1290,10 +1290,11 @@ class BannerlordAdapter(ModuleAdapter):
                     await conn.execute(
                         "UPDATE bannerlord_heroes SET kingdom_id=?, kingdom_name=?, is_king=? WHERE channel_id=? AND username=?",
                         (kingdom.get("id"), kingdom.get("name"), int(bool(kingdom.get("is_ruler"))), channel_id, username))
-                if "clan_info" in data and data["clan_info"] is None:
+                if "clan_info" in data:
+                    clan = data["clan_info"] or {}
                     await conn.execute(
-                        "UPDATE bannerlord_heroes SET clan_name=NULL,is_clan_leader=0 WHERE channel_id=? AND username=?",
-                        (channel_id, username))
+                        "UPDATE bannerlord_heroes SET clan_name=?,is_clan_leader=? WHERE channel_id=? AND username=?",
+                        (clan.get("name"), int(clan.get("is_leader") is True), channel_id, username))
 
                 # Save is authoritative for personal vassal clans. Creation
                 # events can be lost while the backend/game is disconnected;
@@ -1462,18 +1463,9 @@ class BannerlordAdapter(ModuleAdapter):
                          f"Караван из {c.get('home_name') or '?'}",
                          c["total_value"]))
                     inherited_count += 1
-                for f in inherited_fiefs:
-                    await conn.execute(
-                        "INSERT INTO bannerlord_inheritance_log "
-                        "(channel_id, parent_username, heir_hero_id, "
-                        " asset_type, asset_ref, asset_name, total_value) "
-                        "VALUES (?, ?, ?, 'fief', ?, ?, ?)",
-                        (channel_id, username, heir_id,
-                         _json_h.dumps({"fief_id": f["fief_id"],
-                                        "fief_type": f["fief_type"]}),
-                         f"{f.get('fief_type') or '?'}: {f.get('fief_name') or '?'}",
-                         f["total_value"]))
-                    inherited_count += 1
+                # Fiefs belong to the native clan. Queuing activation is not
+                # proof that this heir's clan owns them. Actual ownership is
+                # reconciled from hero.properties_snapshot, never invented here.
 
                 # Enqueue mod action — extended payload с inherited_assets.
                 action_id = _uuid.uuid4().hex

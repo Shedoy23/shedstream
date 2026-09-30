@@ -184,16 +184,19 @@ namespace BannerlordLink.Actions
                 try
                 {
                     var shop = BannerlordLink.Behaviors.EquipmentShopBehavior.Instance;
+                    // Every activated heir gets choices of their own; do not copy
+                    // the deceased's specialization, equipped gear or cooldown.
+                    shop?.InitializeBuild(heir);
                     int stash = shop?.InheritStash(heir, parentUsername, Campaign.Current.DeadOrDisabledHeroes) ?? 0;
                     if (stash > 0)
                     {
                         BannerlordLinkModule.Log($"[heir.activate] @{parentUsername}: сундук ({stash} вещ.) перешёл наследнику");
-                        shop.Push(heir, shop.Read(heir));
                     }
+                    if (shop != null) shop.Push(heir, shop.Read(heir));
                 }
                 catch (Exception stashEx)
                 {
-                    BannerlordLinkModule.Log($"[heir.activate] @{parentUsername} сундук НЕ перенесён: {stashEx.Message}");
+                    BannerlordLinkModule.Log($"[heir.activate] @{parentUsername} сборка/сундук не синхронизированы: {stashEx.Message}");
                 }
 
                 // 8. Sprint 5.33 (BLT-parity HERITAGE) — transfer inherited assets

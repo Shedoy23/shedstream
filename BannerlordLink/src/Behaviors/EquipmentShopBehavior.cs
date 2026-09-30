@@ -79,6 +79,18 @@ namespace BannerlordLink.Behaviors
                             || MBObjectManager.Instance.GetObject<ItemModifier>(previous.ModifierId) != null));
                 ledger.Observe(slot, element.Item?.StringId, element.ItemModifier?.StringId, previousContentAvailable);
             }
+            // Already activated heirs may predate build initialization. Native
+            // parent identity proves succession; ordinary legacy heroes stay legacy.
+            if (ledger.Build == null && hero.IsAlive)
+            {
+                string username = Username(hero);
+                if (!string.IsNullOrEmpty(username) && new[] { hero.Father, hero.Mother }.Any(parent =>
+                    parent != null && !parent.IsAlive && string.Equals(Username(parent), username, StringComparison.OrdinalIgnoreCase)))
+                {
+                    ledger.Build = new HeroBuildState();
+                    Store(hero, ledger);
+                }
+            }
             return ledger;
         }
 
@@ -130,7 +142,7 @@ namespace BannerlordLink.Behaviors
         internal void InitializeBuild(Hero hero)
         {
             var ledger = Read(hero);
-            ledger.Build = new HeroBuildState();
+            if (ledger.Build == null) ledger.Build = new HeroBuildState();
             Store(hero, ledger);
         }
 
@@ -251,8 +263,8 @@ namespace BannerlordLink.Behaviors
                     ["in_mission"] = missionOverride ?? (TaleWorlds.MountAndBlade.Mission.Current != null),
                     ["party_available"] = roster != null,
                     ["party_reason"] = hero.IsPrisoner ? "hero_prisoner" : roster == null ? "no_party_inventory" : null,
-                    // 25.09: без своего отряда вещи держит личный сундук героя.
-                    ["stash_available"] = roster == null && !hero.IsPrisoner,
+                    // Personal mod stash is independent of the native party roster.
+                    ["stash_available"] = !hero.IsPrisoner,
                     ["stash_count"] = ledger.StashCount(),
                     ["stash_capacity"] = EquipmentShopPolicy.StashCapacity,
                     ["party_id"] = roster != null ? hero.PartyBelongedTo.StringId : null,

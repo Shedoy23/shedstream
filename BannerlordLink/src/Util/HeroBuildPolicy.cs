@@ -3,8 +3,8 @@ using System.Collections.Generic;
 
 namespace BannerlordLink.Util
 {
-    // Save-owned choices, deliberately absent on existing heroes. New campaigns
-    // initialize this on adoption; reading an old save never migrates it.
+    // Save-owned choices, absent on ordinary legacy heroes. Adoption and heir
+    // activation initialize them; recovery is limited to proven native successors.
     internal sealed class HeroBuildState
     {
         public int Version = 1;

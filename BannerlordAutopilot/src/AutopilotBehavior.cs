@@ -1478,12 +1478,14 @@ namespace BannerlordAutopilot
                     bool villagerFight = target.IsVillager && (id == "village_farmer_loot"
                         || id == "player_decided_to_fight_villagers"
                         || id == "player_decided_to_take_everything_villagers");
+                    bool patrolFight = target.IsPatrolParty && (id == "patrol_talk_start_enemy_1"
+                        || id == "patrol_talk_start_enemy_2" || id == "patrol_talk_start_attack_final");
                     bool allowed = target.IsBandit
                         ? id == "common_encounter_ultimatum" || id == "common_bandit_surrender_accepted"
                           || id == "bandit_start_defender_1" || id == "bandit_start_defender_3"
                         : IsTravelIntroduction(id) || id == "main_option_hostile_1_2"
                           || id == "player_verify_attack_on_enemy_lord" || id == "545"
-                          || caravanFight || villagerFight;
+                          || caravanFight || villagerFight || patrolFight;
                     if (allowed && options[i].IsClickable)
                     {
                         string selected = options[i].Id;

@@ -60,7 +60,7 @@ namespace BannerlordAutopilot
                 && (main.Army == null || main.Army.LeaderParty == main)
                 && MapIsActiveScreen() && !InformationManager.IsAnyInquiryActive()
                 && MenuDriver.CurrentMenuId == "encounter" && MenuDriver.CanInvoke("attack", out _)
-                && PlayerEncounter.EncounteredMobileParty == target && target.IsActive && target.IsLordParty
+                && PlayerEncounter.EncounteredMobileParty == target && target.IsActive && (target.IsLordParty || target.IsPatrolParty)
                 && target.MapFaction == faction && !target.IsCurrentlyUsedByAQuest
                 && target.MapEvent == main.MapEvent && target.Party.MapEventSide == main.MapEvent.DefenderSide
                 && main.MapFaction != null && main.MapFaction.IsAtWarWith(faction)

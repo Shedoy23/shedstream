@@ -1,0 +1,19 @@
+{
+  "created": "2026-09-30T11:35:09.835677",
+  "source_commit": "8ff65493fd403d2f3151a3b224f919ac249d1f2d",
+  "status": "LOCAL_ONLY_NOT_INSTALLED",
+  "files": [
+    {
+      "name": "BannerlordAutopilot.dll",
+      "candidate_sha256": "BF374EDD7B617DA50F50863DD1A2803E75A33D060A0613E46AD266174CA1CD3D",
+      "expected_installed_sha256": "2158DDCCA49392A91EE53745837C1E06FED27F0FE6549A2D49442C2BCBD993B1"
+    },
+    {
+      "name": "BannerlordAutopilot.pdb",
+      "candidate_sha256": "D1E264D4F56876EA2EA88E31AE6D5BD2CA4B0FA072571B49B34EC5472EEC1E86",
+      "expected_installed_sha256": "EDCC18C4D95420C29EB3A581506A6AE73D484954E4D24B19F5FB17DAFBF46DE0"
+    }
+  ],
+  "tests": "AuditRegression 1000/0; red 996/4 exit4; ContractCheck510 exit0; Release0warnings0errors exit0",
+  "live_game_verified": false
+}

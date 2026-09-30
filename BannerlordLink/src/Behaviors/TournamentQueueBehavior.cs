@@ -230,7 +230,7 @@ namespace BannerlordLink.Behaviors
             starter.AddGameMenuOption(
                 "town_arena",
                 "blink_start_viewer_tournament",
-                "{=!}⚔️ Запустить турнир зрителей ({QUEUE_SIZE})",
+                "{=!}Запустить турнир зрителей ({QUEUE_SIZE})",
                 args =>
                 {
                     args.optionLeaveType = GameMenuOption.LeaveType.HostileAction;
@@ -246,7 +246,7 @@ namespace BannerlordLink.Behaviors
             starter.AddGameMenuOption(
                 "town_arena",
                 "blink_watch_viewer_tournament",
-                "{=!}👁 Смотреть турнир зрителей",
+                "{=!}Смотреть турнир зрителей",
                 args =>
                 {
                     args.optionLeaveType = GameMenuOption.LeaveType.HostileAction;

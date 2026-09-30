@@ -1159,7 +1159,7 @@ namespace BannerlordLink.Behaviors
                             : new TaleWorlds.Library.Color(1f, 0.84f, 0.18f));
                     TaleWorlds.Library.InformationManager.DisplayMessage(
                         new TaleWorlds.Library.InformationMessage(
-                            $"🔥 @{s.Username} вклад ×{ks.kills}! +{xp} XP", col));
+                            $"@{s.Username} вклад ×{ks.kills}! +{xp} XP", col));
                 }
                 catch (Exception ex)
                 {

@@ -579,7 +579,7 @@ namespace BannerlordLink.Actions
                             : new TaleWorlds.Library.Color(0.87f, 0.21f, 0.21f); // red
                         TaleWorlds.Library.InformationManager.DisplayMessage(
                             new TaleWorlds.Library.InformationMessage(
-                                $"{(isPlayerSide ? "📯" : "⚔️")} @{username} {(isPlayerSide ? "за тебя" : "ПРОТИВ тебя")} ({(withHorse ? "конный" : "пеший")})",
+                                $"@{username} {(isPlayerSide ? "за тебя" : "ПРОТИВ тебя")} ({(withHorse ? "конный" : "пеший")})",
                                 col));
                     }
                     catch (Exception ex)

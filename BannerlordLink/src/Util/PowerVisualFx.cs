@@ -78,21 +78,21 @@ namespace BannerlordLink.Util
             {
                 ["heal_burst"] = new PowerFxConfig
                 {
-                    PopupText      = "💊 {user} лечится (+50 HP)",
+                    PopupText      = "{user} лечится (+50 HP)",
                     PopupColor     = new TaleWorlds.Library.Color(0.32f, 0.83f, 0.45f), // green
                     SoundEventPath = "event:/mission/combat/horse/hit_player",  // safe fallback (не lethal — light)
                     ParticleName   = "psys_game_burning_agent",  // closest visual для healing
                 },
                 ["shield_break_burst"] = new PowerFxConfig
                 {
-                    PopupText      = "🛡 {user} разбивает щиты",
+                    PopupText      = "{user} разбивает щиты",
                     PopupColor     = new TaleWorlds.Library.Color(1.0f, 0.55f, 0.0f), // orange
                     SoundEventPath = "event:/mission/combat/shield/broken",
                     ParticleName   = "psys_game_shield_break",
                 },
                 ["rage"] = new PowerFxConfig
                 {
-                    PopupText      = "🔥 {user} в ярости — damage ×{value}",
+                    PopupText      = "{user} в ярости — damage ×{value}",
                     PopupColor     = new TaleWorlds.Library.Color(1.0f, 0.13f, 0.13f), // red
                     SoundEventPath = "event:/mission/combat/melee/swing",
                     ParticleName   = "psys_game_burning_agent",
@@ -105,7 +105,7 @@ namespace BannerlordLink.Util
                     // Звук/партикл оставлены прежние (заведомо валидные имена ассетов) —
                     // подбор «дымного» эффекта отдельной правкой, чтобы не рисковать
                     // несуществующим psys_*. См. docs/SPEC_ASSASSIN_INVIS.md.
-                    PopupText      = "🌫 {user} растворился в тенях",
+                    PopupText      = "{user} растворился в тенях",
                     PopupColor     = new TaleWorlds.Library.Color(0.62f, 0.55f, 0.85f), // dim violet
                     SoundEventPath = "event:/mission/combat/shield/hit",
                     ParticleName   = "psys_game_shield_block_spark",
@@ -113,21 +113,21 @@ namespace BannerlordLink.Util
                 // Sprint 5.33 (BLT-parity FX) — 3 character effects.
                 ["poison_dot"] = new PowerFxConfig
                 {
-                    PopupText      = "☠ {user} отравил врага ({value} dmg/s)",
+                    PopupText      = "{user} отравил врага ({value} dmg/s)",
                     PopupColor     = new TaleWorlds.Library.Color(0.5f, 0.95f, 0.3f), // poisonous green
                     SoundEventPath = "event:/mission/combat/melee/hit",
                     ParticleName   = "psys_game_burning_agent",  // зеленоватый burn = poison visual stub
                 },
                 ["disarm_burst"] = new PowerFxConfig
                 {
-                    PopupText      = "💥 {user} обезоружил врага",
+                    PopupText      = "{user} обезоружил врага",
                     PopupColor     = new TaleWorlds.Library.Color(1.0f, 0.85f, 0.2f), // yellow flash
                     SoundEventPath = "event:/mission/combat/shield/broken",
                     ParticleName   = "psys_game_shield_break",
                 },
                 ["berserker_charge"] = new PowerFxConfig
                 {
-                    PopupText      = "💨 {user} берсерк-рывок +{value} speed",
+                    PopupText      = "{user} берсерк-рывок +{value} speed",
                     PopupColor     = new TaleWorlds.Library.Color(1.0f, 0.4f, 0.0f), // orange-red
                     SoundEventPath = "event:/mission/combat/melee/swing",
                     ParticleName   = "psys_game_burning_agent",
@@ -178,7 +178,7 @@ namespace BannerlordLink.Util
                     $"[PowerFx] no config for power '{powerKey}' — using default cue");
                 cfg = new PowerFxConfig
                 {
-                    PopupText  = "✨ {user} активировал способность",
+                    PopupText  = "{user} активировал способность",
                     PopupColor = new TaleWorlds.Library.Color(1.0f, 0.84f, 0.18f), // gold
                 };
             }

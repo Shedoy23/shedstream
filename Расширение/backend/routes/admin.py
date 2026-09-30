@@ -58,7 +58,6 @@ async def admin_approve_channel(
     Кэш обновляем сразу — иначе одобрение подействовало бы только после
     рестарта прода, а рестарт посреди стрима рвёт зрителям соединение.
     """
-    from dependencies import mark_channel_approved
     try:
         body = await request.json()
     except Exception:
@@ -70,9 +69,17 @@ async def admin_approve_channel(
         return {"success": False, "message": "Нужен channel_id (число)"}
 
     approved = bool(body.get("approved", True))
-    if not await get_db().set_channel_approved(channel_id, approved):
+    if not await set_channel_approval(channel_id, approved):
         return {"success": False,
                 "message": f"Канал {channel_id} не найден в реестре"}
+    return {"success": True, "channel_id": channel_id, "approved": approved}
+
+
+async def set_channel_approval(channel_id: int, approved: bool) -> bool:
+    """Одобрить/закрыть канал: база, кэш ворот, бот в чат. False — канала нет."""
+    from dependencies import mark_channel_approved
+    if not await get_db().set_channel_approved(channel_id, approved):
+        return False
 
     mark_channel_approved(channel_id, approved)
 
@@ -92,7 +99,42 @@ async def admin_approve_channel(
                 print(f"⚠️ join_channel_now({login}) при одобрении: {e}")
 
     print(f"{'✅ ОДОБРЕН' if approved else '⛔ ЗАКРЫТ'} канал {channel_id} (админ)")
-    return {"success": True, "channel_id": channel_id, "approved": approved}
+    return True
+
+
+# ---------- одобрение по ссылке из лички Telegram (30.09.2026) ----------
+# Ссылка подписана HMAC от ADMIN_PASSWORD и номера канала: одобряет ровно этот канал,
+# подделать или перенести на другой канал нельзя. Только одобряет — закрыть по ссылке
+# нельзя, так что утёкшая ссылка даёт максимум то, что владелец и так собирался сделать.
+def approve_link_token(channel_id: int):
+    import hashlib
+    import hmac
+    import os
+    secret = os.getenv("ADMIN_PASSWORD", "")
+    if not secret:
+        return None
+    msg = f"approve-channel:{int(channel_id)}".encode()
+    return hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()[:32]
+
+
+def approve_link_url(channel_id: int):
+    import os
+    token = approve_link_token(channel_id)
+    if not token:
+        return None
+    base = os.getenv("PUBLIC_BASE_URL", "https://shedoy23.ru").rstrip("/")
+    return f"{base}/api/admin/approve-link?c={int(channel_id)}&t={token}"
+
+
+@router.get("/api/admin/approve-link", response_class=HTMLResponse)
+async def admin_approve_link(c: int = Query(...), t: str = Query("")):
+    import hmac
+    expected = approve_link_token(c)
+    if not expected or not hmac.compare_digest(expected, t or ""):
+        return HTMLResponse("<h3>Ссылка недействительна</h3>", status_code=403)
+    if not await set_channel_approval(c, True):
+        return HTMLResponse(f"<h3>Канал {int(c)} не найден</h3>", status_code=404)
+    return HTMLResponse(f"<h3>✅ Канал {int(c)} одобрен</h3><p>Расширение на канале уже работает.</p>")
 
 
 @router.post("/api/admin/module/issue-token")

@@ -294,6 +294,11 @@ async def auth_callback(request: Request):
     else:
         print(f"⏳ Streamer PENDING: {login} (channel_id={channel_id}) — "
               f"одобрить: POST /api/admin/approve-channel")
+        # 30.09: личка владельцу со ссылкой «одобрить» — раньше заявку (в том числе
+        # проверяющего Twitch) было видно только в логе. Фоном: ответ стримеру не ждёт Telegram.
+        from notifications import notify_owner_new_streamer
+        from routes.admin import approve_link_url
+        asyncio.create_task(notify_owner_new_streamer(login, channel_id, approve_link_url(channel_id)))
         return HTMLResponse(_pending_html(login))
 
     # M4.4: signed cookie + redirect на dashboard.

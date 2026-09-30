@@ -125,6 +125,60 @@ async def notify_stream_online(
         logger.warning("TG notify error: %s: %s", type(e).__name__, e)
 
 
+# ---------- личка владельцу платформы: новый стример ждёт одобрения (30.09.2026) ----------
+# Повод: проверяющий Twitch (qa_moderation) зарегистрировал свой канал на ревью и
+# упёрся в ворота одобрения, а узнать об этом можно было только из строки в логе.
+# Кому писать — TELEGRAM_OWNER_CHAT_ID (числовой id лички; бот не может написать по
+# @нику, пока человек сам не нажал /start у бота). Это НЕ канал анонсов стримов.
+_owner_notified: set = set()
+
+
+def owner_message(login: str, channel_id: int, approve_url: Optional[str]) -> str:
+    lines = [
+        "🆕 <b>Новый стример ждёт одобрения</b>",
+        f'<a href="https://twitch.tv/{_escape_html(login)}">{_escape_html(login)}</a> · канал {int(channel_id)}',
+    ]
+    if login.lower().startswith("qa_"):
+        lines.append("Похоже на проверяющего Twitch — лучше одобрить сразу.")
+    if approve_url:
+        lines.append(f'<a href="{_escape_html(approve_url)}">✅ Одобрить</a>')
+    return "\n".join(lines)
+
+
+async def _post_telegram(token: str, chat_id: str, text: str) -> bool:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML",
+                  "disable_web_page_preview": True},
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as r:
+            if r.status != 200:
+                logger.warning("TG owner notify failed [%s]: %s", r.status, (await r.text())[:200])
+            return r.status == 200
+
+
+async def notify_owner_new_streamer(login: str, channel_id: int, approve_url: Optional[str]) -> bool:
+    """Личка владельцу о заявке. Один раз на канал за жизнь процесса: стример,
+    повторно проходящий вход, не должен слать по сообщению на каждый заход."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_OWNER_CHAT_ID", "").strip()
+    if not token or not chat_id:
+        logger.warning("TG owner notify skip: нет TELEGRAM_OWNER_CHAT_ID — заявка %s видна только в логе", login)
+        return False
+    if int(channel_id) in _owner_notified:
+        return False
+    try:
+        ok = await _post_telegram(token, chat_id, owner_message(login, channel_id, approve_url))
+    except Exception as e:
+        logger.warning("TG owner notify error: %s: %s", type(e).__name__, e)
+        return False
+    if ok:
+        _owner_notified.add(int(channel_id))
+        logger.info("TG owner notified: new streamer %s (%s)", login, channel_id)
+    return ok
+
+
 def _escape_html(s: str) -> str:
     """Минимальный HTML-escape для Telegram parse_mode=HTML."""
     return (

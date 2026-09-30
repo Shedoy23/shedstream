@@ -38,6 +38,14 @@ async def main():
         app_main.db = db
         dependencies.set_db(db)
         await db.init_pool()
+        try:
+            await _scenario(db, app_main, diplo)
+        finally:
+            await db._pool.close()
+
+
+async def _scenario(db, app_main, diplo):
+    if True:
         await db.init_tables()
         await app_main.run_migrations()
         async with db._connect() as conn:
@@ -77,7 +85,6 @@ async def main():
         assert r1.get("success") and r2.get("success"), (r1, r2)
         assert wants == {"serfdom": "enact", "royal_guard": "remove"}, f"intent sent to the game: {wants}"
         print("OK: policy panel shows latest state; intent (enact/remove) sent to the mod")
-        await db._pool.close()
 
 
 asyncio.run(main())

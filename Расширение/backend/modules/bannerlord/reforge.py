@@ -7,6 +7,10 @@ async def validate_tx(conn, channel_id, username, data):
     if ctx['reason']:
         return {'success':False,'message':'Снаряжение ещё не синхронизировано: обнови мод и дождись загрузки.'}
     slot=str(data.get('slot') or '').lower()
+    # 30.09, багрепорты #79/#80: кнопка «перековать» у коня есть (панель заморожена
+    # на CDN), а у коней нет групп качества — отказ был «обнови мод и дождись снимка».
+    if slot=='horse':
+        return {'success':False,'message':'Коня перековать нельзя — в кузнице улучшается только оружие и броня героя.'}
     item=next((r for r in ctx['inventory'] if r.get('slot')==slot and r.get('source')=='equipped'),None)
     if not item or not item.get('reforge_options'):
         return {'success':False,'message':'Для перековки обнови мод и дождись снимка надетого предмета.'}

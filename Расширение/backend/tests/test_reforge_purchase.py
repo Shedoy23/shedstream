@@ -23,6 +23,10 @@ async def run():
                 await store_inventory(db,CHANNEL_ID,env)
             await snapshot('session-a')
             request=_make_anon_request()
+            # 30.09, багрепорты #79/#80: у коня понятный отказ до списания, а не «обнови мод».
+            horse=await route._bannerlord_buy_action_locked(request,'alice',CHANNEL_ID,'hero.reforge_quality',{'slot':'horse','price':0})
+            assert not horse.get('success') and 'Коня перековать нельзя' in (horse.get('message') or ''),horse
+            assert (await sql("SELECT points FROM viewers WHERE channel_id=? AND username='alice'",(CHANNEL_ID,)))[0][0]==1000000,'horse refusal charged'
             payload={'slot':'head','price':0,'_reforge':{'rank':3,'hero_id':'victim'}}
             result=await route._bannerlord_buy_action_locked(request,'alice',CHANNEL_ID,'hero.reforge_quality',payload)
             assert result.get('success'),result

@@ -281,17 +281,26 @@ internal static partial class Program
         }
     }
 
-    static int Main()
+    static int Main(string[] args)
     {
         // Экран стрима — только во временную папку: иначе тесты пишут в настоящий
         // файл, который читает OBS, и на стриме всплывёт тестовая строка.
         BannerlordAutopilot.StreamStatus.FilePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "autopilot_stream_test.txt");
+        if (args.Length == 1 && args[0] == "--siege-frontier")
+        {
+            EngineContract.Verify();
+            SiegeFrontierTests();
+            SiegeReliabilityTests();
+            Console.WriteLine("Siege frontier: " + passed + " ok / " + failed + " FAIL");
+            return failed;
+        }
         Console.WriteLine("Регрессия автопилота по независимой проверке 12.09 (заменители движка, не кампания)");
         EngineContract.Verify();
         Check(ServiceLimits.MinGoldReserve == 0, "default reserve has no fixed gold floor");
         OperationTests();
         EncounterTests();
         ConquestTests();
+        SiegeFrontierTests();
         CampaignStabilityTests();
         DefenseTests();
         EquipmentTradeTests();

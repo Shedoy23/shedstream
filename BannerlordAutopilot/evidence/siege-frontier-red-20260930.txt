@@ -1,0 +1,39 @@
+  FAIL  own does not consume enemy top-three quota
+  FAIL  friendly does not consume enemy top-three quota
+  FAIL  neutral does not consume enemy top-three quota
+  FAIL  null does not consume enemy top-three quota
+  ok    village does not consume enemy top-three quota
+  FAIL  raid does not consume enemy top-three quota
+  FAIL  hostile_siege does not consume enemy top-three quota
+  ok    third eligible enemy is allowed
+  ok    fourth eligible enemy is rejected
+  FAIL  quota diagnostic identifies home, distance and enemy count
+  FAIL  peace immediately removes former enemies from quota
+  ok    equal-distance enemy does not count as strictly closer; radius 100 allowed
+  ok    radius above 100 rejected
+  FAIL  radius diagnostic differs from quota
+  ok    no-home radius 100 ignores quota as before
+  ok    no-home distance over 100 rejected
+  ok    null clan keeps no-home fallback
+  ok    null target rejected
+  FAIL  null target faction rejected
+  FAIL  own target rejected
+  FAIL  neutral target rejected
+  FAIL  null attacking faction rejected
+  FAIL  independent issued siege reaches enemy target
+  FAIL  native issued siege reaches enemy target
+  FAIL  one daily geographic summary
+  FAIL  geographic-only failure does not claim insufficient strength
+  FAIL  daily summary carries a rejected target and anchor
+  ok    недоступный прорыв: штатный выход без выключения
+  ok    недоступная осада не выбирается снова сразу после выхода
+  ok    через шесть игровых часов оборона снова разрешена
+  ok    четвёртая крепость за тремя соседними не приграничная
+  ok    близкая цель разрешена до потери опорного владения
+  ok    утраченное владение не разрешает далёкую осаду
+  ok    свой феод под осадой прерывает 12 часов отдыха
+  ok    далёкий слабый феод не становится целью осады
+  ok    пограничный феод разрешён даже вдали от текущего отряда
+  ok    далёкий слабый феод не становится целью осады
+  ok    пограничный феод разрешён даже вдали от текущего отряда
+Siege frontier: 20 ok / 18 FAIL

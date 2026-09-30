@@ -30,7 +30,7 @@ internal static partial class Program
             var b=Fresh();var target=ConquestWorld(wounded:0);target.Position=new CampaignVec2 {X=90};
             var home=OwnSiege(x:0);home.IsUnderSiege=false;
             Settlement.All.Add(target);
-            foreach(float x in new[]{10f,20f,30f}) Settlement.All.Add(new Settlement {IsCastle=true,Position=new CampaignVec2 {X=x}});
+            foreach(float x in new[]{10f,20f,30f}) Settlement.All.Add(new Settlement {IsCastle=true,MapFaction=target.MapFaction,Position=new CampaignVec2 {X=x}});
             var method=typeof(AutopilotBehavior).GetMethod("WhyNotApplicable",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
             var data=new AIBehaviorData(target,AiBehavior.BesiegeSettlement,MobileParty.NavigationType.Default,false,false,false);
             Check(method.Invoke(b,new object[]{data})!=null,"четвёртая крепость за тремя соседними не приграничная");

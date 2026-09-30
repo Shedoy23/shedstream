@@ -26,6 +26,18 @@ internal static partial class Program
             Check((p.DefaultBehavior==AiBehavior.EngageParty)==(health=="70"),
                 "voluntary route respects exact 70% and hero health " + route + " " + health);
         });
+        foreach(string health in new[] { "hero", "69" })
+        Try("recovery rechecks a pending engage order " + health, () => {
+            var (b, enemy)=HuntWorld(men:100); var p=MobileParty.MainParty;
+            var target=HuntTarget("stale attack",10,3,enemy,speed:3f);
+            var decision=new AIBehaviorData(target,AiBehavior.EngageParty,MobileParty.NavigationType.Default,false,false,false);
+            // Selection happened while healthy; injury happened before actual execution.
+            if(health=="hero") Hero.MainHero.IsWounded=true;
+            else p.MemberRoster.AddToCounts(p.MemberRoster.GetTroopRoster().First().Character,0,woundedCount:31);
+            typeof(AutopilotBehavior).GetMethod("ApplyDecision",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)
+                .Invoke(b,new object[] { p, decision, 3.5f });
+            Check(p.DefaultBehavior!=AiBehavior.EngageParty,"pending attack is rejected after health changes " + health);
+        });
         Try("recovery selects nearest peaceful fort instead of another fight", () => {
             var (b, enemy)=HuntWorld(men:100); var p=MobileParty.MainParty;
             Hero.MainHero.IsWounded=true;

@@ -1,0 +1,45 @@
+{
+  "created": "2026-09-30T12:01:32.412396",
+  "source_commit": "87ad486f092641894a23be2517313dd94f628b1a",
+  "status": "LOCAL_ONLY_NOT_INSTALLED_OR_DEPLOYED",
+  "game_files": [
+    {
+      "name": "BannerlordLink.dll",
+      "candidate_sha256": "1561AF9C87BA0B53869C726735168EFF2CD5C8C9B51DDD48A54459A82AF28F4F",
+      "expected_installed_sha256": "8826A05DDC470A68FDC49B17861017B8395119714D89751FF693186BF1F10F8D"
+    },
+    {
+      "name": "BannerlordLink.pdb",
+      "candidate_sha256": "9C185B0A02A7F4DD88E75F88E056DF7AED2DE4B69AF977AD3D4FB570D7DCB27D",
+      "expected_installed_sha256": "15BB34994AA7D8DDFC4814C7DD7142494B54302F2CDEC8A5675F3AD12404C399"
+    }
+  ],
+  "backend_patch": [
+    {
+      "path": "Расширение/backend/modules/bannerlord/_adapter.py",
+      "base_git_sha256": "793795EF9641A65A5DA4F8D5C8B377F0A9D35EBAC82EAF9731EF7FEC8FDDF366",
+      "local_candidate_sha256": "77C7CD323DE7419844B16C926D3DDFDA484A61D8BED736CEE6AEA968AC73A467"
+    },
+    {
+      "path": "Расширение/backend/modules/bannerlord/equipment_shop.py",
+      "base_git_sha256": "B147813F47FE088D9CDEEB55C03EF67343BF9B6D0A519A58F808ADA04DB7D7C9",
+      "local_candidate_sha256": "D67297E6724F18369CCCAC90C1B8F0E31327C3BA4209A0193B1A990A7A7D3C6B"
+    }
+  ],
+  "backend_server_hashes_verified": false,
+  "frozen_files_checked": 64,
+  "frozen_files_unchanged": true,
+  "validation": {
+    "NativeInventoryHarness": "53 checks / 0 failures; exit0; red 5 failures exit1",
+    "BuildHarness": "79 checks; exit0",
+    "heir_backend": "7 checks / 0 failures; exit0; red2fail exit1",
+    "personal_stash_backend": "exit0; red ownparty UI visibility failed exit1",
+    "frozen_client_005": "exit0",
+    "build_backend": "exit0",
+    "equipment_backend": "exit0",
+    "membership_clear": "exit0",
+    "state_ordering": "exit0",
+    "Release": "0 errors / 0 warnings; exit0"
+  },
+  "live_behavior_verified": false
+}

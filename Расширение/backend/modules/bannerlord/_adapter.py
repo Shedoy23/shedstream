@@ -674,6 +674,13 @@ class BannerlordAdapter(ModuleAdapter):
             await self._on_settlements_catalog(channel_id, env)
             return
 
+        if et == "map.live_snapshot":
+            # 30.09: живой слой карты на сайте. Раз в 15 с — только файл в папке
+            # карты канала, в базу и в журнал событий НЕ пишется (иначе рост базы).
+            import campaign_map_store
+            campaign_map_store.store_live(channel_id, env.data)
+            return
+
         # Sprint 5.29 / BLT-parity #3: refund крустиков на отказ мода
         if et == "action.partial":
             await self._on_action_partial(channel_id, env)

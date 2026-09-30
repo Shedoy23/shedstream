@@ -58,6 +58,7 @@ extensions:
     - buff.expired        # Sprint 4.6: mod пушит при RemoveExpired
     - hero.gear_tier_changed  # M20+: mod пушит после successful upgrade_gear
     - module.heroes_snapshot  # M22+: mod пушит alive heroes на session_launched
+    - map.live_snapshot       # 30.09.2026: отряды/гарнизоны раз в 15 с для shedoy23.ru/map/<логин>
     - hero.retinue_changed    # M23+: mod пушит после recruit/upgrade troop
     - hero.retinue_casualty   # 2026-05-29 (BLT RetinueDeathChance): войско свиты погибло навсегда
     - hero.focus_changed      # Sprint 5.8: mod пушит после add_focus

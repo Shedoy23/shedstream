@@ -8,25 +8,21 @@
 """
 import html
 import json
-import os
 import pathlib
 import re
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 
+from campaign_map_store import channel_dir
 from dependencies import get_db
 from routes.streamer import _render_template
 
 router = APIRouter(tags=["campaign-map"])
 
 _LOGIN = re.compile(r"^[a-z0-9_]{1,25}$")  # правила логина Twitch
-_BACKEND = pathlib.Path(__file__).resolve().parent.parent
-MAP_FILES = ("map.json", "terrain.png")
-
-
-def map_root() -> pathlib.Path:
-    return pathlib.Path(os.getenv("CAMPAIGN_MAP_DIR") or (_BACKEND / "campaign_maps"))
+MAP_FILES = ("map.json", "terrain.png")  # обязательная основа карты
+SERVED_FILES = MAP_FILES + ("live.json",)  # live.json появляется, когда мод присылает снимки
 
 
 async def _list_channels() -> list:
@@ -41,7 +37,7 @@ async def _map_dir(login: str) -> pathlib.Path:
         if (ch.get("login") or "").lower() == login:
             # Папка — по channel_id из базы, не по тексту из адреса: логин
             # только ищет канал и в путь файловой системы не попадает.
-            folder = map_root() / str(int(ch["channel_id"]))
+            folder = channel_dir(ch["channel_id"])
             if all((folder / name).is_file() for name in MAP_FILES):
                 return folder
             break
@@ -61,14 +57,19 @@ async def campaign_map_page(login: str):
         title=html.escape(login),
         data_url=json.dumps(f"/map/{login}/map.json"),
         image_url=json.dumps(f"/map/{login}/terrain.png"),
+        live_url=json.dumps(f"/map/{login}/live.json"),
         exported=html.escape(str(exported or "")),
     ))
 
 
 @router.get("/map/{login}/{name}")
 async def campaign_map_file(login: str, name: str):
-    if name not in MAP_FILES:
+    if name not in SERVED_FILES:
         raise HTTPException(status_code=404)
     folder = await _map_dir(login)
+    if not (folder / name).is_file():
+        raise HTTPException(status_code=404)
     media = "application/json" if name.endswith(".json") else "image/png"
-    return FileResponse(folder / name, media_type=media, headers={"Cache-Control": "public, max-age=300"})
+    # Живой слой меняется раз в 15 с — кэш короче интервала опроса страницы.
+    cache = "no-cache" if name == "live.json" else "public, max-age=300"
+    return FileResponse(folder / name, media_type=media, headers={"Cache-Control": cache})

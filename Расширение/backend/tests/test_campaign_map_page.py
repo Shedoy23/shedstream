@@ -98,8 +98,54 @@ async def main():
           "два канала с картами получают каждый свою")
     check("BETA" in (await cm.campaign_map_page("beta")).body.decode("utf-8"), "страница беты показывает её выгрузку")
 
+    await live_layer(cm, root)
     print("\n%d OK, %d FAIL" % (passed, failed))
     return failed == 0
+
+
+async def live_layer(cm, root):
+    """Живой слой: мод → адаптер → live.json своего канала → страница."""
+    import json
+    import yaml
+    import campaign_map_store as store
+    from modules._base import ModuleEnvelope
+    from modules.bannerlord._adapter import BannerlordAdapter
+
+    manifest = yaml.safe_load(open("modules/bannerlord/manifest.yaml", encoding="utf-8"))
+    check("map.live_snapshot" in (manifest.get("extensions") or {}).get("events", []),
+          "событие map.live_snapshot объявлено в манифесте (иначе сервер молча выбросит)")
+
+    check(await status_of(cm.campaign_map_file("alpha", "live.json")) == 404, "пока снимков не было — live.json 404")
+    check(store.store_live(333, {"parties": []}) is False and not (pathlib.Path(root) / "333").exists(),
+          "канал без опубликованной карты: снимок не пишется, папка не заводится")
+
+    hostile = {
+        "day": 12.5, "secret": "x" * 100,
+        "parties": [{"id": "p1", "x": 10, "y": 20, "men": 55, "login": "<b>viewer</b>", "main": True,
+                     "name": "N" * 500, "evil": {"deep": 1}},
+                    {"id": "nopos", "men": 5},
+                    {"id": "nan", "x": float("nan"), "y": 1}]
+                   + [{"id": "p%d" % i, "x": 1, "y": 1} for i in range(5000)],
+        "settlements": [{"id": "town_A", "garrison": 300, "militia": 120.7, "siege": True, "extra": 1}],
+    }
+    adapter = BannerlordAdapter(None)
+    await adapter.handle_event(111, ModuleEnvelope(id="live1", kind="event", type="map.live_snapshot",
+                                                   ts=1, data=hostile))
+    live_a = pathlib.Path(root) / "111" / "live.json"
+    check(live_a.is_file(), "снимок канала записан в папку его channel_id")
+    check(not (pathlib.Path(root) / "222" / "live.json").exists(), "чужой канал снимок не получил")
+    data = json.loads(live_a.read_text(encoding="utf-8"))
+    p1 = next((p for p in data["parties"] if p["id"] == "p1"), {})
+    check(p1.get("men") == 55 and p1.get("main") is True and p1.get("login") == "<b>viewer</b>",
+          "нужные поля отряда сохранены как есть (экранирует страница, textContent)")
+    check("evil" not in p1 and "secret" not in data and len(p1.get("name", "")) == store.MAX_TEXT,
+          "лишние поля отброшены, длинный текст обрезан")
+    check(not any(p["id"] in ("nopos", "nan") for p in data["parties"]), "отряд без координат или с NaN отброшен")
+    check(len(data["parties"]) <= store.MAX_PARTIES, "число отрядов ограничено потолком (%d)" % len(data["parties"]))
+    town = data["settlements"][0]
+    check(town == {"id": "town_A", "garrison": 300.0, "militia": 120.7, "siege": True},
+          "у поселения — гарнизон, ополчение, осада; лишнее отброшено")
+    check(await status_of(cm.campaign_map_file("alpha", "live.json")) != 404, "страница получает live.json своего канала")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Module>
+  <Name value="ShedLink Map Export Probe (manual, experimental)" />
+  <Id value="Shedoy23.MapExportProbe" />
+  <Version value="v0.0.1" />
+  <DefaultModule value="false" />
+  <SingleplayerModule value="true" />
+  <MultiplayerModule value="false" />
+  <Official value="false" />
+  <DependedModules>
+    <DependedModule Id="Native" />
+    <DependedModule Id="SandBoxCore" />
+    <DependedModule Id="Sandbox" />
+  </DependedModules>
+  <SubModules>
+    <SubModule>
+      <Name value="ShedLink Map Export Probe" />
+      <DLLName value="ShedLink.MapExportProbe.dll" />
+      <SubModuleClassType value="ShedLink.MapExportProbe.ProbeModule" />
+      <Tags />
+    </SubModule>
+  </SubModules>
+  <Xmls />
+</Module>

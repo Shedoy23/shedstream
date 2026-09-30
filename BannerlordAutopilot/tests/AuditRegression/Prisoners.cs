@@ -191,7 +191,7 @@ internal static partial class Program
             if(boundary=="foreign") PlayerEncounter.Current=new PlayerEncounter();
             if(boundary=="inquiry") InformationManager.TestInquiryActive=true;
             if(boundary=="off") b.Disable("test");
-            if(boundary=="observe") { b.Disable("test"); Enable(b,AutopilotBehavior.Mode.Observe); }
+            if(boundary=="observe") typeof(AutopilotBehavior).GetField("_mode",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(b,AutopilotBehavior.Mode.Observe);
             b.PollState();
             Check(vm.Closed==0 && vm.PartyScreenLogic.CurrentData.RightPrisonerRoster.TotalManCount==0,"чужой экран/модалка/F12 не трогаются: "+boundary);
         });

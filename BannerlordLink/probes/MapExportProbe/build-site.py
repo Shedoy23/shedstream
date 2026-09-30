@@ -21,6 +21,15 @@ _spec.loader.exec_module(render_map)
 KINDS = ("town", "castle", "village", "hideout")
 
 
+def world_transform(report):
+    """Linear form of render_map.world_to_pixel, for the page to place live parties."""
+    x0, y0 = render_map.world_to_pixel(report, report["campaignBounds"]["min"])
+    x1, y1 = render_map.world_to_pixel(report, report["campaignBounds"]["max"])
+    (min_x, min_y), (max_x, max_y) = report["campaignBounds"]["min"], report["campaignBounds"]["max"]
+    ax, ay = (x1 - x0) / (max_x - min_x), (y1 - y0) / (max_y - min_y)
+    return {"ax": ax, "bx": x0 - ax * min_x, "ay": ay, "by": y0 - ay * min_y}
+
+
 def site_data(report):
     image = render_map.render(report, settlements_layer=False)
     by_id = {s["id"]: s for s in report.get("settlements", [])}
@@ -43,6 +52,8 @@ def site_data(report):
         "schema": "shedlink.campaign-map.v1",
         "exportedUtc": report.get("attemptUtc"),
         "image": {"width": image.width, "height": image.height, "file": "terrain.png"},
+        # Live parties arrive in campaign coordinates: pixel = a*world + b (same as world_to_pixel).
+        "transform": world_transform(report),
         "factions": factions,
         "settlements": settlements,
     }

@@ -5,26 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Карта — {{ title }}</title>
 <style>
-  :root { --bg:#12151c; --panel:rgba(20,24,33,.92); --line:#2c3342; --text:#e8e6df; --muted:#9aa1ad; --accent:#e0b04a; }
+  :root { --bg:#12151c; --panel:rgba(20,24,33,.92); --line:#2c3342; --text:#e8e6df; --muted:#9aa1ad;
+    --accent:#e0b04a; --viewer:#ffd54a; }
   * { box-sizing:border-box; }
   html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
     font:14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow:hidden; }
   #stage { position:fixed; inset:0; touch-action:none; cursor:grab; }
   #stage.drag { cursor:grabbing; }
   #world { position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform; }
-  #world img { display:block; image-rendering:auto; user-select:none; -webkit-user-drag:none; }
+  #world img { display:block; user-select:none; -webkit-user-drag:none; }
   #world svg { position:absolute; left:0; top:0; overflow:visible; }
   /* Strokes stay the same on screen at any zoom (the world layer is CSS-scaled). */
-  .s { cursor:pointer; stroke:#111; stroke-width:1; vector-effect:non-scaling-stroke; }
-  .s.dim { opacity:.18; }
-  .s.hit { stroke:var(--accent); stroke-width:3; }
+  .s, .p { cursor:pointer; stroke:#111; stroke-width:1; vector-effect:non-scaling-stroke; }
+  .s.dim, .p.dim { opacity:.18; }
+  .s.hit, .p.hit { stroke:var(--accent); stroke-width:3; }
+  .s.siege { stroke:#ff4a3d; stroke-width:2.5; }
+  .p.viewer { stroke:var(--viewer); stroke-width:2.5; }
+  .p.main { stroke:#fff; stroke-width:2.5; }
   .lbl { font-weight:600; fill:#fff; stroke:#000; paint-order:stroke; stroke-linejoin:round; pointer-events:none; }
+  .lbl.viewer { fill:var(--viewer); }
   .panel { position:fixed; background:var(--panel); border:1px solid var(--line); border-radius:10px;
     backdrop-filter:blur(6px); }
   #side { left:12px; top:12px; width:260px; max-height:calc(100% - 24px); display:flex; flex-direction:column; }
   #side header { padding:12px 14px 8px; border-bottom:1px solid var(--line); }
   #side h1 { margin:0; font-size:16px; }
   #side .sub { color:var(--muted); font-size:12px; }
+  #live { font-size:12px; color:var(--muted); margin-top:2px; }
+  #live.on::before { content:"● "; color:#4fce6b; }
+  #live.stale::before { content:"● "; color:#c9973a; }
   #search { margin:10px 14px 4px; padding:8px 10px; border-radius:6px; border:1px solid var(--line);
     background:#0d1016; color:var(--text); font:inherit; }
   #results { margin:0 14px; }
@@ -38,11 +46,17 @@
   .f.on { background:#2d3444; }
   .f i { width:12px; height:12px; border-radius:3px; flex:none; border:1px solid #0008; }
   .f span { flex:1; } .f em { color:var(--muted); font-style:normal; font-size:12px; }
-  #card { right:12px; top:12px; width:250px; padding:12px 14px; display:none; }
-  #card h2 { margin:0 0 6px; font-size:16px; }
+  #card { right:12px; top:12px; width:270px; padding:12px 14px; display:none; max-height:calc(100% - 80px); overflow:auto; }
+  #card h2 { margin:0 22px 6px 0; font-size:16px; }
   #card .row { color:var(--muted); } #card .row b { color:var(--text); font-weight:500; }
+  #card .tag { display:inline-block; margin:2px 4px 4px 0; padding:1px 6px; border-radius:4px; background:#2d3444; font-size:12px; }
+  #card .tag.warn { background:#5a2320; color:#ffb4ac; }
+  #card .tag.viewer { background:#4a3d12; color:var(--viewer); }
+  #card ul { margin:6px 0 0; padding-left:18px; } #card li { cursor:pointer; }
   #card button { position:absolute; right:8px; top:6px; background:none; border:0; color:var(--muted);
     font-size:18px; cursor:pointer; }
+  #tip { position:fixed; pointer-events:none; padding:6px 9px; font-size:13px; display:none; max-width:240px; z-index:5; }
+  #tip small { color:var(--muted); display:block; }
   #zoom { right:12px; bottom:12px; display:flex; flex-direction:column; }
   #zoom button { width:38px; height:38px; background:none; border:0; color:var(--text); font-size:20px; cursor:pointer; }
   #zoom button + button { border-top:1px solid var(--line); }
@@ -53,9 +67,10 @@
     #side.closed > :not(header) { display:none; }
     #toggle { display:block; position:absolute; right:10px; top:10px; background:none; border:1px solid var(--line);
       color:var(--text); border-radius:6px; padding:3px 8px; }
-    #card { left:8px; right:8px; top:auto; bottom:8px; width:auto; }
+    #card { left:8px; right:8px; top:auto; bottom:8px; width:auto; max-height:45%; }
     #zoom { bottom:auto; top:50%; }
   }
+  @media (hover: none) { #tip { display:none !important; } }
 </style>
 </head>
 <body>
@@ -66,33 +81,43 @@
   <header>
     <h1>Кальрадия — {{ title }}</h1>
     <div class="sub">Карта из данных игры · {{ exported }}</div>
+    <div id="live">Живых данных пока нет</div>
     <button id="toggle" type="button">Фильтры</button>
   </header>
-  <input id="search" type="search" placeholder="Найти город, замок, деревню…" autocomplete="off">
+  <input id="search" type="search" placeholder="Город, замок, лорд или зритель…" autocomplete="off">
   <div id="results"></div>
   <div class="kinds">
     <label><input type="checkbox" data-kind="town" checked> города</label>
     <label><input type="checkbox" data-kind="castle" checked> замки</label>
     <label><input type="checkbox" data-kind="village" checked> деревни</label>
     <label><input type="checkbox" data-kind="hideout"> логова</label>
+    <label><input type="checkbox" data-kind="lord" checked> отряды лордов</label>
+    <label><input type="checkbox" data-kind="viewer" checked> отряды зрителей</label>
   </div>
   <div id="factions"></div>
 </aside>
 
 <div id="card" class="panel"><button type="button" aria-label="Закрыть">×</button><div id="cardBody"></div></div>
+<div id="tip" class="panel"></div>
 <div id="zoom" class="panel"><button type="button" data-z="1.4">+</button><button type="button" data-z="0.7">−</button></div>
 
 <script>
 (function () {
   "use strict";
-  var DATA_URL = {{ data_url }}, IMAGE_URL = {{ image_url }};
+  var DATA_URL = {{ data_url }}, IMAGE_URL = {{ image_url }}, LIVE_URL = {{ live_url }};
+  var LIVE_EVERY_MS = 15000, STALE_AFTER_S = 90;
   var KIND = { town: "Город", castle: "Замок", village: "Деревня", hideout: "Логово" };
   var RADIUS = { town: 7, castle: 5, village: 3, hideout: 2.5 };
   var LABEL_AT = { town: 0.9, castle: 1.6, village: 3.2 };  // scale from which names show (phones start ~0.5)
+  var DOING = { BesiegeSettlement: "осаждает", AssaultSettlement: "штурмует", RaidSettlement: "грабит",
+    DefendSettlement: "защищает", GoToSettlement: "идёт в", PatrolAroundPoint: "патрулирует",
+    EngageParty: "преследует", FleeToPoint: "отступает", EscortParty: "сопровождает", Hold: "стоит" };
   var stage = document.getElementById("stage"), world = document.getElementById("world");
   var svg = document.getElementById("marks"), img = document.getElementById("terrain");
+  var tip = document.getElementById("tip");
   var view = { x: 0, y: 0, k: 1 }, data, W, H, marks = [], labels = [], factionOn = null;
-  var shown = { town: true, castle: true, village: true, hideout: false };
+  var shown = { town: true, castle: true, village: true, hideout: false, lord: true, viewer: true };
+  var byId = {}, live = null, partyLayer, partyEls = [], selected = null;
   var NS = "http://www.w3.org/2000/svg";
 
   function el(tag, attrs, parent) {
@@ -101,20 +126,23 @@
     parent.appendChild(e); return e;
   }
   function text(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+  function safeColor(c) { return /^#[0-9a-fA-F]{6}$/.test(c || "") ? c : "#ffffff"; }
+  function num(n) { return n == null ? "—" : Math.round(n).toLocaleString("ru-RU"); }
 
+  // ---------- view ----------
   function apply() {
     world.style.transform = "translate(" + view.x + "px," + view.y + "px) scale(" + view.k + ")";
     // Markers and labels keep their on-screen size while the terrain scales.
     var inv = 1 / view.k;
     marks.forEach(function (m) { m.el.setAttribute("r", RADIUS[m.s.kind] * inv); });
+    partyEls.forEach(function (p) { p.el.setAttribute("transform", "translate(" + p.x + "," + p.y + ") scale(" + inv * p.size + ")"); });
     labels.forEach(function (l) {
-      var visible = shown[l.s.kind] && view.k >= LABEL_AT[l.s.kind];
+      var visible = l.party ? shown[l.party] && view.k >= 1.2 : shown[l.s.kind] && view.k >= LABEL_AT[l.s.kind];
       l.el.style.display = visible ? "" : "none";
       l.el.setAttribute("font-size", 13 * inv); l.el.setAttribute("stroke-width", 3 * inv);
       l.el.setAttribute("x", l.s.x + 9 * inv); l.el.setAttribute("y", l.s.y + 4 * inv);
     });
   }
-  function clampK(k) { return Math.min(12, Math.max(fitScale() * 0.8, k)); }
   // A page opened in a background tab can have a 0x0 window: never fit to zero.
   function fitScale() { return Math.min(innerWidth / W, innerHeight / H) || 1; }
   var touched = false;  // until the viewer pans/zooms, a resize re-fits the whole map
@@ -122,22 +150,23 @@
     view.k = fitScale();
     view.x = (innerWidth - W * view.k) / 2; view.y = (innerHeight - H * view.k) / 2; apply();
   }
+  function clampK(k) { return Math.min(12, Math.max(fitScale() * 0.8, k)); }
   function zoomAt(px, py, factor) {
     touched = true;
     var k = clampK(view.k * factor), f = k / view.k;
     view.x = px - (px - view.x) * f; view.y = py - (py - view.y) * f; view.k = k; apply();
   }
-  function centerOn(s, k) {
+  function centerOn(pt, k) {
     touched = true;
     view.k = clampK(k || Math.max(view.k, 3));
-    view.x = innerWidth / 2 - s.x * view.k; view.y = innerHeight / 2 - s.y * view.k; apply();
+    view.x = innerWidth / 2 - pt.x * view.k; view.y = innerHeight / 2 - pt.y * view.k; apply();
   }
 
   // Pan / pinch with pointer events (mouse, touch, pen).
-  var pts = new Map(), last = null, moved = false;
+  var pts = new Map(), moved = false;
   stage.addEventListener("pointerdown", function (e) {
     stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    moved = false; stage.classList.add("drag");
+    moved = false; stage.classList.add("drag"); hideTip();
   });
   stage.addEventListener("pointermove", function (e) {
     if (!pts.has(e.pointerId)) return;
@@ -162,23 +191,137 @@
   });
   addEventListener("resize", function () { if (W) { if (touched) apply(); else fit(); } });
 
-  function showCard(s) {
-    var rows = [["Тип", KIND[s.kind]], ["Фракция", s.factionName], ["Клан", s.clanName], ["Относится к", s.boundName]];
-    document.getElementById("cardBody").innerHTML = "<h2>" + text(s.name) + "</h2>" + rows
-      .filter(function (r) { return r[1]; })
-      .map(function (r) { return '<div class="row">' + r[0] + ": <b>" + text(r[1]) + "</b></div>"; }).join("");
+  // ---------- hover tip (mouse only) ----------
+  function showTip(e, html) {
+    if (pts.size) return;
+    tip.innerHTML = html; tip.style.display = "block";
+    var x = e.clientX + 14, y = e.clientY + 14;
+    if (x + tip.offsetWidth > innerWidth) x = e.clientX - tip.offsetWidth - 10;
+    if (y + tip.offsetHeight > innerHeight) y = e.clientY - tip.offsetHeight - 10;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  function hideTip() { tip.style.display = "none"; }
+  function hoverable(node, html) {
+    node.addEventListener("pointerenter", function (e) { if (e.pointerType === "mouse") showTip(e, html()); });
+    node.addEventListener("pointermove", function (e) { if (e.pointerType === "mouse" && tip.style.display === "block") showTip(e, html()); });
+    node.addEventListener("pointerleave", hideTip);
+  }
+
+  // ---------- settlements ----------
+  function sLive(s) { return (live && live.sIndex[s.id]) || null; }
+  function sFaction(s) { var l = sLive(s); return l ? { id: l.f, name: l.factionName, color: l.color, clan: l.clan } : { id: s.factionId, name: s.factionName, color: s.color, clan: s.clanName }; }
+  function lordsInside(s) { return live ? live.parties.filter(function (p) { return p.inside === s.id; }) : []; }
+  function settlementTip(s) {
+    var l = sLive(s), bits = [];
+    if (l && l.garrison != null) bits.push("гарнизон " + num(l.garrison));
+    if (l && l.militia != null) bits.push("ополчение " + num(l.militia));
+    if (l && l.siege) bits.push("в осаде");
+    return "<b>" + text(s.name) + "</b><small>" + KIND[s.kind] + " · " + text(sFaction(s).name || "") +
+      (bits.length ? "<br>" + bits.join(" · ") : "") + "</small>";
+  }
+  function settlementCard(s) {
+    var l = sLive(s), f = sFaction(s), h = "<h2>" + text(s.name) + "</h2>";
+    if (l && l.siege) h += '<span class="tag warn">В осаде</span>';
+    if (l && (l.raided === "Looted" || l.raided === "BeingRaided")) h += '<span class="tag warn">' + (l.raided === "Looted" ? "Разорена" : "Грабят") + "</span>";
+    var rows = [["Тип", KIND[s.kind]], ["Королевство", f.name], ["Владелец", f.clan], ["Относится к", s.boundName]];
+    if (l && l.garrison != null) rows.push(["Гарнизон", num(l.garrison)]);
+    if (l && l.militia != null) rows.push(["Ополчение", num(l.militia)]);
+    h += rows.filter(function (r) { return r[1]; }).map(function (r) { return '<div class="row">' + r[0] + ": <b>" + text(r[1]) + "</b></div>"; }).join("");
+    var inside = lordsInside(s);
+    if (inside.length) h += '<div class="row" style="margin-top:6px">Внутри:</div><ul>' + inside.map(function (p) {
+      return '<li data-p="' + text(p.id) + '">' + (p.login ? "★ " : "") + text(p.login || p.hero || p.name) + " · " + num(p.men) + "</li>"; }).join("") + "</ul>";
+    if (!live) h += '<div class="row" style="margin-top:6px">Гарнизон появится, когда игра пришлёт живые данные.</div>';
+    return h;
+  }
+
+  // ---------- parties ----------
+  function partyTitle(p) { return p.login ? p.login + " (зритель)" : p.main ? (p.hero || "Стример") + " (стример)" : (p.hero || p.name); }
+  function doing(p) {
+    if (p.besieging) return "осаждает " + p.besieging;
+    var verb = DOING[p.behavior];
+    if (verb && p.target && /Settlement$/.test(p.behavior)) return verb + " " + p.target;
+    return verb || null;
+  }
+  function armyMembers(p) { return live.parties.filter(function (m) { return m.armyLeader === p.id && m.id !== p.id; }); }
+  function partyTip(p) {
+    var men = p.armyLeader === p.id && p.armyMen ? "армия " + num(p.armyMen) : num(p.men) + " бойцов";
+    var d = doing(p);
+    return "<b>" + text(partyTitle(p)) + "</b><small>" + text(p.clan || "") + " · " + men + (d ? "<br>" + text(d) : "") + "</small>";
+  }
+  function partyCard(p) {
+    // Viewer heroes are named "[BLink] <login>" in game: show the login, not the tag.
+    var h = "<h2>" + text(p.login || p.hero || p.name) + "</h2>";
+    if (p.login) h += '<span class="tag viewer">Герой зрителя</span>';
+    if (p.main) h += '<span class="tag">Отряд стримера</span>';
+    var rows = [["Клан", p.clan], ["Бойцов", num(p.men) + (p.wounded ? " (ранено " + num(p.wounded) + ")" : "")],
+      ["Пленных", p.prisoners ? num(p.prisoners) : null], ["Сейчас", doing(p)]];
+    if (p.armyLeader === p.id) rows.push(["Армия", (p.armyName || "") + " · " + num(p.armyMen)]);
+    else if (p.armyLeader) rows.push(["В армии", p.armyName]);
+    h += rows.filter(function (r) { return r[1]; }).map(function (r) { return '<div class="row">' + r[0] + ": <b>" + text(r[1]) + "</b></div>"; }).join("");
+    if (p.armyLeader === p.id) {
+      var m = armyMembers(p);
+      if (m.length) h += '<div class="row" style="margin-top:6px">В армии:</div><ul>' + m.map(function (x) {
+        return "<li>" + (x.login ? "★ " : "") + text(x.login || x.hero || x.name) + " · " + num(x.men) + "</li>"; }).join("") + "</ul>";
+    }
+    return h;
+  }
+  function partyKind(p) { return p.login || p.main ? "viewer" : "lord"; }
+  function drawParties() {
+    if (partyLayer) partyLayer.remove();
+    partyLayer = el("g", {}, svg); partyEls = [];
+    labels = labels.filter(function (l) { if (l.party) { l.el.remove(); return false; } return true; });
+    var t = data.transform;
+    // In a town or marching inside someone's army -> listed in that card, not drawn on its own.
+    var drawn = live.parties.filter(function (p) { return !p.inside && (!p.armyLeader || p.armyLeader === p.id); });
+    drawn.sort(function (a, b) { return (partyKind(a) === "viewer") - (partyKind(b) === "viewer"); });
+    drawn.forEach(function (p) {
+      var x = t.ax * p.x + t.bx, y = t.ay * p.y + t.by, kind = partyKind(p);
+      var size = p.main ? 1.5 : kind === "viewer" ? 1.3 : p.armyLeader ? 1.25 : 1;
+      var g = el("g", {}, partyLayer);
+      var shape = el("path", { d: "M0,-7 L6,5 L-6,5 Z", fill: safeColor(p.color),
+        "class": "p" + (kind === "viewer" ? (p.main ? " main" : " viewer") : "") }, g);
+      var item = { p: p, el: g, shape: shape, x: x, y: y, size: size, kind: kind };
+      hoverable(shape, function () { return partyTip(p); });
+      shape.addEventListener("click", function (e) { if (!moved) { e.stopPropagation(); select(item); } });
+      partyEls.push(item);
+      if (kind === "viewer") {
+        var lbl = el("text", { "class": "lbl viewer" }, svg);
+        lbl.textContent = p.login || p.hero || "стример"; labels.push({ s: { x: x, y: y }, el: lbl, party: kind });
+      }
+    });
+  }
+
+  // ---------- selection & filters ----------
+  function select(item) {
+    selected = item;
+    var body = item.p ? partyCard(item.p) : settlementCard(item.s);
+    document.getElementById("cardBody").innerHTML = body;
     document.getElementById("card").style.display = "block";
-    marks.forEach(function (m) { m.el.classList.toggle("hit", m.s === s); });
+    marks.forEach(function (m) { m.el.classList.toggle("hit", m === item); });
+    partyEls.forEach(function (x) { x.shape.classList.toggle("hit", x === item); });
+    document.querySelectorAll("#cardBody li[data-p]").forEach(function (li) {
+      li.addEventListener("click", function () {
+        var p = live.parties.filter(function (x) { return x.id === li.dataset.p; })[0];
+        if (p) select({ p: p });
+      });
+    });
   }
   document.querySelector("#card button").addEventListener("click", function () {
-    document.getElementById("card").style.display = "none";
+    document.getElementById("card").style.display = "none"; selected = null;
     marks.forEach(function (m) { m.el.classList.remove("hit"); });
+    partyEls.forEach(function (x) { x.shape.classList.remove("hit"); });
   });
-
   function refresh() {
     marks.forEach(function (m) {
+      var f = sFaction(m.s);
+      m.el.setAttribute("fill", safeColor(f.color));
+      m.el.classList.toggle("siege", !!(sLive(m.s) || {}).siege);
       m.el.style.display = shown[m.s.kind] ? "" : "none";
-      m.el.classList.toggle("dim", factionOn !== null && m.s.factionId !== factionOn);
+      m.el.classList.toggle("dim", factionOn !== null && f.id !== factionOn);
+    });
+    partyEls.forEach(function (x) {
+      x.el.style.display = shown[x.kind] ? "" : "none";
+      x.shape.classList.toggle("dim", factionOn !== null && x.p.f !== factionOn);
     });
     document.querySelectorAll(".f").forEach(function (f) { f.classList.toggle("on", f.dataset.id === factionOn); });
     apply();
@@ -194,25 +337,65 @@
   search.addEventListener("input", function () {
     var q = search.value.trim().toLowerCase(); results.innerHTML = "";
     if (q.length < 2) return;
-    data.settlements.filter(function (s) { return s.name.toLowerCase().indexOf(q) >= 0; }).slice(0, 8)
-      .forEach(function (s) {
-        var d = document.createElement("div"); d.textContent = s.name + " · " + KIND[s.kind];
-        d.addEventListener("click", function () {
-          shown[s.kind] = true; document.querySelector('[data-kind="' + s.kind + '"]').checked = true;
-          refresh(); centerOn(s); showCard(s);
-        });
-        results.appendChild(d);
-      });
+    var hits = data.settlements.filter(function (s) { return s.name.toLowerCase().indexOf(q) >= 0; })
+      .map(function (s) { return { label: s.name + " · " + KIND[s.kind], go: function () {
+        shown[s.kind] = true; document.querySelector('[data-kind="' + s.kind + '"]').checked = true;
+        refresh(); centerOn(s); select(marks.filter(function (m) { return m.s === s; })[0]); } }; });
+    partyEls.forEach(function (x) {
+      var p = x.p, name = ((p.login || "") + " " + (p.hero || "")).toLowerCase();
+      if (name.indexOf(q) >= 0) hits.push({ label: partyTitle(p), go: function () {
+        shown[x.kind] = true; document.querySelector('[data-kind="' + x.kind + '"]').checked = true;
+        refresh(); centerOn(x); select(x); } });
+    });
+    hits.slice(0, 10).forEach(function (h) {
+      var d = document.createElement("div"); d.textContent = h.label; d.addEventListener("click", h.go); results.appendChild(d);
+    });
   });
 
+  // ---------- live data ----------
+  var liveBox = document.getElementById("live");
+  function liveStatus() {
+    if (!live) return;
+    var age = Math.max(0, Math.round(Date.now() / 1000 - live.updatedUnix));
+    var stale = age > STALE_AFTER_S;
+    liveBox.className = stale ? "stale" : "on";
+    liveBox.textContent = stale
+      ? "Игра сейчас не шлёт данные · последние " + (age < 3600 ? Math.round(age / 60) + " мин" : Math.round(age / 3600) + " ч") + " назад"
+      : "Живые данные · " + age + " с назад";
+  }
+  // One timer only. First load always runs (a tab opened in the background still gets
+  // parties); later polls pause while hidden and fire at once when the tab is shown again.
+  var liveTimer = null, liveLoaded = false;
+  function scheduleLive(ms) { clearTimeout(liveTimer); liveTimer = setTimeout(loadLive, ms); }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && data) scheduleLive(0); });
+  function loadLive() {
+    if (document.hidden && liveLoaded) { scheduleLive(LIVE_EVERY_MS); return; }
+    liveLoaded = true;
+    fetch(LIVE_URL, { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (d && d.parties && data.transform) {
+        d.sIndex = {}; (d.settlements || []).forEach(function (s) { d.sIndex[s.id] = s; });
+        live = d; drawParties(); refresh();
+        if (selected) {
+          if (selected.p) { var np = partyEls.filter(function (x) { return x.p.id === selected.p.id; })[0]; if (np) select(np); }
+          else select(selected);
+        }
+      }
+      liveStatus();
+    }).catch(function (e) { console.warn("live layer:", e); }).then(function () { scheduleLive(LIVE_EVERY_MS); });
+  }
+  setInterval(liveStatus, 5000);
+
+  // ---------- build ----------
   function build() {
     W = data.image.width; H = data.image.height;
     svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
     var order = { hideout: 0, village: 1, castle: 2, town: 3 };
     data.settlements.slice().sort(function (a, b) { return order[a.kind] - order[b.kind]; }).forEach(function (s) {
-      var c = el("circle", { cx: s.x, cy: s.y, r: RADIUS[s.kind], fill: s.color, "class": "s" }, svg);
-      c.addEventListener("click", function (e) { if (!moved) { e.stopPropagation(); showCard(s); } });
-      marks.push({ s: s, el: c });
+      var c = el("circle", { cx: s.x, cy: s.y, r: RADIUS[s.kind], fill: safeColor(s.color), "class": "s" }, svg);
+      var item = { s: s, el: c }; byId[s.id] = s;
+      hoverable(c, function () { return settlementTip(s); });
+      c.addEventListener("click", function (e) { if (!moved) { e.stopPropagation(); select(item); } });
+      marks.push(item);
     });
     data.settlements.forEach(function (s) {
       if (!(s.kind in LABEL_AT)) return;
@@ -226,13 +409,13 @@
     data.factions.slice().sort(function (a, b) { return (counts[b.id] || 0) - (counts[a.id] || 0); })
       .forEach(function (f) {
         var d = document.createElement("div"); d.className = "f"; d.dataset.id = f.id;
-        d.innerHTML = '<i style="background:' + text(f.color) + '"></i><span>' + text(f.name) +
+        d.innerHTML = '<i style="background:' + safeColor(f.color) + '"></i><span>' + text(f.name) +
           "</span><em>" + (counts[f.id] || 0) + "</em>";
         d.addEventListener("click", function () { factionOn = factionOn === f.id ? null : f.id; refresh(); });
         box.appendChild(d);
       });
     document.getElementById("msg").remove();
-    fit(); refresh();
+    fit(); refresh(); loadLive();
   }
 
   fetch(DATA_URL).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })

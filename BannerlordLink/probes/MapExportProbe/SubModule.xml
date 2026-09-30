@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Module>
-  <Name value="ShedLink Map Data Probe (manual; photo disabled)" />
+  <Name value="ShedLink Map Data Probe v4 (manual; photo disabled)" />
   <Id value="Shedoy23.MapExportProbe" />
-  <Version value="v0.0.2" />
+  <Version value="v0.0.4" />
   <DefaultModule value="false" />
   <SingleplayerModule value="true" />
   <MultiplayerModule value="false" />

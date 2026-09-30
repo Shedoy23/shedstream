@@ -1,5 +1,14 @@
 <!-- Local integration update 2026-09-30 -->
 
+## 30.09 — интерактивная карта: рисуем из данных, фото не чиним (Claude)
+
+Пробник v4 (`BannerlordLink/probes/MapExportProbe`) выгружает сетку 96×80 + поселения + цвета
+фракций; `render-map.py` рисует по ней картинку. Фото живой карты отложено бессрочно: второй
+SceneView уронил игру, причина в движке не найдена. Ждёт: один прогон v4 в игре (пакет
+`D:/shedlink-build/pending-20260930-mapprobe-v4`). Показ зрителям — только со следующим
+релизом фронта Twitch, до этого нужны спека, проверка правил Twitch и решение, какую механику
+заморозить взамен.
+
 ## 30.09 — фото probe остановлен после native crash; pending data-only проверка
 
 Enable-before-readiness версия `5526ABA0…` дала native AV на включённом втором view; пользователь отключил probe и играет. По поручению исправлять локально подготовлен кандидат без renderer API: capture всегда unsupported; отдельная ручная data-команда экспортирует coarse16×16 grid. Compile exit0, offline14/14; native grid не проверена в игре. Только после нового сигнала и закрытия игры — установка probe-компонента с сохранением текущего автопилота, затем отдельное разрешение на один data export. Photo root cause и фотографический путь не исправлены; никаких слепых повторов, загрузки отдельной сцены или shared-scene setup mutations. [Native evidence/границы вывода/план](BannerlordLink/probes/MapExportProbe/NATIVE_CRASH_REVIEW.md), [инструкция](BannerlordLink/probes/MapExportProbe/README.md).

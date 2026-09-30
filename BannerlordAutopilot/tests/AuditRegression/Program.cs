@@ -1221,6 +1221,19 @@ internal static partial class Program
             Check(TaleWorlds.CampaignSystem.Actions.SellPrisonersAction.TestCalls == 0 && prison.TotalRegulars == 10 && prison.TotalHeroes == 1,
                   "закреплённых игроком грабителей и лорда не продаём и не отпускаем — продажа даже не вызывается");
         });
+        Try("town ransom sells regulars and retains every lord", () =>
+        {
+            var b=Fresh(); var w=MakeWorld();
+            var lord2=new CharacterObject { StringId="lord2", IsHero=true, TestRansom=5000 };
+            var locked=new CharacterObject { StringId="locked_regular", TestRansom=100 };
+            MobileParty.MainParty.PrisonRoster.AddToCounts(lord2,1);
+            MobileParty.MainParty.PrisonRoster.AddToCounts(locked,2);
+            Helpers.MobilePartyHelper.TestLockedIds.Add(locked.StringId);
+            Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();
+            var r=MobileParty.MainParty.PrisonRoster;
+            Check(TaleWorlds.CampaignSystem.Actions.SellPrisonersAction.TestCalls==1 && PrisonerCount(r,w.Looter)==0,"ordinary unlocked prisoners sold");
+            Check(PrisonerCount(r,w.Lord)==1 && PrisonerCount(r,lord2)==1 && PrisonerCount(r,locked)==2,"both lords and locked ordinary stack preserved");
+        });
         Try("повторные опросы", () =>
         {
             var b = Fresh(); var w = MakeWorld(); Enable(b); b.PollState(); ArriveTown(w.Place); b.PollState();

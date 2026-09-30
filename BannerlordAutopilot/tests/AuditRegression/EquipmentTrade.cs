@@ -10,6 +10,34 @@ internal static partial class Program
 {
     static void EquipmentTradeTests()
     {
+        Try("town sells jewelry and hardwood while protecting reserves and locks", () => {
+            Fresh(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;
+            var tracker=new TestViewTracker(); Campaign.Current.Behaviors.Add(tracker);
+            var jewelry=new ItemObject { StringId="jewelry", Name="Украшения", ItemType=ItemObject.ItemTypeEnum.Goods, TestPrice=100 };
+            var hardwood=new ItemObject { StringId="hardwood", Name="Бревна", ItemType=ItemObject.ItemTypeEnum.Goods, TestPrice=10 };
+            var locked=new ItemObject { StringId="locked_goods", ItemType=ItemObject.ItemTypeEnum.Goods, TestPrice=10 };
+            var quest=new ItemObject { StringId="quest_goods", ItemType=ItemObject.ItemTypeEnum.Goods, Quest=true, TestPrice=10 };
+            var special=new ItemObject { StringId="not_merchandise", ItemType=ItemObject.ItemTypeEnum.Goods, NotMerchandise=true, TestPrice=10 };
+            var modifier=new ItemModifier { StringId="fine" }; var lockedElement=new EquipmentElement(locked,modifier);
+            tracker.Locks.Add(locked.StringId+modifier.StringId);
+            p.ItemRoster.TestAdd(jewelry,2); p.ItemRoster.TestAdd(hardwood,3); p.ItemRoster.AddToCounts(lockedElement,1);
+            p.ItemRoster.TestAdd(quest,1); p.ItemRoster.TestAdd(special,1); p.ItemRoster.TestAdd(w.Grain,20);
+            int gold=Hero.MainHero.Gold;
+            EquipmentAndTrade.Sell(p,w.Place);
+            Check(p.ItemRoster.TestCount(jewelry)==0 && p.ItemRoster.TestCount(hardwood)==0 && Hero.MainHero.Gold==gold+230,
+                  "jewelry and hardwood sold at native market prices");
+            Check(p.ItemRoster.TestCount(quest)==1 && p.ItemRoster.TestCount(special)==1 && p.ItemRoster.GetElementNumber(p.ItemRoster.FindIndexOfElement(lockedElement))==1 && p.ItemRoster.TestCount(w.Grain)==20,
+                  "quest goods, exact modified lock, nonmerchandise and food reserves retained");
+        });
+        Try("overload made of trade goods routes to an affordable town", () => {
+            Fresh(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;
+            Campaign.Current.Behaviors.Add(new TestViewTracker()); Settlement.All.Add(w.Place);
+            var hardwood=new ItemObject { StringId="hardwood", ItemType=ItemObject.ItemTypeEnum.Goods, TestPrice=10 };
+            p.ItemRoster.TestAdd(hardwood,8); p.TotalWeightCarried=p.InventoryCapacity;
+            Check(EquipmentAndTrade.FindUnloadingTown(p,s=>true)==w.Place,"trade goods make unloading eligible");
+            w.Place.TestGold=9;
+            Check(EquipmentAndTrade.FindUnloadingTown(p,s=>true)==null,"no unloading trip when merchant cannot pay even one log");
+        });
         foreach (string condition in new[] { "full", "room", "food", "locked", "observe", "no_cash" })
         Try("sell trip " + condition, () => {
             var b=Fresh(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;

@@ -31,6 +31,7 @@ internal static partial class Program
         var logic=new PartyScreenLogic {RightPartyPrisonersSizeLimit=capacity};
         logic.CurrentData.RightPrisonerRoster.AddToCounts(character,existing);
         var vm=new PartyVM(logic);
+        if (existing > 0) vm.MainPartyPrisoners.Add(new PartyCharacterVM { Side=PartyScreenLogic.PartyRosterSide.Right, Troop=new TroopRosterElement { Character=character, Number=existing } });
         vm.OtherPartyPrisoners.Add(new PartyCharacterVM {Troop=new TroopRosterElement {Character=character,Number=21,WoundedNumber=21}});
         var state=new PartyState {PartyScreenLogic=logic,PartyScreenMode=loot ? Helpers.PartyScreenHelper.PartyScreenMode.Loot : Helpers.PartyScreenHelper.PartyScreenMode.Normal};
         state.Handler=new SandBox.GauntletUI.GauntletPartyScreen(vm);
@@ -39,6 +40,69 @@ internal static partial class Program
     }
     static void PrisonerTests()
     {
+        Try("lords take priority over a full prisoner roster", () => {
+            var b=Surrender(); var vm=PrisonerScreen(6,5);
+            var oldLord=new CharacterObject { StringId="old_lord", IsHero=true };
+            var lord1=new CharacterObject { StringId="new_lord_1", IsHero=true };
+            var lord2=new CharacterObject { StringId="new_lord_2", IsHero=true };
+            AddOwnPrisoner(vm,oldLord,1);
+            AddLeftPrisoner(vm,lord1,1); AddLeftPrisoner(vm,lord2,1);
+            for(int i=0;i<20;i++) b.PollState();
+            var r=MobileParty.MainParty.PrisonRoster;
+            Check(vm.Closed==1 && r.TotalManCount==6 && r.TotalRegulars==3,"full roster trimmed to capacity after taking lords");
+            Check(PrisonerCount(r,oldLord)==1 && PrisonerCount(r,lord1)==1 && PrisonerCount(r,lord2)==1,"every old and new lord retained");
+        });
+        Try("over capacity: release weakest regular prisoners first", () => {
+            var b=Surrender(); var vm=PrisonerScreen(5,0); vm.OtherPartyPrisoners.Clear();
+            var weak=new CharacterObject { StringId="weak", Tier=1 };
+            var veteran=new CharacterObject { StringId="veteran", Tier=5 };
+            var lord=new CharacterObject { StringId="lord", IsHero=true };
+            AddOwnPrisoner(vm,veteran,4,1); AddOwnPrisoner(vm,lord,1); AddOwnPrisoner(vm,weak,3,2);
+            for(int i=0;i<20;i++) b.PollState();
+            var r=MobileParty.MainParty.PrisonRoster;
+            Check(vm.Closed==1 && r.TotalManCount==5 && PrisonerCount(r,weak)==0 && PrisonerCount(r,veteran)==4,"only three weakest prisoners released");
+            Check(PrisonerCount(r,lord)==1 && r.TotalWounded==1,"lord retained and veteran wounds preserved");
+        });
+        Try("collect lords then strongest regulars within capacity", () => {
+            var b=Surrender(); var vm=PrisonerScreen(3,0);
+            var elite=new CharacterObject { StringId="elite", Tier=6 };
+            var lord=new CharacterObject { StringId="lord", IsHero=true };
+            AddLeftPrisoner(vm,elite,4,4); AddLeftPrisoner(vm,lord,1);
+            for(int i=0;i<20;i++) b.PollState();
+            var r=MobileParty.MainParty.PrisonRoster;
+            Check(vm.Closed==1 && r.TotalManCount==3 && PrisonerCount(r,lord)==1 && PrisonerCount(r,elite)==2,"lord first, remaining two places filled by elites");
+            Check(r.TotalWounded==2,"collected elites remain wounded");
+        });
+        Try("lords alone above capacity are never released", () => {
+            var b=Surrender(); var vm=PrisonerScreen(0,0); vm.OtherPartyPrisoners.Clear();
+            var lord1=new CharacterObject { StringId="lord1", IsHero=true };
+            var lord2=new CharacterObject { StringId="lord2", IsHero=true };
+            var lord3=new CharacterObject { StringId="lord3", IsHero=true };
+            AddOwnPrisoner(vm,lord1,1); AddOwnPrisoner(vm,lord2,1); AddLeftPrisoner(vm,lord3,1);
+            for(int i=0;i<20;i++) b.PollState();
+            var r=MobileParty.MainParty.PrisonRoster;
+            Check(vm.Closed==1 && r.TotalHeroes==3 && PrisonerCount(r,lord3)==1,"all lords kept even when native capacity is zero");
+            Check(b.CurrentMode==AutopilotBehavior.Mode.Apply && LogCount("лимит недостижим") == 1,"unavoidable excess reported once without disabling");
+        });
+        Try("locked weak prisoners retained when trimming", () => {
+            var b=Surrender(); var vm=PrisonerScreen(3,0); vm.OtherPartyPrisoners.Clear();
+            var weak=new CharacterObject { StringId="locked", Tier=1 };
+            var veteran=new CharacterObject { StringId="veteran", Tier=5 };
+            var lord=new CharacterObject { StringId="lord", IsHero=true };
+            AddOwnPrisoner(vm,weak,2,locked:true); AddOwnPrisoner(vm,veteran,2); AddOwnPrisoner(vm,lord,1);
+            for(int i=0;i<20;i++) b.PollState();
+            var r=MobileParty.MainParty.PrisonRoster;
+            Check(vm.Closed==1 && r.TotalManCount==3 && PrisonerCount(r,weak)==2 && PrisonerCount(r,veteran)==0 && PrisonerCount(r,lord)==1,"player lock preserved; other regulars released");
+        });
+        foreach(bool transferable in new[]{true,false}) Try("native release permission/no-op respected " + transferable, () => {
+            var b=Surrender(); var vm=PrisonerScreen(2,4); vm.OtherPartyPrisoners.Clear();
+            vm.MainPartyPrisoners[0].IsTroopTransferrable=transferable;
+            vm.NoRelease=transferable;
+            for(int i=0;i<6;i++) b.PollState();
+            Check(transferable ? vm.TransferCalls==1 && vm.Closed==0 && b.CurrentMode==AutopilotBehavior.Mode.Off
+                               : vm.TransferCalls==0 && vm.Closed==1 && MobileParty.MainParty.PrisonRoster.TotalManCount==4,
+                  "failed release stops once; native forbidden release is never forced " + transferable);
+        });
         foreach (int free in new[] { 0, 2, 10 }) Try("rescued soldiers " + free, () => {
             var b=Surrender(); var vm=PrisonerScreen(50,0);
             vm.PartyScreenLogic.RightPartyMembersSizeLimit=8+free;
@@ -122,15 +186,25 @@ internal static partial class Program
             b.PollState();
             Check(vm.TransferCalls==0 && vm.Closed==1,"недоступный пленный не переносится принудительно");
         });
-        foreach (string boundary in new[]{"normal","foreign","inquiry","off"}) Try("граница пленных "+boundary,()=>{
+        foreach (string boundary in new[]{"normal","foreign","inquiry","off","observe"}) Try("граница пленных "+boundary,()=>{
             var b=Surrender(); var vm=PrisonerScreen(50,0,boundary!="normal");
             if(boundary=="foreign") PlayerEncounter.Current=new PlayerEncounter();
             if(boundary=="inquiry") InformationManager.TestInquiryActive=true;
             if(boundary=="off") b.Disable("test");
+            if(boundary=="observe") { b.Disable("test"); Enable(b,AutopilotBehavior.Mode.Observe); }
             b.PollState();
             Check(vm.Closed==0 && vm.PartyScreenLogic.CurrentData.RightPrisonerRoster.TotalManCount==0,"чужой экран/модалка/F12 не трогаются: "+boundary);
         });
     }
+    static int PrisonerCount(TroopRoster roster, CharacterObject troop) => roster.GetTroopRoster().Where(t=>t.Character==troop).Sum(t=>t.Number);
+    static void AddOwnPrisoner(PartyVM vm, CharacterObject character, int count, int wounded=0, bool locked=false)
+    {
+        vm.PartyScreenLogic.CurrentData.RightPrisonerRoster.AddToCounts(character,count,false,wounded);
+        vm.MainPartyPrisoners.Add(new PartyCharacterVM { Side=PartyScreenLogic.PartyRosterSide.Right, IsLocked=locked,
+            Troop=new TroopRosterElement { Character=character, Number=count, WoundedNumber=wounded } });
+    }
+    static void AddLeftPrisoner(PartyVM vm, CharacterObject character, int count, int wounded=0) =>
+        vm.OtherPartyPrisoners.Add(new PartyCharacterVM { Troop=new TroopRosterElement { Character=character, Number=count, WoundedNumber=wounded } });
 }
 namespace Helpers { public static class PartyScreenHelper { public enum PartyScreenMode {Normal,Loot} } }
 namespace TaleWorlds.CampaignSystem.GameState {
@@ -150,28 +224,34 @@ namespace SandBox.GauntletUI {
  public class GauntletPartyScreen {private readonly PartyVM _dataSource; public GauntletPartyScreen(PartyVM vm){_dataSource=vm;} }
 }
 namespace TaleWorlds.CampaignSystem.ViewModelCollection.Party {
- public class PartyCharacterVM {public TroopRosterElement Troop {get;set;} public bool IsTroopTransferrable {get;set;}=true; public PartyScreenLogic.PartyRosterSide Side=PartyScreenLogic.PartyRosterSide.Left;}
+ public class PartyCharacterVM {public TroopRosterElement Troop {get;set;} public bool IsTroopTransferrable {get;set;}=true; public bool IsLocked {get;set;} public PartyScreenLogic.PartyRosterSide Side=PartyScreenLogic.PartyRosterSide.Left;}
  public class PartyVM {
   public PartyScreenLogic PartyScreenLogic {get;} public List<PartyCharacterVM> OtherPartyPrisoners {get;}=new();
   public List<PartyCharacterVM> OtherPartyTroops {get;}=new();
   public List<PartyCharacterVM> MainPartyTroops {get;}=new();
+  public List<PartyCharacterVM> MainPartyPrisoners {get;}=new();
   public bool NoRelease;
   public bool IsAnyPopUpOpen {get;set;} public int Closed,Confirmed;
   public bool ForeignQuery,NoTransfer; public int ForeignAccepted,TransferCalls;
   public PartyVM(PartyScreenLogic logic){PartyScreenLogic=logic;}
   private void OnTransferTroop(PartyCharacterVM troop,int index,int count,PartyScreenLogic.PartyRosterSide side){
    TransferCalls++; if(NoTransfer)return;
-   if(side==PartyScreenLogic.PartyRosterSide.Right){ // наш боец — влево (отпустить)
+   bool prisoner=OtherPartyPrisoners.Contains(troop)||MainPartyPrisoners.Contains(troop);
+   if(side==PartyScreenLogic.PartyRosterSide.Right){ // наш боец/пленный — влево (отпустить)
     if(NoRelease)return;
-    var m=troop.Troop; m.Number-=count; troop.Troop=m;
-    PartyScreenLogic.CurrentData.RightMemberRoster.AddToCounts(m.Character,-count);
-    OtherPartyTroops.Add(new PartyCharacterVM {Troop=new TroopRosterElement {Character=m.Character,Number=count}});
+    var m=troop.Troop; int wounds=Math.Min(m.WoundedNumber,count); m.Number-=count; m.WoundedNumber-=wounds; troop.Troop=m;
+    (prisoner ? PartyScreenLogic.CurrentData.RightPrisonerRoster : PartyScreenLogic.CurrentData.RightMemberRoster).AddToCounts(m.Character,-count,false,-wounds);
+    (prisoner ? OtherPartyPrisoners : OtherPartyTroops).Add(new PartyCharacterVM {Troop=new TroopRosterElement {Character=m.Character,Number=count,WoundedNumber=wounds}});
     return;
    }
    var e=troop.Troop; int wounded=Math.Min(e.WoundedNumber,count); e.Number-=count;e.WoundedNumber-=wounded;troop.Troop=e;
    (OtherPartyTroops.Contains(troop) ? PartyScreenLogic.CurrentData.RightMemberRoster : PartyScreenLogic.CurrentData.RightPrisonerRoster).Add(new TroopRosterElement {Character=e.Character,Number=count,WoundedNumber=wounded});
+   var own=prisoner ? MainPartyPrisoners : MainPartyTroops;
+   var present=own.FirstOrDefault(t=>t.Troop.Character==e.Character);
+   if(present==null) own.Add(new PartyCharacterVM {Side=PartyScreenLogic.PartyRosterSide.Right,Troop=new TroopRosterElement {Character=e.Character,Number=count,WoundedNumber=wounded}});
+   else { var updated=present.Troop; updated.Number+=count; updated.WoundedNumber+=wounded; present.Troop=updated; }
   }
-  public void ExecuteRemoveZeroCounts(){OtherPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);OtherPartyTroops.RemoveAll(t=>t.Troop.Number==0);MainPartyTroops.RemoveAll(t=>t.Troop.Number==0);}
+  public void ExecuteRemoveZeroCounts(){OtherPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);OtherPartyTroops.RemoveAll(t=>t.Troop.Number==0);MainPartyTroops.RemoveAll(t=>t.Troop.Number==0);MainPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);}
   public void ExecuteDone(){
    if(ForeignQuery){InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=()=>ForeignAccepted++});return;}
    if(OtherPartyPrisoners.Any(t=>t.Troop.Number>0)) InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=CloseScreenInternal});

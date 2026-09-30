@@ -840,4 +840,3 @@ Probe со вторым SceneView на живой campaign Scene вызвал na
 контракт UI texture consumer, render state и безопасное shared-scene ownership.
 Без symbolized stack не объявлять root cause найденной; крашащий путь блокировать,
 data-only fallback называть отдельно, фотографию не считать исправленной.
-

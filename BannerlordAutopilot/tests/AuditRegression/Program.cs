@@ -299,6 +299,7 @@ internal static partial class Program
         BanditGatheringTests();
         DeserterGatheringTests();
         LordGatheringTests();
+        PatrolEncounterTests();
         ProgressTests();
         Try("random default and lord introduction", () => {
             var b=Fresh(); b.RandomDialogsEnabled=new AutopilotBehavior().RandomDialogsEnabled; Enable(b);

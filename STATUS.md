@@ -1,3 +1,5 @@
+**30.09 — siege/map комплект установлен после сигнала о закрытии игры.** Только четыре whitelist-файла; конечные SHA совпали. Autopilot6360E79A/probe1A657268, Link/launcher/settings неизменны, игра/экспорт не запускались. [Installation proof](BannerlordAutopilot/evidence/siege-map-candidate-20260930/installation-proof.json). Probe включается вручную после Sandbox; live-проверка остаётся.
+
 **30.09 — общий siege/map candidate подготовлен, не установлен.** Integration source e1c5845; Release 0/0, Contract512/512, focused232/0, probe compile0. Точные backups/hash/rollback manifest готовы, installed drift отсутствует. Пакет заменяет только AutopilotDLL/PDB и добавляет самостоятельный manual probe. Установка ждёт сигнала о закрытии игры; runtime ещё не проверен. [Отчёт](BannerlordAutopilot/review/SIEGE_MAP_CANDIDATE_2026-09-30.md).
 
 <!-- Local integration update 2026-09-30 -->

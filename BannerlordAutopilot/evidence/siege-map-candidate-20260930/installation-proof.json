@@ -1,0 +1,45 @@
+{
+  "status": "INSTALLED_HASH_VERIFIED",
+  "installed_utc": "2026-09-30T11:02:57.1714285Z",
+  "source_sha": "e1c584512e0194279cf595524caa56f3fe65b276",
+  "integration_handoff_sha": "1d9cdfb6a8b0b5830223b52ced2d32859c0b47b7",
+  "files": [
+    {
+      "relative_path": "Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.dll",
+      "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.dll",
+      "sha256": "6360E79A68CCA000A1258B23BED5477BF0B003BEC8D7D04530D7F6F4D3DD2078",
+      "length": 284160
+    },
+    {
+      "relative_path": "Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.pdb",
+      "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.pdb",
+      "sha256": "C8BD08961789B27ECA3D064AC8F6EF2FF38A4379FAD555A2C889123756FE0DC3",
+      "length": 64384
+    },
+    {
+      "relative_path": "Shedoy23.MapExportProbe\\SubModule.xml",
+      "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.MapExportProbe\\SubModule.xml",
+      "sha256": "484C6C6F782FF0AAFAE5A12DBA501A8144445CBE3A0BA5744EA58AC21DE0AEE4",
+      "length": 753
+    },
+    {
+      "relative_path": "Shedoy23.MapExportProbe\\bin\\Win64_Shipping_Client\\ShedLink.MapExportProbe.dll",
+      "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.MapExportProbe\\bin\\Win64_Shipping_Client\\ShedLink.MapExportProbe.dll",
+      "sha256": "1A6572682EFCBD2A821743D5762D627E45B91DBA233C3768A4C7180E52E4A193",
+      "length": 18432
+    }
+  ],
+  "rollback_manifest": "C:\\Users\\Edward\\Documents\\Codex\\2026-09-30\\task-4\\staging-siege-map-20260930\\rollback-manifest.json",
+  "link_dll_sha256": "1561AF9C87BA0B53869C726735168EFF2CD5C8C9B51DDD48A54459A82AF28F4F",
+  "link_changed": false,
+  "launcher_settings_changed": false,
+  "game_started_by_agent": false,
+  "probe_capture_run": false,
+  "probe_display_name": "ShedLink Map Export Probe (manual, experimental)",
+  "probe_dependencies": [
+    "Native",
+    "SandBoxCore",
+    "Sandbox"
+  ],
+  "probe_command": "shedmap_probe.capture confirm-after-stream"
+}

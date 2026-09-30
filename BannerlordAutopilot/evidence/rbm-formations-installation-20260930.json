@@ -1,0 +1,35 @@
+{
+  "installed_at": "2026-09-30T10:29:32.2093322+05:00",
+  "source_commit": "9c1ac0a802cd34ada3f041e11ad87249692eeafc",
+  "package": "D:\\shedlink-build\\pending-20260930-rbm-formations",
+  "rollback": "D:\\shedlink-build\\dll-rollback\\20260930-102931-531-rbm-formations",
+  "files": [
+    {
+      "Name": "RBMAI.dll",
+      "SHA256": "4E1C81A486D22483CCD3855680B19145581800DB6914431E204EA1D5CF3E05CB",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\RBM\\bin\\Win64_Shipping_Client\\RBMAI.dll",
+      "ExpectedInstalledSHA256": "0343E69EAB838EFC0B27AAB06625F53B9CC925B2B7D6BE212B11134F29955818"
+    },
+    {
+      "Name": "RBMAI.pdb",
+      "SHA256": "FF6811947F33BCFF6CAB7C2F57BF31FF89CBC9B0B1B9AA8325B6DDDB04D5202C",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\RBM\\bin\\Win64_Shipping_Client\\RBMAI.pdb",
+      "ExpectedInstalledSHA256": "A0978B104F013A54E2DEAE4F1C0EDC4730C9214D85A59A04845B76F51FF9A476"
+    }
+  ],
+  "tests": {
+    "HighGroundRegression": 12,
+    "FlankRegression": 16,
+    "MeleeRegression": 78,
+    "AiSafetyRegression": 65,
+    "RegistrationRegression": 2
+  },
+  "build": {
+    "Errors": 0,
+    "Warnings": 17
+  },
+  "hashes_match": true,
+  "other_module_files_unchanged": 129,
+  "game_started": false,
+  "live_game_verified": false
+}

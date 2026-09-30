@@ -29,6 +29,7 @@ internal static partial class Program
         Try("recovery selects nearest peaceful fort instead of another fight", () => {
             var (b, enemy)=HuntWorld(men:100); var p=MobileParty.MainParty;
             Hero.MainHero.IsWounded=true;
+            p.ItemRoster.TestAdd(new TaleWorlds.Core.ItemObject { IsFood=true },100);
             var unsafeTown=new Settlement { Name="besieged", IsTown=true, IsUnderSiege=true, MapFaction=p.MapFaction, Position=new CampaignVec2 { X=1 } };
             var near=new Settlement { Name="safe near", IsCastle=true, MapFaction=p.MapFaction, Position=new CampaignVec2 { X=5 } };
             var far=new Settlement { Name="safe far", IsTown=true, MapFaction=p.MapFaction, Position=new CampaignVec2 { X=15 } };
@@ -38,6 +39,7 @@ internal static partial class Program
         });
         Try("recovery wait releases at 70%, not full healing", () => {
             var (b, enemy)=HuntWorld(men:100); var p=MobileParty.MainParty;
+            p.ItemRoster.TestAdd(new TaleWorlds.Core.ItemObject { IsFood=true },100);
             var troop=p.MemberRoster.GetTroopRoster().First().Character;
             p.MemberRoster.AddToCounts(troop,0,woundedCount:31);
             var town=ArriveTown(new Settlement { Name="heal", IsTown=true, MapFaction=p.MapFaction });
@@ -49,6 +51,19 @@ internal static partial class Program
             p.MemberRoster.AddToCounts(troop,0,woundedCount:-1);
             HourlyTick(b); b.PollState();
             Check(p.CurrentSettlement==null && p.TargetSettlement==next,"70% healthy resumes without waiting for 100%");
+        });
+        Try("recovery food route escapes old post-battle rest", () => {
+            var (b, enemy)=HuntWorld(men:100); var p=MobileParty.MainParty;
+            Hero.MainHero.IsWounded=true; p.FoodChange=-5;
+            var town=new Settlement { Name="food after battle", IsTown=true, MapFaction=p.MapFaction, Position=new CampaignVec2 { X=10 } };
+            town.ItemRoster.TestAdd(new TaleWorlds.Core.ItemObject { IsFood=true },100);
+            Settlement.All.Add(town);
+            var castle=ArriveTown(new Settlement { Name="starving rest", IsCastle=true, MapFaction=p.MapFaction });
+            typeof(AutopilotBehavior).GetField("_postBattleRestPending",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(b,true);
+            b.PollState(); b.PollState();
+            HourlyTick(b); b.PollState(); b.PollState();
+            Check(p.CurrentSettlement==null && p.TargetSettlement==town,
+                "post-battle timer does not erase departure for food while recovering");
         });
         Try("recovery hungry castle routes to food town", () => {
             var (b, enemy)=HuntWorld(men:100); var p=MobileParty.MainParty;

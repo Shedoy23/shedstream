@@ -1,3 +1,7 @@
+## 30.09 — отдельный диагностический экспорт карты, локальная подготовка
+
+Исходник, ручной запуск, build и границы доказанного находятся в [Map Export Probe](../../BannerlordLink/probes/MapExportProbe/README.md). Основной Link не изменён; runtime-проверка отложена в корневой DEFERRED.
+
 ## 30.09.2026 12:56 — наследник/сундук и автопилот установлены
 
 Link87ad486f/DLL1561AF9C… и Autopilot8874c1bc/DLL8A35C0AD… установлены; backend только2файла, health/dbok, новый код активирован перезапуском. Fresh SQLite integrityok и откаты сохранены. Twitch-фронт/ZIP не менялись. Тесты53/0+79, Autopilot1019/0+Contract512,7сценариев свежего backend/frozen_client зелёные. В живой игре проверить после загрузки Вольга/fikoos418 и полный плен/патруль. False-fief-history8/9/10 пока не правилась. Подробности `docs/HEIR_PRISONERS_DEPLOYED_2026-09-30.md`.

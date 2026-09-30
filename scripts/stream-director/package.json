@@ -1,0 +1,7 @@
+{
+  "name": "shedlink-stream-director",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": { "test": "node --test tests/*.test.mjs" }
+}

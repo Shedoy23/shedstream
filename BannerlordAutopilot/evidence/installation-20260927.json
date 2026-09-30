@@ -1,0 +1,50 @@
+{
+  "InstalledAt": "2026-09-27T00:22:09.7813372+05:00",
+  "Rollback": "D:\\shedlink-build\\dll-rollback\\20260927-002207-campaign-rbm",
+  "Files": [
+    {
+      "Source": "D:\\shedlink-build\\pending-20260926-campaign-stability\\BannerlordAutopilot.dll",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.dll",
+      "Backup": "D:\\shedlink-build\\dll-rollback\\20260927-002207-campaign-rbm\\Shedoy23.BannerlordAutopilot\\BannerlordAutopilot.dll",
+      "OldHash": "DA1A49012911CFAC6B1D7764813FFC1512C91E03BD182B95062B06891D49DDE5",
+      "NewHash": "FA91F9F8D6F6D7084EFE7DBC739A902F3ABB65B75152311907F032BAF5DABDE8"
+    },
+    {
+      "Source": "D:\\shedlink-build\\pending-20260926-campaign-stability\\BannerlordAutopilot.pdb",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.pdb",
+      "Backup": "D:\\shedlink-build\\dll-rollback\\20260927-002207-campaign-rbm\\Shedoy23.BannerlordAutopilot\\BannerlordAutopilot.pdb",
+      "OldHash": "4BE42EF52C2A3AC99D963F8B1BE555515E34705CCEE26AD64E63E6CDD1C6B16C",
+      "NewHash": "04917F2CB52FBC35EF40150750EF5E9FBE3AC6D941BCA9EE3442E483471531B5"
+    },
+    {
+      "Source": "D:\\shedlink-build\\pending-20260926-campaign-stability\\BannerlordLink.dll",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordLink\\bin\\Win64_Shipping_Client\\BannerlordLink.dll",
+      "Backup": "D:\\shedlink-build\\dll-rollback\\20260927-002207-campaign-rbm\\Shedoy23.BannerlordLink\\BannerlordLink.dll",
+      "OldHash": "37638886F9CA5D516E995E06851E665F1405A510C53441FF83DC01EA73200614",
+      "NewHash": "2AF6FF4ABA19ACB55EF41E2D3B3D77D051CBBC63E56F8FDDFC0D618721B15FB1"
+    },
+    {
+      "Source": "D:\\shedlink-build\\pending-20260926-campaign-stability\\BannerlordLink.pdb",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordLink\\bin\\Win64_Shipping_Client\\BannerlordLink.pdb",
+      "Backup": "D:\\shedlink-build\\dll-rollback\\20260927-002207-campaign-rbm\\Shedoy23.BannerlordLink\\BannerlordLink.pdb",
+      "OldHash": "8AD6F7E89673D4B9765F2F89C714D4FED77F68032733415B89AB92CC761A4B3F",
+      "NewHash": "87EB5E5064BB6305AF3F0A336E9EAFDA6D573EB6FF41334626149DE6776A92FB"
+    },
+    {
+      "Source": "D:\\shedlink-build\\pending-20260927-rbm-safety\\RBMAI.dll",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\RBM\\bin\\Win64_Shipping_Client\\RBMAI.dll",
+      "Backup": "D:\\shedlink-build\\dll-rollback\\20260927-002207-campaign-rbm\\RBM\\RBMAI.dll",
+      "OldHash": "E0ADEA01918C0E5995DC1C2C6F793210A80DCCE0D76797B217F9E84715C2D6C9",
+      "NewHash": "0343E69EAB838EFC0B27AAB06625F53B9CC925B2B7D6BE212B11134F29955818"
+    },
+    {
+      "Source": "D:\\shedlink-build\\pending-20260927-rbm-safety\\RBMAI.pdb",
+      "Destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\RBM\\bin\\Win64_Shipping_Client\\RBMAI.pdb",
+      "Backup": "D:\\shedlink-build\\dll-rollback\\20260927-002207-campaign-rbm\\RBM\\RBMAI.pdb",
+      "OldHash": "4DB31D9945D9589DC6E4D573EDC6BAC2DA0ED544C611A1E14C63139A0D704BDB",
+      "NewHash": "A0978B104F013A54E2DEAE4F1C0EDC4730C9214D85A59A04845B76F51FF9A476"
+    }
+  ],
+  "ConfigHash": "C8AA1D7F15E4D1372FDF9FEBEBED8B2F5EE57CDABCB5EE622DC89470FBA83B13",
+  "LiveGameplayVerified": false
+}

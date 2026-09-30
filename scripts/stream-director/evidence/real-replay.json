@@ -1,0 +1,22 @@
+{
+  "episodes": 135,
+  "sieges": 13,
+  "video_timestamps": 0,
+  "golden_siege": {
+    "start": "2026-09-26T11:23:23.000Z",
+    "end": "2026-09-26T11:32:59.556Z",
+    "participants": 15,
+    "enemyStart": 344,
+    "outcome": "victory"
+  },
+  "inputs": [
+    {
+      "name": "autopilot_20260926.txt",
+      "sha256": "fe392e48fcc3d3eee65010c903dc23c44c1f2f3f911381bfdad9fb46b232aa93"
+    },
+    {
+      "name": "bannerlordlink_20260926.txt",
+      "sha256": "8d1a76f56c7d63f6cd14a4cfe3de3b2f05d37a04f53ac1fe2ab5edf5f0b92b4e"
+    }
+  ]
+}

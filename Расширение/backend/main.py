@@ -1585,6 +1585,15 @@ async def run_migrations():
         from migrations import m132_module_actions_recent_index
         await m132_module_actions_recent_index.apply(conn)
 
+        from migrations import m129_pet_companions
+        await m129_pet_companions.apply(conn)
+
+        from migrations import m130_pet_fantasy
+        await m130_pet_fantasy.apply(conn)
+
+        from migrations import m133_pet_legacy_common
+        await m133_pet_legacy_common.apply(conn)
+
         print("✅ Migrations complete")
 
 

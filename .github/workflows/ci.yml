@@ -56,10 +56,10 @@ jobs:
           python scripts/validate-installation-manifests.py
           python scripts/test-installation-manifests.py
 
-      - name: Install backend deps
+      - name: Install backend and test deps
         run: |
-          if [ -f "$EXT/backend/requirements.txt" ]; then
-            pip install -r "$EXT/backend/requirements.txt"
+          if [ -f "$EXT/backend/requirements-test.txt" ]; then
+            pip install -r "$EXT/backend/requirements-test.txt"
           fi
 
       - name: Backend standalone tests (blocking)

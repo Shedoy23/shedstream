@@ -1,0 +1,68 @@
+[
+  {
+    "id": "wayfarer",
+    "name": "Странник",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-fc8120d0-cbd1-4763-8815-96f1f9cb067e.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-fc58ded0-7351-4b51-a838-8b4255e0c296.png"
+  },
+  {
+    "id": "crimson_knight",
+    "name": "Багряный рыцарь",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-1a547f89-f37a-4e81-bbb0-7b3615e0869e.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-5b305699-7287-4502-92e2-41d09b35dd7a.png"
+  },
+  {
+    "id": "colony_engineer",
+    "name": "Инженер",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-8cceceef-a51c-4bad-96a9-78d6491b1aca.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-c993f59e-fe54-41eb-93d2-1f3f1ab7f68e.png"
+  },
+  {
+    "id": "shadow_rogue",
+    "name": "Разбойник",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-4bcbf4c9-2f83-430e-89a7-6fa70ff76fda.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-453cd81f-a3dc-4afc-9e27-9721e81c99d1.png"
+  },
+  {
+    "id": "rain_fisher",
+    "name": "Рыбак",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-d6d258f2-9322-4d48-a577-1e9f6c20dc3f.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-000eb23d-6cbb-4b31-8f16-afc32994c8d5.png"
+  },
+  {
+    "id": "necro_cat",
+    "name": "Кот-некромант",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-8f00a063-32c7-414a-9db1-b70bec643187.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-6dd43da8-1db7-435b-a09e-2eef04afb12c.png"
+  },
+  {
+    "id": "chest_mimic",
+    "name": "Сундук-мимик",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-916e480d-655f-426d-b6b5-04ef2de5a9e1.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-500e3a3b-7757-4714-b667-6e1b25a1d802.png"
+  },
+  {
+    "id": "mushroom_grandpa",
+    "name": "Грибной дедушка",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-49486501-bc7a-41ed-b1ab-d1c001b38a97.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-da79b3fb-4b6d-42e0-90ac-10acaa003d72.png"
+  },
+  {
+    "id": "baker_dragon",
+    "name": "Дракончик-пекарь",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-97f6a46c-340a-4e06-a62f-74850ddbcb38.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-0bd4ca1d-2f0c-4441-8e21-e6b75d386bc9.png"
+  },
+  {
+    "id": "blanket_ghost",
+    "name": "Призрак в пледе",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-cd39621e-1531-4d56-b23b-9d990a81838b.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-11d5c71a-65ab-4935-9a54-d8237dd95ced.png"
+  },
+  {
+    "id": "frog_samurai",
+    "name": "Лягушка-самурай",
+    "walk": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-6ba7f2cc-efc8-4d3a-b210-c161bd40671b.png",
+    "behaviour": "C:\\Users\\Edward\\.codex\\generated_images\\01a0da0a-ca14-7101-bd7d-54096c1dedc1\\exec-f3cfd7b3-14ad-40e8-8689-8bfa7af9e8df.png"
+  }
+]

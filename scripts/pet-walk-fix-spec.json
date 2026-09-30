@@ -1,0 +1,46 @@
+[
+  {
+    "id": "wayfarer",
+    "source": "exec-0a21c5e4-daec-400f-97de-175abf94484c.png"
+  },
+  {
+    "id": "crimson_knight",
+    "source": "exec-60c4c13d-f48e-4ad0-be58-1da07177073f.png"
+  },
+  {
+    "id": "colony_engineer",
+    "source": "exec-e5f12578-7969-4245-9d9e-ce30573c3e48.png"
+  },
+  {
+    "id": "lantern_mage",
+    "source": "exec-014d5b38-efaf-42f7-9495-c369ea6717bc.png"
+  },
+  {
+    "id": "shadow_rogue",
+    "source": "exec-3dde9614-0190-47c2-a107-b79e09f1d9c4.png"
+  },
+  {
+    "id": "rain_fisher",
+    "source": "exec-cd95aca5-b62e-4870-bbf5-996652236c4c.png"
+  },
+  {
+    "id": "necro_cat",
+    "source": "exec-5dea1953-9a07-47ee-94f8-418488b336b9.png"
+  },
+  {
+    "id": "chest_mimic",
+    "source": "exec-2de531d9-4bc9-4e6f-a34f-1eb57ee429dd.png"
+  },
+  {
+    "id": "mushroom_grandpa",
+    "source": "exec-c57ed53c-f8c6-4e6b-91b7-9c9c6cb3fca5.png"
+  },
+  {
+    "id": "baker_dragon",
+    "source": "exec-588e041f-8a37-4e73-ab65-22796a8872b7.png"
+  },
+  {
+    "id": "frog_samurai",
+    "source": "exec-70a43576-f183-4eca-9b45-f91d06028112.png"
+  }
+]

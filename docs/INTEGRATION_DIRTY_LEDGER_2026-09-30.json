@@ -1,0 +1,957 @@
+{
+  "basis": "586fbffad3eeadb9ed183e64c320a3bed449d00e",
+  "petHead": "d4ef67e0aeb493f28a416e7c2ceb8f83b914a6a9",
+  "backupManifestSHA256": "62c48bb9a31d0dc67d42f5489716f97a745e203ae0f4ae9462578e4789c2a237",
+  "records": [
+    {
+      "worktree": "C:/Users/Edward/Desktop/work",
+      "relative": "BannerlordLink/src/Actions/ActionRegistry.cs",
+      "status": " M",
+      "backup": "worktrees/00-work/BannerlordLink/src/Actions/ActionRegistry.cs",
+      "bytes": 9172,
+      "sha256": "e87d6ffaf1fd73fd9b5638f6b7cdd2e55416a13126a00034bf17ade5b6bad01b",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work",
+      "relative": "BannerlordLink/src/Actions/DiplomacyHandlers.cs",
+      "status": " M",
+      "backup": "worktrees/00-work/BannerlordLink/src/Actions/DiplomacyHandlers.cs",
+      "bytes": 33983,
+      "sha256": "9109994c1ff7c8de29b7e410a53ee5b57c64d3991720fbbbd9aea37cc5b24799",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work",
+      "relative": "Расширение/backend/modules/bannerlord/_adapter.py",
+      "status": " M",
+      "backup": "worktrees/00-work/Расширение/backend/modules/bannerlord/_adapter.py",
+      "bytes": 147979,
+      "sha256": "c3905006989652bf36dc40b58093247eae22baf68ecd481fe5a12fe37150df1f",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work",
+      "relative": "Расширение/backend/modules/bannerlord/manifest.yaml",
+      "status": " M",
+      "backup": "worktrees/00-work/Расширение/backend/modules/bannerlord/manifest.yaml",
+      "bytes": 16316,
+      "sha256": "e2a50e424a60786b1ac093f1ecf16d28f58f0c324caec67388b8d0e5767ebf45",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work",
+      "relative": "Расширение/backend/routes/bannerlord.py",
+      "status": " M",
+      "backup": "worktrees/00-work/Расширение/backend/routes/bannerlord.py",
+      "bytes": 190008,
+      "sha256": "1d77ce00b46af06c4a7dd5fc664f632f02f776ebed8e447dff3bc88fd5bfef0f",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work",
+      "relative": "Расширение/backend/routes/bannerlord_party_orders.py",
+      "status": " M",
+      "backup": "worktrees/00-work/Расширение/backend/routes/bannerlord_party_orders.py",
+      "bytes": 9966,
+      "sha256": "b7862097de9e0bac7c8e6df024cad39a2a192b9fc857ee4b06caa539630a6e75",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work",
+      "relative": "BannerlordLink/src/Actions/BuyClanUpgradesHandler.cs",
+      "status": "??",
+      "backup": "worktrees/00-work/BannerlordLink/src/Actions/BuyClanUpgradesHandler.cs",
+      "bytes": 3760,
+      "sha256": "e01e386a9e55d61a7d27b1f09ff19a2559845e0d1e6fa037f0bc0dbbdb072067",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work",
+      "relative": "Расширение/backend/tests/test_clan_upgrade_purchase_and_party_expiry.py",
+      "status": "??",
+      "backup": "worktrees/00-work/Расширение/backend/tests/test_clan_upgrade_purchase_and_party_expiry.py",
+      "bytes": 5359,
+      "sha256": "553af09ca3d47d333d2dde23a2d42cd38d42302ce54f6a5dc462bcb61e135390",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work",
+      "relative": "Расширение/docs/POSTSTREAM_TRIAGE_2026-09-18.md",
+      "status": "??",
+      "backup": "worktrees/00-work/Расширение/docs/POSTSTREAM_TRIAGE_2026-09-18.md",
+      "bytes": 11367,
+      "sha256": "a504e13c6b1f575f0bca4d467474f05ab9f7c14877c2cfd350424ce1c55096a6",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/bannerlord-autopilot-shift-98f57f",
+      "relative": "BannerlordLink/tests/ClanIntegrityHarness/Generated.cs",
+      "status": "??",
+      "backup": "worktrees/02-bannerlord-autopilot-shift-98f57f/BannerlordLink/tests/ClanIntegrityHarness/Generated.cs",
+      "bytes": 11583,
+      "sha256": "7918249656fe2501d25b1f875f12efd2ae8e373ced78b4eb7ff80a8ffe161642",
+      "decision": "deferred",
+      "reason": "Generated harness source; not a hand-authored change."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/bannerlord-crash-analysis-a34de4",
+      "relative": "BannerlordAutopilot/HANDOFF.md",
+      "status": " M",
+      "backup": "worktrees/03-bannerlord-crash-analysis-a34de4/BannerlordAutopilot/HANDOFF.md",
+      "bytes": 134694,
+      "sha256": "f72cd935259958e2f42e71206ff7130143829d4489ccb0b035549380b28e3a9d",
+      "decision": "included",
+      "reason": "Reviewed historical 27 September installation documentation/evidence."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/bannerlord-crash-analysis-a34de4",
+      "relative": "DEFERRED.md",
+      "status": " M",
+      "backup": "worktrees/03-bannerlord-crash-analysis-a34de4/DEFERRED.md",
+      "bytes": 427132,
+      "sha256": "685a8643042e1ecb6c1b4dec20e36b1db544d4a8d7fc1e8eed1bcddc0d51179f",
+      "decision": "included",
+      "reason": "Reviewed historical 27 September installation documentation/evidence."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/bannerlord-crash-analysis-a34de4",
+      "relative": "STATUS.md",
+      "status": " M",
+      "backup": "worktrees/03-bannerlord-crash-analysis-a34de4/STATUS.md",
+      "bytes": 148713,
+      "sha256": "45b249a220dc622299e8ead27fb2384ce46c9536607d181f24d8023103cf0c9c",
+      "decision": "included",
+      "reason": "Reviewed historical 27 September installation documentation/evidence."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/bannerlord-crash-analysis-a34de4",
+      "relative": "BannerlordAutopilot/evidence/installation-20260927.json",
+      "status": "??",
+      "backup": "worktrees/03-bannerlord-crash-analysis-a34de4/BannerlordAutopilot/evidence/installation-20260927.json",
+      "bytes": 3671,
+      "sha256": "ff664780d95f95dd373854387c9503f849ea6a6b7b6bad559c67d2fd756f6f55",
+      "decision": "included",
+      "reason": "Reviewed historical 27 September installation documentation/evidence."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/bannerlord-crash-analysis-a34de4",
+      "relative": "BannerlordLink/tests/ClanIntegrityHarness/Generated.cs",
+      "status": "??",
+      "backup": "worktrees/03-bannerlord-crash-analysis-a34de4/BannerlordLink/tests/ClanIntegrityHarness/Generated.cs",
+      "bytes": 13072,
+      "sha256": "625b74306890d0969639d71085062674f38b9204d1821c4b16da9879af0fdd26",
+      "decision": "deferred",
+      "reason": "Generated harness source; not a hand-authored change."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/bannerlord-crash-analysis-a34de4",
+      "relative": "BannerlordLink/tests/ProposeGateHarness/Generated.cs",
+      "status": "??",
+      "backup": "worktrees/03-bannerlord-crash-analysis-a34de4/BannerlordLink/tests/ProposeGateHarness/Generated.cs",
+      "bytes": 11801,
+      "sha256": "6437d3281a7dd7da22a13e4095d9f2568acac613ff313feb79fd3cd683f2470f",
+      "decision": "deferred",
+      "reason": "Generated harness source; not a hand-authored change."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/src/Actions/ActionRegistry.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/src/Actions/ActionRegistry.cs",
+      "bytes": 9659,
+      "sha256": "f31d38b86da620059b4d070ec5bbd2ee49394bb4690b3efcd5643e4995e713cd",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/src/Actions/DiplomacyHandlers.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/src/Actions/DiplomacyHandlers.cs",
+      "bytes": 33793,
+      "sha256": "b1fa741c632f56a96ec90f5029f6ba4eecbde51a62881d62bbd2994e867135c2",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/src/Actions/EquipmentShopHandlers.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/src/Actions/EquipmentShopHandlers.cs",
+      "bytes": 18682,
+      "sha256": "65571858dfad476be7000f350a9e97bf739c2dcccef4786f24dafd79e9e89c53",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/src/Actions/PartyOrderHandlers.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/src/Actions/PartyOrderHandlers.cs",
+      "bytes": 14888,
+      "sha256": "4ffd900058de910ed6fb2f86d42c41e3075a3aea58c45e36427cead8b58cd398",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/src/Behaviors/EquipmentShopBehavior.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/src/Behaviors/EquipmentShopBehavior.cs",
+      "bytes": 15307,
+      "sha256": "a480b6f905af0e6addfa8642b169818a0fcdb21a1c07b03a478e1ed2ad567626",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/src/Behaviors/PartyOrderBehavior.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/src/Behaviors/PartyOrderBehavior.cs",
+      "bytes": 45606,
+      "sha256": "bd82f7a6caf85297c745da8037ecdeca5e7545ef61b76a046fd4880d1962b2f6",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/tests/EquipmentShopHarness/EngineStubs.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/tests/EquipmentShopHarness/EngineStubs.cs",
+      "bytes": 6652,
+      "sha256": "304cfe187730e17d6dbd4b2f4a54afb40581ce4fca00e2a37e31bd817aaa9afe",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/tests/EquipmentShopHarness/Program.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/tests/EquipmentShopHarness/Program.cs",
+      "bytes": 13419,
+      "sha256": "5913d3fc3384a5972899fcf9819010f5141095ef5129ce039679ee8e751382b1",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/tests/NativeInventoryHarness/Program.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/tests/NativeInventoryHarness/Program.cs",
+      "bytes": 5608,
+      "sha256": "0a594b90bcd581a690df46955d2100b9b26fb745f32c6b659440a93c03d9cdb3",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/tests/NativeInventoryHarness/Stubs.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/tests/NativeInventoryHarness/Stubs.cs",
+      "bytes": 6332,
+      "sha256": "4945930c56f967f7c78a7fa0d54b1c14950f01c1054b90f51781da9805c326c1",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/tests/NoPartyEquipmentHarness/Program.cs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/tests/NoPartyEquipmentHarness/Program.cs",
+      "bytes": 6449,
+      "sha256": "5216f1a511c98fe887aa2c5663e018d5524c39646f204cae54a2ef99505265d5",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "DEFERRED.md",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/DEFERRED.md",
+      "bytes": 218950,
+      "sha256": "c87d1a1254bbb19ffe3305648b91c1b38f4175d2ae7d2d6ba2acf648f26fc209",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "LESSONS.md",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/LESSONS.md",
+      "bytes": 96459,
+      "sha256": "3e1fe5fd530c7f725b4963e87ceaab0c28634baf844dd20c6cc698eeb3f18ac7",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "STATUS.md",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/STATUS.md",
+      "bytes": 89749,
+      "sha256": "f12edbdcd447808a1fbcc42b4d4c5eeb4fee488940a425704b57e9366d25b818",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "docs/BANNERLORD_BATTLE_ORDERS_AUDIT_2026-09-21.md",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/docs/BANNERLORD_BATTLE_ORDERS_AUDIT_2026-09-21.md",
+      "bytes": 13213,
+      "sha256": "fcba6ec03275219f12e869a364d27b2e9a3013c46421089dbfa73e7b960cbb16",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "scripts/test-bannerlord-equipment-ui.cjs",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/scripts/test-bannerlord-equipment-ui.cjs",
+      "bytes": 12095,
+      "sha256": "2a948fd8c625a71b89414f0c7bba258f3a1585a29d043c6e1f8212bee1da6259",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/admin/admin.html",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/admin/admin.html",
+      "bytes": 76771,
+      "sha256": "c0d89ae44dfa91c95c02b8ab0e5d688b5b02dc2f10c70e60d7eb0abd1736295b",
+      "decision": "deferred",
+      "reason": "Separate panel/authentication/channel-scoping and promo changes; access behavior intentionally excluded."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/main.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/main.py",
+      "bytes": 132655,
+      "sha256": "67e6d22ecb931ca0a98b825f90edfa1469e1f189a0528457d8e5a36677b93d47",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/modules/bannerlord/_adapter.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/modules/bannerlord/_adapter.py",
+      "bytes": 165683,
+      "sha256": "65a0f633da0d475322d809c64e65d48e450486e12704b58cebbacbb96db18705",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/modules/bannerlord/builds.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/modules/bannerlord/builds.py",
+      "bytes": 5506,
+      "sha256": "f6ffec9565e29ee141750e90937350f0fa4aeab2f6aa5bb525092d08e360a0da",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/modules/bannerlord/equipment_shop.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/modules/bannerlord/equipment_shop.py",
+      "bytes": 15706,
+      "sha256": "732992557be459be2e97abc7bf03092268d3195e026e2e9f5d7eee8bccfbdd06",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/modules/bannerlord/manifest.yaml",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/modules/bannerlord/manifest.yaml",
+      "bytes": 16745,
+      "sha256": "5c8850fad2c4211c0714546dd9ae311bc0346197ac8b017d482c87995965f677",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/modules/bannerlord/refusals.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/modules/bannerlord/refusals.py",
+      "bytes": 27040,
+      "sha256": "bf9c13408d2f989da8d1ded62cecdba144d69dd7e31fdeacb1eaac82d82a41d4",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/routes/admin.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/routes/admin.py",
+      "bytes": 34437,
+      "sha256": "42b1e773361556c5a8af12c3a3b1b6905209305f089c289f843215b0338269c1",
+      "decision": "deferred",
+      "reason": "Separate panel/authentication/channel-scoping and promo changes; access behavior intentionally excluded."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/routes/bannerlord.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/routes/bannerlord.py",
+      "bytes": 201268,
+      "sha256": "57f1f52ed5f9cf8e1bbe3034724c4b8f88c0416b8e813255796f986ed9511650",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/routes/bannerlord_admin.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/routes/bannerlord_admin.py",
+      "bytes": 10236,
+      "sha256": "66b1a5529ab89c7c547c3fd21f9c2b2e7b8809fd8ebb39517da70e9be35d4241",
+      "decision": "deferred",
+      "reason": "Separate panel/authentication/channel-scoping and promo changes; access behavior intentionally excluded."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/routes/bannerlord_party_orders.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/routes/bannerlord_party_orders.py",
+      "bytes": 9843,
+      "sha256": "5a3be54e6dea418c97e6f292dbfce78d5e1c5e8b09cbade7a53f09733469a698",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/routes/promo.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/routes/promo.py",
+      "bytes": 8273,
+      "sha256": "e9daf64ae04d023671223477eae9030aa77e418e851480e71376e00f84f2d4ff",
+      "decision": "deferred",
+      "reason": "Separate panel/authentication/channel-scoping and promo changes; access behavior intentionally excluded."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/routes/streamer.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/routes/streamer.py",
+      "bytes": 62658,
+      "sha256": "9c343632318f6ec39ba868b77bc86c381a7b72cf1eb522599785dc6f14b6a50d",
+      "decision": "deferred",
+      "reason": "Separate panel/authentication/channel-scoping and promo changes; access behavior intentionally excluded."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/templates/streamer_dashboard.html",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/templates/streamer_dashboard.html",
+      "bytes": 77665,
+      "sha256": "1cb1e05925eaa7b857c69683a98f74567823b375fb9479668988271ab2c7e73e",
+      "decision": "deferred",
+      "reason": "Separate panel/authentication/channel-scoping and promo changes; access behavior intentionally excluded."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/tests/test_bannerlord_equipment_shop.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/tests/test_bannerlord_equipment_shop.py",
+      "bytes": 12731,
+      "sha256": "e51db9a0e3fb2bf62229381ab4c7fe3c0e8bd0a074b0c2d5738329751e6d6724",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/tests/test_bannerlord_hero_reconcile.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/tests/test_bannerlord_hero_reconcile.py",
+      "bytes": 5663,
+      "sha256": "db1d84cba1453b88ec3a08ea6f436382b4d0bc5f5b64c8f20134816d63aaedbe",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/tests/test_bannerlord_inventory_state.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/tests/test_bannerlord_inventory_state.py",
+      "bytes": 5002,
+      "sha256": "2add730bfdb1fcfac817e6da9bc133308905321906283770cc73aa9b67373f9d",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/tests/test_bannerlord_no_party_purchase.py",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/tests/test_bannerlord_no_party_purchase.py",
+      "bytes": 6010,
+      "sha256": "3049f872f6f0bdb0ee9fa13ecc220454a5bb137396736b90ee3eb0424c2f2c1c",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/docs/CONTEXT.md",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/docs/CONTEXT.md",
+      "bytes": 32077,
+      "sha256": "d3bac76cf992755c6763e1dc47ea6672e2c83f316230cab115cece06178488a8",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/docs/CONTEXT_BANNERLORD.md",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/docs/CONTEXT_BANNERLORD.md",
+      "bytes": 107054,
+      "sha256": "816ebf729e934aabf595d57aa4b08c73817e8cb0cf0ada8f7723e6c98e2b2bd8",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/docs/RELEASE_RECORD.md",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/docs/RELEASE_RECORD.md",
+      "bytes": 76652,
+      "sha256": "f24c886767c7f76041f9725ad5b3d9ee3ec5fad6a45b823fab663bb3d50953c7",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/docs/REVIEW_SUBMISSION.md",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/docs/REVIEW_SUBMISSION.md",
+      "bytes": 15036,
+      "sha256": "55ee0161c9d79e1e957e96a0bcb547af9a197c1aabf5304c8bfd47e405875e89",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/frontend/extension.html",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/frontend/extension.html",
+      "bytes": 42898,
+      "sha256": "41f27d36fc53a5d2d8d351bfe564de802432cf2476229063cfd9e6e9abd7ed59",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/frontend/mobile.html",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/frontend/mobile.html",
+      "bytes": 41358,
+      "sha256": "753768c9cb489be75adfa30de936cfee6968ac35772e3bdbd92bb1a4096d7148",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/frontend/viewer-bannerlord-builds.js",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/frontend/viewer-bannerlord-builds.js",
+      "bytes": 11040,
+      "sha256": "6d083443b0ca276ee45ba38b7e6106ecb8ee11307b0ea06c9c567cacaceec172",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/frontend/viewer-bannerlord-equipment.js",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/frontend/viewer-bannerlord-equipment.js",
+      "bytes": 25012,
+      "sha256": "26a4e750bc8f5f01ea4233d5f3e7800067e128201944ac7fbc785ac037d0832c",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/frontend/viewer-bannerlord.js",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/frontend/viewer-bannerlord.js",
+      "bytes": 362318,
+      "sha256": "40bf38d29e3bc944128dd17ad75c7e4c55d3ecc0bc231817b196a703aeb02a4e",
+      "decision": "already-present",
+      "reason": "Saved uncommitted patch reverse-applies cleanly: same changes already integrated."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/frontend/viewer.css",
+      "status": " M",
+      "backup": "worktrees/04-codex-public-release/Расширение/frontend/viewer.css",
+      "bytes": 54776,
+      "sha256": "a6a5f338be9126ebe0a44220a8ca277868e09437f01f136a7fe8bca745d7957b",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "BannerlordLink/src/Actions/BuyClanUpgradesHandler.cs",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/BannerlordLink/src/Actions/BuyClanUpgradesHandler.cs",
+      "bytes": 3177,
+      "sha256": "3047a530fe55f496256ea015be2164864ec0b8cf88496ea5f7be6c44532918e7",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "docs/BANNERLORD_HERO_SYNC_2026-09-21.md",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/docs/BANNERLORD_HERO_SYNC_2026-09-21.md",
+      "bytes": 6805,
+      "sha256": "ff0776b6a24678536a261025db5bef98408a69b6ba2cfd7affe92c311f590287",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "docs/BANNERLORD_NATIVE_INVENTORY_2026-09-21.md",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/docs/BANNERLORD_NATIVE_INVENTORY_2026-09-21.md",
+      "bytes": 8821,
+      "sha256": "1ec64adc50a337fc680f25209150f233dad5dba06d6b4d6b5f1493f7b9379738",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "docs/BANNERLORD_NO_PARTY_EQUIPMENT_2026-09-21.md",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/docs/BANNERLORD_NO_PARTY_EQUIPMENT_2026-09-21.md",
+      "bytes": 8319,
+      "sha256": "0df61ad9abf635f8b4ad69388912c422e820b27f4fa2b28b0ce2f4b637b8d894",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "docs/GUILD_FAMILY_PETS_VISION_2026-09-27.md",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/docs/GUILD_FAMILY_PETS_VISION_2026-09-27.md",
+      "bytes": 14663,
+      "sha256": "bac79405f623d20408997829b47124f094791562c8f186e6ceb898218b028b53",
+      "decision": "deferred",
+      "reason": "Future design proposal, not shipped pet implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "docs/SHEDLINK_EXTENSION_AUDIT_2026-09-23.md",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/docs/SHEDLINK_EXTENSION_AUDIT_2026-09-23.md",
+      "bytes": 5384,
+      "sha256": "2bd45f8765465354e00960ff5653bafc20109cd44fd5f9dc197f44a65f2818e7",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "docs/SHEDLINK_PANELS_BACKEND_AUDIT_2026-09-23.md",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/docs/SHEDLINK_PANELS_BACKEND_AUDIT_2026-09-23.md",
+      "bytes": 12324,
+      "sha256": "adb7b3f1b990a9d096c748075d57b0979a880202d4c941f52c7a15e84214391e",
+      "decision": "deferred",
+      "reason": "Separate panel/authentication/channel-scoping and promo changes; access behavior intentionally excluded."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "docs/SHEDLINK_PANELS_PRODUCT_REVIEW_2026-09-24.md",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/docs/SHEDLINK_PANELS_PRODUCT_REVIEW_2026-09-24.md",
+      "bytes": 7126,
+      "sha256": "4e9f6a408864c89031aac87392aa96c65c8f04546a02682e5c6026407f2b98cf",
+      "decision": "deferred",
+      "reason": "Separate panel/authentication/channel-scoping and promo changes; access behavior intentionally excluded."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "docs/VIEWER_PRESENCE_PLAN_2026-09-30.md",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/docs/VIEWER_PRESENCE_PLAN_2026-09-30.md",
+      "bytes": 15137,
+      "sha256": "ccb4eae260894ed035e1b3d3d9cb8949a4fac749f6efc3cb79b6566d3202d724",
+      "decision": "deferred",
+      "reason": "Separate viewer-presence audit/proposal; preserved for later review."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "scripts/audit-viewer-presence.py",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/scripts/audit-viewer-presence.py",
+      "bytes": 8525,
+      "sha256": "8fe6fae1a567b36c3727109356be235c9843e4cfbfb5b55bd2baffce1284be3f",
+      "decision": "deferred",
+      "reason": "Separate viewer-presence audit/proposal; preserved for later review."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "scripts/test-bannerlord-build-status.cjs",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/scripts/test-bannerlord-build-status.cjs",
+      "bytes": 1735,
+      "sha256": "47bcd86d7b1b21c0de67b83112bc61d41537a6b8c00d29d6b67b1180a7fd8649",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "scripts/test-bannerlord-no-party-equipment-ui.cjs",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/scripts/test-bannerlord-no-party-equipment-ui.cjs",
+      "bytes": 4893,
+      "sha256": "7cf1ed79455151d50794cdfe9f6224367b06eb21342382a850b7e643fb87190b",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "scripts/test-bannerlord-vassal-rename-ui.cjs",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/scripts/test-bannerlord-vassal-rename-ui.cjs",
+      "bytes": 1180,
+      "sha256": "7d0ffe77e90fc77df87c19eebc3e8966e7c8fa086a994894971044d3e8f4fc93",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/migrations/m127_bannerlord_inventory_state.py",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/migrations/m127_bannerlord_inventory_state.py",
+      "bytes": 547,
+      "sha256": "eda2d646f3cffad2faa4b1f9f2dcb8663436e33f46f1c562e64f4c803d343ea7",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/tests/test_clan_upgrade_purchase_and_party_expiry.py",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/tests/test_clan_upgrade_purchase_and_party_expiry.py",
+      "bytes": 5467,
+      "sha256": "41d4c0d10b64e5a0e5f44af3409514a7831c445fd3f08e150e67d49414973ab9",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/tests/test_panels_contract.py",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/tests/test_panels_contract.py",
+      "bytes": 12691,
+      "sha256": "3a693b55c848dbb9101d630dafdd961fd8a805f74b40f3b33894813c9ae68b3f",
+      "decision": "deferred",
+      "reason": "Separate panel/authentication/channel-scoping and promo changes; access behavior intentionally excluded."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/backend/tests/test_viewer_presence_audit.py",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/Расширение/backend/tests/test_viewer_presence_audit.py",
+      "bytes": 7760,
+      "sha256": "12d28ab7ab6e81cfc17d8814e473e222dda51554c489c25a2124f4d8c1ae4daa",
+      "decision": "deferred",
+      "reason": "Separate viewer-presence audit/proposal; preserved for later review."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/codex-public-release",
+      "relative": "Расширение/docs/TWITCH_SUBMISSION_0.0.5_2026-09-23.txt",
+      "status": "??",
+      "backup": "worktrees/04-codex-public-release/Расширение/docs/TWITCH_SUBMISSION_0.0.5_2026-09-23.txt",
+      "bytes": 3540,
+      "sha256": "65ad4d4beb64f8870eb49a064314e15ad03db28a7423a6ba5f5ad9eae05248b2",
+      "decision": "deferred",
+      "reason": "Earlier overlapping implementation; retain separately, do not overwrite newer integrated implementation."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/README.md",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/README.md",
+      "bytes": 5237,
+      "sha256": "416dfb03a0ac5edf15191e64c46907af2f9c36190e0c2781829967e2b7ebc1dd",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/agents.json",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/agents.json",
+      "bytes": 1702,
+      "sha256": "efd5b807911d15df3973054ca281e5d4dc0b57b0b49106e84064b6dc0f6a1558",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/chat_server.py",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/chat_server.py",
+      "bytes": 30977,
+      "sha256": "ce2afb361ae797596f96a9bb33bf9579e7d4f63ea065d087727221664543e1b8",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/mailbox.py",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/mailbox.py",
+      "bytes": 20932,
+      "sha256": "b403812b0d3f436bd819789d165ba9f7e25123e4d4f688b37e3e0f9ff29695ee",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/orchestrator.py",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/orchestrator.py",
+      "bytes": 48261,
+      "sha256": "895d6e9c847f5ab7f66fda2d867ab50d2c3269ab16aeed14ea088524e9347fdc",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/test_chat_server.py",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/test_chat_server.py",
+      "bytes": 8986,
+      "sha256": "bd635c607dc38ae51673a030de47fe9f7a057fff1f63df969f557d3d35768c2c",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/test_mailbox.py",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/test_mailbox.py",
+      "bytes": 6739,
+      "sha256": "8af810271dca7d381003b60caf1d4ba422752238e57d85d8251986d8b2aa2fbc",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/test_orchestrator.py",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/test_orchestrator.py",
+      "bytes": 16698,
+      "sha256": "96a7082647a06718665411846d764c08c291575b800df6f32e2ba040628dd60d",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/ui/app.js",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/ui/app.js",
+      "bytes": 19342,
+      "sha256": "1cab1da7ec1cba905c9bfd3396875590affd9a480724dd6d516e96b853345766",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work/.claude/worktrees/hopeful-agnesi-ea9afe",
+      "relative": "scripts/agent-loop/ui/styles.css",
+      "status": " M",
+      "backup": "worktrees/05-hopeful-agnesi-ea9afe/scripts/agent-loop/ui/styles.css",
+      "bytes": 17673,
+      "sha256": "12b29e3f496595064a5592d15166a586b0cb329447af13a3ec924f0e76b0f839",
+      "decision": "deferred",
+      "reason": "Separate agent-loop/harness work, unrelated to pet integration."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work-agents",
+      "relative": "Расширение/docs/audits/AUDIT_002_COMPLIANCE_JIM_2026-08-28.md",
+      "status": "??",
+      "backup": "worktrees/14-work-agents/Расширение/docs/audits/AUDIT_002_COMPLIANCE_JIM_2026-08-28.md",
+      "bytes": 33087,
+      "sha256": "f5bf9b8e90586ecb3b4af1100bc8d31b0c5f61cbf071e4b0490624c6481d8dc9",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "C:/Users/Edward/Desktop/work-agents",
+      "relative": "Расширение/docs/specs/SPEC_002_DEGAMBLE_SCOPE_B_2026-08-29.md",
+      "status": "??",
+      "backup": "worktrees/14-work-agents/Расширение/docs/specs/SPEC_002_DEGAMBLE_SCOPE_B_2026-08-29.md",
+      "bytes": 44619,
+      "sha256": "131de12a92e896d4d2d74ad3ee3aa6f2ae1c2f5b6aebf1c308cc4ab6ec79fa50",
+      "decision": "already-present",
+      "reason": "Complete saved contents match integrated file (ignoring CRLF)."
+    },
+    {
+      "worktree": "D:/shedlink-build/poststream-fixes-20260922",
+      "relative": "BannerlordLink/src/Actions/SummonHeroHandler.cs",
+      "status": " M",
+      "backup": "worktrees/19-poststream-fixes-20260922/BannerlordLink/src/Actions/SummonHeroHandler.cs",
+      "bytes": 64796,
+      "sha256": "35bd51212ef241ac30960b54ed3e2aa714c2741244c8113abdad304110e8816e",
+      "decision": "deferred",
+      "reason": "Separate old summon-placement prototype; current mainline has newer code."
+    },
+    {
+      "worktree": "D:/shedlink-build/poststream-fixes-20260922",
+      "relative": "Расширение/backend/modules/bannerlord/refusals.py",
+      "status": " M",
+      "backup": "worktrees/19-poststream-fixes-20260922/Расширение/backend/modules/bannerlord/refusals.py",
+      "bytes": 28111,
+      "sha256": "3ecf4250fb78c7b18f7c9807c705398e9f5307e46a8d8efe2649ce9645d23c8c",
+      "decision": "deferred",
+      "reason": "Separate old summon-placement prototype; current mainline has newer code."
+    },
+    {
+      "worktree": "D:/shedlink-build/poststream-fixes-20260922",
+      "relative": "BannerlordLink/src/Util/SafeSummonPlacement.cs",
+      "status": "??",
+      "backup": "worktrees/19-poststream-fixes-20260922/BannerlordLink/src/Util/SafeSummonPlacement.cs",
+      "bytes": 3813,
+      "sha256": "d996c85b4c902c2d7af88c9c26b35723920fc0bf855f4aacb849052543004e5f",
+      "decision": "deferred",
+      "reason": "Separate old summon-placement prototype; current mainline has newer code."
+    },
+    {
+      "worktree": "D:/shedlink-build/poststream-fixes-20260922",
+      "relative": "BannerlordLink/src/Util/SpawnPointSearch.cs",
+      "status": "??",
+      "backup": "worktrees/19-poststream-fixes-20260922/BannerlordLink/src/Util/SpawnPointSearch.cs",
+      "bytes": 617,
+      "sha256": "df7d30bf637c4b3c7d897a65600bfd23391b7d2057be666a899f72058bde9d7b",
+      "decision": "deferred",
+      "reason": "Separate old summon-placement prototype; current mainline has newer code."
+    }
+  ],
+  "excluded": [
+    {
+      "path": "C:/Users/Edward/Desktop/work/0.0.6/",
+      "reason": "Separate repository backed up as version-0.0.6.bundle"
+    },
+    {
+      "path": "D:/shedlink-build/autopilot-bandit-gathering/decompile-campaignsystem/",
+      "reason": "Untracked generated decompilation directory, outside integration scope"
+    }
+  ]
+}

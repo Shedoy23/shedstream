@@ -1,0 +1,36 @@
+{
+  "streamActive": false,
+  "recordActive": false,
+  "scene": "ИГРА с вебкой",
+  "newEnabled": true,
+  "oldEnabled": false,
+  "settings": {
+    "css": "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }",
+    "height": 440,
+    "restart_when_active": false,
+    "shutdown": false,
+    "url": "http://127.0.0.1:17863/overlay.html",
+    "width": 680
+  },
+  "transform": {
+    "alignment": 5,
+    "boundsAlignment": 0,
+    "boundsHeight": 0,
+    "boundsType": "OBS_BOUNDS_NONE",
+    "boundsWidth": 0,
+    "cropBottom": 0,
+    "cropLeft": 0,
+    "cropRight": 0,
+    "cropToBounds": false,
+    "cropTop": 0,
+    "height": 550,
+    "positionX": 0,
+    "positionY": 0,
+    "rotation": 0,
+    "scaleX": 1.25,
+    "scaleY": 1.25,
+    "sourceHeight": 440,
+    "sourceWidth": 680,
+    "width": 850
+  }
+}

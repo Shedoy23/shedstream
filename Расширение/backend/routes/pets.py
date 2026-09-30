@@ -34,7 +34,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from auth import verify_twitch_jwt
-from config import PET_COSMETIC_PRICES, PET_SLOTS
+from config import PET_SLOTS
+from pet_collection import get_pet_price
 from dependencies import (
     get_db, require_admin, require_jwt_user, resolve_channel_id_or_default,
 )
@@ -73,7 +74,7 @@ async def pet_catalog(request: Request):
     items = await db.list_pet_catalog(include_owned=username)
     # Цена — backend-истина по редкости (тонкий фронт просто рисует price_crustics).
     for it in items:
-        it["price_crustics"] = PET_COSMETIC_PRICES.get(it.get("rarity"), PET_COSMETIC_PRICES["common"])
+        it["price_crustics"] = get_pet_price(it.get("item_id"), it.get("rarity"))
     return {
         "success": True,
         "items":   items,

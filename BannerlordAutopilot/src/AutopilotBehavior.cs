@@ -430,6 +430,7 @@ namespace BannerlordAutopilot
             StreamStatus.SetActive(mode == Mode.Apply);
             ResetSession();
             _startedIn = peaceful;
+            ResumeArmyGathering(party);
             RememberSpeed();
 
             AutopilotLog.Session("включение, режим " + ModeName(mode));
@@ -451,6 +452,7 @@ namespace BannerlordAutopilot
             }
 
             bool wasApply = _mode == Mode.Apply;
+            PauseArmyGathering();
             _mode = Mode.Off;
             AutopilotLog.Write("ВЫКЛЮЧЕНИЕ: " + reason);
             // Preserve ownership and menu before ResetSession clears them. This
@@ -2882,13 +2884,14 @@ namespace BannerlordAutopilot
                     string siegePreparation = PreparationNeeded(siegeParty) ?? SiegeReadiness(siegeParty);
                     if (siegePreparation != null) return siegePreparation;
                     float defenders = SiegeDefenderStrength((Settlement)data.Party, siegeParty);
+                    float ratio = SiegeRequiredRatio((Settlement)data.Party);
                     float attackers = SiegeAttackerStrength(siegeParty)
                         + AlliedCampStrength((Settlement)data.Party, siegeParty, out _);
                     if (data.WillGatherArmy && siegeParty.Army == null)
                         attackers += AffordableArmyMembers(siegeParty).Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
-                    return attackers >= defenders * SiegeStrengthRatio ? null
+                    return SiegeStrengthEnough(attackers, defenders, ratio) ? null
                         : "защитники " + defenders.ToString("F1", CultureInfo.InvariantCulture) + " — нужен перевес x"
-                          + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture);
+                          + ratio.ToString("0.#", CultureInfo.InvariantCulture);
                 case AiBehavior.DefendSettlement:
                     if (!FriendlySiege(data.Party as Settlement, MobileParty.MainParty)) return "нет дружественной осады";
                     if (data.Party == _defenseTarget && !OwnFort(data.Party as Settlement)) return "срочная цель обороны больше не принадлежит нашему клану";

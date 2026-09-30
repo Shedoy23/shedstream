@@ -38,6 +38,12 @@ internal static partial class Program
 
     static void ArmyContinuityTests()
     {
+        foreach(var force in new[]{(Own:1499,Defense:1044),(Own:1847,Defense:1295),(Own:1960,Defense:1318)})
+        Try("Jaculan logged army now qualifies "+force.Own,()=> {
+            var w=AssemblyWorld(own:force.Own,defense:force.Defense); w.Ally.IsActive=false;
+            var plain=new AIBehaviorData(w.Castle,AiBehavior.BesiegeSettlement,MobileParty.NavigationType.Default,false,false,false);
+            Check(ArmyCall(w.Pilot,"WhyNotApplicable",plain)==null,"actual logged army passes new x1.2 entry");
+        });
         foreach(int own in new[]{119,120}) Try("new siege entry x1.2 boundary "+own,()=> {
             var w=AssemblyWorld(own:own,defense:100); w.Ally.IsActive=false;
             MobileParty.MainParty.ThinkParamsCache.PossibleArmyMembersUponArmyCreation.Clear();

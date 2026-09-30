@@ -22,6 +22,11 @@ namespace BannerlordAutopilot
         private AIBehaviorData _armyObjective;
         private float _armyObjectiveScore;
         private double _gatheringSince;
+        private double _gatheringDeadline, _gatheringPausedAt = double.MinValue;
+        private double _gatheringNextLogAt;
+        private bool _armyReinforced;
+        private float _armyPlannedStrength;
+        private const double ArmyGatherMaxHours = 72;
         private bool _preparingCampaign;
         private readonly List<MobileParty> _invitedParties = new List<MobileParty>();
 
@@ -112,9 +117,9 @@ namespace BannerlordAutopilot
         private List<MobileParty> AffordableArmyMembers(MobileParty party)
         {
             var result = new List<MobileParty>();
-            if (party.Army != null || !(party.MapFaction is Kingdom) || PreparationNeeded(party) != null) return result;
+            if (!ControlsParty(party) || !(party.MapFaction is Kingdom) || PreparationNeeded(party) != null) return result;
             var model = Campaign.Current.Models.ArmyManagementCalculationModel;
-            if (!model.CanPlayerCreateArmy(out _)) return result;
+            if (party.Army == null && !model.CanPlayerCreateArmy(out _)) return result;
             float remaining = Clan.PlayerClan.Influence;
             // 26.09, владелец: «а армию что он не хочет собирать?» — 147 раз за день «армию
             // собрать не из кого». Список брали только у ИИ игры (CanLordCreateArmy), а он
@@ -142,6 +147,9 @@ namespace BannerlordAutopilot
             foreach (var candidate in candidates.Distinct().OrderByDescending(c => c.Party.EstimatedStrength))
             {
                 if (candidate == null || candidate == party || !candidate.IsActive || candidate.MapFaction != party.MapFaction) continue;
+                // Straight-line ETA is a lower bound, not a promise of a valid path.
+                if (candidate.Position.DistanceSquared(party.Position) > r2
+                    || ArmyTravelHours(party, candidate) > ArmyGatherMaxHours - 12) { far++; continue; }
                 if (!model.CheckPartyEligibility(candidate, out _)) { refused++; continue; }
                 int cost = model.CalculatePartyInfluenceCost(party, candidate);
                 if (cost < 0 || cost > remaining) { costly++; continue; }
@@ -170,28 +178,12 @@ namespace BannerlordAutopilot
                 return false;
             var members = AffordableArmyMembers(party);
             if (members.Count == 0) return false;
-            var model = Campaign.Current.Models.ArmyManagementCalculationModel;
             ((Kingdom)party.MapFaction).CreateArmy(Hero.MainHero, data.Party as Settlement,
                 data.AiBehavior == AiBehavior.BesiegeSettlement ? Army.ArmyTypes.Besieger
                     : data.AiBehavior == AiBehavior.RaidSettlement ? Army.ArmyTypes.Raider : Army.ArmyTypes.Defender);
             if (party.Army == null || party.Army.LeaderParty != party) throw new InvalidOperationException("армия не создана движком");
             _invitedParties.Clear();
-            foreach (var member in members)
-            {
-                if (!model.CheckPartyEligibility(member, out _)) continue;
-                int cost = model.CalculatePartyInfluenceCost(party, member);
-                if (cost < 0 || cost > Clan.PlayerClan.Influence) continue;
-                // The setter has callbacks. Charge even if a callback throws after joining.
-                try { member.Army = party.Army; }
-                finally
-                {
-                    if (member.Army == party.Army)
-                    {
-                        ChangeClanInfluenceAction.Apply(Clan.PlayerClan, -cost);
-                        _invitedParties.Add(member);
-                    }
-                }
-            }
+            InviteArmyMembers(party, members);
             if (_invitedParties.Count == 0)
             {
                 DisbandArmyAction.ApplyByUnknownReason(party.Army);
@@ -199,16 +191,104 @@ namespace BannerlordAutopilot
                 return true;
             }
             _gatheringArmy = party.Army; _armyObjective = data; _armyObjectiveScore = score;
+            _armyPlannedStrength = SiegeAttackerStrength(party) + _invitedParties.Sum(p => Math.Max(0, p.Party.EstimatedStrength));
             _gatheringSince = CampaignTime.Now.ToHours;
+            _gatheringPausedAt = double.MinValue; _armyReinforced = false;
+            _gatheringDeadline = _gatheringSince + Math.Min(ArmyGatherMaxHours,
+                Math.Max(24, _invitedParties.Max(p => ArmyTravelHours(party, p)) + 6));
+            _gatheringNextLogAt = _gatheringSince + 12;
+            if (data.AiBehavior == AiBehavior.BesiegeSettlement) _committedSiege = data.Party as Settlement;
             party.SetMoveModeHold();
-            AutopilotLog.Write("АРМИЯ: приглашено " + _invitedParties.Count + ", ждём соединения перед " + data.AiBehavior);
+            AutopilotLog.Write("АРМИЯ: приглашено " + _invitedParties.Count + ", ждём соединения перед " + data.AiBehavior
+                + "; " + ArmyAssemblyDetails(party));
             Thoughts.Say("army", (data.Party as Settlement)?.StringId, _invitedParties.Count);
             return true;
         }
 
+        private void InviteArmyMembers(MobileParty party, List<MobileParty> members)
+        {
+            var army = party.Army;
+            var model = Campaign.Current.Models.ArmyManagementCalculationModel;
+            foreach (var member in members)
+            {
+                if (party.Army != army) break;
+                if (!model.CheckPartyEligibility(member, out _)) continue;
+                int cost = model.CalculatePartyInfluenceCost(party, member);
+                if (cost < 0 || cost > Clan.PlayerClan.Influence) continue;
+                // The setter has callbacks. Charge even if a callback throws after joining.
+                try { member.Army = army; }
+                finally
+                {
+                    if (member.Army == army)
+                    {
+                        ChangeClanInfluenceAction.Apply(Clan.PlayerClan, -cost);
+                        _invitedParties.Add(member);
+                    }
+                }
+            }
+        }
+
+        private static double ArmyTravelHours(MobileParty party, MobileParty member)
+        {
+            double distance = Math.Sqrt(Math.Max(0, member.Position.DistanceSquared(party.Position)));
+            float speed = member.Speed;
+            return double.IsNaN(distance) || float.IsNaN(speed) || float.IsInfinity(speed) || speed <= 0
+                ? double.PositiveInfinity : distance / speed;
+        }
+
+        private bool PendingArmyMember(MobileParty party, MobileParty member) => party.Army != null && member.IsActive
+            && member.Army == party.Army && member.MapFaction == party.MapFaction && member.AttachedTo != party;
+
+        private float PendingArmyStrength(MobileParty party, double hours) => _invitedParties
+            .Where(p => PendingArmyMember(party, p) && p.MapEvent == null && !p.IsCurrentlyAtSea
+                && ArmyTravelHours(party, p) <= hours)
+            .Sum(p => Math.Max(0, p.Party.EstimatedStrength));
+
+        private string ArmyAssemblyDetails(MobileParty party)
+        {
+            var target = _armyObjective.Party as Settlement;
+            float actual = SiegeAttackerStrength(party) + AlliedCampStrength(target, party, out _);
+            float required = target != null && _armyObjective.AiBehavior == AiBehavior.BesiegeSettlement
+                ? SiegeDefenderStrength(target, party) * SiegeRequiredRatio(target) : 0;
+            double remaining = Math.Max(0, _gatheringSince + ArmyGatherMaxHours - CampaignTime.Now.ToHours);
+            return "target=" + (target?.StringId ?? "<none>") + "; ownActual=" + actual.ToString("F1", CultureInfo.InvariantCulture)
+                + "; ownForecast=" + (actual + PendingArmyStrength(party, remaining)).ToString("F1", CultureInfo.InvariantCulture)
+                + "; required=" + required.ToString("F1", CultureInfo.InvariantCulture)
+                + "; pending=" + string.Join(",", _invitedParties.Where(p => PendingArmyMember(party, p))
+                    .Select(p => p.StringId + "@" + ArmyTravelHours(party, p).ToString("F1", CultureInfo.InvariantCulture) + "h"));
+        }
+
+        private void ClearArmyGathering()
+        {
+            _gatheringArmy = null; _invitedParties.Clear(); _gatheringPausedAt = double.MinValue;
+        }
+
+        private void PauseArmyGathering()
+        {
+            if (_gatheringArmy != null && _gatheringArmy == MobileParty.MainParty?.Army
+                && ControlsParty(MobileParty.MainParty) && _gatheringPausedAt == double.MinValue)
+                _gatheringPausedAt = CampaignTime.Now.ToHours;
+        }
+
+        private void ResumeArmyGathering(MobileParty party)
+        {
+            if (_gatheringArmy == null) return;
+            if (_gatheringArmy != party?.Army || !ControlsParty(party)) { ClearArmyGathering(); return; }
+            if (_mode != Mode.Apply) { PauseArmyGathering(); return; }
+            if (_gatheringPausedAt != double.MinValue)
+            {
+                double paused = Math.Max(0, CampaignTime.Now.ToHours - _gatheringPausedAt);
+                _gatheringSince += paused; _gatheringDeadline += paused; _gatheringNextLogAt += paused;
+                _gatheringPausedAt = double.MinValue;
+                if (_armyObjective.AiBehavior == AiBehavior.BesiegeSettlement) _committedSiege = _armyObjective.Party as Settlement;
+                _armyBusyAt = CampaignTime.Now.ToHours;
+                AutopilotLog.Write("АРМИЯ: сбор восстановлен после включения; " + ArmyAssemblyDetails(party));
+            }
+        }
+
         private bool PollArmy(MobileParty party)
         {
-            if (party.Army == null) { _gatheringArmy = null; return false; }
+            if (party.Army == null) { ClearArmyGathering(); return false; }
             if (party.MapEvent != null || PlayerEncounter.Current != null || party.SiegeEvent != null) return false;
             if (!ControlsParty(party))
             {
@@ -226,15 +306,47 @@ namespace BannerlordAutopilot
             int arrived = _invitedParties.Count(p => p.IsActive && p.Army == party.Army && p.AttachedTo == party);
             int departed = _invitedParties.Count(p => !p.IsActive || p.Army != party.Army);
             int pending = _invitedParties.Count - arrived - departed;
-            bool timedOut = CampaignTime.Now.ToHours - _gatheringSince >= 24;
-            if (pending == 0 || timedOut)
+            double now = CampaignTime.Now.ToHours, hardLimit = _gatheringSince + ArmyGatherMaxHours;
+            var target = _armyObjective.Party as Settlement;
+            float required = _armyObjective.AiBehavior == AiBehavior.BesiegeSettlement && target != null
+                ? SiegeDefenderStrength(target, party) * SiegeRequiredRatio(target) : float.PositiveInfinity;
+            bool sufficient = SiegeAttackerStrength(party) + AlliedCampStrength(target, party, out _) + .001f >= required;
+            // Do not dissolve and recreate an insufficient army if fresh, timely lords can join it.
+            if (pending == 0 && !sufficient && !_armyReinforced && now < hardLimit
+                && _armyObjective.AiBehavior == AiBehavior.BesiegeSettlement
+                && OffensiveSiegeRejection(target, party) == null && PreparationNeeded(party) == null)
+            {
+                var extra = AffordableArmyMembers(party).Where(p => !_invitedParties.Contains(p)
+                    && ArmyTravelHours(party, p) <= hardLimit - now).ToList();
+                if (extra.Count > 0 && SiegeAttackerStrength(party) + AlliedCampStrength(target, party, out _)
+                    + extra.Sum(p => Math.Max(0, p.Party.EstimatedStrength)) >= required)
+                {
+                    _armyReinforced = true;
+                    int before = _invitedParties.Count;
+                    InviteArmyMembers(party, extra);
+                    _armyPlannedStrength += extra.Where(p => p.Army == party.Army).Sum(p => Math.Max(0, p.Party.EstimatedStrength));
+                    pending += _invitedParties.Count - before;
+                    if (pending > 0) AutopilotLog.Write("АРМИЯ: дозыв в существующую армию; " + ArmyAssemblyDetails(party));
+                }
+            }
+            bool timedOut = now >= _gatheringDeadline || now >= hardLimit;
+            if (pending > 0 && !sufficient && timedOut && now < hardLimit
+                && SiegeAttackerStrength(party) + AlliedCampStrength(target, party, out _)
+                    + PendingArmyStrength(party, hardLimit - now) >= required)
+            {
+                _gatheringDeadline = Math.Min(hardLimit, now + 24);
+                timedOut = false;
+                AutopilotLog.Write("АРМИЯ: продолжаем ждать достаточные подкрепления; " + ArmyAssemblyDetails(party));
+            }
+            if (pending == 0 || timedOut || sufficient)
             {
                 _gatheringArmy = null;
-                AutopilotLog.Write("АРМИЯ: сбор завершён — " + (pending > 0 ? "истекли 24 игровых часа"
+                AutopilotLog.Write("АРМИЯ: сбор завершён — " + (pending > 0 ? sufficient ? "сил уже достаточно"
+                    : now >= hardLimit ? "истекли 72 игровых часа" : "истёк срок достаточного подкрепления"
                     : departed > 0 ? "потеря приглашений" : "прибыли все")
                     + "; прибыли " + arrived + "/" + _invitedParties.Count + ", выбыли " + departed
                     + ", ещё в пути " + pending + "; фактическая сила "
-                    + SiegeAttackerStrength(party).ToString("F1", CultureInfo.InvariantCulture));
+                    + SiegeAttackerStrength(party).ToString("F1", CultureInfo.InvariantCulture) + "; " + ArmyAssemblyDetails(party));
                 string invalid = WhyNotApplicable(_armyObjective);
                 if (invalid == null && _armyObjective.AiBehavior == AiBehavior.BesiegeSettlement)
                     invalid = SiegeTargetRejection(party, _armyObjective.Party as Settlement);
@@ -247,13 +359,22 @@ namespace BannerlordAutopilot
                     {
                         NoteSiegeRejection(rejected, invalid);
                         if (_offensiveSiege == rejected) _offensiveSiege = null;
+                        if (_committedSiege == rejected) _committedSiege = null;
                     }
                     party.SetMoveModeHold();
                     _hasPendingDecision = false; _lastTargetKey = null;
                     _hoursSinceThink = ThinkPeriodHours;
                 }
             }
-            else KeepTimeRunning(party);
+            else
+            {
+                if (now >= _gatheringNextLogAt)
+                {
+                    _gatheringNextLogAt = now + 12;
+                    AutopilotLog.Write("АРМИЯ: ждём соединения; " + ArmyAssemblyDetails(party));
+                }
+                KeepTimeRunning(party);
+            }
             return true;
         }
 
@@ -289,7 +410,12 @@ namespace BannerlordAutopilot
         /// правило пускало на штурм, пока защитники не сильнее нас в 1,5 раза.</summary>
         /// 26.09 владелец: «измени 2 на 1.5, вдруг пойдёт» — за 1,5 ч войны при x2 не
         /// нашлось ни одной крепости. Всё ещё перевес (своих в 1,5 раза больше).
-        internal const float SiegeStrengthRatio = 1.5f;
+        // 30.09 owner: lower the new-siege threshold to x1.2 and take more risk.
+        internal const float SiegeStrengthRatio = 1.2f;
+        internal const float SiegeContinueRatio = 1.1f;
+        private static bool SiegeStrengthEnough(float own, float defense, float ratio) => own + .001f >= defense * ratio;
+        private float SiegeRequiredRatio(Settlement place) => place != null && _committedSiege == place
+            ? SiegeContinueRatio : SiegeStrengthRatio;
         /// <summary>Средний уровень (тир) бойцов отряда, с которого идём на стены.</summary>
         internal const float SiegeMinAverageTier = 3.5f;
         private string _lastSiegeReadiness;
@@ -381,7 +507,7 @@ namespace BannerlordAutopilot
         /// час пересчитываем защиту крепости вместе с подошедшей подмогой; перевес
         /// ниже этого — снимаем осаду. Меньше входного SiegeStrengthRatio, чтобы
         /// не снимать осаду от мелкого колебания оценки сразу после начала.</summary>
-        internal const float SiegeLiftRatio = 1.2f;
+        internal const float SiegeLiftRatio = SiegeContinueRatio;
         private double _siegeLiftCheckedHour = double.MinValue;
 
         private float SiegeDefenderStrength(Settlement place, MobileParty party)
@@ -555,6 +681,8 @@ namespace BannerlordAutopilot
             internal int Count;
             internal double At;
             internal float Own, Defense, Camp, Walls;
+            internal float Potential;
+            internal bool AssemblyFailed;
             internal readonly List<(MobileParty Party, float Strength)> Troops = new List<(MobileParty, float)>();
         }
         private readonly Dictionary<Settlement, SiegeRefusal> _siegeRefusals = new Dictionary<Settlement, SiegeRefusal>();
@@ -573,6 +701,11 @@ namespace BannerlordAutopilot
             float camp = AlliedCampStrength(place, party, out _);
             var refusal = new SiegeRefusal { Count = count, At = now, Own = SiegeAttackerStrength(party) + camp,
                 Defense = SiegeDefenderStrength(place, party), Camp = camp, Walls = SiegeWalls(place) };
+            refusal.AssemblyFailed = party.Army?.LeaderParty == party
+                && _armyObjective.AiBehavior == AiBehavior.BesiegeSettlement && _armyObjective.Party == place;
+            refusal.Potential = refusal.Own + PendingArmyStrength(party, ArmyGatherMaxHours)
+                + AffordableArmyMembers(party).Sum(p => Math.Max(0, p.Party.EstimatedStrength));
+            if (refusal.AssemblyFailed) refusal.Potential = Math.Max(refusal.Potential, _armyPlannedStrength);
             foreach (var enemy in MobileParty.All)
                 if (enemy != null && enemy != party && enemy.IsActive && !enemy.IsMilitia
                     && enemy != place.Town?.GarrisonParty && enemy.MapFaction != null
@@ -600,10 +733,11 @@ namespace BannerlordAutopilot
 
         private bool SiegeRecentlyRejected(Settlement place)
         {
-            if (place == null || !_siegeRejectedUntil.TryGetValue(place, out double until)
-                || CampaignTime.Now.ToHours >= until) return false;
+            if (place == null || !_siegeRejectedUntil.TryGetValue(place, out double until)) return false;
+            bool waiting = CampaignTime.Now.ToHours < until;
             if (_siegeRefusals.TryGetValue(place, out var seen))
             {
+                if (!waiting && (!seen.AssemblyFailed || CampaignTime.Now.ToHours - seen.At >= 168)) return false;
                 var party = MobileParty.MainParty;
                 float camp = AlliedCampStrength(place, party, out _);
                 float own = SiegeAttackerStrength(party) + camp;
@@ -619,14 +753,18 @@ namespace BannerlordAutopilot
                 }
                 float defense = Math.Max(SiegeDefenders(place, party, out _), seen.Defense - losses);
                 // Crossing x1.5 by a few men caused the same march every 10 seconds.
-                bool improved = own >= seen.Own * 1.2f || defense <= seen.Defense * .8f
+                float prospective = seen.AssemblyFailed ? own + PendingArmyStrength(party, ArmyGatherMaxHours)
+                    + AffordableArmyMembers(party).Sum(p => Math.Max(0, p.Party.EstimatedStrength)) : own;
+                bool improved = (seen.AssemblyFailed ? prospective >= seen.Potential * 1.2f : own >= seen.Own * 1.2f)
+                    || defense <= seen.Defense * .8f
                     || camp > 0 && seen.Camp <= 0;
-                if (improved && own >= defense * SiegeStrengthRatio)
+                if (improved && SiegeStrengthEnough(prospective, defense, SiegeStrengthRatio))
                 {
                     _siegeRejectedUntil.Remove(place);
                     if (losses > 0) _siegeDefenseSeen.Remove(place);
                     var reasons = new List<string>();
-                    if (own >= seen.Own * 1.2f) reasons.Add("наша сила выросла минимум на 20%");
+                    if (seen.AssemblyFailed ? prospective >= seen.Potential * 1.2f : own >= seen.Own * 1.2f)
+                        reasons.Add("доступная сила выросла минимум на 20%");
                     if (defense <= seen.Defense * .8f) reasons.Add("защита ослабла минимум на 20%");
                     if (camp > 0 && seen.Camp <= 0) reasons.Add("появился союзный лагерь");
                     AutopilotLog.Write("ПОХОД: «" + place.Name + "» снова доступна — " + string.Join("; ", reasons)
@@ -639,10 +777,12 @@ namespace BannerlordAutopilot
                         + "; нужен перевес x" + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture)
                         + "; до конца паузы " + (until - CampaignTime.Now.ToHours).ToString("F1", CultureInfo.InvariantCulture)
                         + " игровых часов");
+                    seen.AssemblyFailed = false;
                     return false;
                 }
+                return waiting || seen.AssemblyFailed;
             }
-            return true;
+            return waiting;
         }
 
         private bool TryFindSiegeTarget(MobileParty party, out AIBehaviorData target, out float score)
@@ -676,8 +816,8 @@ namespace BannerlordAutopilot
                 string border = SiegeBorderRejection(party, place);
                 if (border != null) { borderSkipped++; if (geographicExample == null) geographicExample = border; continue; }
                 float defenders = SiegeDefenderStrength(place, party);
-                bool needsArmy = own + camp < defenders * SiegeStrengthRatio;
-                if (needsArmy && (allies.Count == 0 || assembled + camp < defenders * SiegeStrengthRatio))
+                bool needsArmy = !SiegeStrengthEnough(own + camp, defenders, SiegeStrengthRatio);
+                if (needsArmy && (allies.Count == 0 || !SiegeStrengthEnough(assembled + camp, defenders, SiegeStrengthRatio)))
                 {
                     if (closest == null || defenders < closestDefenders) { closest = place; closestDefenders = defenders; }
                     continue;
@@ -741,13 +881,14 @@ namespace BannerlordAutopilot
             if (readiness != null) return readiness;
             float defenders = SiegeDefenderStrength(place, party);
             float own = SiegeAttackerStrength(party) + camp;
-            if (own >= defenders * SiegeStrengthRatio) return null;
+            float ratio = SiegeRequiredRatio(place);
+            if (SiegeStrengthEnough(own, defenders, ratio)) return null;
             var allies = party.Army == null ? AffordableArmyMembers(party) : new List<MobileParty>();
             float assembled = own + allies.Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
-            if (allies.Count > 0 && assembled >= defenders * SiegeStrengthRatio) return null;
+            if (allies.Count > 0 && SiegeStrengthEnough(assembled, defenders, ratio)) return null;
             return "защитники " + defenders.ToString("F1", CultureInfo.InvariantCulture)
-                + " — нужен перевес x" + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture)
-                + ", надо " + (defenders * SiegeStrengthRatio).ToString("F1", CultureInfo.InvariantCulture)
+                + " — нужен перевес x" + ratio.ToString("0.#", CultureInfo.InvariantCulture)
+                + ", надо " + (defenders * ratio).ToString("F1", CultureInfo.InvariantCulture)
                 + " (наша сила " + own.ToString("F1", CultureInfo.InvariantCulture)
                 + ", доступная армия " + assembled.ToString("F1", CultureInfo.InvariantCulture) + ")"
                 + BreakdownOf(place, party);
@@ -904,7 +1045,7 @@ namespace BannerlordAutopilot
                         _siegeLiftCheckedHour = hour;
                         float defendersNow = SiegeDefenders(place, party, out string breakdown, onlyComing: true);
                         float ownNow = SiegeAttackerStrength(party);
-                        if (ownNow < defendersNow * SiegeLiftRatio)
+                        if (!SiegeStrengthEnough(ownNow, defendersNow, SiegeLiftRatio))
                         {
                             string why = "защитники с подмогой " + defendersNow.ToString("F0", CultureInfo.InvariantCulture)
                                 + ", наша сила " + ownNow.ToString("F0", CultureInfo.InvariantCulture)

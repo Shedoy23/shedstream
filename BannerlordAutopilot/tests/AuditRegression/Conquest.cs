@@ -62,26 +62,26 @@ internal static partial class Program
         }
         Try("лорды внутри крепости считаются защитниками", () => {
             var b=Fresh(); var castle=ConquestWorld(); castle.Militia=4; Settlement.All.Add(castle);
-            EnemyLord(castle, 4, 0, inside: castle);
+            EnemyLord(castle, 6, 0, inside: castle);
             Enable(b); HourlyTick(b);
-            Check(SiegeTarget(b)==null, "ополчение 4 + лорд внутри 4 = 8, нам надо 12 — не идём");
-            Check(AutopilotLog.Lines.Any(l=>l.Contains("лорды внутри 4")), "разбивка защиты в журнале");
+            Check(SiegeTarget(b)==null, "ополчение 4 + лорд внутри 6 = 10, нам надо 12 — не идём");
+            Check(AutopilotLog.Lines.Any(l=>l.Contains("лорды внутри 6")), "разбивка защиты в журнале");
         });
         Try("невидимая подмога рядом считается, дальняя — нет", () => {
             foreach (var (x, expectSiege) in new[] { (40f, false), (60f, true), (150f, true) })
             {
                 var b=Fresh(); var castle=ConquestWorld(); castle.Militia=4; Settlement.All.Add(castle);
-                EnemyLord(castle, 4, x, visible: false);
+                EnemyLord(castle, 6, x, visible: false);
                 Enable(b); HourlyTick(b);
                 Check((SiegeTarget(b)==castle) == expectSiege, "лорд в " + x + " вне поля зрения: ждали осаду " + expectSiege);
             }
         });
         Try("нет крепости по силам — журнал называет ближайшую к порогу, раз в сутки", () => {
-            var b=Fresh(); var castle=ConquestWorld(); castle.Name="Крепкий замок"; castle.Militia=8; Settlement.All.Add(castle);
+            var b=Fresh(); var castle=ConquestWorld(); castle.Name="Крепкий замок"; castle.Militia=10; Settlement.All.Add(castle);
             Enable(b); CampaignTime.TestHours=0; HourlyTick(b);
             for(int hour=1; hour<=12; hour++) { CampaignTime.TestHours=hour; HourlyTick(b); }
-            Check(SiegeTarget(b)==null, "8 защитников против 10 — без перевеса x1,5 не идём");
-            Check(AutopilotLog.Lines.Count(l=>l.Contains("крепостей по силам нет") && l.Contains("«Крепкий замок»: защитники 8, надо x1.5 = 12, у нас 10"))==1,
+            Check(SiegeTarget(b)==null, "10 защитников против 10 — без перевеса x1,2 не идём");
+            Check(AutopilotLog.Lines.Count(l=>l.Contains("крепостей по силам нет") && l.Contains("«Крепкий замок»: защитники 10, надо x1.2 = 12, у нас 10"))==1,
                 "причина записана один раз за игровые сутки");
             CampaignTime.TestHours=30; HourlyTick(b);
             Check(LogCount("крепостей по силам нет")==2, "на следующие сутки запись повторяется");
@@ -152,7 +152,7 @@ internal static partial class Program
                 MobileParty.NavigationType.Default, false, false, false), 9f));
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==weak && MobileParty.MainParty.TargetSettlement==weak,
-                "6 защитников при наших 10 — перевес x1,5 есть, идём; город без перевеса отвергнут");
+                "6 защитников при наших 10 — перевес x1,2 есть, идём; город без перевеса отвергнут");
         });
         Try("отказ от осады записывает точный предел сил", () => {
             var b=Fresh(); var castle=ConquestWorld(); castle.Name="Пограничный замок";
@@ -162,9 +162,9 @@ internal static partial class Program
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==castle && MobileParty.MainParty.TargetSettlement==castle,
                 "слабый замок сначала выбран");
-            castle.Militia=7; for(int hour=0; hour<6; hour++) HourlyTick(b);
+            castle.Militia=10; for(int hour=0; hour<6; hour++) HourlyTick(b);
             Check(AutopilotLog.Lines.Any(l => l.Contains("ПОХОД: прекращаем цель «Пограничный замок»")
-                && l.Contains("защитники 7.0 — нужен перевес x1.5, надо 10.5")
+                && l.Contains("защитники 10.0 — нужен перевес x1.1, надо 11.0")
                 ),
                 "после роста обороны записаны обе силы");
             Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.PatrolAroundPoint, "после отмены осады выбран штатный патруль");
@@ -172,13 +172,13 @@ internal static partial class Program
         Try("близкий вражеский отряд входит в риск осады", () => {
             var b=Fresh(); var castle=ConquestWorld(); castle.Militia=4; Settlement.All.Add(castle);
             var relief=new MobileParty { MapFaction=castle.MapFaction, Position=castle.Position };
-            relief.MemberRoster.AddToCounts(new CharacterObject(), 3); MobileParty.All.Add(relief);
+            relief.MemberRoster.AddToCounts(new CharacterObject(), 6); MobileParty.All.Add(relief);
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==null && MobileParty.MainParty.TargetSettlement!=castle,
-                "подкрепление лишает перевеса x1,5");
+                "подкрепление лишает перевеса x1,2");
         });
         Try("для допустимой осады сначала собираем доступную армию", () => {
-            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=8; Settlement.All.Add(castle);
+            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=10; Settlement.All.Add(castle);
             var kingdom=new Kingdom(); kingdom.Enemies.Add(castle.MapFaction);
             MobileParty.MainParty.MapFaction=kingdom; Clan.PlayerClan.Kingdom=kingdom; Clan.PlayerClan.Influence=10;
             var ally=new MobileParty { MapFaction=kingdom }; ally.MemberRoster.AddToCounts(new CharacterObject(), 10);
@@ -186,14 +186,14 @@ internal static partial class Program
             Enable(b); HourlyTick(b);
             Check(MobileParty.MainParty.Army!=null && ally.Army==MobileParty.MainParty.Army
                 && Clan.PlayerClan.Influence==0,
-                "8 защитников: отряду из 10 нужен перевес x1,5 (12), армия из 20 его даёт");
+                "10 защитников: отряду из 10 нужен перевес x1,2 (12), армия из 20 его даёт");
         });
         // 26.09, владелец: «а армию что он не хочет собирать?» — список брали только у ИИ
         // игры, у которого свои пороги для ИИ-лордов; правитель зовёт своих лордов сам.
         foreach (var (kind, expectArmy) in new[] { ("свой лорд рядом, ИИ игры его не предложил", true),
             ("лорд зрителя по приказу из панели", false), ("свой лорд далеко", false) })
         Try("армия: " + kind + " — " + (expectArmy ? "зовём" : "не зовём"), () => {
-            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=8; Settlement.All.Add(castle);
+            var b=Fresh(); var castle=ConquestWorld(); castle.Militia=10; Settlement.All.Add(castle);
             var kingdom=new Kingdom(); kingdom.Enemies.Add(castle.MapFaction);
             MobileParty.MainParty.MapFaction=kingdom; Clan.PlayerClan.Kingdom=kingdom; Clan.PlayerClan.Influence=10;
             var ally=new MobileParty { Name="Лорд королевства", MapFaction=kingdom, IsLordParty=true,
@@ -202,7 +202,7 @@ internal static partial class Program
             if (kind.Contains("приказу")) ally.Ai.SetDoNotMakeNewDecisions(true);
             Enable(b); HourlyTick(b);
             Check((MobileParty.MainParty.Army!=null && ally.Army==MobileParty.MainParty.Army) == expectArmy,
-                "8 защитников, нас 10, с лордом 20: армия " + expectArmy);
+                "10 защитников, нас 10, с лордом 20: армия " + expectArmy);
             if (!expectArmy) Check(LogCount(kind.Contains("приказу") ? "по приказу зрителя 1" : "дальше 150 1")==1,
                 "причина, почему некого позвать, записана");
         });

@@ -169,7 +169,9 @@ namespace BannerlordAutopilot
             _raidSettlement = null;
             _preparingCampaign = false;
             _configuredSiege = null;
-            _gatheringArmy = null; _invitedParties.Clear();
+            // F12 stops automation, not the native army or its outstanding invitations.
+            if (_gatheringArmy == null || _gatheringArmy != MobileParty.MainParty?.Army
+                || !ControlsParty(MobileParty.MainParty)) ClearArmyGathering();
             _operationSettlement = _hideoutRoute = null;
             _hideoutAttackRequested = _awaitingHideoutTroops = false;
             _hideoutMissionFinished = false;

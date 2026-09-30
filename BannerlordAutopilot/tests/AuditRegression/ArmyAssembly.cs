@@ -30,7 +30,7 @@ internal static partial class Program
             if (outcome == "arrived") { ally.AttachedTo = party; party.AttachedParties.Add(ally); }
             if (outcome == "departed") ally.Army = null;
             if (outcome == "inactive") ally.IsActive = false;
-            if (outcome == "timeout") CampaignTime.TestHours += 24;
+            if (outcome == "timeout") CampaignTime.TestHours += 73;
             ArmyCall(b, "PollArmy", party);
             if (outcome == "pending")
             {
@@ -40,7 +40,7 @@ internal static partial class Program
             }
             Check((party.TargetSettlement == castle) == (outcome == "arrived"),
                 "only actually sufficient assembled troops march: " + outcome);
-            string expected = outcome == "arrived" ? "прибыли все" : outcome == "timeout" ? "истекли 24" : "потеря приглашений";
+            string expected = outcome == "arrived" ? "прибыли все" : outcome == "timeout" ? "истекли 72" : "потеря приглашений";
             Check(AutopilotLog.Lines.Any(l => l.Contains("АРМИЯ: сбор завершён") && l.Contains(expected)
                 && l.Contains(outcome == "arrived" ? "прибыли 1/1" : "прибыли 0/1")),
                 "assembly outcome distinguishes actual arrivals: " + outcome);

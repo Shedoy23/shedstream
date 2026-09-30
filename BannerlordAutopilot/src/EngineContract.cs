@@ -227,6 +227,7 @@ namespace BannerlordAutopilot
             MemberOf(typeof(MobileParty), "IsLordParty", Inst, typeof(bool));
             MemberOf(typeof(MobileParty), "IsPatrolParty", Inst, typeof(bool));
             MemberOf(typeof(MobileParty), "Speed", Inst, typeof(float));
+            MemberOf(typeof(MobileParty), "StringId", Inst, typeof(string)); // assembly diagnostics identify invitees
             Type mission = LoadedType("TaleWorlds.MountAndBlade.Mission", "TaleWorlds.MountAndBlade");
             Type battleEnd = LoadedType("TaleWorlds.MountAndBlade.BattleEndLogic", "TaleWorlds.MountAndBlade");
             Type exitResult = battleEnd?.GetNestedType("ExitResult");

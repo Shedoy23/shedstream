@@ -79,7 +79,7 @@ namespace BannerlordAutopilot
             _travelTown = null; _travelOrigin = null;
             // Existing invitees can still join the army on the road; do not wait
             // a day for all of them while our fort is being assaulted.
-            _gatheringArmy = null;
+            ClearArmyGathering();
             LogEmergencyDefense(party, target, "идём спасать свой феод, приоритет над наймом, снабжением и захватом");
             var decision = new AIBehaviorData(target, AiBehavior.DefendSettlement,
                 MobileParty.NavigationType.Default, false, false, false);

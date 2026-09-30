@@ -86,7 +86,7 @@ namespace BannerlordAutopilot
             foreach (var member in enemy.Parties)
             {
                 // Include every existing opponent, not only the original target.
-                if (member.Party?.MobileParty?.IsBandit != true) return float.NaN;
+                if (member.Party?.MobileParty?.IsBandit != true || member.Party.MobileParty.IsCurrentlyUsedByAQuest) return float.NaN;
                 float power = member.Party.GetCustomStrength(BattleSideEnum.Defender, battle.SimulationContext);
                 if (power < 0 || float.IsNaN(power) || float.IsInfinity(power)) return float.NaN;
                 total += power;
@@ -98,7 +98,7 @@ namespace BannerlordAutopilot
         {
             return candidate != null && candidate != main && candidate.IsBandit && candidate.IsActive
                 && !candidate.IsCurrentlyAtSea && !candidate.IsEngaging && !candidate.IsDisbanding
-                && !candidate.IsTransitionInProgress && candidate.MapEvent == null
+                && !candidate.IsTransitionInProgress && !candidate.IsCurrentlyUsedByAQuest && candidate.MapEvent == null
                 && candidate.Army == null && candidate.AttachedTo == null && candidate.AttachedParties.Count == 0
                 && candidate.SiegeEvent == null && candidate.BesiegedSettlement == null && candidate.CurrentSettlement == null
                 && candidate.Party.NumberOfHealthyMembers > 0 && candidate.MapFaction != null && main.MapFaction != null

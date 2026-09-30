@@ -432,6 +432,8 @@ namespace BannerlordAutopilot
             MemberOf(entry, "Party", Inst, typeof(PartyBase));
             Type bandits = MemberType(typeof(MobileParty), "AllBanditParties", Stat, false, out _);
             Need(bandits != null && typeof(System.Collections.Generic.IEnumerable<MobileParty>).IsAssignableFrom(bandits), "MobileParty.AllBanditParties: enumerable");
+            MemberOf(typeof(MobileParty), "IsCurrentlyUsedByAQuest", Inst, typeof(bool));
+            MemberOf(typeof(PlayerEncounter), "IsJoinedBattle", Inst, typeof(bool));
             MemberOf(typeof(MobileParty), "IsEngaging", Inst, typeof(bool));
             MemberOf(typeof(MobileParty), "IsDisbanding", Inst, typeof(bool));
             MemberOf(typeof(MobileParty), "IsTransitionInProgress", Inst, typeof(bool));

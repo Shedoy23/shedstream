@@ -626,6 +626,7 @@ namespace BannerlordAutopilot
                     return false;
                 }
                 if (!GatherBanditsForBattle(party)) return false;
+                if (!GatherLordsForBattle(party)) return false;
                 if (MenuDriver.TryInvoke("attack", out attackWhy))
                 {
                     AutopilotLog.Write("БОЙ: нажата штатная кнопка «В атаку»; открывается полноценная боевая сцена");

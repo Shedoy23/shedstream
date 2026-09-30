@@ -1,0 +1,43 @@
+{
+  "created_utc": "2026-09-30T10:49:44.3396654Z",
+  "source_sha": "e1c584512e0194279cf595524caa56f3fe65b276",
+  "status": "STAGING_ONLY",
+  "replacements": [
+    {
+      "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.dll",
+      "backup": "C:\\Users\\Edward\\Documents\\Codex\\2026-09-30\\task-4\\staging-siege-map-20260930\\backup\\BannerlordAutopilot.dll",
+      "previous_sha256": "8A35C0AD8610583006AE40C03833808316B6C1B9AA01934BDD4031020DB94B0A",
+      "length": 283136
+    },
+    {
+      "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.pdb",
+      "backup": "C:\\Users\\Edward\\Documents\\Codex\\2026-09-30\\task-4\\staging-siege-map-20260930\\backup\\BannerlordAutopilot.pdb",
+      "previous_sha256": "898B629F050DF6BAF51952D9CB1E50579E6BB8CD845CDD287DD62DC44DA04FE0",
+      "length": 64084
+    }
+  ],
+  "new_module_destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.MapExportProbe",
+  "new_module_previously_present": false,
+  "installed_module_ids": [
+    "AutoTraderRoute",
+    "BanditBlackHole",
+    "BirthAndDeath",
+    "CoherentWarAI",
+    "CustomBattle",
+    "FastMode",
+    "Multiplayer",
+    "Native",
+    "NoLordFreeTroops",
+    "RBM",
+    "Sandbox",
+    "SandBoxCore",
+    "Shedoy23.BannerlordAutopilot",
+    "Shedoy23.BannerlordLink",
+    "Shedoy23.MassUpgrade",
+    "Shedoy23.SiegeSanity",
+    "StoryMode"
+  ],
+  "link_dll_sha256": "1561AF9C87BA0B53869C726735168EFF2CD5C8C9B51DDD48A54459A82AF28F4F",
+  "autopilot_submodule_sha256": "1D239B420F758D3721DADD9D13BC799BADDEAEB3E6B151293979E577557EC4AE",
+  "rollback_instruction": "Only after game is closed: restore these two backups; remove only added probe files and disable the probe if enabled. Do not restore Link or saves."
+}

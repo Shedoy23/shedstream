@@ -1,0 +1,56 @@
+{
+  "status": "VALIDATED_STAGING_ONLY_NOT_INSTALLED",
+  "created_utc": "2026-09-30T10:49:57.7530683Z",
+  "source_sha": "e1c584512e0194279cf595524caa56f3fe65b276",
+  "source_baseline": "7e382b1ca648a2719206f5ba2bec680ca557ca4f",
+  "integrated_original_commits": [
+    "12d4cc824d618f78e874cad39eb37e876c34f3f0",
+    "912de90a0c208b5c1f5ac17e9d3d7f1eae5ad3b8",
+    "d51202cc3b02302a137a6e4d14c794b6d5a4e28c"
+  ],
+  "files": [
+    {
+      "relative_path": "Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.dll",
+      "sha256": "6360E79A68CCA000A1258B23BED5477BF0B003BEC8D7D04530D7F6F4D3DD2078",
+      "length": 284160
+    },
+    {
+      "relative_path": "Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.pdb",
+      "sha256": "C8BD08961789B27ECA3D064AC8F6EF2FF38A4379FAD555A2C889123756FE0DC3",
+      "length": 64384
+    },
+    {
+      "relative_path": "Shedoy23.MapExportProbe\\SubModule.xml",
+      "sha256": "484C6C6F782FF0AAFAE5A12DBA501A8144445CBE3A0BA5744EA58AC21DE0AEE4",
+      "length": 753
+    },
+    {
+      "relative_path": "Shedoy23.MapExportProbe\\bin\\Win64_Shipping_Client\\ShedLink.MapExportProbe.dll",
+      "sha256": "1A6572682EFCBD2A821743D5762D627E45B91DBA233C3768A4C7180E52E4A193",
+      "length": 18432
+    }
+  ],
+  "replacements": [
+    {
+      "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.dll",
+      "backup": "C:\\Users\\Edward\\Documents\\Codex\\2026-09-30\\task-4\\staging-siege-map-20260930\\backup\\BannerlordAutopilot.dll",
+      "previous_sha256": "8A35C0AD8610583006AE40C03833808316B6C1B9AA01934BDD4031020DB94B0A",
+      "length": 283136
+    },
+    {
+      "destination": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.pdb",
+      "backup": "C:\\Users\\Edward\\Documents\\Codex\\2026-09-30\\task-4\\staging-siege-map-20260930\\backup\\BannerlordAutopilot.pdb",
+      "previous_sha256": "898B629F050DF6BAF51952D9CB1E50579E6BB8CD845CDD287DD62DC44DA04FE0",
+      "length": 64084
+    }
+  ],
+  "contract_expected": 512,
+  "focused_expected": 232,
+  "probe_id": "Shedoy23.MapExportProbe",
+  "probe_enabled": false,
+  "probe_command": "shedmap_probe.capture confirm-after-stream",
+  "game_installation_written": false,
+  "launcher_settings_changed": false,
+  "link_dll_in_payload": false,
+  "live_verified": false
+}

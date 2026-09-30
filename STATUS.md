@@ -1,3 +1,5 @@
+**30.09 — общий siege/map candidate подготовлен, не установлен.** Integration source e1c5845; Release 0/0, Contract512/512, focused232/0, probe compile0. Точные backups/hash/rollback manifest готовы, installed drift отсутствует. Пакет заменяет только AutopilotDLL/PDB и добавляет самостоятельный manual probe. Установка ждёт сигнала о закрытии игры; runtime ещё не проверен. [Отчёт](BannerlordAutopilot/review/SIEGE_MAP_CANDIDATE_2026-09-30.md).
+
 <!-- Local integration update 2026-09-30 -->
 
 **30.09 — исправлен локально осадный ranking:** мирные и недоступные крепости исключены из квоты трёх ближайших врагов; радиус100 сохранён. Целевой стенд232/0, сборка0/0. Отдельная ветка `fix/autopilot-enemy-frontier-20260930`; не установлен. Проверки и дальнейшие действия: `BannerlordAutopilot/review/SIEGE_ENEMY_FRONTIER_2026-09-30.md`.

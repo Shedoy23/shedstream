@@ -1,0 +1,4 @@
+Компилятор Microsoft (R) Visual C# версии 4.14.0-3.26064.1 (450493a9)
+© Корпорация Майкрософт (Microsoft Corporation). Все права защищены.
+
+COMPILED ONLY: C:\Users\Edward\Documents\Codex\2026-09-30\task-4\siege-map-integration\BannerlordLink\probes\MapExportProbe\bin\Win64_Shipping_Client\ShedLink.MapExportProbe.dll

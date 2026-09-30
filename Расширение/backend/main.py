@@ -1620,6 +1620,38 @@ def channels_to_join(registry_logins, joined_logins) -> list:
     return want
 
 
+# 01.10: Twitch отказывает боту в закрытом чате (только фолловеры/сабы/почта) ответом
+# NOTICE, а в логе оставалось «📢 [CHAT #канал] ...» — как будто сообщение ушло. Так было
+# у проверяющего Twitch: бот не модератор, чат закрыт, раздача кейсов «ушла» в пустоту.
+# Теперь отказ виден в логе: канал, причина и что сделать. Раз в час на канал+причину.
+CHAT_REFUSAL_IDS = {
+    "msg_followersonly", "msg_followersonly_zero", "msg_followersonly_followed", "msg_subsonly",
+    "msg_emoteonly", "msg_verified_email", "msg_requires_verified_phone_number", "msg_slowmode",
+    "msg_r9k", "msg_banned", "msg_timedout", "msg_channel_suspended", "msg_rejected",
+    "msg_rejected_mandatory", "msg_duplicate", "msg_ratelimit", "msg_channel_blocked",
+}
+_chat_refusal_seen: dict = {}
+
+
+def _note_chat_refusal(raw: str) -> Optional[tuple]:
+    """Разобрать IRC NOTICE; если это отказ в отправке — предупредить. Возвращает (канал, msg-id)."""
+    import time as _time
+    if not raw.startswith("@") or " NOTICE #" not in raw:
+        return None
+    tags = dict(p.split("=", 1) for p in raw[1:raw.index(" ")].split(";") if "=" in p)
+    msg_id = tags.get("msg-id", "")
+    if msg_id not in CHAT_REFUSAL_IDS:
+        return None
+    channel = raw.split(" NOTICE #", 1)[1].split(" ", 1)[0].strip().lower()
+    key = (channel, msg_id)
+    now = _time.time()
+    if now - _chat_refusal_seen.get(key, 0) >= 3600:
+        _chat_refusal_seen[key] = now
+        logger.warning("[chat] Twitch не пропустил сообщение бота в #%s: %s — "
+                       "стримеру сделать бота модератором (/mod shedoyrobot)", channel, msg_id)
+    return key
+
+
 class TwitchChatBot(twitch_commands.Bot):
     """Multi-channel IRC бот (M4 follow-up в).
 
@@ -1859,6 +1891,9 @@ class TwitchChatBot(twitch_commands.Bot):
     async def event_raw_data(self, data: str):
         """Ловим USERNOTICE — стрики просмотров и другие системные события."""
         try:
+            if ' NOTICE #' in data:
+                _note_chat_refusal(data)
+                return
             if 'USERNOTICE' not in data:
                 return
             print(f"📨 USERNOTICE raw: {data[:400]}")

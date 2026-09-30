@@ -164,38 +164,55 @@ def render_smooth(report):
             else:
                 color[r, col] = surface_color(s, h)
 
-    # Land colour under the sea is filled from land neighbours, so upscaling does not
-    # bleed blue into the shore; the water mask decides where the sea actually is.
-    known = water < 0.5
-    for _ in range(64):
-        if known.all():
-            break
-        acc = np.zeros_like(color)
-        cnt = np.zeros((height, width), np.float32)
-        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            shifted_known = np.roll(known, (dy, dx), (0, 1))
-            acc += np.roll(color, (dy, dx), (0, 1)) * shifted_known[..., None]
-            cnt += shifted_known
-        grow = (~known) & (cnt > 0)
-        color[grow] = acc[grow] / cnt[grow][:, None]
-        known = known | grow
-
     f = smooth_factor(width)
     size = (width * f, height * f)
 
     def up(a):
         return np.asarray(Image.fromarray(a.astype(np.float32), "F").resize(size, Image.BICUBIC))
 
-    from PIL import ImageFilter
-    blur = ImageFilter.GaussianBlur(radius=f * 0.45)  # hides the node grid in colour patches
-
-    def up_soft(a):
-        im = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "L").resize(size, Image.BICUBIC).filter(blur)
-        return np.asarray(im).astype(np.float32)  # colour channels: 8 bits are plenty
-
-    land = np.stack([up_soft(color[..., k]) for k in range(3)], -1)
+    # Land cover as crisp regions with smooth edges (like the coastline), not a colour blend:
+    # every land class gets a bicubic "membership" map and each pixel takes the strongest.
+    # Blending node colours looked like an unfinished, blurry picture on a coarse grid.
+    classes = {}
+    cls = np.full((height, width), -1, np.int32)
+    for row in range(height):
+        r = height - 1 - row
+        for col in range(width):
+            i = row * width + col
+            if water[r, col] > 0.5:
+                continue
+            key = tuple(int(v) for v in color[r, col])
+            cls[r, col] = classes.setdefault(key, len(classes))
+    # Under the sea each node borrows the nearest land class, so shores do not get a seam.
+    known = cls >= 0
+    for _ in range(64):
+        if known.all() or not known.any():
+            break
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            src = np.roll(cls, (dy, dx), (0, 1))
+            fill = (~known) & (src >= 0)
+            cls[fill] = src[fill]
+            known = cls >= 0
+    palette = np.array(list(classes.keys()) or [(128, 128, 128)], np.float32)
+    best = np.full((size[1], size[0]), -1e9, np.float32)
+    pick = np.zeros((size[1], size[0]), np.int32)
+    for k in range(len(palette)):
+        m = up((cls == k).astype(np.float32))
+        better = m > best
+        best[better] = m[better]
+        pick[better] = k
+    land = palette[pick]
     wmask = np.clip(up(water), 0, 1)
     hh = up(elev)
+    # Decorative micro-relief: fractal noise on land heights, so flat regions have texture.
+    # Seeded: the same picture every time.
+    rng = np.random.default_rng(7)
+    detail = np.zeros(hh.shape, np.float32)
+    for cells, amp in ((24, 1.0), (60, 0.6), (150, 0.35), (380, 0.2)):
+        cells_y = max(2, round(cells * size[1] / size[0]))
+        noise = rng.standard_normal((cells_y, cells)).astype(np.float32)
+        detail += amp * np.asarray(Image.fromarray(noise, "F").resize(size, Image.BICUBIC))
+    hh = hh + detail * 1.2 * (1 - wmask)
 
     # Hillshade, light from the north-west. Slope is per world unit, so density does not matter.
     bounds = report["campaignBounds"]
@@ -211,8 +228,8 @@ def render_smooth(report):
     out = land * (1 - alpha) + sea * alpha
     coast = np.clip(1 - np.abs(wmask - 0.5) * 12, 0, 1)[..., None]  # thin dark shoreline
     out = out * (1 - 0.35 * coast)
-    rng = np.random.default_rng(7)  # faint grain against banding in flat areas
-    out += rng.normal(0, 1.6, out.shape[:2])[..., None]
+    out *= (1 + detail * 0.03)[..., None]  # colour grain follows the same noise
+    out += rng.normal(0, 1.6, out.shape[:2])[..., None]  # faint grain against banding
     return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGB")
 
 

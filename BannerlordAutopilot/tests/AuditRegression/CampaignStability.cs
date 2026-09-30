@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using BannerlordAutopilot;
 using TaleWorlds.CampaignSystem;
@@ -122,6 +123,13 @@ internal static partial class Program
             if (reinforcement) MobileParty.MainParty.MemberRoster.AddToCounts(Veteran(), 3);
             else castle.Militia = 6;
             Check(!(bool)StabilityCall(b, "SiegeRecentlyRejected", castle), "есть существенный перевес — повтор разрешён");
+            string reason = reinforcement ? "наша сила выросла" : "защита ослабла";
+            Check(AutopilotLog.Lines.Any(l => l.Contains("снова доступна") && l.Contains(reason)
+                && l.Contains("сила с лагерем") && l.Contains("защита") && l.Contains("до конца паузы")),
+                "досрочный возврат объясняет конкретное изменение сил " + reinforcement);
+            StabilityCall(b, "SiegeRecentlyRejected", castle);
+            Check(AutopilotLog.Lines.Count(l => l.Contains("снова доступна")) == 1,
+                "объяснение снятия паузы записывается один раз " + reinforcement);
         });
         Try("небольшое колебание сил не снимает запрет", () => {
             var b = Fresh(); var castle = ConquestWorld(); castle.Militia = 7; Enable(b);

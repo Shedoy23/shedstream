@@ -36,6 +36,12 @@ check(img.getpixel((W * C - 1, 0)) == render_map.SURFACE_COLORS["Forest"],
       "top-right world node lands in the top-right corner")
 check(img.getpixel((C // 2, C // 2)) == (255, 0, 0), "settlement drawn in its faction colour at its world position")
 
+check(render_map.surface_color(None, 0.2) == render_map.SURFACE_COLORS["OpenSea"],
+      "no navmesh at sea level is drawn as sea (first real export: 2471 such nodes)")
+check(render_map.surface_color(None, 6.0) == render_map.IMPASSABLE,
+      "no navmesh on high ground is drawn as impassable rock, not sea")
+check(render_map.surface_color(None, None) == render_map.NO_DATA, "no navmesh and no height stays 'no data'")
+
 broken = dict(report, terrainGrid=dict(report["terrainGrid"], surface=surface[:-1]))
 try:
     render_map.render(broken)

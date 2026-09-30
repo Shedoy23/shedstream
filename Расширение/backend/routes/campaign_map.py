@@ -52,6 +52,10 @@ async def campaign_map_page(login: str):
     except (OSError, ValueError):
         raise HTTPException(status_code=404)
     login = login.lower()
+    # Пробник пишет ISO-время ("2026-09-30T15:57:14.85Z") — на странице дата по-русски.
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", str(exported or ""))
+    if m:
+        exported = "выгрузка %s.%s.%s" % (m.group(3), m.group(2), m.group(1))
     return HTMLResponse(_render_template(
         "campaign_map.html",
         title=html.escape(login),

@@ -9,7 +9,7 @@ up, image Y grows down, so rows are flipped here (the probe never flips).
 import json
 import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 CELL = 8  # pixels per grid node
 
@@ -25,12 +25,18 @@ SURFACE_COLORS = {
 NO_DATA = (30, 36, 48)
 UNKNOWN = (150, 150, 150)
 SEA = (50, 96, 160)
+# No navmesh at a node = open sea or impassable land. The first real export (30.09,
+# Calradia) splits them by terrain height: sea sits at 0..1, impassable ridges above.
+SEA_LEVEL = 1.5
+IMPASSABLE = (92, 84, 78)
 SETTLEMENT_RADIUS = {"town": 7, "castle": 5, "village": 3, "hideout": 2}
 
 
-def surface_color(name):
+def surface_color(name, height=None):
     if name is None:
-        return NO_DATA
+        if height is None:
+            return NO_DATA
+        return SURFACE_COLORS["OpenSea"] if height < SEA_LEVEL else IMPASSABLE
     if name.startswith("sea:"):
         return SURFACE_COLORS.get(name[4:], SEA)
     return SURFACE_COLORS.get(name, UNKNOWN)
@@ -70,7 +76,7 @@ def render(report, settlements_layer=True):
     for row in range(height):
         for col in range(width):
             i = row * width + col
-            color = surface_color(surface[i])
+            color = surface_color(surface[i], heights[i])
             # Relief: light from the west, brighter where terrain rises to the east.
             h, west = heights[i], heights[i - 1] if col > 0 else None
             if h is not None and west is not None and surface[i] and not surface[i].startswith("sea:"):
@@ -90,10 +96,14 @@ def render(report, settlements_layer=True):
         x, y = to_pixel(s["xy"])
         r = SETTLEMENT_RADIUS.get(s.get("kind"), 2)
         draw.ellipse([x - r, y - r, x + r, y + r], fill=hex_rgb(s.get("factionColor")), outline=(20, 20, 20))
+    try:  # PIL's built-in font has no Cyrillic; Arial is on every Windows box
+        font = ImageFont.truetype("arial.ttf", 12)
+    except OSError:
+        font = ImageFont.load_default()
     for s in settlements:
         if s.get("kind") == "town" and s.get("name"):
             x, y = to_pixel(s["xy"])
-            draw.text((x + 9, y - 6), s["name"], fill=(255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0))
+            draw.text((x + 9, y - 6), s["name"], fill=(255, 255, 255), font=font, stroke_width=2, stroke_fill=(0, 0, 0))
     return image
 
 

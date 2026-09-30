@@ -75,7 +75,8 @@ async def main():
         return False
     body = page.body.decode("utf-8")
     check(page.status_code == 200 and body.lstrip().startswith("<!DOCTYPE html>"), "страница канала с картой собирается")
-    check('"/map/alpha/map.json"' in body and '"/map/alpha/terrain.png"' in body, "страница ссылается на файлы своего канала")
+    check('"/map/alpha/map.json?v=' in body and '"/map/alpha/terrain.png?v=' in body,
+          "страница ссылается на файлы своего канала, с меткой версии против старого кэша")
     check("ALPHA" in body, "дата выгрузки из map.json канала попала на страницу")
     check("{{" not in body and "{%" not in body, "в выдаче не осталось меток шаблона")
     check((await cm.campaign_map_page("ALPHA")).status_code == 200, "логин без учёта регистра, как в Twitch")
@@ -89,6 +90,13 @@ async def main():
     check(pathlib.Path(f.path) == pathlib.Path(root) / "111" / "map.json", "map.json отдаётся из папки channel_id")
     for bad in ("../../main.py", "viewers.db", "map.json/..", "..", "terrain.PNG"):
         check(await status_of(cm.campaign_map_file("alpha", bad)) == 404, "чужое имя файла %r — 404" % bad)
+
+    # Сглаженная карта (jpg) главнее ранней пиксельной (png), если лежат обе.
+    (pathlib.Path(root) / "111" / "terrain.jpg").write_bytes(b"JPG-bytes")
+    body = (await cm.campaign_map_page("alpha")).body.decode("utf-8")
+    check('"/map/alpha/terrain.jpg?v=' in body, "страница берёт сглаженную terrain.jpg, когда она есть")
+    fj = await cm.campaign_map_file("alpha", "terrain.jpg")
+    check(fj.media_type == "image/jpeg", "terrain.jpg отдаётся как image/jpeg")
 
     write_map(root, 222, "BETA")
     fa = await cm.campaign_map_file("alpha", "map.json")

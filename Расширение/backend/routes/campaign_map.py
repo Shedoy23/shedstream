@@ -21,8 +21,13 @@ from routes.streamer import _render_template
 router = APIRouter(tags=["campaign-map"])
 
 _LOGIN = re.compile(r"^[a-z0-9_]{1,25}$")  # правила логина Twitch
-MAP_FILES = ("map.json", "terrain.png")  # обязательная основа карты
-SERVED_FILES = MAP_FILES + ("live.json",)  # live.json появляется, когда мод присылает снимки
+TERRAIN_FILES = ("terrain.jpg", "terrain.png")  # сглаженная (jpg) или ранняя пиксельная (png)
+SERVED_FILES = ("map.json", "live.json") + TERRAIN_FILES  # live.json — когда мод присылает снимки
+_MEDIA = {".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png"}
+
+
+def _terrain(folder: pathlib.Path):
+    return next((folder / n for n in TERRAIN_FILES if (folder / n).is_file()), None)
 
 
 async def _list_channels() -> list:
@@ -38,7 +43,7 @@ async def _map_dir(login: str) -> pathlib.Path:
             # Папка — по channel_id из базы, не по тексту из адреса: логин
             # только ищет канал и в путь файловой системы не попадает.
             folder = channel_dir(ch["channel_id"])
-            if all((folder / name).is_file() for name in MAP_FILES):
+            if (folder / "map.json").is_file() and _terrain(folder):
                 return folder
             break
     raise HTTPException(status_code=404)
@@ -52,6 +57,10 @@ async def campaign_map_page(login: str):
     except (OSError, ValueError):
         raise HTTPException(status_code=404)
     login = login.lower()
+    terrain = _terrain(folder)
+    # Метка версии в адресе: после замены карты браузер не смешает новый map.json
+    # со старой картинкой другого размера (кэш файлов — 5 минут).
+    ver = "%d" % max((folder / "map.json").stat().st_mtime, terrain.stat().st_mtime)
     # Пробник пишет ISO-время ("2026-09-30T15:57:14.85Z") — на странице дата по-русски.
     m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", str(exported or ""))
     if m:
@@ -59,8 +68,8 @@ async def campaign_map_page(login: str):
     return HTMLResponse(_render_template(
         "campaign_map.html",
         title=html.escape(login),
-        data_url=json.dumps(f"/map/{login}/map.json"),
-        image_url=json.dumps(f"/map/{login}/terrain.png"),
+        data_url=json.dumps(f"/map/{login}/map.json?v={ver}"),
+        image_url=json.dumps(f"/map/{login}/{terrain.name}?v={ver}"),
         live_url=json.dumps(f"/map/{login}/live.json"),
         exported=html.escape(str(exported or "")),
     ))
@@ -73,7 +82,7 @@ async def campaign_map_file(login: str, name: str):
     folder = await _map_dir(login)
     if not (folder / name).is_file():
         raise HTTPException(status_code=404)
-    media = "application/json" if name.endswith(".json") else "image/png"
+    media = _MEDIA[pathlib.Path(name).suffix]
     # Живой слой меняется раз в 15 с — кэш короче интервала опроса страницы.
     cache = "no-cache" if name == "live.json" else "public, max-age=300"
     return FileResponse(folder / name, media_type=media, headers={"Cache-Control": cache})

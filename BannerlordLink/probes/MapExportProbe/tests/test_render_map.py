@@ -42,6 +42,21 @@ check(render_map.surface_color(None, 6.0) == render_map.IMPASSABLE,
       "no navmesh on high ground is drawn as impassable rock, not sea")
 check(render_map.surface_color(None, None) == render_map.NO_DATA, "no navmesh and no height stays 'no data'")
 
+# Smooth website terrain: same frame as world_to_pixel(cell=f), sea stays sea, land stays land.
+SW, SH = 8, 6
+smooth_report = {
+    "campaignBounds": {"min": [0, 0], "max": [70, 50]},
+    "terrainGrid": {"width": SW, "height": SH,
+                    "surface": (["sea:OpenSea"] * 4 + ["Plain"] * 4) * SH, "terrainHeight": [0.0] * (SW * SH)},
+}
+sm = render_map.render_smooth(smooth_report)
+f = render_map.smooth_factor(SW)
+check(sm.size == (SW * f, SH * f), "smooth picture is grid x factor (%dx%d)" % sm.size)
+sea_px = sm.getpixel(render_map.world_to_pixel(smooth_report, [10, 25], f))
+land_px = sm.getpixel(render_map.world_to_pixel(smooth_report, [60, 25], f))
+check(sea_px[2] > sea_px[1] and sea_px[2] > sea_px[0], "sea node stays blue after smoothing %s" % (sea_px,))
+check(land_px[1] > land_px[2], "land node stays green after smoothing %s" % (land_px,))
+
 broken = dict(report, terrainGrid=dict(report["terrainGrid"], surface=surface[:-1]))
 try:
     render_map.render(broken)

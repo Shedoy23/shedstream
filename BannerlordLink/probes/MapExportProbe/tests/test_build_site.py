@@ -31,7 +31,7 @@ image, data = build_site.site_data(report)
 t = data["transform"]
 worst = 0.0
 for xy in ([62, 30], [790, 640], [100, 600], [700, 40], [426, 335]):
-    px, py = build_site.render_map.world_to_pixel(report, xy)
+    px, py = build_site.render_map.world_to_pixel(report, xy, build_site.site_cell(report))
     worst = max(worst, abs(t["ax"] * xy[0] + t["bx"] - px), abs(t["ay"] * xy[1] + t["by"] - py))
 check(worst < 1e-6, "live-party transform reproduces world_to_pixel (max error %.2e px)" % worst)
 check(t["ay"] < 0, "higher world Y is higher on the page (Y flipped)")

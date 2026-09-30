@@ -2,7 +2,7 @@
 
     python build-site.py <probe.json> <out_dir>
 
-out_dir/terrain.png  - terrain picture without settlements (the page draws them)
+out_dir/terrain.jpg  - smoothed terrain picture without settlements (the page draws them)
 out_dir/map.json     - settlements in picture pixels + factions, schema shedlink.campaign-map.v1
 
 Upload both to <CAMPAIGN_MAP_DIR>/<channel_id>/ on the server; the page is
@@ -21,23 +21,28 @@ _spec.loader.exec_module(render_map)
 KINDS = ("town", "castle", "village", "hideout")
 
 
+def site_cell(report):
+    return render_map.smooth_factor(report["terrainGrid"]["width"])
+
+
 def world_transform(report):
     """Linear form of render_map.world_to_pixel, for the page to place live parties."""
-    x0, y0 = render_map.world_to_pixel(report, report["campaignBounds"]["min"])
-    x1, y1 = render_map.world_to_pixel(report, report["campaignBounds"]["max"])
+    c = site_cell(report)
+    x0, y0 = render_map.world_to_pixel(report, report["campaignBounds"]["min"], c)
+    x1, y1 = render_map.world_to_pixel(report, report["campaignBounds"]["max"], c)
     (min_x, min_y), (max_x, max_y) = report["campaignBounds"]["min"], report["campaignBounds"]["max"]
     ax, ay = (x1 - x0) / (max_x - min_x), (y1 - y0) / (max_y - min_y)
     return {"ax": ax, "bx": x0 - ax * min_x, "ay": ay, "by": y0 - ay * min_y}
 
 
 def site_data(report):
-    image = render_map.render(report, settlements_layer=False)
+    image = render_map.render_smooth(report)
     by_id = {s["id"]: s for s in report.get("settlements", [])}
     settlements = []
     for s in report.get("settlements", []):
         if s.get("kind") not in KINDS or not s.get("xy"):
             continue
-        x, y = render_map.world_to_pixel(report, s["xy"])
+        x, y = render_map.world_to_pixel(report, s["xy"], site_cell(report))
         bound = by_id.get(s.get("bound") or "")
         settlements.append({
             "id": s["id"], "name": s.get("name") or s["id"], "kind": s["kind"],
@@ -51,7 +56,7 @@ def site_data(report):
     data = {
         "schema": "shedlink.campaign-map.v1",
         "exportedUtc": report.get("attemptUtc"),
-        "image": {"width": image.width, "height": image.height, "file": "terrain.png"},
+        "image": {"width": image.width, "height": image.height, "file": "terrain.jpg"},
         # Live parties arrive in campaign coordinates: pixel = a*world + b (same as world_to_pixel).
         "transform": world_transform(report),
         "factions": factions,
@@ -68,7 +73,7 @@ def main(argv):
         report = json.load(f)
     image, data = site_data(report)
     os.makedirs(argv[2], exist_ok=True)
-    image.save(os.path.join(argv[2], "terrain.png"))
+    image.save(os.path.join(argv[2], "terrain.jpg"), quality=88)
     with open(os.path.join(argv[2], "map.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     print(f"site files: {argv[2]} ({len(data['settlements'])} settlements, {image.width}x{image.height})")

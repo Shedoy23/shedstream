@@ -9,20 +9,24 @@
     --accent:#e0b04a; --viewer:#ffd54a; }
   * { box-sizing:border-box; }
   html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
-    font:14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow:hidden; }
+    font:14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow:hidden;
+    user-select:none; -webkit-user-select:none; }  /* dragging the map must not select names */
+  input, #card { user-select:text; -webkit-user-select:text; }
   #stage { position:fixed; inset:0; touch-action:none; cursor:grab; }
   #stage.drag { cursor:grabbing; }
   #world { position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform; }
   #world img { display:block; user-select:none; -webkit-user-drag:none; }
-  #world svg { position:absolute; left:0; top:0; overflow:visible; }
-  /* Strokes stay the same on screen at any zoom (the world layer is CSS-scaled). */
-  .s, .p { cursor:pointer; stroke:#111; stroke-width:1; vector-effect:non-scaling-stroke; }
+  /* Markers and names live in an unscaled screen-space layer: only the terrain picture is
+     CSS-scaled, so text and strokes stay sharp at any zoom. */
+  #marks { position:absolute; left:0; top:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+  .s, .p { cursor:pointer; stroke:#111; stroke-width:1; pointer-events:auto; }
   .s.dim, .p.dim { opacity:.18; }
   .s.hit, .p.hit { stroke:var(--accent); stroke-width:3; }
   .s.siege { stroke:#ff4a3d; stroke-width:2.5; }
   .p.viewer { stroke:var(--viewer); stroke-width:2.5; }
   .p.main { stroke:#fff; stroke-width:2.5; }
-  .lbl { font-weight:600; fill:#fff; stroke:#000; paint-order:stroke; stroke-linejoin:round; pointer-events:none; }
+  .lbl { font-size:12px; font-weight:600; fill:#fff; stroke:#000; stroke-width:3px; paint-order:stroke;
+    stroke-linejoin:round; pointer-events:none; }
   .lbl.viewer { fill:var(--viewer); }
   .panel { position:fixed; background:var(--panel); border:1px solid var(--line); border-radius:10px;
     backdrop-filter:blur(6px); }
@@ -74,7 +78,7 @@
 </style>
 </head>
 <body>
-<div id="stage"><div id="world"><img id="terrain" alt=""><svg id="marks"></svg></div></div>
+<div id="stage"><div id="world"><img id="terrain" alt="" draggable="false"></div><svg id="marks"><g id="ov"></g></svg></div>
 <div id="msg">Загрузка карты…</div>
 
 <aside id="side" class="panel closed">
@@ -113,9 +117,9 @@
     DefendSettlement: "защищает", GoToSettlement: "идёт в", PatrolAroundPoint: "патрулирует",
     EngageParty: "преследует", FleeToPoint: "отступает", EscortParty: "сопровождает", Hold: "стоит" };
   var stage = document.getElementById("stage"), world = document.getElementById("world");
-  var svg = document.getElementById("marks"), img = document.getElementById("terrain");
+  var svg = document.getElementById("ov"), img = document.getElementById("terrain");
   var tip = document.getElementById("tip");
-  var view = { x: 0, y: 0, k: 1 }, data, W, H, marks = [], labels = [], factionOn = null;
+  var view = { x: 0, y: 0, k: 1 }, data, W, H, NORM = 1, marks = [], labels = [], factionOn = null;
   var shown = { town: true, castle: true, village: true, hideout: false, lord: true, viewer: true };
   var byId = {}, live = null, partyLayer, partyEls = [], selected = null;
   var NS = "http://www.w3.org/2000/svg";
@@ -127,20 +131,29 @@
   }
   function text(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
   function safeColor(c) { return /^#[0-9a-fA-F]{6}$/.test(c || "") ? c : "#ffffff"; }
+  // Some minor factions report pure black: on a dark outline that reads as "no colour".
+  function partyColor(c) { c = safeColor(c); return c === "#000000" ? "#8a8f99" : c; }
   function num(n) { return n == null ? "—" : Math.round(n).toLocaleString("ru-RU"); }
 
   // ---------- view ----------
+  // Terrain is CSS-scaled; markers are placed in screen pixels (x*k) inside a group that
+  // only translates, so panning moves one group and zooming re-places ~1000 nodes.
+  var placedK = null;
+  function place() {
+    var k = view.k; placedK = k;
+    marks.forEach(function (m) { m.el.setAttribute("cx", m.s.x * k); m.el.setAttribute("cy", m.s.y * k); });
+    partyEls.forEach(function (p) { p.el.setAttribute("transform", "translate(" + p.x * k + "," + p.y * k + ") scale(" + p.size + ")"); });
+    labels.forEach(function (l) { l.el.setAttribute("x", l.s.x * k + 9); l.el.setAttribute("y", l.s.y * k + 4); });
+  }
   function apply() {
     world.style.transform = "translate(" + view.x + "px," + view.y + "px) scale(" + view.k + ")";
-    // Markers and labels keep their on-screen size while the terrain scales.
-    var inv = 1 / view.k;
-    marks.forEach(function (m) { m.el.setAttribute("r", RADIUS[m.s.kind] * inv); });
-    partyEls.forEach(function (p) { p.el.setAttribute("transform", "translate(" + p.x + "," + p.y + ") scale(" + inv * p.size + ")"); });
+    svg.setAttribute("transform", "translate(" + view.x + "," + view.y + ")");
+    if (placedK !== view.k) place();
+    // Thresholds were tuned on a 768 px wide picture; NORM keeps them the same for any size.
+    var zk = view.k * NORM;
     labels.forEach(function (l) {
-      var visible = l.party ? shown[l.party] && view.k >= 1.2 : shown[l.s.kind] && view.k >= LABEL_AT[l.s.kind];
+      var visible = l.party ? shown[l.party] && zk >= 1.2 : shown[l.s.kind] && zk >= LABEL_AT[l.s.kind];
       l.el.style.display = visible ? "" : "none";
-      l.el.setAttribute("font-size", 13 * inv); l.el.setAttribute("stroke-width", 3 * inv);
-      l.el.setAttribute("x", l.s.x + 9 * inv); l.el.setAttribute("y", l.s.y + 4 * inv);
     });
   }
   // A page opened in a background tab can have a 0x0 window: never fit to zero.
@@ -150,7 +163,7 @@
     view.k = fitScale();
     view.x = (innerWidth - W * view.k) / 2; view.y = (innerHeight - H * view.k) / 2; apply();
   }
-  function clampK(k) { return Math.min(12, Math.max(fitScale() * 0.8, k)); }
+  function clampK(k) { return Math.min(8, Math.max(fitScale() * 0.8, k)); }
   function zoomAt(px, py, factor) {
     touched = true;
     var k = clampK(view.k * factor), f = k / view.k;
@@ -278,7 +291,7 @@
       var x = t.ax * p.x + t.bx, y = t.ay * p.y + t.by, kind = partyKind(p);
       var size = p.main ? 1.5 : kind === "viewer" ? 1.3 : p.armyLeader ? 1.25 : 1;
       var g = el("g", {}, partyLayer);
-      var shape = el("path", { d: "M0,-7 L6,5 L-6,5 Z", fill: safeColor(p.color),
+      var shape = el("path", { d: "M0,-7 L6,5 L-6,5 Z", fill: partyColor(p.color),
         "class": "p" + (kind === "viewer" ? (p.main ? " main" : " viewer") : "") }, g);
       var item = { p: p, el: g, shape: shape, x: x, y: y, size: size, kind: kind };
       hoverable(shape, function () { return partyTip(p); });
@@ -289,6 +302,7 @@
         lbl.textContent = p.login || p.hero || "стример"; labels.push({ s: { x: x, y: y }, el: lbl, party: kind });
       }
     });
+    placedK = null;  // new nodes need screen positions
   }
 
   // ---------- selection & filters ----------
@@ -387,11 +401,10 @@
 
   // ---------- build ----------
   function build() {
-    W = data.image.width; H = data.image.height;
-    svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    W = data.image.width; H = data.image.height; NORM = W / 768;
     var order = { hideout: 0, village: 1, castle: 2, town: 3 };
     data.settlements.slice().sort(function (a, b) { return order[a.kind] - order[b.kind]; }).forEach(function (s) {
-      var c = el("circle", { cx: s.x, cy: s.y, r: RADIUS[s.kind], fill: safeColor(s.color), "class": "s" }, svg);
+      var c = el("circle", { r: RADIUS[s.kind], fill: safeColor(s.color), "class": "s" }, svg);
       var item = { s: s, el: c }; byId[s.id] = s;
       hoverable(c, function () { return settlementTip(s); });
       c.addEventListener("click", function (e) { if (!moved) { e.stopPropagation(); select(item); } });

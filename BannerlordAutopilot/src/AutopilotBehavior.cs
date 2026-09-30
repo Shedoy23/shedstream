@@ -2874,8 +2874,9 @@ namespace BannerlordAutopilot
                         return "деревня снабжения разграблена, занята или набег стал опасен";
                     return PreparationNeeded(MobileParty.MainParty);
                 case AiBehavior.BesiegeSettlement:
-                    if (!EnemyFortress(data.Party as Settlement, MobileParty.MainParty)) return "нет вражеской крепости";
                     var siegeParty = MobileParty.MainParty;
+                    string siegeInvalid = OffensiveSiegeRejection(data.Party as Settlement, siegeParty);
+                    if (siegeInvalid != null) return siegeInvalid;
                     string border = SiegeBorderRejection(siegeParty, data.Party as Settlement);
                     if (border != null) return border;
                     string siegePreparation = PreparationNeeded(siegeParty) ?? SiegeReadiness(siegeParty);

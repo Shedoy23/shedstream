@@ -1,0 +1,233 @@
+  ok    own does not consume enemy top-three quota
+  ok    friendly does not consume enemy top-three quota
+  ok    neutral does not consume enemy top-three quota
+  ok    null does not consume enemy top-three quota
+  ok    village does not consume enemy top-three quota
+  ok    raid does not consume enemy top-three quota
+  ok    hostile_siege does not consume enemy top-three quota
+  ok    third eligible enemy is allowed
+  ok    fourth eligible enemy is rejected
+  ok    quota diagnostic identifies home, distance and enemy count
+  ok    peace immediately removes former enemies from quota
+  ok    equal-distance enemy does not count as strictly closer; radius 100 allowed
+  ok    radius above 100 rejected
+  ok    radius diagnostic differs from quota
+  ok    three joinable allied sieges remain eligible enemies
+  ok    kingdom members do not occupy hostile quota
+  ok    affiliation's current peace rejects former target
+  ok    kingdom members do not occupy hostile quota
+  ok    affiliation's current peace rejects former target
+  ok    no-home radius 100 ignores quota as before
+  ok    no-home distance over 100 rejected
+  ok    null clan keeps no-home fallback
+  ok    null target rejected
+  ok    null party rejected
+  ok    raid target rejected by same eligibility as ranking
+  ok    unjoinable siege target rejected
+  ok    null target faction rejected
+  ok    own target rejected
+  ok    neutral target rejected
+  ok    null attacking faction rejected
+  ok    independent issued siege reaches enemy target
+  ok    native issued siege reaches enemy target
+  ok    one daily geographic summary
+  ok    geographic-only failure does not claim insufficient strength
+  ok    daily summary carries a rejected target and anchor
+  ok    недоступный прорыв: штатный выход без выключения
+  ok    недоступная осада не выбирается снова сразу после выхода
+  ok    через шесть игровых часов оборона снова разрешена
+  ok    четвёртая крепость за тремя соседними не приграничная
+  ok    близкая цель разрешена до потери опорного владения
+  ok    утраченное владение не разрешает далёкую осаду
+  ok    свой феод под осадой прерывает 12 часов отдыха
+  ok    далёкий слабый феод не становится целью осады
+  ok    пограничный феод разрешён даже вдали от текущего отряда
+  ok    далёкий слабый феод не становится целью осады
+  ok    пограничный феод разрешён даже вдали от текущего отряда
+  ok    средний уровень 2 — осады нет:
+  ok    причина записана один раз
+  ok    пересчёты не повторяют ту же запись
+  ok    штатное предложение осады отклонено
+  ok    в пропусках названа причина
+  ok    ополчение 4 + лорд внутри 4 = 8, нам надо 12 — не идём
+  ok    разбивка защиты в журнале
+  ok    лорд в 40 вне поля зрения: ждали осаду False
+  ok    лорд в 60 вне поля зрения: ждали осаду True
+  ok    лорд в 150 вне поля зрения: ждали осаду True
+  ok    8 защитников против 10 — без перевеса x1,5 не идём
+  ok    причина записана один раз за игровые сутки
+  ok    на следующие сутки запись повторяется
+  ok    средний уровень (10*2+30*5)/40=4.25 — идём
+  ok    смена записана
+  ok    при 10/100 набираем бойцов раньше доступной осады
+  ok    после посещения первой деревни выбираем другую, а не повторяем круг
+  ok    после обхода доступных мест не начинаем круг заново до истечения срока
+  ok    на 90/100 приоритет набора закончился и вернулся поход
+  ok    набирать едем в «Деревня у замка»
+  ok    набирать едем в «Чужая даль»
+  ok    уход от своих записан в журнал
+  ok    6 защитников при наших 10 — перевес x1,5 есть, идём; город без перевеса отвергнут
+  ok    слабый замок сначала выбран
+  ok    после роста обороны записаны обе силы
+  ok    после отмены осады выбран штатный патруль
+  ok    подкрепление лишает перевеса x1,5
+  ok    8 защитников: отряду из 10 нужен перевес x1,5 (12), армия из 20 его даёт
+  ok    8 защитников, нас 10, с лордом 20: армия True
+  ok    8 защитников, нас 10, с лордом 20: армия False
+  ok    причина, почему некого позвать, записана
+  ok    8 защитников, нас 10, с лордом 20: армия False
+  ok    причина, почему некого позвать, записана
+  ok    PatrolAroundPoint: армия распущена
+  ok    роспуск записан с причиной
+  ok    в простое влияние на сплочённость не жжём: вливаний 2
+  ok    BesiegeSettlement: армия на месте
+  ok    семидневный запас остаётся обязательным
+  ok    в журнале раздельно видны гарнизон, ополчение и видимый враг
+  ok    наблюдение не отдаёт приказ осады
+  ok    do not press Done while native simulation is still finishing
+  ok    press Done once after native simulation completion
+  ok    surrender only as sole option: forced
+  ok    captivity keeps autopilot active
+  ok    surrender only as sole option: escape
+  ok    surrender only as sole option: healthy
+  ok    surrender only as sole option: modal
+  ok    surrender only as sole option: observe
+  ok    raid notice respects apply
+  ok    raid notice reaches native encounter without disabling
+  ok    raid notice respects observe
+  ok    raid notice respects inquiry
+  ok    raid notice respects disabled
+  ok    escape confirmation respects apply
+  ok    escape debrief continues without disabling
+  ok    escape confirmation respects observe
+  ok    escape confirmation respects inquiry
+  ok    simulation fallback only for wounded hero
+  ok    ongoing simulation is not closed
+  ok    modal window blocks simulation confirmation
+  ok    finished owned simulation confirmed exactly once
+  ok    simulation fallback only for wounded hero
+  ok    cannot bypass low morale or no healthy troops
+  ok    1000 gold hires two, but not third: remaining gold covers new wages for seven days
+  ok    cleared encounter still closes village_player_raid_ended
+  ok    cleared encounter still closes village_raid_ended_leaded_by_someone_else
+  ok    cleared encounter still closes village_raid_diplomatically_ended
+  ok    cleared encounter still closes village_looted
+  ok    only land field battle at village is supported: village
+  ok    F11 can resume a village field battle
+  ok    only land field battle at village is supported: naval
+  ok    only land field battle at village is supported: raid
+  ok    only land field battle at village is supported: castle
+  ok    lord at village goes through fixed combat conversation
+  ok    у ворот ушли штатно, автопилот продолжает снабжение
+  ok    не превращаем армейскую цель в одиночный поход после отказа сбора
+  ok    не ведём пустую армию и не платим за чужую
+  ok    защита от нападающего, бандит False
+  ok    защита от нападающего, бандит True
+  ok    реальный бой участника армии разрешён
+  ok    приоритет поход/снабжение, обеспечены True
+  ok    до следующего пересчёта бандиты не перехватывают поход или снабжение
+  ok    приоритет поход/снабжение, обеспечены False
+  ok    до следующего пересчёта бандиты не перехватывают поход или снабжение
+  ok    сплочённость реально изменяется только у доступной своей армии
+  ok    списывается ровно штатная цена, допустим точный остаток
+  ok    сплочённость реально изменяется только у доступной своей армии
+  ok    списывается ровно штатная цена, допустим точный остаток
+  ok    сплочённость реально изменяется только у доступной своей армии
+  ok    списывается ровно штатная цена, допустим точный остаток
+  ok    сплочённость реально изменяется только у доступной своей армии
+  ok    списывается ровно штатная цена, допустим точный остаток
+  ok    сплочённость реально изменяется только у доступной своей армии
+  ok    списывается ровно штатная цена, допустим точный остаток
+  ok    сплочённость реально изменяется только у доступной своей армии
+  ok    списывается ровно штатная цена, допустим точный остаток
+  ok    сплочённость реально изменяется только у доступной своей армии
+  ok    списывается ровно штатная цена, допустим точный остаток
+  ok    только доступная штатная кнопка, до осадного обработчика
+  ok    только доступная штатная кнопка, до осадного обработчика
+  ok    только доступная штатная кнопка, до осадного обработчика
+  ok    только доступная штатная кнопка, до осадного обработчика
+  ok    только доступная штатная кнопка, до осадного обработчика
+  ok    штатная цель рейда исполнена
+  ok    рейд запущен через штатные кнопки, время идёт
+  ok    завершение рейда подтверждено
+  ok    армия ждёт разговора с целью
+  ok    армия создана с приглашённым союзником и оплатой влиянием
+  ok    собранная армия продолжает наступление
+  ok    нельзя создать неоплаченную армию
+  ok    следование лидеру не выключает автопилот и продвигает время
+  ok    последствия захвата по решению владельца, милость True
+  ok    последствия захвата по решению владельца, милость False
+  ok    доступная военная цель выбрана прежде погони
+  ok    4 стены + 6 подмоги против наших 10 (порог x1.2): уходим True
+  ok    причина с разбивкой записана один раз
+  ok    в разбивке видна подмога, идущая к нам
+  ok    4 стены + 6 подмоги против наших 10 (порог x1.2): уходим False
+  ok    4 стены + 0 подмоги против наших 10 (порог x1.2): уходим False
+  ok    три одиночки издалека: уходим False (одиночки по одному: 4+3=7, x1.2=8.4 ≤ 10; вместе: 4+9=13)
+  ok    армия из трёх: уходим True (одиночки по одному: 4+3=7, x1.2=8.4 ≤ 10; вместе: 4+9=13)
+  ok    три одиночки вплотную: уходим True (одиночки по одному: 4+3=7, x1.2=8.4 ≤ 10; вместе: 4+9=13)
+  ok    подмога 6 + стены 4 против наших 10 — осаду сняли
+  ok    через 13 часов подмоги не видно, стены 4 при наших 10 — но помним 10 и не идём
+  ok    в журнале видно, что взяли запомненное
+  ok    через 3 дня память прошла — крепость снова по силам
+  ok    стены 12, наших 10 (мало для x1,5), с лагерем 20 — идём: GoToSettlement → Осаждаемый замок
+  ok    решение записано с силами лагеря
+  ok    чужой лагерь не наш — крепость пропускаем
+  ok    вошли в лагерь: join_siege_event
+  ok    вход записан
+  ok    командир — зритель: ни штурма, ни ухода:
+  ok    ждём в лагере с идущим временем, а не стоим: UnstoppableFastForward
+  ok    лагерь готов — штурм: menu_siege_strategies_lead_assault,menu_siege_strategies_lead_assault
+  ok    причина записана
+  ok    лагерь не достроен — штурма нет
+  ok    командуем обороной — ставим штатную стратегию (строит машины); иначе не трогаем: True
+  ok    запись одна, без повторов
+  ok    командуем обороной — ставим штатную стратегию (строит машины); иначе не трогаем: False
+  ok    запись одна, без повторов
+  ok    при нехватке еды уходим пополняться вместо штурма
+  ok    порог 7/7/70, нехватка 0
+  ok    порог 7/7/70, нехватка 1
+  ok    порог 7/7/70, нехватка 2
+  ok    порог 7/7/70, нехватка 3
+  ok    приказ, который реально двигает партию игрока
+  ok    цель считается прежней: приказ не перевыдаётся каждый час
+  ok    пока едем, сторож движения не срабатывает
+  ok    у ворот вражеской крепости осада начинается штатным пунктом меню
+  ok    поход к крепости назначен
+  ok    шесть часов без движения при живом времени замечены и записаны
+  ok    поведение сброшено в Hold — иначе движок примет приказ за уже выданный и движение не вернёт
+  ok    после двух безуспешных перевыдач цель снята с записью в журнал
+  ok    мод больше не держится за цель, до которой не доехал
+  ok    пока партия двигается, сторож не вмешивается
+  ok    окно события во время осады разобрано модом, а не оставлено человеку
+  ok    осада начата, машины отданы штатной стратегии, раннего штурма нет
+  ok    ручная стратегия после повторного открытия осады не оставляет автопилот без строительства
+  ok    готовность AI запускает полноценный штурм
+  ok    наша наступательная осада поддержана боевой миссией
+  ok    деблокирующая армия атакована штатной кнопкой, автопилот не выключен
+  ok    после полевого боя ожидание строительства осады возобновлено
+  ok    после добычи без PlayerEncounter выбран штатный исход осады по готовности
+  ok    после добычи без PlayerEncounter выбран штатный исход осады по готовности
+  ok    патруль, атаковавший наш осадный лагерь, принят как принадлежащий операции бой
+  ok    бой у другой крепости не присваивается осаде
+  ok    морской бой не присваивается сухопутной осаде
+  ok    без действующего осадного лагеря произвольный бой не присваивается
+  ok    патруль, атаковавший наш осадный лагерь, принят как принадлежащий операции бой
+  ok    бой у другой крепости не присваивается осаде
+  ok    морской бой не присваивается сухопутной осаде
+  ok    без действующего осадного лагеря произвольный бой не присваивается
+  ok    патруль, атаковавший наш осадный лагерь, принят как принадлежащий операции бой
+  ok    бой у другой крепости не присваивается осаде
+  ok    морской бой не присваивается сухопутной осаде
+  ok    без действующего осадного лагеря произвольный бой не присваивается
+  ok    pending march is not issued through modal or after peace: False
+  ok    pending march is not issued through modal or after peace: True
+  ok    valid committed siege survives distraction: hunt
+  ok    valid committed siege survives distraction: patrol
+  ok    valid committed siege survives distraction: margin
+  ok    real overload routes to safe market
+  ok    original siege resumes after unloading
+  ok    invalid or unprepared campaign is cancelled: peace
+  ok    invalid or unprepared campaign is cancelled: stronger
+  ok    invalid or unprepared campaign is cancelled: food
+Siege frontier: 232 ok / 0 FAIL

@@ -5,6 +5,7 @@ using BannerlordAutopilot;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.CampaignSystem.Siege;
 
 internal static partial class Program
 {
@@ -83,6 +84,36 @@ internal static partial class Program
             Check(reason != null && reason.Contains("homefief=home_fief") && reason.Contains("reason=radius"),
                 "radius diagnostic differs from quota");
         });
+        Try("joinable allied camps still consume enemy quota", () => {
+            var target = FrontierWorld();
+            foreach (float x in new[] { 10f, 20f, 30f })
+            {
+                var fort = FrontierFort(target.MapFaction, x);
+                var camp = new MobileParty { MapFaction = MobileParty.MainParty.MapFaction };
+                var siege = new SiegeEvent { BesiegedSettlement = fort };
+                siege.BesiegerCamp.LeaderParty = camp;
+                fort.SiegeEvent = siege; fort.IsUnderSiege = true;
+            }
+            Check(FrontierRejection(target) != null, "three joinable allied sieges remain eligible enemies");
+        });
+        foreach (bool mercenary in new[] { false, true })
+        Try("frontier uses current map affiliation, mercenary=" + mercenary, () => {
+            var target = FrontierWorld();
+            var kingdom = new Kingdom();
+            kingdom.Enemies.Add(target.MapFaction);
+            var party = MobileParty.MainParty;
+            party.MapFaction = kingdom;
+            Clan.PlayerClan.Kingdom = kingdom;
+            Clan.PlayerClan.IsUnderMercenaryService = mercenary;
+            // Stub Clan.MapFaction is independent; native resolves Kingdom through MapFaction.
+            Clan.PlayerClan.MapFaction = new TestFaction();
+            Clan.PlayerClan.Fiefs.Clear();
+            var home = OwnSiege(x: 0); home.IsUnderSiege = false;
+            foreach (float x in new[] { 10f, 20f, 30f }) FrontierFort(kingdom, x);
+            Check(FrontierRejection(target) == null, "kingdom members do not occupy hostile quota");
+            kingdom.Enemies.Clear();
+            Check(FrontierRejection(target) != null, "affiliation's current peace rejects former target");
+        });
         Try("frontier with no valid home uses party radius without top-three quota", () => {
             var target = FrontierWorld(100);
             Clan.PlayerClan.Fiefs.Clear();
@@ -97,6 +128,13 @@ internal static partial class Program
         Try("invalid offensive targets cannot pass frontier eligibility", () => {
             var target = FrontierWorld();
             Check(FrontierRejection(null) != null, "null target rejected");
+            var border = typeof(AutopilotBehavior).GetMethod("SiegeBorderRejection", BindingFlags.Static | BindingFlags.NonPublic);
+            Check(border.Invoke(null, new object[] { null, target }) != null, "null party rejected");
+            target.IsUnderRaid = true;
+            Check(FrontierRejection(target) != null, "raid target rejected by same eligibility as ranking");
+            target.IsUnderRaid = false; target.IsUnderSiege = true;
+            Check(FrontierRejection(target) != null, "unjoinable siege target rejected");
+            target.IsUnderSiege = false;
             target.MapFaction = null;
             Check(FrontierRejection(target) != null, "null target faction rejected");
             target.MapFaction = MobileParty.MainParty.MapFaction;

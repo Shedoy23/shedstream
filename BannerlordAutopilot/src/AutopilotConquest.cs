@@ -343,7 +343,22 @@ namespace BannerlordAutopilot
 
         private static bool EnemyFortress(Settlement place, MobileParty party) =>
             place != null && (place.IsTown || place.IsCastle) && place.MapFaction != null
-            && party?.MapFaction != null && party.MapFaction.IsAtWarWith(place.MapFaction);
+            && party?.MapFaction != null && place.MapFaction != party.MapFaction
+            && party.MapFaction.IsAtWarWith(place.MapFaction);
+
+        // The same eligible enemy pool is used for frontier ranking and final orders.
+        // MapFaction follows the current kingdom (including mercenary service), not culture or original owner.
+        private static string OffensiveSiegeRejection(Settlement place, MobileParty party)
+        {
+            if (!EnemyFortress(place, party)) return "нет вражеской крепости";
+            if (place.IsUnderRaid) return "поселение под налётом";
+            if (place.IsUnderSiege)
+            {
+                AlliedCampStrength(place, party, out MobileParty leader);
+                if (leader == null) return "крепость уже осаждают";
+            }
+            return null;
+        }
 
         // Independent of the native AI: MainParty often receives no siege proposals at all.
         // Count the militia as one strength per soldier and nearby visible enemy parties at
@@ -492,26 +507,41 @@ namespace BannerlordAutopilot
             return strength;
         }
 
-        // Geographic frontier approximation: one of the three closest forts to a
+        // Geographic frontier approximation: one of the three closest eligible enemy forts to a
         // clan holding, at most 100 map units away. No route/path claim is made.
         private static string SiegeBorderRejection(MobileParty party, Settlement target)
         {
             if (target == null || party == null) return "нет цели";
-            var homes = Clan.PlayerClan?.Fiefs.Select(f => f.Settlement)
+            string invalid = OffensiveSiegeRejection(target, party);
+            if (invalid != null) return invalid;
+            var homes = Clan.PlayerClan?.Fiefs.Select(f => f?.Settlement)
                 .Where(s => s != null && (s.IsTown || s.IsCastle) && s.MapFaction == party.MapFaction).Distinct().ToList()
                 ?? new List<Settlement>();
             if (homes.Count == 0)
-                return party.Position.DistanceSquared(target.Position) <= 100f * 100f
-                    ? null : "первый феод слишком далеко от отряда (более 100 единиц карты)";
+            {
+                float distance = party.Position.DistanceSquared(target.Position);
+                return distance <= 100f * 100f ? null
+                    : "первый феод слишком далеко от отряда (более 100 единиц карты; target=" + target.StringId
+                        + "; homefief=<none>; distance=" + Math.Sqrt(distance).ToString("F2", CultureInfo.InvariantCulture)
+                        + "; eligiblecloser=<not used>; reason=radius)";
+            }
+            Settlement nearestHome = null;
+            float nearestDistance = float.MaxValue;
+            int nearestCloser = 0;
             foreach (var home in homes)
             {
                 float distance = home.Position.DistanceSquared(target.Position);
-                if (distance > 100f * 100f) continue;
-                int closer = Settlement.All.Count(s => s != home && s != target && (s.IsTown || s.IsCastle)
+                int closer = Settlement.All.Count(s => s != home && s != target && OffensiveSiegeRejection(s, party) == null
                     && home.Position.DistanceSquared(s.Position) < distance);
-                if (closer < 3) return null;
+                if (distance <= 100f * 100f && closer < 3) return null;
+                if (nearestHome == null || distance < nearestDistance)
+                { nearestHome = home; nearestDistance = distance; nearestCloser = closer; }
             }
-            return "не приграничный феод: вне трёх ближайших крепостей в радиусе 100 от своих владений";
+            return "не приграничный феод: вне трёх ближайших доступных вражеских крепостей в радиусе 100 от своих владений"
+                + " (target=" + target.StringId + "; homefief=" + nearestHome.StringId
+                + "; distance=" + Math.Sqrt(nearestDistance).ToString("F2", CultureInfo.InvariantCulture)
+                + "; eligiblecloser=" + nearestCloser
+                + "; reason=" + (nearestDistance > 100f * 100f ? "radius" : "quota") + ")";
         }
 
         /// <summary>24.09: 18.09 отказались от «Замка Астер» по силам и через 3 с взяли
@@ -635,15 +665,16 @@ namespace BannerlordAutopilot
             // 26.09: после «отряд окреп» за 1,5 ч войны осад не было ни одной, а журнал
             // молчал почему. Раз в игровой день пишем крепость, ближе всех к порогу.
             Settlement closest = null; float closestDefenders = 0f; int fortresses = 0, borderSkipped = 0;
+            string geographicExample = null;
             MobileParty bestCampLeader = null; float bestCamp = 0f, bestDefenders = 0f;
             foreach (var place in Settlement.All)
             {
-                if (!EnemyFortress(place, party) || place.IsUnderRaid || SiegeRecentlyRejected(place)) continue;
+                if (OffensiveSiegeRejection(place, party) != null || SiegeRecentlyRejected(place)) continue;
                 MobileParty campLeader = null;
                 float camp = place.IsUnderSiege ? AlliedCampStrength(place, party, out campLeader) : 0f;
-                if (place.IsUnderSiege && campLeader == null) continue;
                 fortresses++;
-                if (SiegeBorderRejection(party, place) != null) { borderSkipped++; continue; }
+                string border = SiegeBorderRejection(party, place);
+                if (border != null) { borderSkipped++; if (geographicExample == null) geographicExample = border; continue; }
                 float defenders = SiegeDefenderStrength(place, party);
                 bool needsArmy = own + camp < defenders * SiegeStrengthRatio;
                 if (needsArmy && (allies.Count == 0 || assembled + camp < defenders * SiegeStrengthRatio))
@@ -667,7 +698,11 @@ namespace BannerlordAutopilot
                 {
                     _siegeMissLoggedDay = day;
                     if (closest != null) Thoughts.Say("no_fortress", closest.StringId, closest.Name);
-                    AutopilotLog.Write("ПОХОД: крепостей по силам нет (вражеских " + fortresses + ", вне досягаемости " + borderSkipped + ")"
+                    AutopilotLog.Write((borderSkipped == fortresses
+                        ? "ПОХОД: все доступные вражеские крепости отклонены географическим фильтром"
+                        : "ПОХОД: крепостей по силам нет")
+                        + " (доступных вражеских " + fortresses + ", отклонены по географии " + borderSkipped + ")"
+                        + (geographicExample == null ? "" : "; пример: " + geographicExample)
                         + (closest == null ? "" : "; ближе всех к порогу «" + closest.Name + "»: защитники "
                             + closestDefenders.ToString("F0", CultureInfo.InvariantCulture) + ", надо x"
                             + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture) + " = "
@@ -695,12 +730,11 @@ namespace BannerlordAutopilot
 
         private string SiegeTargetRejection(MobileParty party, Settlement place)
         {
-            if (!EnemyFortress(place, party)) return "крепость больше не принадлежит врагу";
+            string invalid = OffensiveSiegeRejection(place, party);
+            if (invalid != null) return invalid;
             string border = SiegeBorderRejection(party, place);
             if (border != null) return border;
             float camp = AlliedCampStrength(place, party, out MobileParty campLeader);
-            if (place.IsUnderSiege && campLeader == null) return "крепость уже осаждают";
-            if (place.IsUnderRaid) return "поселение под налётом";
             string preparation = PreparationNeeded(party);
             if (preparation != null) return "поход не готов: " + preparation;
             string readiness = SiegeReadiness(party);

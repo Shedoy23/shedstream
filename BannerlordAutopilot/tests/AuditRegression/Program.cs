@@ -291,6 +291,8 @@ internal static partial class Program
             EngineContract.Verify();
             SiegeFrontierTests();
             SiegeReliabilityTests();
+            ConquestTests();
+            CampaignCommitmentTests();
             Console.WriteLine("Siege frontier: " + passed + " ok / " + failed + " FAIL");
             return failed;
         }

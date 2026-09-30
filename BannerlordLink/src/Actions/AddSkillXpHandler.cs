@@ -45,6 +45,17 @@ namespace BannerlordLink.Actions
 
         public string ActionType => "hero.add_skill";
 
+        /// <summary>Наш потолок навыка (BLT MaxSkillLevel).</summary>
+        internal const int SkillCap = 330;
+
+        /// <summary>Примет ли игра опыт в этот навык: ниже нашего потолка и скорость
+        /// обучения игры больше нуля (HeroDeveloper.GetFocusFactor = CalculateLearningRate).</summary>
+        private static bool SkillAcceptsXp(Hero hero, SkillObject skill)
+        {
+            try { return hero.GetSkillValue(skill) < SkillCap && hero.HeroDeveloper.GetFocusFactor(skill) > 0f; }
+            catch { return true; }   // не смогли спросить игру — оставляем прежнее поведение
+        }
+
         public Task<(bool success, string error)> ExecuteAsync(JObject data)
         {
             string username = (data["target"]?.ToString() ?? data["initiated_by"]?.ToString() ?? "")
@@ -101,6 +112,22 @@ namespace BannerlordLink.Actions
                             .Select(p => p.GetValue(null) as SkillObject)
                             .Where(s => s != null)
                             .ToList();
+                        // 30.09, багрепорт #73: случайный выбор брал навык, которому игра
+                        // опыт не даёт (выше лимита обучения — CalculateLearningRate = 0 —
+                        // или на нашем потолке), и дейлик отказывал «опыт не начислился».
+                        // Выбираем только из тех, что игра примет; все упёрлись — честный отказ.
+                        if (allSkills.Count > 0)
+                        {
+                            var learnable = allSkills.Where(s => SkillAcceptsXp(hero, s)).ToList();
+                            if (learnable.Count == 0)
+                            {
+                                BannerlordLinkModule.Log(
+                                    $"[hero.add_skill] REFUSE @{username}: ни один навык не принимает опыт (лимит обучения или {SkillCap})");
+                                BannerlordLink.Util.ActionFeedback.PostFailed(actionId, "no_learnable_skill");
+                                return;
+                            }
+                            allSkills = learnable;
+                        }
                         if (allSkills.Count == 0)
                         {
                             // Sprint 5.31 #45c — reflection broke (новая версия игры?).
@@ -205,7 +232,7 @@ namespace BannerlordLink.Actions
                     // Cap 330 = ~T6 champion-level, оставляет потолок для
                     // дальнейшего progression через levels/attributes, но
                     // блокирует абсурдные значения. Refund крустики при отказе.
-                    const int SKILL_CAP = 330;
+                    const int SKILL_CAP = SkillCap;
                     if (before >= SKILL_CAP)
                     {
                         BannerlordLinkModule.Log(

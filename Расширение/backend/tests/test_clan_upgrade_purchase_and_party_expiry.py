@@ -98,6 +98,17 @@ async def main():
         assert owned == 0, "ownership must wait for engine confirmation"
         assert payload["hero_gold_cost"] == 400000
 
+        # 30.09, багрепорты #69/#70: список сразу после покупки показывает её купленной,
+        # а цену уже вычтенной — до подтверждения мода (иначе зритель платил снова).
+        bannerlord.require_jwt_user = lambda _request: (USER, CH)
+        try:
+            listing = await bannerlord.bannerlord_clan_upgrades_list(Request())
+        finally:
+            bannerlord.require_jwt_user = old_auth
+        row = next(u for u in listing["upgrades"] if u["upgrade_id"] == "foundation_test")
+        assert row["owned"] and row["pending"], f"pending purchase not shown as owned: {row}"
+        assert listing["hero_gold"] == 100000, f"pending cost not subtracted: {listing['hero_gold']}"
+
         adapter = BannerlordAdapter.__new__(BannerlordAdapter)
         async def no_log(*_args, **_kwargs):
             return None

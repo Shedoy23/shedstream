@@ -3479,11 +3479,35 @@ async def bannerlord_clan_upgrades_list(request: Request):
         )
         owned_set = {r[0] for r in await cur.fetchall()}
 
+        # 30.09, багрепорты #69/#70: панель перечитывает список сразу после
+        # покупки, а купленное пишется только после подтверждения мода (1–6 с) —
+        # зритель видел «не изучилось» и платил снова. Заявки в пути (≤10 мин)
+        # показываем купленными, их цену вычитаем из показанного золота.
+        cur = await conn.execute(
+            "SELECT data FROM module_actions WHERE channel_id=? "
+            "AND type='hero.buy_clan_upgrades' "
+            "AND status IN ('queued','dispatched','acked') "
+            "AND datetime(created_at)>=datetime('now','-10 minutes')", (channel_id,))
+        pending_set: set = set()
+        pending_cost = 0
+        for (data_str,) in await cur.fetchall():
+            try:
+                data = _bnr_clan_json.loads(data_str or "{}")
+            except Exception:
+                continue
+            if (data.get("initiated_by") or "").lower() != username:
+                continue
+            for item in data.get("upgrades") or []:
+                uid = item.get("upgrade_id")
+                if uid and uid not in owned_set and uid not in pending_set:
+                    pending_set.add(uid)
+                    pending_cost += int(item.get("gold_cost") or 0)
+
     upgrades = []
     for upg_id, name, desc, tier, req, cost, effects_json in rows:
-        owned = upg_id in owned_set
-        # Locked если prereq exists и не куплен
-        locked = bool(req and req not in owned_set)
+        owned = upg_id in owned_set or upg_id in pending_set
+        # Locked если prereq exists и не куплен (заявка в пути тоже открывает следующий)
+        locked = bool(req and req not in owned_set and req not in pending_set)
         upgrades.append({
             "upgrade_id":          upg_id,
             "name":                name,
@@ -3493,10 +3517,11 @@ async def bannerlord_clan_upgrades_list(request: Request):
             "gold_cost":           cost,
             "effects":             _bnr_clan_json.loads(effects_json or '{}'),
             "owned":               owned,
+            "pending":             upg_id in pending_set,
             "locked":              locked and not owned,
         })
 
-    hero_gold = await _fetch_hero_gold(channel_id, username)
+    hero_gold = max(0, (await _fetch_hero_gold(channel_id, username) or 0) - pending_cost)
     return {"success": True, "upgrades": upgrades, "hero_gold": hero_gold}
 
 

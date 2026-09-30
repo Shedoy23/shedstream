@@ -103,14 +103,23 @@ async def my_kingdom_state(request: Request):
         policies_pending = []
         policies_enacted = []
         if kingdom_id:
+            # 30.09: «действует» — только если ПОСЛЕДНИЙ итог по закону «enacted».
+            # Раньше попадала любая старая строка 'enacted', и закон, отменённый
+            # позже, панель продолжала показывать действующим.
+            latest = await policy_states(conn, channel_id, kingdom_id)
             cur = await conn.execute(
                 "SELECT id, policy_id, policy_name, requester, status, requested_at "
                 "FROM bannerlord_policy_requests "
                 "WHERE channel_id=? AND kingdom_id=? "
                 "  AND status IN ('pending','enacted') "
-                "ORDER BY requested_at DESC LIMIT 30",
+                "ORDER BY requested_at DESC, id DESC LIMIT 30",
                 (channel_id, kingdom_id))
+            shown_enacted = set()
             for r in await cur.fetchall():
+                if r[4] == "enacted":
+                    if latest.get(r[1]) != "enacted" or r[1] in shown_enacted:
+                        continue
+                    shown_enacted.add(r[1])
                 bucket = policies_pending if r[4] == "pending" else policies_enacted
                 bucket.append({
                     "id":           r[0],
@@ -207,6 +216,19 @@ async def ransom_pool_status(request: Request):
 # ─── Action handlers ──────────────────────────────────────────────────────────
 
 
+async def policy_states(conn, channel_id: int, kingdom_id: str) -> dict:
+    """Последний итог по каждому закону королевства: policy_id → 'enacted'|'removed'."""
+    cur = await conn.execute(
+        "SELECT policy_id, status FROM bannerlord_policy_requests "
+        "WHERE channel_id=? AND kingdom_id=? AND status IN ('enacted','removed') "
+        "ORDER BY requested_at ASC, id ASC",
+        (channel_id, kingdom_id))
+    states: dict = {}
+    for policy_id, status in await cur.fetchall():
+        states[policy_id] = status
+    return states
+
+
 def _derive_kingdom(kingdom_id, kingdom_name, is_king, is_clan_leader,
                     kingdom_info_json):
     """Деривит членство в королевстве из kingdom_info_json.
@@ -275,6 +297,12 @@ async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> 
         return {"success": False,
                 "message": "Заявка по этому закону уже обрабатывается — подожди пару секунд"}
 
+    # 30.09: что зритель видел в панели, то он и хочет. Мод раньше просто
+    # переключал: закон уже действует в игре, а панель показывала «нет» —
+    # 1500💎 уходили на ОТМЕНУ. Теперь мод сверяет с игрой и отказывает с
+    # возвратом, если закон уже в нужном состоянии.
+    want = "remove" if (await policy_states(conn, channel_id, kingdom_id)).get(policy_id) == "enacted" else "enact"
+
     # Enqueue mod-action.
     payload = {
         "initiated_by":   owner,
@@ -282,6 +310,7 @@ async def handle_enact_policy(conn, channel_id: int, owner: str, data: dict) -> 
         "kingdom_id":     kingdom_id,
         "policy_id":      policy_id,
         "policy_name":    policy_name,
+        "want":           want,
     }
     await enqueue_mod_action(conn, channel_id, action_id,
                              "hero.enact_policy", payload, data)

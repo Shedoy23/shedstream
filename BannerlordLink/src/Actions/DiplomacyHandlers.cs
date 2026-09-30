@@ -32,6 +32,7 @@ namespace BannerlordLink.Actions
             string kingdomId = (data["kingdom_id"]?.ToString() ?? "").Trim();
             string policyId = (data["policy_id"]?.ToString() ?? "").Trim();
             string policyName = data["policy_name"]?.ToString() ?? policyId;
+            string want = (data["want"]?.ToString() ?? "").Trim().ToLowerInvariant();
             string actionId = ActionFeedback.GetActionId(data);
 
             BannerlordLinkModule.Log(
@@ -45,12 +46,21 @@ namespace BannerlordLink.Actions
             }
 
             MainThreadDispatcher.Enqueue(() =>
-                Apply(username, kingdomId, policyId, policyName, actionId));
+                Apply(username, kingdomId, policyId, policyName, actionId, want));
             return Task.FromResult<(bool, string)>((true, null));
         }
 
+        /// <summary>30.09: чего хочет зритель по тому, что видел в панели. null — старый
+        /// бэкенд без поля: прежний переключатель. Уже в нужном состоянии — отказ.</summary>
+        internal static (bool WantEnact, string Refusal) ResolvePolicyIntent(string want, bool hasNow)
+        {
+            if (want == "enact") return (true, hasNow ? "policy_already_enacted" : null);
+            if (want == "remove") return (false, hasNow ? null : "policy_already_removed");
+            return (!hasNow, null);
+        }
+
         private static void Apply(string username, string kingdomId,
-            string policyId, string policyName, string actionId)
+            string policyId, string policyName, string actionId, string want)
         {
             try
             {
@@ -102,7 +112,18 @@ namespace BannerlordLink.Actions
                 // "enact" — backend marks status='enacted'. Toggle semantics
                 // даёт viewer'у возможность откатить плохую policy за тот же
                 // прайс. UI можно дальше показать diff состояния.
-                bool wantEnact = !kingdom.HasPolicy(policy);
+                bool hasNow = kingdom.HasPolicy(policy);
+                var (wantEnact, refusal) = ResolvePolicyIntent(want, hasNow);
+                if (refusal != null)
+                {
+                    // Панель разошлась с игрой: закрываем заявку ФАКТИЧЕСКИМ состоянием
+                    // (панель выправится), деньги возвращаем.
+                    BannerlordLinkModule.Log(
+                        $"[diplo-policy] REFUSE @{username}: '{policyName}' уже {(hasNow ? "действует" : "не действует")} в {kingdom.Name} (want={want})");
+                    ActionFeedback.PostPolicyResult(actionId, policyId, hasNow);
+                    ActionFeedback.PostFailed(actionId, refusal);
+                    return;
+                }
                 if (wantEnact) kingdom.AddPolicy(policy);
                 else           kingdom.RemovePolicy(policy);
 

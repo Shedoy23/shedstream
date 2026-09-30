@@ -4,6 +4,7 @@
 
 <!-- Local integration update 2026-09-30 -->
 
+**30.09 — ручной экспорт карты: первый запуск дал JSON, PNG нет (`phase_timeout`).** Вероятная причина — ожидание готовности выключенного SceneView; штатный код включает его прежде проверки. Исправление собрано только локально (exit 0), не установлено/не проверено в игре. [Разбор и старое свидетельство](BannerlordLink/probes/MapExportProbe/TIMEOUT_DIAGNOSIS.md), [проверка и хеш новой DLL](BannerlordLink/probes/MapExportProbe/VALIDATION.md). Повторного capture/перезапуска не было.
 **30.09 — исправлен локально осадный ranking:** мирные и недоступные крепости исключены из квоты трёх ближайших врагов; радиус100 сохранён. Целевой стенд232/0, сборка0/0. Отдельная ветка `fix/autopilot-enemy-frontier-20260930`; не установлен. Проверки и дальнейшие действия: `BannerlordAutopilot/review/SIEGE_ENEMY_FRONTIER_2026-09-30.md`.
 
 **30.09 — ручной пробный экспорт карты подготовлен в отдельной локальной ветке.** [Инструкция и ограничения](BannerlordLink/probes/MapExportProbe/README.md), [статическая проверка](BannerlordLink/probes/MapExportProbe/VALIDATION.md). Это диагностический модуль, не установленный в игру; фото ещё не получено.

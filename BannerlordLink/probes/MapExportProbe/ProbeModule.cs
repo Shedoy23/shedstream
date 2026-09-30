@@ -23,7 +23,7 @@ namespace ShedLink.MapExportProbe
     // Optional standalone module. No campaign behaviour, patches, network or automatic capture.
     public sealed class ProbeModule : MBSubModuleBase
     {
-        private enum Phase { Idle, Requested, WaitingForView, EnabledForOneFrame, WaitingForFile, Cleanup, Finished }
+        private enum Phase { Idle, Requested, WaitingForView, SaveWindow, WaitingForFile, Cleanup, Finished }
         private static int _used, _requested, _cancelled;
         private static string _status = "Disabled. Manual capture required.";
         private readonly Stopwatch _clock = new Stopwatch();
@@ -39,6 +39,7 @@ namespace ShedLink.MapExportProbe
         private Texture _target, _depth;
         private long _previousFileLength = -1;
         private bool _cleanupQueued;
+        private int _viewEnabledFrame, _saveArmedFrame, _phaseTicks;
 
         [CommandLineFunctionality.CommandLineArgumentFunction("capture", "shedmap_probe")]
         public static string Capture(List<string> args)
@@ -78,24 +79,40 @@ namespace ShedLink.MapExportProbe
                 if (Volatile.Read(ref _cancelled) != 0) { Stop("cancelled", null); return; }
                 if (_phase == Phase.Requested) { Begin(); return; }
                 if (!StillOnSameReadyMap()) { Stop("map_changed_or_not_ready", null); return; }
+                ++_phaseTicks;
                 if (_clock.Elapsed.TotalSeconds > 5) { Stop("phase_timeout", null); return; }
                 if (_phase == Phase.WaitingForView)
                 {
-                    if (!_view.CheckSceneReadyToRender()) return;
-                    _report["viewReadyToRenderBeforeEnable"] = _view.ReadyToRender();
-                    // Only this offscreen view is enabled, until the next application tick.
-                    // Native scheduling/save semantics remain an AFTER-STREAM experiment.
+                    bool ready = _view.ReadyToRender();
+                    bool sceneReady = _view.CheckSceneReadyToRender();
+                    _report["lastViewReadyToRender"] = ready;
+                    _report["lastSceneReadyToRender"] = sceneReady;
+                    _report["warmupEngineFrameDelta"] = Utilities.EngineFrameNo - _viewEnabledFrame;
+                    if (Utilities.EngineFrameNo - _viewEnabledFrame < 5 || !ready || !sceneReady) return;
+                    // Installed MapScreen enables its view before readiness checks.
+                    // Only our view is enabled here; saving remained off during warmup.
                     _view.SetSaveFinalResultToDisk(true);
-                    _view.SetEnable(true);
-                    _phase = Phase.EnabledForOneFrame;
+                    _saveArmedFrame = Utilities.EngineFrameNo;
+                    _report["saveArmedEngineFrame"] = _saveArmedFrame;
+                    _phase = Phase.SaveWindow;
+                    _phaseTicks = 0;
+                    _report["phase"] = _phase.ToString();
                     _clock.Restart();
+                    WriteReportSafely();
                     return;
                 }
-                if (_phase == Phase.EnabledForOneFrame)
+                if (_phase == Phase.SaveWindow)
                 {
+                    // Application ticks alone do not establish a render opportunity.
+                    // Engine frame progression still does NOT prove GPU/save completion.
+                    if (Utilities.EngineFrameNo <= _saveArmedFrame) return;
+                    _report["saveWindowEndEngineFrame"] = Utilities.EngineFrameNo;
                     DisableOwnView();
                     _phase = Phase.WaitingForFile;
+                    _phaseTicks = 0;
+                    _report["phase"] = _phase.ToString();
                     _clock.Restart();
+                    WriteReportSafely();
                     return;
                 }
                 if (_phase == Phase.WaitingForFile) CheckOutput();
@@ -115,6 +132,7 @@ namespace ShedLink.MapExportProbe
             {
                 ["schema"] = "shedlink.map-probe.v1", ["attemptUtc"] = DateTime.UtcNow.ToString("o"),
                 ["status"] = "started", ["runtimeValidated"] = false,
+                ["probeRevision"] = "enable-before-readiness.v2",
                 ["baseCommit"] = "7e382b1ca648a2719206f5ba2bec680ca557ca4f",
                 ["sharedScene"] = true, ["sceneObjectsMayAppearInImage"] = true,
                 ["renderSize"] = new JArray(256, 256),
@@ -197,10 +215,18 @@ namespace ShedLink.MapExportProbe
             _view.SetFilePathToSaveResult(_folder + Path.DirectorySeparatorChar);
             _view.SetFileNameToSaveResult("snapshot.png");
             _view.SetFileTypeToSave(View.TextureSaveFormat.TextureTypePng);
-            WriteReport();
-            _status = "Probe view waiting for readiness. Output: " + _folder;
+            _view.SetSaveFinalResultToDisk(false);
+            // Standalone SceneTableau also enables its SceneView before querying readiness.
+            // Do not initialize resources or mutate visibility/lighting on the shared scene.
+            _view.SetEnable(true);
+            _viewEnabledFrame = Utilities.EngineFrameNo;
+            _report["viewEnabledEngineFrame"] = _viewEnabledFrame;
+            _status = "Owned view enabled for bounded warmup; no snapshot confirmed. Output: " + _folder;
             _phase = Phase.WaitingForView;
+            _phaseTicks = 0;
+            _report["phase"] = _phase.ToString();
             _clock.Restart();
+            WriteReport();
         }
 
         private bool StillOnSameReadyMap()
@@ -283,7 +309,15 @@ namespace ShedLink.MapExportProbe
         private void Stop(string reason, Exception ex)
         {
             if (_phase == Phase.Cleanup || _phase == Phase.Finished) return;
-            if (_report != null) { _report["status"] = reason; if (ex != null) _report["error"] = ex.ToString(); }
+            if (_report != null)
+            {
+                _report["status"] = reason;
+                _report["stoppedPhase"] = _phase.ToString();
+                _report["phaseElapsedSeconds"] = _clock.Elapsed.TotalSeconds;
+                _report["phaseTicks"] = _phaseTicks;
+                _report["stopEngineFrame"] = Utilities.EngineFrameNo;
+                if (ex != null) _report["error"] = ex.ToString();
+            }
             _status = reason + (ex == null ? "" : ": " + ex.Message) + "; output: " + (_folder ?? "not created");
             _phase = Phase.Cleanup;
             _cleanupTicks = 0;

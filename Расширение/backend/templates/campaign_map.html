@@ -14,10 +14,11 @@
   #world { position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform; }
   #world img { display:block; image-rendering:auto; user-select:none; -webkit-user-drag:none; }
   #world svg { position:absolute; left:0; top:0; overflow:visible; }
-  .s { cursor:pointer; stroke:#111; }
+  /* Strokes stay the same on screen at any zoom (the world layer is CSS-scaled). */
+  .s { cursor:pointer; stroke:#111; stroke-width:1; vector-effect:non-scaling-stroke; }
   .s.dim { opacity:.18; }
   .s.hit { stroke:var(--accent); stroke-width:3; }
-  .lbl { font-weight:600; fill:#fff; stroke:#000; stroke-width:3px; paint-order:stroke; pointer-events:none; }
+  .lbl { font-weight:600; fill:#fff; stroke:#000; paint-order:stroke; stroke-linejoin:round; pointer-events:none; }
   .panel { position:fixed; background:var(--panel); border:1px solid var(--line); border-radius:10px;
     backdrop-filter:blur(6px); }
   #side { left:12px; top:12px; width:260px; max-height:calc(100% - 24px); display:flex; flex-direction:column; }
@@ -87,7 +88,7 @@
   var DATA_URL = {{ data_url }}, IMAGE_URL = {{ image_url }};
   var KIND = { town: "Город", castle: "Замок", village: "Деревня", hideout: "Логово" };
   var RADIUS = { town: 7, castle: 5, village: 3, hideout: 2.5 };
-  var LABEL_AT = { town: 0, castle: 1.6, village: 3.2 };  // scale from which names show
+  var LABEL_AT = { town: 0.9, castle: 1.6, village: 3.2 };  // scale from which names show (phones start ~0.5)
   var stage = document.getElementById("stage"), world = document.getElementById("world");
   var svg = document.getElementById("marks"), img = document.getElementById("terrain");
   var view = { x: 0, y: 0, k: 1 }, data, W, H, marks = [], labels = [], factionOn = null;
@@ -105,25 +106,29 @@
     world.style.transform = "translate(" + view.x + "px," + view.y + "px) scale(" + view.k + ")";
     // Markers and labels keep their on-screen size while the terrain scales.
     var inv = 1 / view.k;
-    marks.forEach(function (m) { m.el.setAttribute("r", RADIUS[m.s.kind] * Math.max(inv, 0.35)); });
+    marks.forEach(function (m) { m.el.setAttribute("r", RADIUS[m.s.kind] * inv); });
     labels.forEach(function (l) {
       var visible = shown[l.s.kind] && view.k >= LABEL_AT[l.s.kind];
       l.el.style.display = visible ? "" : "none";
-      l.el.setAttribute("font-size", 13 * inv);
+      l.el.setAttribute("font-size", 13 * inv); l.el.setAttribute("stroke-width", 3 * inv);
       l.el.setAttribute("x", l.s.x + 9 * inv); l.el.setAttribute("y", l.s.y + 4 * inv);
     });
   }
   function clampK(k) { return Math.min(12, Math.max(fitScale() * 0.8, k)); }
-  function fitScale() { return Math.min(innerWidth / W, innerHeight / H); }
+  // A page opened in a background tab can have a 0x0 window: never fit to zero.
+  function fitScale() { return Math.min(innerWidth / W, innerHeight / H) || 1; }
+  var touched = false;  // until the viewer pans/zooms, a resize re-fits the whole map
   function fit() {
     view.k = fitScale();
     view.x = (innerWidth - W * view.k) / 2; view.y = (innerHeight - H * view.k) / 2; apply();
   }
   function zoomAt(px, py, factor) {
+    touched = true;
     var k = clampK(view.k * factor), f = k / view.k;
     view.x = px - (px - view.x) * f; view.y = py - (py - view.y) * f; view.k = k; apply();
   }
   function centerOn(s, k) {
+    touched = true;
     view.k = clampK(k || Math.max(view.k, 3));
     view.x = innerWidth / 2 - s.x * view.k; view.y = innerHeight / 2 - s.y * view.k; apply();
   }
@@ -139,7 +144,7 @@
     var prev = pts.get(e.pointerId), cur = { x: e.clientX, y: e.clientY };
     if (pts.size === 1) {
       view.x += cur.x - prev.x; view.y += cur.y - prev.y;
-      if (Math.abs(cur.x - prev.x) + Math.abs(cur.y - prev.y) > 1) moved = true; apply();
+      if (Math.abs(cur.x - prev.x) + Math.abs(cur.y - prev.y) > 1) moved = touched = true; apply();
     } else if (pts.size === 2) {
       var other; pts.forEach(function (p, id) { if (id !== e.pointerId) other = p; });
       var d0 = Math.hypot(prev.x - other.x, prev.y - other.y), d1 = Math.hypot(cur.x - other.x, cur.y - other.y);
@@ -155,7 +160,7 @@
   document.querySelectorAll("#zoom button").forEach(function (b) {
     b.addEventListener("click", function () { zoomAt(innerWidth / 2, innerHeight / 2, +b.dataset.z); });
   });
-  addEventListener("resize", function () { if (W) apply(); });
+  addEventListener("resize", function () { if (W) { if (touched) apply(); else fit(); } });
 
   function showCard(s) {
     var rows = [["Тип", KIND[s.kind]], ["Фракция", s.factionName], ["Клан", s.clanName], ["Относится к", s.boundName]];

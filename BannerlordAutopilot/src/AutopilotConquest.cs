@@ -595,7 +595,20 @@ namespace BannerlordAutopilot
                 {
                     _siegeRejectedUntil.Remove(place);
                     if (losses > 0) _siegeDefenseSeen.Remove(place);
-                    AutopilotLog.Write("ПОХОД: «" + place.Name + "» снова доступна — соотношение сил заметно улучшилось");
+                    var reasons = new List<string>();
+                    if (own >= seen.Own * 1.2f) reasons.Add("наша сила выросла минимум на 20%");
+                    if (defense <= seen.Defense * .8f) reasons.Add("защита ослабла минимум на 20%");
+                    if (camp > 0 && seen.Camp <= 0) reasons.Add("появился союзный лагерь");
+                    AutopilotLog.Write("ПОХОД: «" + place.Name + "» снова доступна — " + string.Join("; ", reasons)
+                        + "; сила с лагерем " + seen.Own.ToString("F1", CultureInfo.InvariantCulture)
+                        + " → " + own.ToString("F1", CultureInfo.InvariantCulture)
+                        + "; защита " + seen.Defense.ToString("F1", CultureInfo.InvariantCulture)
+                        + " → " + defense.ToString("F1", CultureInfo.InvariantCulture)
+                        + "; лагерь " + seen.Camp.ToString("F1", CultureInfo.InvariantCulture)
+                        + " → " + camp.ToString("F1", CultureInfo.InvariantCulture)
+                        + "; нужен перевес x" + SiegeStrengthRatio.ToString("0.#", CultureInfo.InvariantCulture)
+                        + "; до конца паузы " + (until - CampaignTime.Now.ToHours).ToString("F1", CultureInfo.InvariantCulture)
+                        + " игровых часов");
                     return false;
                 }
             }

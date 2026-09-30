@@ -103,6 +103,20 @@ namespace BannerlordLink.Behaviors
         private readonly ConcurrentDictionary<int, DetachmentState> _states =
             new ConcurrentDictionary<int, DetachmentState>();
 
+        /// <summary>30.09, багрепорт #84: «в атаку» — пробежал 2 м и пошёл шагом. Герой
+        /// остаётся членом своей формации (перенос в отдельную формацию снят 29.05: TeamAI
+        /// перебивал приказы, риск краша), а ваниль каждый кадр ограничивает скорость
+        /// бойца темпом строя, пока он близко к своему месту
+        /// (HumanAIComponent.GetFormationFrame → AdjustSpeedLimit). Для героев с приказом
+        /// движения патч DetachedHeroSpeedPatch снимает это ограничение. Читается из
+        /// параллельного тика ИИ — поэтому отдельный потокобезопасный набор индексов.</summary>
+        internal static readonly ConcurrentDictionary<int, byte> FullSpeedAgents =
+            new ConcurrentDictionary<int, byte>();
+
+        internal static bool NeedsFullSpeed(DetachOrder order) =>
+            order == DetachOrder.Charge || order == DetachOrder.Walls || order == DetachOrder.Gate
+            || order == DetachOrder.Skirmish || order == DetachOrder.Raid;
+
         private const float REISSUE_INTERVAL = 0.5f;
 
         // 2026-06-17 (рич-приказы) — Skirmish/Raid математика портирована из движковых
@@ -143,6 +157,7 @@ namespace BannerlordLink.Behaviors
         {
             base.OnEndMission();
             _states.Clear();
+            FullSpeedAgents.Clear();
             // 2026-06-01 FIX — обнуляем static ТОЛЬКО если это мы. Иначе
             // OnEndMission старой/overlapping миссии затирал Instance живого
             // behavior'а (hideout) → команды видели "behavior null".
@@ -154,6 +169,7 @@ namespace BannerlordLink.Behaviors
             base.OnAgentDeleted(affectedAgent);
             if (affectedAgent == null) return;
             _states.TryRemove(affectedAgent.Index, out _);
+            FullSpeedAgents.TryRemove(affectedAgent.Index, out _);
         }
 
         public override void OnMissionTick(float dt)
@@ -183,10 +199,11 @@ namespace BannerlordLink.Behaviors
                     if (now < st.NextReissueAt || st.Status == "blocked") continue;
                     bool active;
                     try { active = st.Agent.IsActive(); }
-                    catch { _states.TryRemove(st.Agent?.Index ?? -1, out _); continue; }
+                    catch { _states.TryRemove(st.Agent?.Index ?? -1, out _); FullSpeedAgents.TryRemove(st.Agent?.Index ?? -1, out _); continue; }
                     if (!active)
                     {
                         _states.TryRemove(st.Agent.Index, out _);
+                        FullSpeedAgents.TryRemove(st.Agent.Index, out _);
                         continue;
                     }
                     ReissueOrder(st);
@@ -221,6 +238,7 @@ namespace BannerlordLink.Behaviors
                 agent.DisableScriptedCombatMovement();
                 agent.SetAutomaticTargetSelection(true);
                 _states.TryRemove(agent.Index, out _);
+                FullSpeedAgents.TryRemove(agent.Index, out _);
                 BannerlordLinkModule.Log($"[DET] ATTACH agent={agent.Index} -> AI control");
                 return true;
             }
@@ -815,6 +833,8 @@ namespace BannerlordLink.Behaviors
 
         private void ReissueOrder(DetachmentState st)
         {
+            if (NeedsFullSpeed(st.Order)) FullSpeedAgents[st.Agent.Index] = 1;
+            else FullSpeedAgents.TryRemove(st.Agent.Index, out _);
             switch (st.Order)
             {
                 case DetachOrder.Hold:     ApplyHold(st);      break;

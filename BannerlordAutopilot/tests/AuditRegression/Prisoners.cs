@@ -82,6 +82,7 @@ internal static partial class Program
             for(int i=0;i<20;i++) b.PollState();
             var r=MobileParty.MainParty.PrisonRoster;
             Check(vm.Closed==1 && r.TotalHeroes==3 && PrisonerCount(r,lord3)==1,"all lords kept even when native capacity is zero");
+            Check(vm.Confirmed==1 && !InformationManager.IsAnyInquiryActive(),"native Over Limit inquiry accepted only through our own Done callback");
             Check(b.CurrentMode==AutopilotBehavior.Mode.Apply && LogCount("лимит недостижим") == 1,"unavoidable excess reported once without disabling");
         });
         Try("locked weak prisoners retained when trimming", () => {
@@ -169,7 +170,7 @@ internal static partial class Program
             for(int i=0;i<5;i++) b.PollState();
             Check(vm.Closed==1 && MobileParty.MainParty.PrisonRoster.TotalManCount==50-free+Math.Min(free,21),"пленные приняты в пределах лимита и изменения сохранены: "+free);
             Check(MobileParty.MainParty.PrisonRoster.GetTroopRoster().Sum(t=>t.WoundedNumber)==Math.Min(free,21),"раненые пленные сохранили состояние: "+free);
-            Check(vm.Confirmed==(free<21 ? 1:0) && !InformationManager.IsAnyInquiryActive(),"подтверждён только оставшийся избыток: "+free);
+            Check(vm.Confirmed==0 && !InformationManager.IsAnyInquiryActive(),"при полном плене native не требует подтверждать оставшихся слева: "+free);
         });
         Try("неизвестный запрос из Готово",()=>{
             var b=Surrender(); var vm=PrisonerScreen(10,10); vm.ForeignQuery=true;
@@ -233,17 +234,20 @@ namespace TaleWorlds.CampaignSystem.ViewModelCollection.Party {
   public bool NoRelease;
   public bool IsAnyPopUpOpen {get;set;} public int Closed,Confirmed;
   public bool ForeignQuery,NoTransfer; public int ForeignAccepted,TransferCalls;
+  private bool _changed, _ownQuery;
   public PartyVM(PartyScreenLogic logic){PartyScreenLogic=logic;}
   private void OnTransferTroop(PartyCharacterVM troop,int index,int count,PartyScreenLogic.PartyRosterSide side){
    TransferCalls++; if(NoTransfer)return;
    bool prisoner=OtherPartyPrisoners.Contains(troop)||MainPartyPrisoners.Contains(troop);
    if(side==PartyScreenLogic.PartyRosterSide.Right){ // наш боец/пленный — влево (отпустить)
     if(NoRelease)return;
+    _changed=true;
     var m=troop.Troop; int wounds=Math.Min(m.WoundedNumber,count); m.Number-=count; m.WoundedNumber-=wounds; troop.Troop=m;
     (prisoner ? PartyScreenLogic.CurrentData.RightPrisonerRoster : PartyScreenLogic.CurrentData.RightMemberRoster).AddToCounts(m.Character,-count,false,-wounds);
     (prisoner ? OtherPartyPrisoners : OtherPartyTroops).Add(new PartyCharacterVM {Troop=new TroopRosterElement {Character=m.Character,Number=count,WoundedNumber=wounds}});
     return;
    }
+   _changed=true;
    var e=troop.Troop; int wounded=Math.Min(e.WoundedNumber,count); e.Number-=count;e.WoundedNumber-=wounded;troop.Troop=e;
    (OtherPartyTroops.Contains(troop) ? PartyScreenLogic.CurrentData.RightMemberRoster : PartyScreenLogic.CurrentData.RightPrisonerRoster).Add(new TroopRosterElement {Character=e.Character,Number=count,WoundedNumber=wounded});
    var own=prisoner ? MainPartyPrisoners : MainPartyTroops;
@@ -254,11 +258,17 @@ namespace TaleWorlds.CampaignSystem.ViewModelCollection.Party {
   public void ExecuteRemoveZeroCounts(){OtherPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);OtherPartyTroops.RemoveAll(t=>t.Troop.Number==0);MainPartyTroops.RemoveAll(t=>t.Troop.Number==0);MainPartyPrisoners.RemoveAll(t=>t.Troop.Number==0);}
   public void ExecuteDone(){
    if(ForeignQuery){InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=()=>ForeignAccepted++});return;}
-   if(OtherPartyPrisoners.Any(t=>t.Troop.Number>0)) InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=CloseScreenInternal});
+   // Native PartyVM.ExecuteDone: leaving-behind only while there is room;
+   // otherwise changed over-limit rosters raise the same CloseScreenInternal query.
+   bool leaving=OtherPartyPrisoners.Any(t=>t.Troop.Number>0&&t.IsTroopTransferrable)&&PartyScreenLogic.CurrentData.RightPrisonerRoster.TotalManCount<PartyScreenLogic.RightPartyPrisonersSizeLimit
+       ||OtherPartyTroops.Any(t=>t.Troop.Number>0&&t.IsTroopTransferrable)&&PartyScreenLogic.CurrentData.RightMemberRoster.TotalManCount<PartyScreenLogic.RightPartyMembersSizeLimit;
+   bool over=_changed&&(PartyScreenLogic.CurrentData.RightPrisonerRoster.TotalManCount>PartyScreenLogic.RightPartyPrisonersSizeLimit
+       ||PartyScreenLogic.CurrentData.RightMemberRoster.TotalManCount>PartyScreenLogic.RightPartyMembersSizeLimit);
+   if(leaving||over) { _ownQuery=true; InformationManager.ShowInquiry(new InquiryData {IsAffirmativeOptionShown=true,AffirmativeAction=CloseScreenInternal}); }
    else CloseScreenInternal();
   }
   private void CloseScreenInternal(){
-   if(OtherPartyPrisoners.Any(t=>t.Troop.Number>0)) Confirmed++;
+   if(_ownQuery) Confirmed++;
    foreach(var e in PartyScreenLogic.CurrentData.RightPrisonerRoster.GetTroopRoster()) MobileParty.MainParty.PrisonRoster.Add(e);
    foreach(var e in PartyScreenLogic.CurrentData.RightMemberRoster.GetTroopRoster()) MobileParty.MainParty.MemberRoster.Add(e);
    Closed++; TaleWorlds.Core.Game.Current.GameStateManager.PopState(0); PlayerEncounter.Finish();

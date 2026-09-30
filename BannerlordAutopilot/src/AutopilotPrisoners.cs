@@ -41,6 +41,28 @@ namespace BannerlordAutopilot
             ReadScreenMember(troopVm, "IsTroopTransferrable") is true && ReadScreenMember(troopVm, "Side")?.ToString() == side
             && !IsHeroTroop(troopVm) && NumberOf(troopVm) > 0;
 
+        private void TransferPrisoner(object vm, object roster, object prisoner, int count, int limit, bool release)
+        {
+            int before = Convert.ToInt32(ReadScreenMember(roster, "TotalManCount"));
+            int heroesBefore = Convert.ToInt32(ReadScreenMember(roster, "TotalHeroes"));
+            bool hero = IsHeroTroop(prisoner);
+            // Never release a hero, even if the native capacity consists entirely of lords.
+            if (release && hero) throw new InvalidOperationException("пленные: освобождение героя запрещено");
+            vm.GetType().GetMethod("OnTransferTroop", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(vm, new[] { prisoner, (object)(-1), count, ReadScreenMember(prisoner, "Side") });
+            vm.GetType().GetMethod("ExecuteRemoveZeroCounts").Invoke(vm, null);
+            int after = Convert.ToInt32(ReadScreenMember(roster, "TotalManCount"));
+            int heroesAfter = Convert.ToInt32(ReadScreenMember(roster, "TotalHeroes"));
+            if (after != before + (release ? -count : count) || heroesAfter != heroesBefore + (hero ? count : 0))
+            {
+                Disable("пленные: " + (release ? "освобождение" : "перенос") + " не подтвердилось, повторять не буду");
+                return;
+            }
+            string name = ReadScreenMember(ReadScreenMember(ReadScreenMember(prisoner, "Troop"), "Character"), "Name")?.ToString();
+            AutopilotLog.Write("ПЛЕННЫЕ: " + (release ? "отпущено слабых обычных " : hero ? "взято героев " : "перенесено ")
+                + count + " «" + name + "» (тир " + TierOf(prisoner) + "), в окне " + after + "/" + limit);
+        }
+
         private void ResetPrisonerScreen()
         {
             _prisonerEncounter = null;
@@ -148,22 +170,42 @@ namespace BannerlordAutopilot
                 int limit = Convert.ToInt32(ReadScreenMember(logic, "RightPartyPrisonersSizeLimit"));
                 int free = Math.Max(0, limit - before);
                 var prisoners = ReadScreenMember(vm, "OtherPartyPrisoners") as IEnumerable;
-                if (prisoners == null) throw new InvalidOperationException("список пленных отсутствует");
-                if (free > 0) foreach (object prisoner in prisoners)
+                var ownPrisoners = ReadScreenMember(vm, "MainPartyPrisoners") as IEnumerable;
+                if (roster == null || prisoners == null || ownPrisoners == null)
+                    throw new InvalidOperationException("список пленных отсутствует");
+                var byPriority = new System.Collections.Generic.List<object>();
+                foreach (object prisoner in prisoners)
+                    if (ReadScreenMember(prisoner, "IsTroopTransferrable") is true
+                        && ReadScreenMember(prisoner, "Side")?.ToString() == "Left" && NumberOf(prisoner) > 0)
+                        byPriority.Add(prisoner);
+                byPriority.Sort((a, c) => {
+                    int heroes = IsHeroTroop(c).CompareTo(IsHeroTroop(a));
+                    return heroes != 0 ? heroes : TierOf(c).CompareTo(TierOf(a));
+                });
+                // A native individual transfer may exceed capacity. Take every eligible
+                // lord first, then make room by releasing ordinary prisoners, weakest first.
+                if (byPriority.Count > 0 && IsHeroTroop(byPriority[0]))
                 {
-                    if (!(ReadScreenMember(prisoner, "IsTroopTransferrable") is true)) continue;
-                    object side = ReadScreenMember(prisoner, "Side");
-                    if (side?.ToString() != "Left") continue;
-                    int count = Math.Min(free, Convert.ToInt32(ReadScreenMember(ReadScreenMember(prisoner, "Troop"), "Number")));
-                    if (count <= 0) continue;
-                    // The same callback as the transfer arrow, including wounded troops
-                    // and engine eligibility checks. One stack per poll, then read again.
-                    vm.GetType().GetMethod("OnTransferTroop", BindingFlags.NonPublic | BindingFlags.Instance)
-                        .Invoke(vm, new[] { prisoner, (object)(-1), count, side });
-                    vm.GetType().GetMethod("ExecuteRemoveZeroCounts").Invoke(vm, null);
-                    int after = Convert.ToInt32(ReadScreenMember(roster, "TotalManCount"));
-                    if (after != before + count) Disable("пленные: перенос не подтвердился, повторять не буду");
-                    else AutopilotLog.Write("ПЛЕННЫЕ: перенесено " + count + ", в окне " + after + "/" + limit);
+                    TransferPrisoner(vm, roster, byPriority[0], NumberOf(byPriority[0]), limit, false);
+                    return true;
+                }
+                if (before > limit)
+                {
+                    object weakest = null;
+                    foreach (object prisoner in ownPrisoners)
+                        if (Movable(prisoner, "Right") && ReadScreenMember(prisoner, "IsLocked") is false
+                            && (weakest == null || TierOf(prisoner) < TierOf(weakest))) weakest = prisoner;
+                    if (weakest != null)
+                    {
+                        TransferPrisoner(vm, roster, weakest, Math.Min(before - limit, NumberOf(weakest)), limit, true);
+                        return true;
+                    }
+                    AutopilotLog.Write("ПЛЕННЫЕ: лимит недостижим без освобождения героев, закреплённых или недоступных пленных; сохраняем "
+                        + before + "/" + limit + " (героев " + ReadScreenMember(roster, "TotalHeroes") + ")");
+                }
+                else if (free > 0 && byPriority.Count > 0)
+                {
+                    TransferPrisoner(vm, roster, byPriority[0], Math.Min(free, NumberOf(byPriority[0])), limit, false);
                     return true;
                 }
                 if (!(logic.GetType().GetMethod("IsDoneActive").Invoke(logic, null) is true))
@@ -190,7 +232,7 @@ namespace BannerlordAutopilot
                     }
                     InformationManager.HideInquiry();
                     accept();
-                    AutopilotLog.Write("ПЛЕННЫЕ: подтверждено завершение с оставшимися слева пленными/воинами");
+                    AutopilotLog.Write("ПЛЕННЫЕ: подтверждён штатный запрос после «Готово»");
                 }
                 if (!ReferenceEquals(states.ActiveState, state))
                 {

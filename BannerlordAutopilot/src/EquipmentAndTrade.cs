@@ -143,7 +143,7 @@ namespace BannerlordAutopilot
             if (town == null) return;
             var stock = new List<ItemRosterElement>();
             for (int i = 0; i < party.ItemRoster.Count; i++) stock.Add(party.ItemRoster.GetElementCopyAtIndex(i));
-            int sold = 0; long earned = 0; int unpaid = 0;
+            int sold = 0; long earned = 0; int unpaid = 0; int goodsSold = 0;
             foreach (ItemRosterElement entry in stock)
             {
                 EquipmentElement element = entry.EquipmentElement;
@@ -164,6 +164,7 @@ namespace BannerlordAutopilot
                         || Stock(settlement.ItemRoster, element) != market + 1 || Hero.MainHero.Gold != gold + price)
                         throw new InvalidOperationException("продажа: передача/оплата не подтверждена для " + element.Item.Name);
                     sold++; earned += price;
+                    if (element.Item.ItemType == ItemObject.ItemTypeEnum.Goods) goodsSold++;
                 }
             }
             // Лишняя еда: по одной штуке с самого большого вида — разнообразие еды
@@ -192,7 +193,7 @@ namespace BannerlordAutopilot
             }
             BuyPackAnimals(party, settlement, town);
             if (earned >= 1000) Thoughts.Say("sold", settlement.StringId, earned, settlement.Name);
-            AutopilotLog.Write("ПРОДАЖА: вещей " + sold + " (из них лишней еды " + foodSold + "), получено " + earned
+            AutopilotLog.Write("ПРОДАЖА: вещей " + sold + " (из них торговых товаров " + goodsSold + ", лишней еды " + foodSold + "), получено " + earned
                 + " динаров; осталось без полной оплаты " + unpaid + "; еды оставлено на " + FoodKeepDays.ToString("F0")
                 + " дней, закреплённые и квестовые сохранены");
         }

@@ -510,7 +510,10 @@ namespace BannerlordAutopilot
             Need(rescuedList?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(rescuedList.PropertyType), "PartyVM.OtherPartyTroops: enumerable");
             var ownList = vm?.GetProperty("MainPartyTroops", Inst);
             Need(ownList?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(ownList.PropertyType), "PartyVM.MainPartyTroops: enumerable");
+            var ownPrisonersList = vm?.GetProperty("MainPartyPrisoners", Inst);
+            Need(ownPrisonersList?.GetGetMethod() != null && typeof(System.Collections.IEnumerable).IsAssignableFrom(ownPrisonersList.PropertyType), "PartyVM.MainPartyPrisoners: enumerable");
             MemberOf(troop, "IsTroopTransferrable", Inst, typeof(bool));
+            MemberOf(troop, "IsLocked", Inst, typeof(bool));
             MemberOf(troop, "Side", Inst, side);
             MemberNamed(troop, "Troop", Inst, "TroopRosterElement");
             Method(vm, "OnTransferTroop", BindingFlags.Instance | BindingFlags.NonPublic, typeof(void), troop, typeof(int), typeof(int), side);

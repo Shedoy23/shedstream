@@ -60,6 +60,8 @@ namespace BannerlordAutopilot
         internal string ChaseRejectedReason(MobileParty party, MobileParty target)
         {
             if (party == null || target == null) return "нет партии для погони";
+            string recovery = VoluntaryAttackBlocked(party);
+            if (recovery != null) return recovery;
             if (!target.IsActive || !target.IsVisible) return "цель неактивна или скрылась из виду";
             double now = CampaignTime.Now.ToHours;
             float distance = (float)Math.Sqrt(party.Position.DistanceSquared(target.Position));
@@ -105,13 +107,13 @@ namespace BannerlordAutopilot
         internal static string HuntBlocked(MobileParty party, bool allowOwnArmy = false)
         {
             if (party?.Party == null || Hero.MainHero == null) return "нет партии/героя";
-            if (Hero.MainHero.IsWounded) return "герой ранен";
+            string recovery = VoluntaryAttackBlocked(party);
+            if (recovery != null) return recovery;
             if (party.Army != null && (!allowOwnArmy || party.Army.LeaderParty != party)) return "в армии решает её лидер";
             int total = party.MemberRoster.TotalManCount;
-            int healthy = total - party.MemberRoster.TotalWounded;
             int limit = party.Party.PartySizeLimit;
             if (limit > 0 && total < limit * .5f) return "отряд заполнен меньше чем наполовину";
-            if (total <= 0 || healthy < total * .5f) return "боеспособны меньше половины";
+            if (total <= 0) return "нет бойцов";
             return null;
         }
 

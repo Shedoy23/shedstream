@@ -709,7 +709,8 @@ namespace BannerlordAutopilot
             {
                 NoteWaiting();
                 if (HoldShelter(party, peaceful)) return false;
-                TryEmergencyDefense(party, peaceful);
+                bool emergencyDefense = TryEmergencyDefense(party, peaceful);
+                if (!emergencyDefense && HoldRecovery(party, peaceful)) return false;
                 if (HoldPostBattleRest(party, peaceful, true))
                 {
                     TryServe(party, peaceful, menuId, "отдых после боя");
@@ -2133,6 +2134,7 @@ namespace BannerlordAutopilot
             if (waitingIn != null && HoldShelter(party, waitingIn)) return;
             if (TryEmergencyDefense(party, waitingIn)) return;
             RecheckPressureRaid(party);
+            if (TryRecovery(party, waitingIn)) return;
             if (waitingIn != null && HoldPostBattleRest(party, waitingIn, true)) return;
             if (_gatheringArmy != null && _gatheringArmy == party.Army) return;
             if (_committedSiege != null && (!MapIsActiveScreen() || InformationManager.IsAnyInquiryActive())) return;
@@ -2276,9 +2278,9 @@ namespace BannerlordAutopilot
             }
             foreach (string line in Top(lines, 8))
             {
-                AutopilotLog.Write("    " + line);
+                AutopilotLog.Write("    КАНДИДАТ (не приказ): " + line);
             }
-            AutopilotLog.Write("  лучшее: " + Describe(best) + " = "
+            AutopilotLog.Write("  лучшее предложение (ещё не приказ): " + Describe(best) + " = "
                                + bestScore.ToString("F3", CultureInfo.InvariantCulture));
             try { LogStrategicAudit(party, proposals); }
             catch (Exception ex) { AutopilotLog.Write("СТРАТЕГИЯ: оценку записать не удалось: " + ex.GetType().Name + ": " + ex.Message); }
@@ -2920,6 +2922,15 @@ namespace BannerlordAutopilot
         private void ApplyDecision(MobileParty party, AIBehaviorData data, float score)
         {
             var settlement = data.Party as Settlement;
+            if (data.AiBehavior == AiBehavior.EngageParty)
+            {
+                string invalid = ChaseRejectedReason(party, data.Party as MobileParty);
+                if (invalid != null)
+                {
+                    AutopilotLog.Write("ОХОТА: отложенный приказ отменён: " + invalid);
+                    return;
+                }
+            }
             if (data.AiBehavior == AiBehavior.BesiegeSettlement)
             {
                 string invalid = !ControlsParty(party) ? "следуем другой армии"
@@ -3078,6 +3089,21 @@ namespace BannerlordAutopilot
                                    ? party.TargetSettlement.Name.ToString()
                                    : "нет")
                                + "; движется " + party.IsMoving);
+            // Issuing movement is not proof of reaching the destination or
+            // winning a battle. Capture health at this point, not a prior hour.
+            try
+            {
+                string state = "";
+                if (data.AiBehavior == AiBehavior.EngageParty && data.Party is MobileParty enemy)
+                    state = "; герой ранен " + Hero.MainHero.IsWounded
+                        + "; здоровых " + (party.MemberRoster.TotalManCount - party.MemberRoster.TotalWounded)
+                        + "/" + party.MemberRoster.TotalManCount
+                        + "; наша скорость " + party.Speed.ToString("F2", CultureInfo.InvariantCulture)
+                        + "; скорость цели " + enemy.Speed.ToString("F2", CultureInfo.InvariantCulture)
+                        + "; расстояние " + Math.Sqrt(party.Position.DistanceSquared(enemy.Position)).ToString("F1", CultureInfo.InvariantCulture);
+                AutopilotLog.Write("ПРИКАЗ ВЫДАН: " + Describe(data) + state);
+            }
+            catch (Exception ex) { AutopilotLog.Write("ДИАГНОСТИКА ПРИКАЗА: " + ex.GetType().Name); }
         }
 
         // ── Вспомогательное ──────────────────────────────────────────────────

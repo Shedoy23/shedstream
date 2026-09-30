@@ -21,6 +21,9 @@ namespace BannerlordAutopilot
         // count; leaving interrupts the timer. Session reset gives control back.
         private bool HoldPostBattleRest(MobileParty party, Settlement settlement, bool waiting)
         {
+            // Recovery must be able to leave a foodless castle for supplies;
+            // the old fixed rest timer must not erase that pending departure.
+            if (party != null && VoluntaryAttackBlocked(party) != null && RecoveryNeedsFood(party)) return false;
             if (_mode != Mode.Apply || !_postBattleRestPending || settlement == null
                 || (!settlement.IsTown && !settlement.IsCastle) || settlement.IsUnderSiege
                 || party.CurrentSettlement != settlement || CannotStay(settlement)

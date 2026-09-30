@@ -28,7 +28,7 @@ internal static partial class Program {
    var w=LordGatherWorld();var target=PlayerEncounter.EncounteredMobileParty;target.IsLordParty=false;target.IsPatrolParty=true;
    var lord=NearbyLord("reinforcement",60,1,w.Faction);w.Pilot.PollState();
    Check(lord.MapEvent==w.Battle,"patrol gets lord reinforcement");
-   Check(TaleWorlds.CampaignSystem.GameMenus.MenuContext.Invoked.Contains("attack"),"patrol battle starts after gathering");
+   Check(TaleWorlds.CampaignSystem.GameState.MenuContext.Invoked.Contains("attack"),"patrol battle starts after gathering");
   });
   foreach(var kind in new[]{"quest","caravan","villager","unknown"})Try("gather target excluded "+kind,()=>{
    var w=LordGatherWorld();var target=PlayerEncounter.EncounteredMobileParty;target.IsLordParty=false;
@@ -37,3 +37,5 @@ internal static partial class Program {
   });
  }
 }
+
+

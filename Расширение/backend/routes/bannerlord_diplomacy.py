@@ -424,6 +424,23 @@ async def handle_make_peace(conn, channel_id: int, owner: str, data: dict) -> di
     # иначе её нечем закрыть по итогу и она навсегда займёт направление
     # (UNIQUE-индекс частичный, по status='pending' — см. миграцию M101).
     action_id = _uuid.uuid4().hex
+    # 01.10 (багрепорт #97): успешная заявка закрывалась только суточным сторожем.
+    # Мир заключили, война началась снова — а старая 'pending' держит замок, и король
+    # читает «уже отправлен». Заявка, чьё действие в игре уже завершилось, больше не
+    # ожидание: закрываем её итогом действия. Висящая по живому действию — остаётся
+    # замком, как и задумано (защита от двойного мира).
+    await conn.execute(
+        "UPDATE bannerlord_peace_offers SET status = CASE "
+        "  (SELECT m.status FROM module_actions m "
+        "   WHERE m.channel_id=bannerlord_peace_offers.channel_id "
+        "     AND m.action_id=bannerlord_peace_offers.action_id) "
+        "  WHEN 'acked' THEN 'accepted' WHEN 'done' THEN 'accepted' ELSE 'rejected' END "
+        "WHERE channel_id=? AND my_kingdom_id=? AND target_kingdom_id=? AND status='pending' "
+        "  AND EXISTS (SELECT 1 FROM module_actions m "
+        "              WHERE m.channel_id=bannerlord_peace_offers.channel_id "
+        "                AND m.action_id=bannerlord_peace_offers.action_id "
+        "                AND m.status IN ('acked','done','failed','expired'))",
+        (channel_id, my_kingdom_id, target_kingdom_id))
     try:
         await conn.execute(
             "INSERT INTO bannerlord_peace_offers "

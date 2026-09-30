@@ -1,0 +1,26 @@
+{
+  "created": "2026-09-30T10:24:26.101821",
+  "status": "LOCAL_ONLY_NOT_INSTALLED",
+  "source_commit": "08e6ff44c0a6de7bf19ce02088b2dc8ab4be1d5a",
+  "files": [
+    {
+      "name": "BannerlordAutopilot.dll",
+      "candidate_sha256": "2158DDCCA49392A91EE53745837C1E06FED27F0FE6549A2D49442C2BCBD993B1",
+      "expected_installed_sha256": "2EB714F0903C688C5FA0CA6E1D7F453C4556D61A27FD1CFB7B9EDB92236010F8"
+    },
+    {
+      "name": "BannerlordAutopilot.pdb",
+      "candidate_sha256": "EDCC18C4D95420C29EB3A581506A6AE73D484954E4D24B19F5FB17DAFBF46DE0",
+      "expected_installed_sha256": "BE9CA666A41D389313C181A0ACE729C527218E285F70BD3A556EB00F1EEE6C8A"
+    }
+  ],
+  "validation": {
+    "AuditRegression": "973 ok / 0 FAIL; exit 0",
+    "Release": "0 warnings / 0 errors; exit 0",
+    "ContractCheck": "509; exit 0",
+    "ContractBlindSpots": "exit 0",
+    "BattleMission": "exit 0",
+    "PoliticsPolicy": "exit 0"
+  },
+  "live_game_verified": false
+}

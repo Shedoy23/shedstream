@@ -16,6 +16,11 @@ class Program {
   ours.IsEliminated=false; ActionFeedback.Applied=false;
   new EnactPolicyHandler().ExecuteAsync(new JObject{["initiated_by"]="alice",["kingdom_id"]="old",["policy_id"]="p"}).GetAwaiter().GetResult();
   if(ours.Policy || ActionFeedback.Applied) {Console.WriteLine("FAIL stale kingdom request affected current kingdom");return 1;}
+  // 26.09 гейт: мир во время боя стримера со сторонами этого боя — отказ.
+  ours.AtWar=true; ActionFeedback.Applied=false; FactionChangeGuard.InBattle=true;
+  new MakePeaceHandler().ExecuteAsync(new JObject{["initiated_by"]="alice",["target_kingdom_id"]="enemy"}).GetAwaiter().GetResult();
+  FactionChangeGuard.InBattle=false;
+  if(!ours.AtWar || ActionFeedback.Applied) {Console.WriteLine("FAIL peace applied during streamer battle");return 1;}
   Console.WriteLine("PASS direct peace, eliminated kingdom, stale membership");return 0;
  }
 }
@@ -30,4 +35,5 @@ namespace TaleWorlds.CampaignSystem.Actions { public static class MakePeaceActio
 namespace TaleWorlds.ObjectSystem { public class MBObjectManager {public static MBObjectManager Instance=new();public T GetObject<T>(string id) where T:class => typeof(T)==typeof(PolicyObject)?new PolicyObject() as T:null;} }
 namespace BannerlordLink {public static class BannerlordLinkModule {public static void Log(string text) {}}public static class MainThreadDispatcher {public static void Enqueue(Action action)=>action();} }
 namespace BannerlordLink.Actions { public interface IActionHandler { string ActionType{get;}Task<(bool success,string error)> ExecuteAsync(JObject data); } public static class HeroLookup {public static Hero Hero;public static Hero FindByUsername(string name)=>Hero;} }
+namespace BannerlordLink.Util {public static class FactionChangeGuard {public static bool InBattle;public static bool TouchesPlayerBattle(params object[] a)=>InBattle;}}
 namespace BannerlordLink.Util {public static class ActionFeedback {public static bool Applied;public static string GetActionId(JObject data)=>"action";public static void PostFailed(string id,string why)=>Applied=false;public static void PostApplied(string id)=>Applied=true;public static void PostPolicyResult(string id,string policy,bool enacted) {}}}

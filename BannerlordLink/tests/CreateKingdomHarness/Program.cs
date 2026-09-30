@@ -12,6 +12,7 @@ static class Program
     {
         try
         {
+            TestRefusedDuringStreamerBattle();
             TestIndependentLandlessKingdom();
             TestRebellionNeedsTwoSupporters();
             TestRebellionTransfersSupportersAndFiefs();
@@ -23,6 +24,23 @@ static class Program
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    // 26.09 краш 20:58: смена королевства посреди боя стримера закрывала событие боя.
+    static void TestRefusedDuringStreamerBattle()
+    {
+            Reset();
+            var clan = new Clan { StringId = "founder", Name = new TaleWorlds.Localization.TextObject("No fiefs") };
+            var hero = new Hero { IsAlive = true, IsClanLeader = true, Gold = 6_000_000, Clan = clan, Culture = new CultureObject { StringId = "empire" } };
+            HeroLookup.Current = hero;
+            FactionChangeGuard.InBattle = true;
+            try
+            {
+                new CreateKingdomHandler().ExecuteAsync(new JObject { ["target"] = "v", ["kingdom_name"] = "K", ["action_id"] = "during-battle" }).GetAwaiter().GetResult();
+            }
+            finally { FactionChangeGuard.InBattle = false; }
+            Check(clan.Kingdom == null && ActionFeedback.Error == "in_battle" && hero.Gold == 6_000_000,
+                "kingdom must not be created during streamer battle (in_battle, no charge): " + ActionFeedback.Error);
     }
 
     static void TestIndependentLandlessKingdom()
@@ -161,6 +179,13 @@ namespace BannerlordLink.Util
     public static class MainThreadDispatcher
     {
         public static void Enqueue(Action action) => action();
+    }
+
+    // 26.09 гейт смены королевства во время боя стримера (FactionChangeGuard).
+    public static class FactionChangeGuard
+    {
+        public static bool InBattle;
+        public static bool TouchesPlayerBattle(params object[] affected) => InBattle;
     }
 
     public static class ActionFeedback

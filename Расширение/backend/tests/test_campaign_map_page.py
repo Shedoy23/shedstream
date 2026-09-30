@@ -68,7 +68,11 @@ async def main():
     # искать по channel_id, а не по тексту из адреса.
     write_map(root, "beta", "WRONG")
 
-    page = await cm.campaign_map_page("alpha")
+    page = await status_of(cm.campaign_map_page("alpha"))
+    if page == 404:
+        check(False, "канал с картой в папке <channel_id> получает страницу (а получил 404)")
+        print("\n%d OK, %d FAIL" % (passed, failed))
+        return False
     body = page.body.decode("utf-8")
     check(page.status_code == 200 and body.lstrip().startswith("<!DOCTYPE html>"), "страница канала с картой собирается")
     check('"/map/alpha/map.json"' in body and '"/map/alpha/terrain.png"' in body, "страница ссылается на файлы своего канала")

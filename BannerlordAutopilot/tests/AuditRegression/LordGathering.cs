@@ -19,6 +19,29 @@ internal static partial class Program {
   p.Party.MapFaction=faction;p.Party.TestStrength=power;MobileParty.All.Add(p);return p;
  }
  static void LordGatheringTests(){
+  foreach(string change in new[]{"inquiry","menu","army","joined","attack-disabled"})
+  Try("лорды: callback меняет контекст "+change,()=>{
+   var w=LordGatherWorld();var first=NearbyLord("first",20,1,w.Faction);var next=NearbyLord("next",40,2,w.Faction);
+   first.Party.TestAfterJoin=()=>{
+    if(change=="inquiry")TaleWorlds.Library.InformationManager.TestInquiryActive=true;
+    if(change=="menu")Show(new GameMenu{StringId="different_menu",Options={new GameMenuOption{IdString="attack"}}});
+    if(change=="army")MobileParty.MainParty.Army=new Army{LeaderParty=new MobileParty()};
+    if(change=="joined")PlayerEncounter.Current.IsJoinedBattle=true;
+    if(change=="attack-disabled")Campaign.Current.CurrentMenuContext.GameMenu.Options[0].IsEnabled=false;
+   };
+   w.Pilot.PollState();Check(first.MapEvent==w.Battle&&next.MapEvent==null&&next.Position.X==2,"контекст "+change+": второй лорд не перемещён");
+   Check(w.Pilot.CurrentMode==AutopilotBehavior.Mode.Off&&!MenuContext.Invoked.Contains("attack"),"контекст "+change+": сомнительный бой не запущен");
+  });
+  Try("лорды: callback меняет фракцию самого кандидата",()=>{
+   var w=LordGatherWorld();var p=NearbyLord("changed",60,1,w.Faction);p.Party.TestAfterJoin=()=>{p.MapFaction=new TestFaction();p.Party.MapFaction=p.MapFaction;};
+   w.Pilot.PollState();Check(p.MapEvent==w.Battle&&w.Pilot.CurrentMode==AutopilotBehavior.Mode.Off&&!MenuContext.Invoked.Contains("attack"),"эффект сменившего фракцию кандидата сохранён, автоматическая атака остановлена");
+  });
+  Try("лорды: повторное F11 не возобновляет недобранный бой",()=>{
+   var w=LordGatherWorld();var first=NearbyLord("first",20,1,w.Faction);w.Pilot.PollState();
+   w.Pilot.Disable("pause");Enable(w.Pilot);var next=NearbyLord("new",40,2,w.Faction);w.Pilot.PollState();
+   Check(first.MapEvent==w.Battle&&next.MapEvent==null,"однократность сохраняется после выключения и включения");
+  });
+
   Try("лорды: ближайшие целые отряды, потолок120%, ровно один добор",()=>{
    var w=LordGatherWorld();var huge=NearbyLord("huge",81,1,w.Faction);var a=NearbyLord("a",30,2,w.Faction);var b=NearbyLord("b",50,3,w.Faction);var rest=NearbyLord("rest",1,4,w.Faction);
    w.Pilot.PollState();w.Pilot.PollState();

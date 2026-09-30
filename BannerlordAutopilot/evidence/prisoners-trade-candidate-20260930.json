@@ -1,0 +1,39 @@
+{
+  "created": "2026-09-30T12:30:33.255859",
+  "source_commit": "8874c1bc8016660a3982dd302e65d1d9cc0dd715",
+  "source_patch_base": "08e6ff44c0a6de7bf19ce02088b2dc8ab4be1d5a",
+  "status": "LOCAL_ONLY_NOT_INSTALLED",
+  "package": "D:\\shedlink-build\\pending-20260930-autopilot-prisoners-trade",
+  "includes_pending_patrol_source": "8ff65493",
+  "supersedes_package": "pending-20260930-autopilot-patrol",
+  "files": [
+    {
+      "name": "BannerlordAutopilot.dll",
+      "candidate_sha256": "8A35C0AD8610583006AE40C03833808316B6C1B9AA01934BDD4031020DB94B0A",
+      "expected_installed_sha256": "2158DDCCA49392A91EE53745837C1E06FED27F0FE6549A2D49442C2BCBD993B1",
+      "installed_unchanged_verified": true
+    },
+    {
+      "name": "BannerlordAutopilot.pdb",
+      "candidate_sha256": "898B629F050DF6BAF51952D9CB1E50579E6BB8CD845CDD287DD62DC44DA04FE0",
+      "expected_installed_sha256": "EDCC18C4D95420C29EB3A581506A6AE73D484954E4D24B19F5FB17DAFBF46DE0",
+      "installed_unchanged_verified": true
+    }
+  ],
+  "validation": {
+    "red": "AuditRegression 1008 ok / 10 FAIL; exit10; old production source, tests-only78685214",
+    "green": "AuditRegression 1019 ok / 0 FAIL; exit0",
+    "ContractCheck": "512 expectations; exit0",
+    "Release": "0 errors / 0 warnings; exit0",
+    "native_review": "No source blockers; Over Limit fixture gap repaired and asserted"
+  },
+  "test_commits": [
+    "9942807a",
+    "78685214"
+  ],
+  "live_game_verified": false,
+  "game_files_written": false,
+  "server_deployed": false,
+  "frontend_changed": false,
+  "limitations": "All heroes, locked and native nontransferable prisoners are retained if capacity cannot be met; no protection against native escapes or other mods."
+}

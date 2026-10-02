@@ -11,13 +11,14 @@ export function PanelApp({ controller, identity, Equipment, combat = false }: { 
     try { const saved = localStorage.getItem('bnr_active_tab'); if (saved === 'hero') return 'development'; if (saved === 'inventory' && Equipment) return 'equipment'; } catch { /* Storage may be unavailable inside Twitch. */ }
     return 'combat';
   });
+  const balanceTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const currentTab = useRef(tab); currentTab.current = tab;
   useLayoutEffect(() => { if (combat) controller.enableCombat(); void controller.start(); return () => controller.stop(); }, [controller, combat]);
   useEffect(() => {
     if (!state.canAct) return;
     const snapshotTimer = setInterval(() => { if (!document.hidden) { void controller.refreshHero(); void controller.refreshClasses(); void controller.refreshBuild(); if (currentTab.current === 'equipment') void controller.refreshEquipment(); } }, 8000);
-    const battleTimer = combat ? setInterval(() => { if (!document.hidden) void controller.refreshBattle(); }, 2000) : undefined;
     const cooldownTimer = setInterval(() => { if (!document.hidden) void controller.refreshBuffs(); }, 2500);
+    const battleTimer = combat ? setInterval(() => { if (!document.hidden) void controller.refreshBattle(); }, 2000) : undefined;
     const ticker = setInterval(controller.tick, 1000);
     // Register selected-host pollers before recording its initial exposure,
     // matching the old module setup. Repeated tasks keep normal timer ordering.
@@ -26,6 +27,12 @@ export function PanelApp({ controller, identity, Equipment, combat = false }: { 
     document.addEventListener('visibilitychange', visible);
     return () => { clearInterval(snapshotTimer); clearInterval(battleTimer); clearInterval(cooldownTimer); clearInterval(ticker); document.removeEventListener('visibilitychange', visible); };
   }, [controller, state.canAct, combat]);
+  // Shared-shell balance refresh is independent of document visibility and
+  // keeps its phase while the same viewer's Twitch token is re-resolved.
+  useEffect(() => {
+    if (combat && state.canAct && balanceTimer.current === undefined) balanceTimer.current = setInterval(() => { void controller.refreshBalance(); }, 60000);
+  }, [controller, combat, state.canAct]);
+  useEffect(() => () => { clearInterval(balanceTimer.current); balanceTimer.current = undefined; }, [controller, combat]);
   const changeTab = (next: typeof tab) => {
     if (currentTab.current !== next) controller.trackSection(next === 'development' ? 'bannerlord:tab.hero' : next === 'combat' ? 'bannerlord:tab.combat' : 'bannerlord:tab.inventory');
     else if (next === 'equipment' && tab === next) void controller.refreshEquipment();

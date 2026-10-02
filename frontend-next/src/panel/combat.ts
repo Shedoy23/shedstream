@@ -27,6 +27,7 @@ export const orders = [
 export const orderLabels: Record<string,string> = {formation:'В строю',hold:'Держит позицию',approaching:'Сближается',engaged:'В ближнем бою',walls:'Движется к стенам',gate:'Движется к воротам',arrived:'Прибыл на позицию',blocked:'Путь недоступен',waiting_target:'Ожидает доступного противника',skirmish:'Ведёт перестрелку',raid:'Выполняет набег'};
 export const stances = [['defensive','🛡 Оборона','выше блок/парри, меньше атаки'],['balanced','⚖ Баланс','обычное поведение в бою'],['aggressive','⚔ Натиск','выше атака, ниже защита']] as const;
 export const liveParticipant = (state: PanelState) => !!(state.battle?.in_battle && state.battle.my_stats?.alive);
+export const cooldownLabel = (seconds: number) => seconds >= 60 ? `⏳ ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2,'0')}` : `⏳ ${seconds}с`;
 export const remaining = (until: number | undefined, now: number) => Math.max(0, Math.ceil(((until || 0) - now) / 1000));
 export function orderVisible(state: PanelState, type: string) {
   const build = state.build?.build, key = state.classes?.current?.class_key || '';

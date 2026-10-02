@@ -157,3 +157,12 @@ it('60-second actual balance interval refreshes passive affordability even while
 for(const [q,buffs] of [['[data-det-act="hero.detach_hold"]',c.buffs_order],['#bnr-summon-enemy-btn',c.buffs_spawn_enemy]] as const)it(`legacy cooldown text and 1-second countdown for ${q}`,async()=>{
   const p=await combatPair({buffs});await p.advance(1000);const text=(node:Element|null)=>node?.textContent?.replace(/\s+/g,' ').trim();expect(text(p.ui.container.querySelector(q))).toBe(text(p.old.document.querySelector(q)));p.check();
 });
+it('server zero prices stay valid for orders, summons and legacy powers',async()=>{
+  const config={...f.config,action_prices:{...f.config.action_prices,'hero.detach_hold':0},spawn_prices:{player:0,enemy:0}};
+  const classes={...c.classes_by_key.tank,current_powers:c.classes_by_key.tank.current_powers.map(p=>({...p,price:0}))};
+  const p=await combatPair({config,classes});for(const q of ['[data-det-act="hero.detach_hold"]','#bnr-summon-enemy-btn','[data-bnr-power="rage"]'])await p.click(q);await p.advance(3500);p.check();expect(posts(p)).toHaveLength(3);for(const row of posts(p))expect((row.body as {data:{price:number}}).data.price).toBe(0);
+});
+it('new-build zero-priced ability is allowed with a verified zero balance and still omits price',async()=>{
+  const build={...c.build_combat_one_handed,build:{...c.build_combat_one_handed.build,power_options:c.build_combat_one_handed.build.power_options.map(p=>({...p,price:0}))}};
+  const p=await combatPair({build,stats:{...f.stats,points:0}});await p.click('[data-bnr-build-activate="rage"]');await p.advance(3500);p.check();expect(posts(p)).toHaveLength(1);expect((posts(p)[0].body as {data:object}).data).not.toHaveProperty('price');
+});

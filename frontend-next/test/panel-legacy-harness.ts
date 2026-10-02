@@ -16,6 +16,10 @@
  * - panelLifecycle adds the unchanged old tab bindings and the selected-host
  *   8s/2.5s polling schedule, including the old active-inventory condition. It
  *   still excludes unrelated shop/status/tournament/battle hosts and startup.
+ * - combatHost adds the real combat DOM without tournament, the 2s battle
+ *   loader, the exact source-owned 1s buff timer, and the shared-shell 60s
+ *   loadUserData interval (including hidden pages). It is still selected-host
+ *   initialization, not a claim to execute the complete extension bootstrap.
  * All resulting requests, including stats/level/duels and the 3.5-second tail,
  * are recorded. There is no route fall-through, request filtering or action stub.
  */
@@ -46,6 +50,16 @@ const shell = readFileSync(`${legacyRoot}extension.html`, 'utf8');
 const sourceFiles = [...shell.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/g)]
   .map(match => match[1].split('?')[0]).filter(file => !/^https?:/i.test(file));
 const sources = sourceFiles.map(file => ({ file, source: readFileSync(`${legacyRoot}${file}`, 'utf8') }));
+// All scripts below still execute unchanged. Selected-host startup additionally
+// registers the exact original buff timer statement; do not rewrite its callback
+// in this harness or replace any of the live old render/action functions.
+const combatSource = sources.find(entry => entry.file === 'viewer-bannerlord.js')!.source;
+const buffTimerMarker = '    _bannerlordBuffTickId = safeInterval(() => {';
+if (combatSource.split(buffTimerMarker).length !== 2) throw new Error('Original buff timer selector drifted');
+const buffTimerStart = combatSource.indexOf(buffTimerMarker);
+const buffTimerEnd = combatSource.indexOf('    }, 1000);', buffTimerStart);
+if (buffTimerStart < 0 || buffTimerEnd < 0) throw new Error('Original buff timer registration missing');
+const originalBuffTimer = combatSource.slice(buffTimerStart, buffTimerEnd + '    }, 1000);'.length);
 
 export const legacyResponses = savedResponses.responses;
 export const combatResponses = combatSaved.responses;
@@ -276,11 +290,11 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     const reads = equipmentOnly ? 'loadBannerlordEquipmentShop();'
       : 'loadBannerlordHero(); loadBannerlordClasses(); loadBannerlordBuild();' + (options.panelLifecycle ? `if (document.querySelector('[data-bnr-pane="inventory"].active')) loadBannerlordEquipmentShop();` : '');
     evaluate(`_bannerlordPollId = safeInterval(() => { if (!document.hidden) { ${reads} } }, 8000);`);
-    if (options.combatHost) evaluate('safeInterval(() => { if (!document.hidden) loadBannerlordBattleStatus(); }, 2000);');
     if (options.panelLifecycle) evaluate('_bannerlordBuffPollId = safeInterval(() => { if (!document.hidden) loadBannerlordBuffs(); }, 2500);');
+    if (options.combatHost) evaluate('_bannerlordBattlePollId = safeInterval(() => { if (!document.hidden) loadBannerlordBattleStatus(); }, 2000);');
     // Actual shared-shell affordability dependency; safeInterval itself does
     // not suppress hidden reads. No unrelated active stats-tab host exists.
-    if (options.combatHost) evaluate('uiUpdateInterval = safeInterval(() => { loadUserData(); }, 60000);');
+    if (options.combatHost) { evaluate(originalBuffTimer); evaluate('uiUpdateInterval = safeInterval(() => { loadUserData(); }, 60000);'); }
   }
   async function bootEquipment() {
     if (!document.getElementById('bnr-equipment-shop')) throw new Error('bootEquipment needs scope:equipment or equipmentHost:true');

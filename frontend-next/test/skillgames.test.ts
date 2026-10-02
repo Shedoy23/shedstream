@@ -153,3 +153,22 @@ describe('server clock and queue validation', () => {
     expect(() => parseSnapshot({ ...empty, queue: { status: 'queued', expires_at: 'unknown' } })).toThrow();
   });
 });
+
+describe('server receipt retention bounds replay', () => {
+  it('never resends expired start UUID and requires successful state recovery before a new command', async () => {
+    let now = 0; const fetcher = vi.fn().mockResolvedValueOnce(response({ ...empty, request_retention_seconds: 10 })).mockRejectedValueOnce(new Error('lost')).mockResolvedValueOnce(response({ ...empty, request_retention_seconds: 10 })).mockResolvedValueOnce(response({ success: true, session }));
+    const transport = new HttpSkillgameTransport('', auth(), fetcher, () => 'retained-request', () => now);
+    await transport.read(new AbortController().signal);
+    await expect(transport.mutate('start', { game_type: 'minesweeper', mode: 'ranked', difficulty: 'beginner' })).rejects.toBeInstanceOf(UnknownMutationError);
+    now = 10001; expect(transport.retryExpired()).toBe(true);
+    await expect(transport.retry()).rejects.toThrow('истёк'); expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(transport.hasUncertain()).toBe(true);
+    await transport.read(new AbortController().signal); expect(transport.hasUncertain()).toBe(false);
+    await transport.mutate('queue', {}); expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+  it('does not promise replay when server did not advertise a receipt window', async () => {
+    const transport = new HttpSkillgameTransport('', auth(), vi.fn().mockRejectedValue(new Error('lost')));
+    await expect(transport.mutate('queue', {})).rejects.toBeInstanceOf(UnknownMutationError);
+    await expect(transport.retry()).rejects.toThrow('срок');
+  });
+});

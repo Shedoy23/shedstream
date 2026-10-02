@@ -59,6 +59,29 @@ test('both future shells load one usage collector before action dispatcher',()=>
         assert(html.indexOf('viewer-usage.js')<html.indexOf('viewer-actions.js'));
     }
 });
+test('Bannerlord tabs/details count user transitions, not restore or render',()=>{
+    const {document,Event}=parseHTML('<button class="bnr-tab-btn active" data-bnr-tab="combat"></button><button class="bnr-tab-btn" data-bnr-tab="dynasty"></button><div data-bnr-pane="combat" class="bnr-tab-pane active"></div><div data-bnr-pane="dynasty" class="bnr-tab-pane"></div><details data-bnr-details="retinue"></details><details data-bnr-section="army"></details>');
+    const events=[];
+    const context=vm.createContext({document,ShedLink:{usage:{trackSection:k=>events.push(k)}},
+        localStorage:{setItem(){},getItem(){return 'combat'}},loadBannerlordEquipmentShop(){},_loadBannerlordDynasty(){}});
+    const text=source('viewer-bannerlord.js');
+    vm.runInContext(text.slice(text.indexOf('function _setBnrInnerTab('),text.indexOf('function _startBannerlordPolling(')),context);
+    vm.runInContext(text.slice(text.indexOf('const _bannerlordDetailsOpen ='),text.indexOf('// Sprint M21')),context);
+    vm.runInContext(text.slice(text.indexOf('const _bnrSectionCollapsed ='),text.indexOf('function loadBannerlordArmy()')),context);
+    context._bindBnrInnerTabs();
+    assert.equal(events.length,0,'tab restoration is not a click');
+    document.querySelector('[data-bnr-tab="dynasty"]').click();
+    document.querySelector('[data-bnr-tab="dynasty"]').click();
+    const detail=document.querySelector('[data-bnr-details]'); detail.open=false;
+    const section=document.querySelector('[data-bnr-section]'); section.open=true;
+    context._bnrBindDetailsPersistence();context._bnrBindSectionToggle();
+    section.dispatchEvent(new Event('toggle'));
+    assert.deepEqual(events,['bannerlord:tab.dynasty'],'initial open section is not a click');
+    detail.open=true;detail.dispatchEvent(new Event('toggle'));
+    section.open=false;section.dispatchEvent(new Event('toggle'));
+    section.open=true;section.dispatchEvent(new Event('toggle'));
+    assert.deepEqual(events,['bannerlord:tab.dynasty','bannerlord:details.retinue','bannerlord:section.army']);
+});
 let failed=0;
 for(const [name,run] of tests) {
     try {await run();console.log('PASS '+name);} catch(error) {failed++;console.error('FAIL '+name+'\n'+error.stack);}

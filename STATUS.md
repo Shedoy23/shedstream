@@ -1,3 +1,7 @@
+## 02.10.2026 — checkpoint 2, локальный кандидат
+
+Исправлены четыре дорогих price-paths, серверные cooldown дипломатии и slow-poll regression первого checkpoint. Runtime 1a15c8b прошёл независимый обзор; финальный aggregate 848dde9: backend137/137, frontend17/17, React37/37 и build зелёные. Push/deploy/игровых установок нет. [Результат и точные границы](docs/FRONTEND_ECONOMIC_CONFIG_2026-10-02.md). Исторические статусы ниже не означают текущее состояние этой ветки.
+
 ## 02.10.2026 — локальный frontend-кандидат, production/ZIP прежние
 
 Первый checkpoint a777eff: hero/vassal lifecycle, скрытые Dynasty-запросы, отдельный React-пилот и UI-счётчики проверены локально. Следом отдельно запрошено сокращение экономических frontend-hardcodes. Проверки и границы: [отчёт 02.10](docs/FRONTEND_PILOT_2026-10-02.md). Нового релиза/деплоя/установки нет; прежние записи ниже исторические.

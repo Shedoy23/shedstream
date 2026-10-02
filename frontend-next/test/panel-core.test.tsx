@@ -224,3 +224,25 @@ it('an already rendered action button cannot dispatch during token identity veri
   expect(s.trace.filter(row => row.path === '/api/bannerlord/action')).toEqual([]);
   pending.resolve(response({ login: 'alice' })); await flush(); s.controller.stop();
 });
+it('missing randomUUID uses the inherited action-ID fallback without entering unknown-outcome lock', async () => {
+  const auth = new TwitchAuthStore(); auth.authorize(authValue);
+  const fetcher = vi.fn(async () => response(f.attribute_success.response)) as typeof fetch;
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis.crypto, 'randomUUID');
+  Object.defineProperty(globalThis.crypto, 'randomUUID', { value: undefined, configurable: true });
+  try {
+    const transport = new HttpPanelTransport('', auth, fetcher);
+    const result = await transport.action('hero.add_attribute', { attribute_key: 'Vigor', amount: 1 });
+    expect(result?.success).toBe(true); expect(fetcher).toHaveBeenCalledTimes(1);
+    const args = vi.mocked(fetcher).mock.calls[0]; const body = JSON.parse(String(args[1]?.body));
+    expect(body.data.client_action_id).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+    expect(transport.mutationBlock()).toBeNull();
+  } finally { if (descriptor) Object.defineProperty(globalThis.crypto, 'randomUUID', descriptor); else delete (globalThis.crypto as unknown as { randomUUID?: unknown }).randomUUID; }
+});
+it('a local pre-fetch request construction error cannot imply server acceptance or lock later actions', async () => {
+  const auth = new TwitchAuthStore(); auth.authorize(authValue); let calls = 0;
+  const fetcher = vi.fn(async () => response(f.attribute_success.response)) as typeof fetch;
+  const transport = new HttpPanelTransport('', auth, fetcher, () => { if (++calls === 1) throw Error('local ID failure'); return 'good-id'; });
+  await expect(transport.action('hero.add_attribute', { attribute_key: 'Vigor', amount: 1 })).rejects.toThrow('local ID failure');
+  expect(fetcher).not.toHaveBeenCalled(); expect(transport.mutationBlock()).toBeNull();
+  expect((await transport.action('hero.add_attribute', { attribute_key: 'Vigor', amount: 1 }))?.success).toBe(true);
+});

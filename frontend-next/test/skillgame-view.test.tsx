@@ -95,3 +95,20 @@ describe('shared match version is not own placement revision', () => {
     expect(screen.getByRole('button', { name: 'A2 — корабль' })).toBeTruthy();
   });
 });
+
+describe('server admission flags', () => {
+  it('disables new games with the exact server availability reason', () => {
+    const submit = mount({ ...empty, catalog: [{ ...catalog[0], availability: { enabled: false, reason: 'Техническая пауза сервера' } }] });
+    expect(screen.getByText('Техническая пауза сервера')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Рейтинг' })); expect(submit).not.toHaveBeenCalled();
+  });
+  it('preserves moves in an existing session when admission is disabled', () => {
+    const submit = mount({ ...resumed, catalog: [{ ...catalog[0], availability: { enabled: false, reason: 'Техническая пауза сервера' } }] });
+    fireEvent.click(screen.getByRole('button', { name: /^A1 —/ }));
+    expect(submit).toHaveBeenCalledWith('action', { session_id: 'one', version: 0, action: 'open', cell: 0 });
+  });
+  it('renders localized server result while retaining unknown reason fallback', () => {
+    mount({ ...resumed, active_session: { ...session, status: 'finished', result: { outcome: 'loss', reason: 'mine_hit', message: 'Поражение', reason_message: 'Открыта клетка с миной' } } });
+    expect(screen.getByText('Поражение')).toBeTruthy(); expect(screen.getByText('Открыта клетка с миной')).toBeTruthy();
+  });
+});

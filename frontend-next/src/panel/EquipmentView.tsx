@@ -84,6 +84,7 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
         if (!current()) return;
         if (!result.success) throw new Error(result.message || 'Не удалось загрузить снаряжение');
         applied.current = issued; dataHero.current = hero; update(result); setError('');
+        controller.observeForgeEquipment(result, identity, hero);
       } catch (failure) {
         if (!current()) return;
         applied.current = issued; update(null); setError(failure instanceof Error ? failure.message : 'Не удалось загрузить магазин. Обнови данные.');

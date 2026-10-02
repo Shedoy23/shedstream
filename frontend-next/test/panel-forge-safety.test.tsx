@@ -9,6 +9,11 @@ it('forge repaints accepted equipment quality despite identical hero header and 
   p.fixtures.hero = r.hero_forge_upgraded;
   await act(async () => { await p.controller.refreshHero(); old.click(); await flush(); });
   expect(posts(p)).toHaveLength(0); expect(p.ui.container.querySelector(head)?.textContent).toContain('Шикарное');
+  // A changed hero view must agree with the independently accepted inventory
+  // before slot-only forging can target that updated item.
+  await click(p); expect(posts(p)).toHaveLength(0);
+  p.fixtures.equipment = { ...r.equipment_forge, inventory: r.equipment_forge.inventory.map(item => item.slot === 'head' ? { ...item, quality: 'fine', modifier_id: 'fixture_rank1' } : item) };
+  await act(async () => { await p.controller.refreshEquipment(); await flush(); });
   await click(p); expect(posts(p)).toHaveLength(1);
 });
 for (const [name, hero] of [['dead', r.hero_forge_dead], ['absent', r.hero_absent]] as const) it(`forge ${name} hero removes controls and rejects the prior DOM callback`, async () => {

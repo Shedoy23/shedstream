@@ -7,7 +7,8 @@ import type { IdentityBootstrap } from '../skillgames/identity';
 import { actionKey, hasProgressionPrices, heroContext, UnknownActionOutcomeError, type BattleReply, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
 import { refundText } from './refunds';
 import { combatAllowed, semanticCooldown } from './combat';
-import { forgeAllowed } from './forge';
+import { forgeAllowed, forgeObservation } from './forge';
+import type { EquipmentReply } from './equipment';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
 export class PanelController {
   private state: PanelState;
@@ -22,7 +23,7 @@ export class PanelController {
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
   constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now, private readonly usage?: Pick<PanelUsage, 'start' | 'stop' | 'trackPanel' | 'trackSection' | 'trackAction'>) { this.state = this.empty(); }
-  private empty(): PanelState { return { diplomacy: null, partyOrders: null, refundNotices: [], battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
+  private empty(): PanelState { return { forgeEquipment: null, diplomacy: null, partyOrders: null, refundNotices: [], battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
   snapshot = () => this.state;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   private publish(patch: Partial<PanelState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()); }
@@ -38,6 +39,13 @@ export class PanelController {
   };
   enableCombat() { this.combatEnabled = true; }
   setForgeActive(active: boolean) { this.forgeActive = active; }
+  observeForgeEquipment(reply: EquipmentReply, generation: number, hero: string) {
+    if (generation !== this.generation || hero !== heroContext(this.state.hero) || !this.ready()) return;
+    const observation = forgeObservation(reply, hero);
+    // Keep an accepted contradiction through errors and incomplete snapshots.
+    // Only another complete, owned observation can replace it.
+    if (observation) this.publish({ forgeEquipment: observation });
+  }
   forgeAuthenticated() { const login = this.identity.snapshot().login; return !!login && login !== 'testuser' && !login.startsWith('U'); }
   async forgeAction(slot: string, context: string) {
     if (!this.forgeActive || !this.forgeAuthenticated() || !this.ready() || !forgeAllowed(this.state, slot, context)) return null;
@@ -126,7 +134,7 @@ export class PanelController {
     }
     if (kingdomOwner(hero) !== kingdomOwner(this.state.hero)) { this.applied.diplomacy = this.issued.diplomacy = (this.issued.diplomacy || 0) + 1; }
     if (partyOwner(hero) !== partyOwner(this.state.hero)) { this.applied.party = this.issued.party = (this.issued.party || 0) + 1; this.state = { ...this.state, partyOrders: null }; }
-    return { hero, refundNotices: this.refundNotices(hero), optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance || this.stanceRefused(hero) ? null : this.state.optimisticStance };
+    return { hero, forgeEquipment: heroContext(hero) === heroContext(this.state.hero) ? this.state.forgeEquipment : null, refundNotices: this.refundNotices(hero), optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance || this.stanceRefused(hero) ? null : this.state.optimisticStance };
   }).then(applied => { if (applied) this.refreshVisibleParty(); });
   setPartyActive(active: boolean) { this.partyActive = active; if (active) this.refreshVisibleParty(); }
   refreshVisibleParty = () => { if (this.partyActive && !document.hidden && this.state.hero?.hero?.is_alive && clanInfo(this.state.hero)?.is_leader) { void this.refreshPartyOrders(); void this.refreshDiplomacy(); } };

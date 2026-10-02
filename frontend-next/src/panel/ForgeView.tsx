@@ -1,7 +1,7 @@
 import { useRef, useState, useSyncExternalStore } from 'react';
 import type { PanelController } from './controller';
 import { actionKey, validPrice } from './contracts';
-import { forgeAllowed, forgeContext, forgeItem, forgeSlots, nextQuality, qualities, qualityKey } from './forge';
+import { forgeAllowed, forgeContext, forgeDisagreement, forgeItem, forgeSlots, nextQuality, qualities, qualityKey } from './forge';
 import './forge.css';
 export function ForgeView({ controller, active }: { controller: PanelController; active: boolean }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
@@ -20,6 +20,7 @@ export function ForgeView({ controller, active }: { controller: PanelController;
       const shield = slot.startsWith('weapon') && item?.stats?.hp != null && item?.stats?.body != null;
       return <div className="panel-forge-row" key={slot} data-forge-slot={slot}>
         <span className="panel-forge-item" title={item?.item_name || item?.item_id || label}><span aria-label={shield ? 'Щит' : label}>{shield ? '🛡' : emoji}</span> {item ? item.item_name || item.item_id : <em>пусто</em>}{item && typeof item.tier === 'number' && item.tier >= 0 && <strong className="panel-forge-tier">T{item.tier + 1}★</strong>}{quality && <span className="panel-forge-quality" title={'Качество: ' + quality.label} style={{ color: quality.color }}>{quality.icon} {quality.label}</span>}</span>
+        {forgeDisagreement(state, slot) && <span role="status">Данные вещи обновляются</span>}
         {!item ? <span>—</span> : !next ? <strong title="Уже максимальное качество (Легендарное)">✦ макс</strong> : <button type="button" className="bnr-reforge-btn" data-slot={slot} style={{ color: next.color }} disabled={!active || !authenticated || !forgeAllowed(state, slot, context) || state.busy.includes(actionKey('hero.reforge_quality', { slot }))} title={validPrice(price) ? `Поднять «${item.item_name || item.item_id}» на одну ступень → ${next.label} за ${price}💎. На потолке → крустики вернутся.` : 'Цена недоступна'} onClick={() => { void controller.forgeAction(slot, context); }}>⚒ → {next.icon} {next.label}</button>}
       </div>;
     })}

@@ -50,3 +50,10 @@ it('preserves editor DOM through tab switches and same-user token refresh, clear
   await act(async () => { s.routes['/api/user/resolve-twitch-token'] = { login: 'carol' }; s.authorize({ token: 'carol', userId: 'opaque-carol', channelId: 'channel-a' }); await flush(); });
   expect(s.ui.getByRole('textbox')).not.toBe(input); expect((s.ui.getByRole('textbox') as HTMLInputElement).value).toBe(''); s.detach();
 });
+it('changing tabs midway through a polling period does not restart the shared clock', async () => {
+  const s = await setup(); await act(async () => { await vi.advanceTimersByTimeAsync(3000); await flush(); });
+  await s.click('Снаряжение'); expect(s.trace.filter(p => p.endsWith('equipment-shop'))).toHaveLength(1);
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); await flush(); });
+  expect(s.trace.filter(p => p.endsWith('equipment-shop'))).toHaveLength(2);
+  expect(s.trace.filter(p => p.endsWith('my-buffs'))).toHaveLength(4); s.detach();
+});

@@ -194,3 +194,24 @@ it('unknown mutation outcome visibly blocks spending but leaves equipment reads 
   const input = ui.container.querySelector('[data-bnr-eq-search]') as HTMLInputElement; expect(input.disabled).toBe(false);
   expect(posts(s)).toHaveLength(1); s.controller.stop();
 });
+for (const [label, invalid] of Object.entries({ missing: undefined, null: null, negative: -1, nan: NaN, infinity: Infinity, string: '1000' })) it(`malformed ordinary price ${label} cannot display a free offer or submit a buy`, async () => {
+  const data = structuredClone(f.equipment_inventory); Object.assign(data.items[0], { price_gold: invalid });
+  const s = equipmentSetup(data); const ui = await s.start(); const buy = button(ui.container, '[data-bnr-eq-buy="sword"]');
+  expect(buy.disabled).toBe(true); expect(buy.textContent).toContain('—'); await click(ui.container, '[data-bnr-eq-buy="sword"]');
+  expect(posts(s)).toHaveLength(0); s.controller.stop();
+});
+for (const [field, invalid] of Object.entries({ trade_in_gold: -1, net_price_gold: null, replace_owned_id: undefined, replace_item_id: 4, replace_modifier_id: null })) it(`malformed direct quote ${field} cannot open a confirmation or send`, async () => {
+  const data = structuredClone(f.equipment_direct); Object.assign(data.items[0].purchase_options[0], { [field]: invalid });
+  const s = equipmentSetup(data); const ui = await s.start(); const buy = button(ui.container, '[data-bnr-eq-buy="sword"]');
+  expect(buy.disabled).toBe(true); await click(ui.container, '[data-bnr-eq-buy="sword"]');
+  expect(ui.container.querySelector('[role="dialog"]')).toBeNull(); expect(posts(s)).toHaveLength(0); s.controller.stop();
+});
+it('zero server price remains a legitimate purchase without a synthesized outgoing price', async () => {
+  const data = structuredClone(f.equipment_inventory); data.items[0].price_gold = 0;
+  const s = equipmentSetup(data); const ui = await s.start(); expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(false);
+  await click(ui.container, '[data-bnr-eq-buy="sword"]'); expect(posts(s)[0].body?.data).toEqual({ item_id: 'sword', client_action_id: 'test-id' }); s.controller.stop();
+});
+it('equipment read failures preserve the exact server refusal rather than hiding it in a generic error', async () => {
+  const s = equipmentSetup(); const ui = await s.start(); s.routes['/api/bannerlord/equipment-shop'] = Promise.resolve(new Response(JSON.stringify({ success: false, message: 'Точный неизвестный отказ магазина' }), { status: 503 }));
+  await s.refresh(); expect(ui.container.textContent).toContain('Точный неизвестный отказ магазина'); expect(ui.container.querySelector('[data-bnr-eq-buy]')).toBeNull(); s.controller.stop();
+});

@@ -38,4 +38,3 @@ Caused by: Error: Worker exited unexpectedly with signal SIGKILL during started 
 
     Isolate  34 workers spawned · ~891ms startup each (spawn + environment, per file)
              at least ~2.90s faster with isolate: false — reuses workers across files instead of one per file
-

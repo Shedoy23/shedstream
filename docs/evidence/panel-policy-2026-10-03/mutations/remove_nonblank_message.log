@@ -48,8 +48,7 @@ AssertionError: promise resolved "{ success: false, message: ' \n\t ' }" instead
 - Error {
 -   "message": "rejected promise",
 + {
-+   "message": " 
-+ 	 ",
++   "message": " \n\t ", [whitespace displayed escaped; original log in 688336e]
 +   "success": false,
   }
 
@@ -84,4 +83,3 @@ Received: " "
       Tests  3 failed | 107 passed (110)
    Start at  18:41:54
    Duration  1.19s (environment 56%, tests 19%, transform 15%, import 11%)
-

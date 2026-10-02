@@ -44,4 +44,3 @@ AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecti
       Tests  2 failed | 108 passed (110)
    Start at  18:41:50
    Duration  1.15s (environment 54%, tests 17%, transform 17%, import 12%)
-

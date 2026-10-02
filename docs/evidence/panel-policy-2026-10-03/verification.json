@@ -98,6 +98,48 @@
     "docs/evidence/panel-policy-2026-10-03/asgi-probe.log": "bb229a2e281fca5bcea3f69189dd4c900d36fd390326fbcba53ba9ea6b8b3848",
     "docs/evidence/panel-policy-2026-10-03/baseline-build.log": "43b494bfe1b92b0e921e1ce3a145376738b04663d3de2d680b0218e9a937f8fb",
     "docs/evidence/panel-policy-2026-10-03/baseline-sizes.json": "1c49d8b4ae7d2652f7448f355aa983cfd2209edcc20cd0ad96d4b80a3d3997bb",
+    "docs/evidence/panel-policy-2026-10-03/baseline-suite-bounded.log": "3a9c3c91624ea56a0e2833bcc6eaa1421f562f3ca88c5711f9caf2cdbf09255d",
+    "docs/evidence/panel-policy-2026-10-03/baseline-suite.log": "994dfccf80a589cbd0213f656e4328ff84327d6f2c07877e3a3e47d5b7e1bcd5",
+    "docs/evidence/panel-policy-2026-10-03/check-parser-mutations.py": "9ca5df59d12b7add2cc0a5240b0602a190fd8f416b1be502da87bcb02e3773d5",
+    "docs/evidence/panel-policy-2026-10-03/final-acceptance-red.log": "83193e82464a13649f579d2c539caa0865d1cd12fd7183d32eeb273565714a86",
+    "docs/evidence/panel-policy-2026-10-03/final-build.log": "f352c0226102826151f532b317a1875cc750928ca09223a68fbeb8b72ae5adb4",
+    "docs/evidence/panel-policy-2026-10-03/final-check-build.log": "acc817a78c66664325330713aafd528ba7f9e6a1d5fffed5467c3b82557db282",
+    "docs/evidence/panel-policy-2026-10-03/final-sizes.json": "6f1d310c7ca95109ed6984a90ddf968da15c38d3f3095451487d742639b52448",
+    "docs/evidence/panel-policy-2026-10-03/final-suite.log": "c8fc455e7e40c006cf6b73e9163763a9bfe7d60b5e31a48bbbc3d30a41e77d2b",
+    "docs/evidence/panel-policy-2026-10-03/final-typecheck.log": "16d1dbd49db72455f94cd43470242ddb98b77dbc454753c7dfb6dc37aef50ed6",
+    "docs/evidence/panel-policy-2026-10-03/green-focused.log": "dd6fc708d31a96e06ec9bf7f853b531f8c819bfae667675b7207a263cd46328d",
+    "docs/evidence/panel-policy-2026-10-03/green-typecheck.log": "16d1dbd49db72455f94cd43470242ddb98b77dbc454753c7dfb6dc37aef50ed6",
+    "docs/evidence/panel-policy-2026-10-03/mutations/accept_arbitrary_4xx.log": "2335d958deefa9b193e4aa9b111c0f973c9d512fdd1641e2e249b59ef7862c38",
+    "docs/evidence/panel-policy-2026-10-03/mutations/accept_poll_scope_for_action.log": "904189498a4b16382ded8a227fbc70e4cbfc654db9c37f3e8d02f8e8fbc818d6",
+    "docs/evidence/panel-policy-2026-10-03/mutations/accept_unknown_rate_code.log": "a225264d732d4b3dd18bfae6a33beb9e2418b75ccd754ba59f99b6b7b714d884",
+    "docs/evidence/panel-policy-2026-10-03/mutations/allow_mixed_envelope.log": "5301594c69b71dab85acbfadaebc1d7efb5b10afd8359943760f1568c8c52bb5",
+    "docs/evidence/panel-policy-2026-10-03/mutations/allow_mixed_top_level_success.log": "103bcf8e91514efe7234807af9d1914743da1cd2c7fbe3d2526d460efd4cdf4f",
+    "docs/evidence/panel-policy-2026-10-03/mutations/allow_nested_action_fields.log": "f9e91ac913eda7a1293807602a42ef06cc53a55c30dec65cbf2771a5206b1dbd",
+    "docs/evidence/panel-policy-2026-10-03/mutations/coerce_authorization_channel.log": "c61ac45b31c19b4cb84e063f3904dfbf933f33ba439b9e3c771b67f9f5f37127",
+    "docs/evidence/panel-policy-2026-10-03/mutations/redundant_channel_type_guard.log": "e283d82f3428146e510f76a6cf8ea8e73e17f62ab0eae8b8038a74fdb3274eee",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_action_5xx_guard.log": "334f9bf46262110cc93f9487c575ce8a1ef433b70a163b7e6ca900cf930064e1",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_action_normalization.log": "bbcdf7041fef4ad0106d8367f97e093c1a4718298bdbb030a5976a44d0ba8be8",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_channel_binding.log": "5f5b04348e5ed6347c4b2a28be459598a6b924183a7d22e85d0f7a8aecf3db62",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_integer_quota.log": "60f65d435749b8d110c8501d68198436acc6fac0efdf41a3516d1031e269db4e",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_nonblank_message.log": "7dfcbcb09b1c9ffb475ef329ae69be7b97faa848655d81e126bfc64823b981a0",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_positive_channel.log": "2bfc66cf141590bfedfe34c06a16421f25b39db20843d93d9191938c0f58bf1b",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_positive_quota.log": "b8ab3f9a3d904c2ac1b489620c9a3c6e0d9339bab04af735aa6fdd34d68e9e97",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_rate_http_status.log": "5771c865648ad3dbedb91c1b1c90944fdfcfe0dfba29120ba0049013f85d57a7",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_read_message.log": "0e96dae333bcacfce06ebfd12e21fd79bc3685b502573169336aec550555fd91",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_registration_http_status.log": "f2e3f7597fec5d2abd30203c919bd6ff7ae9d66401f8e50d3972f4e4b08cb6f6",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_safe_integer_channel.log": "59d1ed8190f7f39dd3d2b73e61d598a248de4f799570c0b3d2c28d597cab8535",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_tier_shape.log": "638e6f62b4d8c4ad35601b0543037e094d21ff9ac15013d95feb352e65ec0bb3",
+    "docs/evidence/panel-policy-2026-10-03/mutations/summary.json": "5eeae967d826956df152fca4b1670c377795e177c73c444db8ea62373fb0bfe3",
+    "docs/evidence/panel-policy-2026-10-03/mutations/use_current_channel_for_action.log": "b84454e82dfae330bad1261b7a11d26566d1ccc67bedc54434356a5d27afec72",
+    "docs/evidence/panel-policy-2026-10-03/mutations-run.log": "9159902006d8f34db618bdeda0bc23daa1ea8855fa960e8a513d45cc52f49171",
+    "docs/evidence/panel-policy-2026-10-03/parser-boundaries-green.log": "da223ae327bd1138fcf73867061e4d53fc7a0a5d054a5e202b58539d782b3156",
+    "docs/evidence/panel-policy-2026-10-03/red-typecheck.log": "16d1dbd49db72455f94cd43470242ddb98b77dbc454753c7dfb6dc37aef50ed6",
+    "docs/evidence/panel-policy-2026-10-03/red.log": "87712a833d7d530bf10aeb45d1474b85a7a9d3d333e8c6221f0f64370338c779"
+  },
+  "captured_original_evidence_sha256": {
+    "docs/evidence/panel-policy-2026-10-03/asgi-probe.log": "bb229a2e281fca5bcea3f69189dd4c900d36fd390326fbcba53ba9ea6b8b3848",
+    "docs/evidence/panel-policy-2026-10-03/baseline-build.log": "43b494bfe1b92b0e921e1ce3a145376738b04663d3de2d680b0218e9a937f8fb",
+    "docs/evidence/panel-policy-2026-10-03/baseline-sizes.json": "1c49d8b4ae7d2652f7448f355aa983cfd2209edcc20cd0ad96d4b80a3d3997bb",
     "docs/evidence/panel-policy-2026-10-03/baseline-suite-bounded.log": "70e866dad94c68a581f9d320aa49bcf4f3010a28eff43ebdc1c9e0d67f71e0d5",
     "docs/evidence/panel-policy-2026-10-03/baseline-suite.log": "f8d62b9a902128b004e2857c903934073d846cef8920230b7f756d8d9698ebc6",
     "docs/evidence/panel-policy-2026-10-03/check-parser-mutations.py": "9ca5df59d12b7add2cc0a5240b0602a190fd8f416b1be502da87bcb02e3773d5",
@@ -135,5 +177,135 @@
     "docs/evidence/panel-policy-2026-10-03/parser-boundaries-green.log": "5157a1397054239970e287dff95124c0aa80fb944d99953851921bc4ea0732a9",
     "docs/evidence/panel-policy-2026-10-03/red-typecheck.log": "6759aca36d28bea59af946b50a2b5b073125231d095bd4449d3668a51ba13e2b",
     "docs/evidence/panel-policy-2026-10-03/red.log": "f5a7f8891c940e584f32e3e9401675a8252cf25ca57bfc26703b0943dcdfa94a"
+  },
+  "log_normalization": {
+    "original_git_commit": "688336e0b4fec6579043e88ea4f87c401e5405df",
+    "changes": "Trailing blank EOF lines removed. One failing whitespace-message value displayed with escaped newline/tab; no outcome, count, trace or source changed. Original capture hashes retained.",
+    "files": {
+      "docs/evidence/panel-policy-2026-10-03/red.log": {
+        "captured_sha256": "f5a7f8891c940e584f32e3e9401675a8252cf25ca57bfc26703b0943dcdfa94a",
+        "normalized_sha256": "87712a833d7d530bf10aeb45d1474b85a7a9d3d333e8c6221f0f64370338c779"
+      },
+      "docs/evidence/panel-policy-2026-10-03/final-typecheck.log": {
+        "captured_sha256": "6759aca36d28bea59af946b50a2b5b073125231d095bd4449d3668a51ba13e2b",
+        "normalized_sha256": "16d1dbd49db72455f94cd43470242ddb98b77dbc454753c7dfb6dc37aef50ed6"
+      },
+      "docs/evidence/panel-policy-2026-10-03/baseline-suite-bounded.log": {
+        "captured_sha256": "70e866dad94c68a581f9d320aa49bcf4f3010a28eff43ebdc1c9e0d67f71e0d5",
+        "normalized_sha256": "3a9c3c91624ea56a0e2833bcc6eaa1421f562f3ca88c5711f9caf2cdbf09255d"
+      },
+      "docs/evidence/panel-policy-2026-10-03/parser-boundaries-green.log": {
+        "captured_sha256": "5157a1397054239970e287dff95124c0aa80fb944d99953851921bc4ea0732a9",
+        "normalized_sha256": "da223ae327bd1138fcf73867061e4d53fc7a0a5d054a5e202b58539d782b3156"
+      },
+      "docs/evidence/panel-policy-2026-10-03/green-focused.log": {
+        "captured_sha256": "23956753e2a6ffd945139ffa497ac0a39fb2716f2f2f3bc88e3af06b34bd5baf",
+        "normalized_sha256": "dd6fc708d31a96e06ec9bf7f853b531f8c819bfae667675b7207a263cd46328d"
+      },
+      "docs/evidence/panel-policy-2026-10-03/red-typecheck.log": {
+        "captured_sha256": "6759aca36d28bea59af946b50a2b5b073125231d095bd4449d3668a51ba13e2b",
+        "normalized_sha256": "16d1dbd49db72455f94cd43470242ddb98b77dbc454753c7dfb6dc37aef50ed6"
+      },
+      "docs/evidence/panel-policy-2026-10-03/baseline-suite.log": {
+        "captured_sha256": "f8d62b9a902128b004e2857c903934073d846cef8920230b7f756d8d9698ebc6",
+        "normalized_sha256": "994dfccf80a589cbd0213f656e4328ff84327d6f2c07877e3a3e47d5b7e1bcd5"
+      },
+      "docs/evidence/panel-policy-2026-10-03/final-suite.log": {
+        "captured_sha256": "13564cd2fd86a6e25c60ceb4661724df3f1441b6b75d4be4b98f046164defbd7",
+        "normalized_sha256": "c8fc455e7e40c006cf6b73e9163763a9bfe7d60b5e31a48bbbc3d30a41e77d2b"
+      },
+      "docs/evidence/panel-policy-2026-10-03/final-acceptance-red.log": {
+        "captured_sha256": "a96f6b742dc848386e948e2663ff95c3e303cb9acc1b8a3797b5deb506691d44",
+        "normalized_sha256": "83193e82464a13649f579d2c539caa0865d1cd12fd7183d32eeb273565714a86"
+      },
+      "docs/evidence/panel-policy-2026-10-03/green-typecheck.log": {
+        "captured_sha256": "6759aca36d28bea59af946b50a2b5b073125231d095bd4449d3668a51ba13e2b",
+        "normalized_sha256": "16d1dbd49db72455f94cd43470242ddb98b77dbc454753c7dfb6dc37aef50ed6"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_integer_quota.log": {
+        "captured_sha256": "752bf3b3d0e9c8dacf4ce1990ff177c40f1301ad9160a3a8f2653734ccdea8b7",
+        "normalized_sha256": "60f65d435749b8d110c8501d68198436acc6fac0efdf41a3516d1031e269db4e"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/allow_mixed_envelope.log": {
+        "captured_sha256": "b0db63e7003fc593ef52feff6ecc3226f22a72db30d113924b6f4c3cd7a588b2",
+        "normalized_sha256": "5301594c69b71dab85acbfadaebc1d7efb5b10afd8359943760f1568c8c52bb5"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_channel_binding.log": {
+        "captured_sha256": "6b2563fee32d2adce8ee5b314913235b9c201e4734220bbd1d4577dacd088831",
+        "normalized_sha256": "5f5b04348e5ed6347c4b2a28be459598a6b924183a7d22e85d0f7a8aecf3db62"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_action_normalization.log": {
+        "captured_sha256": "e1b71bf96a1ab4f37913132f7da198cfcb42d91b57423080001c549b8a86a0ef",
+        "normalized_sha256": "bbcdf7041fef4ad0106d8367f97e093c1a4718298bdbb030a5976a44d0ba8be8"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_rate_http_status.log": {
+        "captured_sha256": "0d27c15fba4a1bfe7ec76f78b13c003024490f91b134737c02c0a7f3b89b1ee5",
+        "normalized_sha256": "5771c865648ad3dbedb91c1b1c90944fdfcfe0dfba29120ba0049013f85d57a7"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/coerce_authorization_channel.log": {
+        "captured_sha256": "3be41792096c5254c114ee4725a902f1ff9f62c1679dd54c7a6b28b4fb6c5687",
+        "normalized_sha256": "c61ac45b31c19b4cb84e063f3904dfbf933f33ba439b9e3c771b67f9f5f37127"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_action_5xx_guard.log": {
+        "captured_sha256": "1878cccab2000cf4b9feb8abd2cbef77e9dbf2e78417d3f2dddf871565674bd9",
+        "normalized_sha256": "334f9bf46262110cc93f9487c575ce8a1ef433b70a163b7e6ca900cf930064e1"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_positive_channel.log": {
+        "captured_sha256": "c120224414a2f5edcdde1e66b88bb5417a569290962379177aff4c6772e3e7a6",
+        "normalized_sha256": "2bfc66cf141590bfedfe34c06a16421f25b39db20843d93d9191938c0f58bf1b"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/use_current_channel_for_action.log": {
+        "captured_sha256": "e7e82656a4bd908e9224ceb1feb22c4451229df54bdc5ec643442e87fbc3ddaf",
+        "normalized_sha256": "b84454e82dfae330bad1261b7a11d26566d1ccc67bedc54434356a5d27afec72"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/redundant_channel_type_guard.log": {
+        "captured_sha256": "eb4d7ec4284d484a09fc8c240621fb1eccbe94abf14615dd469274a0987ddbef",
+        "normalized_sha256": "e283d82f3428146e510f76a6cf8ea8e73e17f62ab0eae8b8038a74fdb3274eee"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/accept_unknown_rate_code.log": {
+        "captured_sha256": "59275d8d771df77a17b2ad8bf5f4de186851ba42dc3387d30af1504830e51de9",
+        "normalized_sha256": "a225264d732d4b3dd18bfae6a33beb9e2418b75ccd754ba59f99b6b7b714d884"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_read_message.log": {
+        "captured_sha256": "52a2ea686b2ede3958d660b99ff83fc0863a425cf5eb5175ba6e91364714b5d5",
+        "normalized_sha256": "0e96dae333bcacfce06ebfd12e21fd79bc3685b502573169336aec550555fd91"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_nonblank_message.log": {
+        "captured_sha256": "b21ddf4610d7507e856eee5dda80df15854a44f8f9358c67d59e893c1dec248c",
+        "normalized_sha256": "7dfcbcb09b1c9ffb475ef329ae69be7b97faa848655d81e126bfc64823b981a0"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_safe_integer_channel.log": {
+        "captured_sha256": "8f40a401c09af147f7ad123cfa524bac068e7cb5fbfddb5dcf1bdfe9b5f72ef4",
+        "normalized_sha256": "59d1ed8190f7f39dd3d2b73e61d598a248de4f799570c0b3d2c28d597cab8535"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_positive_quota.log": {
+        "captured_sha256": "c4f5093587fa58fa846a5af2f02037c8690794fbd2bfeee37a3c7f9aa5b5797e",
+        "normalized_sha256": "b8ab3f9a3d904c2ac1b489620c9a3c6e0d9339bab04af735aa6fdd34d68e9e97"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_tier_shape.log": {
+        "captured_sha256": "c77d937b3135ea40f9dd692a87e0b1c892b729c9caa24e713058435dfd46901e",
+        "normalized_sha256": "638e6f62b4d8c4ad35601b0543037e094d21ff9ac15013d95feb352e65ec0bb3"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/allow_mixed_top_level_success.log": {
+        "captured_sha256": "faa45fe27d296a46c67ffaad7e8974b7f5b70f369ad9f90aa84979c69ac7a00c",
+        "normalized_sha256": "103bcf8e91514efe7234807af9d1914743da1cd2c7fbe3d2526d460efd4cdf4f"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/allow_nested_action_fields.log": {
+        "captured_sha256": "a4415741591a4756d7022554d139e3c7c5ea486430f2d99895e2b9f242e5a510",
+        "normalized_sha256": "f9e91ac913eda7a1293807602a42ef06cc53a55c30dec65cbf2771a5206b1dbd"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/accept_poll_scope_for_action.log": {
+        "captured_sha256": "ab88b70d98a9dfbd877ae7178773900669cd0d50d918caecfa0884bbb61d98bf",
+        "normalized_sha256": "904189498a4b16382ded8a227fbc70e4cbfc654db9c37f3e8d02f8e8fbc818d6"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/remove_registration_http_status.log": {
+        "captured_sha256": "2c50980bedb562001c3a4af08e698c6396ba0451e9114b3b12198793cd72acb0",
+        "normalized_sha256": "f2e3f7597fec5d2abd30203c919bd6ff7ae9d66401f8e50d3972f4e4b08cb6f6"
+      },
+      "docs/evidence/panel-policy-2026-10-03/mutations/accept_arbitrary_4xx.log": {
+        "captured_sha256": "167ce1b2dc1cb310fb7bc68cc546c260d2b58206c739e6b184c0f65facd8f703",
+        "normalized_sha256": "2335d958deefa9b193e4aa9b111c0f973c9d512fdd1641e2e249b59ef7862c38"
+      }
+    }
   }
 }

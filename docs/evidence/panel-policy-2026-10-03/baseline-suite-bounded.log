@@ -17,4 +17,3 @@ Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
 
     Isolate  34 workers spawned · ~591ms startup each (spawn + environment, per file)
              at least ~9.45s faster with isolate: false — reuses workers across files instead of one per file
-

@@ -17,7 +17,7 @@ it('preserves an unsaved fleet across same-viewer token re-resolution',async()=>
   const pending=deferred<Response>(); let resolvers=0;
   const battle={...session,game_type:'battleship',status:'active',difficulty:null,state:{rows:6,cols:6,fleet_sizes:[3,2,2,1],phase:'placement',own_ships:[],ready:false,opponent_ready:false,opponent:'bobby',shots:[],incoming:[],sunk_count:0,your_turn:false,turn_started_at:null,winner:null}};
   vi.stubGlobal('fetch',vi.fn((url:string)=>{
-    if(url.endsWith('/api/user/resolve-twitch-token')) return ++resolvers===2 ? pending.promise : Promise.resolve(new Response(JSON.stringify({login:'alice'}))); 
+    if(url.endsWith('/api/user/resolve-twitch-token')) return ++resolvers===2 ? pending.promise : Promise.resolve(new Response(JSON.stringify({login:'alice'})));
     return Promise.resolve(new Response(JSON.stringify({...empty,active_session:battle})));
   }));
   await act(async()=>{await import('../src/skillgames/main');});

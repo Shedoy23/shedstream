@@ -90,4 +90,74 @@ describe('snapshot ownership and lifecycle', () => {
     pending.resolve({ success: false, message: 'Отказ' }); await first;
     controller.stop();
   });
+  it('allows prediction after joining is confirmed and the tournament starts', async () => {
+    const { controller, transport } = setup();
+    transport.read.mockResolvedValue(idle);
+    transport.act.mockResolvedValue({ success: true });
+    controller.start(); await flush();
+    await controller.submit({ action_type: 'hero.join_tournament', data: { price: 0 } });
+    expect(controller.snapshot().canAct).toBe(false);
+    transport.read.mockResolvedValue({ ...idle, in_queue: true });
+    await controller.refresh();
+    transport.read.mockResolvedValue(running);
+    await controller.refresh();
+    await controller.submit({ action_type: 'tournament.predict', data: { target: 'viewer_one' } });
+    expect(transport.act).toHaveBeenCalledTimes(2);
+    controller.stop();
+  });
+  it('allows a new prediction in the next round without remounting', async () => {
+    const { controller, transport } = setup();
+    transport.read.mockResolvedValue(running);
+    transport.act.mockResolvedValue({ success: true });
+    controller.start(); await flush();
+    await controller.submit({ action_type: 'tournament.predict', data: { target: 'viewer_one' } });
+    transport.read.mockResolvedValue({ ...running, state: { ...running.state, current_round: 2 } });
+    await controller.refresh();
+    await controller.submit({ action_type: 'tournament.predict', data: { target: 'viewer_one' } });
+    expect(transport.act).toHaveBeenCalledTimes(2);
+    controller.stop();
+  });
+  it('allows an in-flight POST to settle after same-viewer token rotation', async () => {
+    const { controller, transport, auth } = setup();
+    transport.read.mockResolvedValue(idle);
+    const pending = deferred<ActionReply>(); transport.act.mockReturnValue(pending.promise);
+    controller.start(); await flush();
+    const send = controller.submit({ action_type: 'hero.join_tournament', data: { price: 0 } });
+    auth.authorize({ ...authOne, token: 'rotated' });
+    pending.resolve({ success: false, message: 'Отказ новой версии сервера' });
+    await send; await flush();
+    expect(controller.snapshot().pending).toBe(false);
+    expect(controller.snapshot().notice).toBe('Отказ новой версии сервера');
+    expect(controller.snapshot().canAct).toBe(true);
+    controller.stop();
+  });
+  it('does not inherit an old viewer pending POST or overwrite the new viewer', async () => {
+    const { controller, transport, auth } = setup();
+    transport.read.mockResolvedValue(idle);
+    const pending = deferred<ActionReply>(); transport.act.mockReturnValue(pending.promise);
+    controller.start(); await flush();
+    const send = controller.submit({ action_type: 'hero.join_tournament', data: { price: 0 } });
+    auth.authorize({ ...authOne, userId: 'another-viewer', token: 'another-token' });
+    pending.resolve({ success: true, message: 'Old viewer success' });
+    await send; await flush();
+    expect(controller.snapshot().pending).toBe(false);
+    expect(controller.snapshot().notice).toBeNull();
+    expect(controller.snapshot().canAct).toBe(true);
+    controller.stop();
+  });
+  it('respects server-supplied cooldown rather than hardcoding local game rules', async () => {
+    vi.useFakeTimers();
+    try {
+      const { controller, transport } = setup();
+      transport.read.mockResolvedValue(idle);
+      transport.act.mockResolvedValue({ success: false, message: 'Нужно подождать', cooldown_remaining_s: 12 });
+      controller.start(); await flush();
+      await controller.submit({ action_type: 'hero.join_tournament', data: { price: 0 } });
+      expect(controller.snapshot().canAct).toBe(false);
+      await vi.advanceTimersByTimeAsync(12001); await controller.refresh();
+      expect(controller.snapshot().canAct).toBe(true);
+      controller.stop();
+    } finally { vi.useRealTimers(); }
+  });
+
 });

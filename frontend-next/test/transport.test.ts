@@ -40,7 +40,7 @@ describe('verified EBS boundary', () => {
   it('sends exact action contract with client_action_id and the fresh token', async () => {
     const { auth, transport, fetcher } = setup();
     auth.authorize({ ...authOne, token: 'fresh-token' });
-    fetcher.mockResolvedValue(response({ success: true, message: 'Принято сервером', action_id: 7 }));
+    fetcher.mockResolvedValue(response({ success: true, message: 'Принято сервером', action_id: '0123456789abcdef0123456789abcdef' }));
     await transport.act({ action_type: 'tournament.predict', data: { target: 'viewer_one' } });
     expect(fetcher).toHaveBeenCalledWith('/test-ebs/api/bannerlord/action', expect.objectContaining({
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': 'fresh-token' },
@@ -81,6 +81,14 @@ describe('verified EBS boundary', () => {
     await expect(transport.act({ action_type: 'hero.join_tournament', data: { price: 0 } })).resolves.toEqual(refusal);
     fetcher.mockResolvedValue(response(refusal, 403));
     await expect(transport.read(new AbortController().signal)).rejects.toThrow(refusal.message);
+  });
+  it('preserves nested FastAPI auth/rate-limit messages without inventing a result', async () => {
+    const { transport, fetcher } = setup();
+    const refusal = { detail: { status: 'rate_limited', message: 'Подождите, слишком много запросов', channel_id: 123 } };
+    fetcher.mockResolvedValue(response(refusal, 429));
+    await expect(transport.read(new AbortController().signal)).rejects.toThrow(refusal.detail.message);
+    fetcher.mockResolvedValue(response(refusal, 429));
+    await expect(transport.act({ action_type: 'hero.join_tournament', data: { price: 0 } })).resolves.toEqual({ success: false, message: refusal.detail.message, detail: refusal.detail });
   });
   it('rejects malformed read bodies rather than displaying plausible empty state', async () => {
     const { transport, fetcher } = setup();

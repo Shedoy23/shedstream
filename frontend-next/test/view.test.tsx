@@ -42,4 +42,21 @@ describe('React tournament rendering', () => {
     expect(screen.queryByRole('button', { name: /Вступить/ })).toBeNull();
     expect(screen.getByText(/future_state/)).toBeTruthy();
   });
+  it('closes confirmation when a new tournament reuses the same round and players', () => {
+    const onAction = vi.fn();
+    const { rerender } = render(<TournamentView state={{ ...state, data: running }} onAction={onAction} onRefresh={() => {}} />);
+    fireEvent.click(screen.getAllByRole('button', { name: /Прогноз/ })[0]);
+    rerender(<TournamentView state={{ ...state, data: { ...running, state: { ...running.state, started_at: '2026-10-02T12:00:00Z' } } }} onAction={onAction} onRefresh={() => {}} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+  it('cancels prediction on Escape without creating an action', () => {
+    const onAction = vi.fn();
+    render(<TournamentView state={{ ...state, data: running }} onAction={onAction} onRefresh={() => {}} />);
+    fireEvent.click(screen.getAllByRole('button', { name: /Прогноз/ })[0]);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
 });

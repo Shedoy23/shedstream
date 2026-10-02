@@ -50,6 +50,16 @@ describe('React tournament rendering', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(onAction).not.toHaveBeenCalled();
   });
+  it('focuses prediction confirmation and restores the triggering button on cancellation', () => {
+    const onAction = vi.fn();
+    render(<TournamentView state={{ ...state, data: running }} onAction={onAction} onRefresh={() => {}} />);
+    const trigger = screen.getAllByRole('button', { name: /Прогноз/ })[0];
+    trigger.focus(); fireEvent.click(trigger);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Подтвердить прогноз' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    expect(document.activeElement).toBe(trigger);
+    expect(onAction).not.toHaveBeenCalled();
+  });
   it('cancels prediction on Escape without creating an action', () => {
     const onAction = vi.fn();
     render(<TournamentView state={{ ...state, data: running }} onAction={onAction} onRefresh={() => {}} />);

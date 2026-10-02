@@ -67,3 +67,14 @@ assert.deepEqual([...bundledPackages].sort(), ['preact'], 'Only the licensed Pre
 assert.equal(config.build.minify, false, 'Reviewer-readable JavaScript is required');
 assert.equal(config.build.sourcemap, true, 'Reviewer source maps are required');
 console.log('PASS: source maps confirm Preact-only runtime; readable build settings preserved');
+
+const runtimeSources = assets.filter(name => name.endsWith('.js.map')).flatMap(name => {
+  const map = JSON.parse(readFileSync(new URL(`../dist/assets/${name}`, import.meta.url), 'utf8'));
+  return map.sources.map((source, index) => ({ source, content: map.sourcesContent?.[index] }));
+}).filter(({ source }) => source.includes('/node_modules/preact/'));
+for (const module of ['src/', 'hooks/src/', 'compat/src/', 'jsx-runtime/src/']) {
+  assert(runtimeSources.some(({ source, content }) => source.includes(`/node_modules/preact/${module}`) && typeof content === 'string' && content.split('\n').length > 20), `Missing readable original Preact sources: ${module}`);
+}
+assert(!runtimeSources.some(({ source }) => /\/dist\/[^/]+\.mjs$/.test(source)), 'Preact maps must trace to original sources rather than minified distribution strings');
+assert(runtimeSources.every(({ content }) => typeof content === 'string' && content.trim()), 'All bundled Preact source contents must be included');
+console.log('PASS: original readable Preact source contents preserved in composed maps');

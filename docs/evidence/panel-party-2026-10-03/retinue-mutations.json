@@ -1,0 +1,17 @@
+[
+  {
+    "mutation": "recruit-payload",
+    "exit": 1,
+    "restore_sha256": "7c516eaaa1399f5441da61d3b84899639d297e0b025ac05e0c730300b72361d4"
+  },
+  {
+    "mutation": "train-action",
+    "exit": 1,
+    "restore_sha256": "7c516eaaa1399f5441da61d3b84899639d297e0b025ac05e0c730300b72361d4"
+  },
+  {
+    "mutation": "stale-context",
+    "exit": 1,
+    "restore_sha256": "7c516eaaa1399f5441da61d3b84899639d297e0b025ac05e0c730300b72361d4"
+  }
+]

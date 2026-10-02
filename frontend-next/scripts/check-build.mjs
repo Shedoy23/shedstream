@@ -7,7 +7,7 @@ const config = await resolveConfig({ root: fileURLToPath(new URL('../', import.m
 // Resolve through the same build validator, including .env.production and overrides.
 const apiOrigin = JSON.parse(config.define['import.meta.env.VITE_SKILLGAME_EBS_ORIGIN']);
 const pages = new Map();
-for (const entry of ['index', 'extension', 'mobile', 'tournament']) {
+for (const entry of ['index', 'extension', 'mobile', 'tournament', 'panel-extension', 'panel-mobile']) {
 const html = readFileSync(new URL(`../dist/${entry}.html`, import.meta.url), 'utf8');
 pages.set(entry, html);
 const expectedSources = ["'self'", 'https://api.twitch.tv', ...(entry !== 'tournament' && apiOrigin ? [apiOrigin] : [])];
@@ -26,7 +26,7 @@ const javascript = assets.filter(name => name.endsWith('.js')).map(name => readF
 assert(javascript.split('\n').length > 1000, 'Preact/application bundle must remain readable, not minified');
 assert(!/https:\/\/(?:unpkg|esm\.sh|cdn\.jsdelivr)/.test(javascript), 'No runtime CDN dependency');
 if (!apiOrigin) assert(!javascript.includes('shedoy23.ru'), 'Default local build must not include a production URL');
-assert(!javascript.includes('/api/bannerlord/action'), 'HTTP mutation transport must not enter preview bundle');
+assert.equal(pages.get('panel-extension'), pages.get('panel-mobile'), 'Both panel pages must mount the same application');
 assert(assets.some(name => name.endsWith('.css')), 'Styles must be external');
 assert(javascript.includes('/api/skillgames/'), 'New entrypoints must include the real skillgame HTTP adapter');
 // Inspect the tournament's complete emitted import graph, not the combined bundle.
@@ -42,7 +42,29 @@ function checkTournament(key) {
   for (const dependency of [...(chunk.imports || []), ...(chunk.dynamicImports || [])]) checkTournament(dependency);
 }
 checkTournament('tournament.html');
-console.log('PASS: four entrypoints; identical skillgame pages; validated EBS origin/CSP; isolated tournament preview; helper first; readable local assets; no legacy owner');
+// A panel adapter may not leak into the existing minigame or tournament graphs.
+function graphSource(key, seen = new Set()) {
+  if (seen.has(key)) return ''; seen.add(key);
+  const chunk = manifest[key]; assert(chunk, `Missing graph dependency: ${key}`);
+  return readFileSync(new URL(`../dist/${chunk.file}`, import.meta.url), 'utf8') + (chunk.imports || []).concat(chunk.dynamicImports || []).map(dependency => graphSource(dependency, seen)).join('\n');
+}
+function entrySource(entry) {
+  const html = pages.get(entry.replace('.html', ''));
+  const scripts = [...html.matchAll(/<script[^>]*src="\.\/([^"]+)"/g)];
+  return scripts.map(match => {
+    const key = Object.keys(manifest).find(key => manifest[key].file === match[1]);
+    assert(key, `Missing emitted entry: ${entry} ${match[1]}`); return graphSource(key);
+  }).join('\n');
+}
+for (const entry of ['index.html', 'extension.html', 'mobile.html']) {
+  assert(!entrySource(entry).includes('/api/bannerlord/'), `${entry} must remain independent of panel API`);
+}
+for (const entry of ['panel-extension.html', 'panel-mobile.html']) {
+  const source = entrySource(entry);
+  assert(source.includes('/api/bannerlord/action'), 'Panel must include the real action adapter');
+  assert(!source.includes('/api/skillgames/'), 'Panel must remain independent of skillgame API');
+}
+console.log('PASS: six entrypoints; identical skillgame pages; validated EBS origin/CSP; isolated tournament preview; helper first; readable local assets; no legacy owner');
 
 const noticesUrl = new URL('../dist/THIRD_PARTY_NOTICES.txt', import.meta.url);
 assert(existsSync(noticesUrl), 'Bundled Preact runtime requires third-party license notices');

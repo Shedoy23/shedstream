@@ -2,7 +2,7 @@ import { TwitchAuthStore, type TwitchAuthorization, type TwitchHelper } from '..
 import { isRecord } from '../contracts';
 import { requestJson } from './http';
 export interface IdentityHelper extends TwitchHelper { environment?: string; actions?: { requestIdShare?: () => void } }
-export interface IdentityState { status: 'waiting' | 'resolving' | 'ready' | 'blocked'; message: string; canShare: boolean; shareRequested: boolean }
+export interface IdentityState { login?: string; status: 'waiting' | 'resolving' | 'ready' | 'blocked'; message: string; canShare: boolean; shareRequested: boolean }
 const scope = (auth: TwitchAuthorization | null) => JSON.stringify([auth?.channelId, auth?.userId]);
 // Only the server resolves the opaque ID. Never decode JWTs, invent logins, or
 // authorize game requests merely because Twitch delivered an onAuthorized event.
@@ -18,7 +18,7 @@ export class IdentityBootstrap {
     this.helper = helper; this.active = true;
     this.publish({ canShare: typeof helper.actions?.requestIdShare === 'function' });
     helper.onAuthorized(authorization => { if (this.active) void this.resolve(authorization); });
-    return () => { this.active = false; this.generation++; this.abort?.abort(); this.auth.clear(); };
+    return () => { this.active = false; this.generation++; this.abort?.abort(); this.auth.clear(); this.publish({ status: 'waiting', login: undefined }); };
   }
   async retry() { if (this.active && this.latest && this.state.status !== 'resolving') await this.resolve(this.latest); }
   requestShare() {
@@ -35,7 +35,7 @@ export class IdentityBootstrap {
     // Keep the same viewer's old token solely for already admitted mutations.
     // The host stops polling and blocks commands until this latest resolution.
     if (scope(this.auth.current()) !== scope(authorization)) this.auth.clear();
-    this.publish({ status: 'resolving', message: 'Проверяем связь Twitch с игровым сервером…', shareRequested: false });
+    this.publish({ login: undefined, status: 'resolving', message: 'Проверяем связь Twitch с игровым сервером…', shareRequested: false });
     try {
       if (!authorization.token || !authorization.userId || !authorization.channelId) throw new Error('Twitch не передал необходимые данные авторизации');
       const { response, body } = await requestJson(this.fetcher, `${this.baseUrl}/api/user/resolve-twitch-token`, {
@@ -44,14 +44,14 @@ export class IdentityBootstrap {
       });
       if (!this.active || generation !== this.generation) return;
       if (!response.ok || !isRecord(body) || typeof body.login !== 'string' || !body.login.trim()) {
-        this.publish({ status: 'blocked', message: isRecord(body) && typeof body.error === 'string' ? body.error : 'Сервер пока не подтвердил вашу Twitch-личность. Для игры нужно разрешить передачу Twitch ID.' });
+        this.publish({ login: undefined, status: 'blocked', message: isRecord(body) && typeof body.error === 'string' ? body.error : 'Сервер пока не подтвердил вашу Twitch-личность. Для игры нужно разрешить передачу Twitch ID.' });
         return;
       }
       this.auth.authorize(this.latest);
-      this.publish({ status: 'ready', message: 'Twitch-личность подтверждена сервером', shareRequested: false });
+      this.publish({ login: body.login, status: 'ready', message: 'Twitch-личность подтверждена сервером', shareRequested: false });
     } catch (error) {
       if (!this.active || generation !== this.generation || abort.signal.aborted) return;
-      this.publish({ status: 'blocked', message: error instanceof Error ? error.message : 'Не удалось проверить Twitch-личность. Повторите проверку.' });
+      this.publish({ login: undefined, status: 'blocked', message: error instanceof Error ? error.message : 'Не удалось проверить Twitch-личность. Повторите проверку.' });
     }
   }
 }

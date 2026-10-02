@@ -76,3 +76,22 @@ describe('skillgame disclosed consequences', () => {
     expect(screen.getByText(/Организатор из сервера/)).toBeTruthy();
   });
 });
+
+describe('shared match version is not own placement revision', () => {
+  it('preserves a manual draft when opponent placement/readiness increments shared version', () => {
+    const props = { onSubmit: vi.fn(), onRefresh: vi.fn(), onRetry: vi.fn() };
+    const result = render(<SkillgameView state={state({ ...empty, active_session: battle })} {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /^A1 —/ }));
+    result.rerender(<SkillgameView state={state({ ...empty, active_session: { ...battle, version: 1, state: { ...battle.state, opponent_ready: true } } })} {...props} />);
+    expect(screen.getByRole('button', { name: 'A1 — корабль' })).toBeTruthy();
+  });
+  it('replaces a local draft when server acknowledges a changed own fleet', () => {
+    const props = { onSubmit: vi.fn(), onRefresh: vi.fn(), onRetry: vi.fn() };
+    const result = render(<SkillgameView state={state({ ...empty, active_session: battle })} {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /^A1 —/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Авторасстановка' }));
+    result.rerender(<SkillgameView state={state({ ...empty, active_session: { ...battle, version: 1, state: { ...battle.state, own_ships: [[6, 7, 8], [24, 25], [4, 10], [35]] } } })} {...props} />);
+    expect(screen.getByRole('button', { name: 'A1 — неизвестно' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'A2 — корабль' })).toBeTruthy();
+  });
+});

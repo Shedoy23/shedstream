@@ -1,0 +1,47 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 2 failed) 165ms
+   × rejects invalid numeric response channel even when its string matches authorization: 1.5 9ms
+   × rejects invalid numeric response channel even when its string matches authorization: 9007199254740992 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rejects invalid numeric response channel even when its string matches authorization: 1.5
+ FAIL  test/panel-policy-transport.test.tsx > rejects invalid numeric response channel even when its string matches authorization: 9007199254740992
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "Стример не подключил расширение к платформе",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:120:59
+    118|   const s = setup('unregistered', async () => json({ detail: { ...deta…
+    119|   s.auth.authorize({ ...authFor('unregistered'), channelId: String(cha…
+    120|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    121| });
+    122| it('accepts a canonical safe-integer channel boundary without a local …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 108 passed (110)
+   Start at  18:41:49
+   Duration  1.11s (environment 55%, tests 17%, transform 15%, import 12%, worker 1%)
+

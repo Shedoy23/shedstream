@@ -1,0 +1,82 @@
+{
+  "method": "gzip -9 -c <file>; decimal bytes; each file separately",
+  "files": {
+    "assets/jsxRuntime-BJoMBIby.js": {
+      "raw": 25013,
+      "gzip9": 8880
+    },
+    "assets/jsxRuntime-BJoMBIby.js.map": {
+      "raw": 172779,
+      "gzip9": 51810
+    },
+    "assets/main-B-2M1_54.css": {
+      "raw": 8919,
+      "gzip9": 2737
+    },
+    "assets/main-B2vSQgB_.js": {
+      "raw": 179500,
+      "gzip9": 43609
+    },
+    "assets/main-B2vSQgB_.js.map": {
+      "raw": 278676,
+      "gzip9": 72946
+    },
+    "assets/main-BcDcf8_c.css": {
+      "raw": 7137,
+      "gzip9": 2236
+    },
+    "assets/main-DGkQxGxN.js": {
+      "raw": 52346,
+      "gzip9": 14033
+    },
+    "assets/main-DGkQxGxN.js.map": {
+      "raw": 83644,
+      "gzip9": 23381
+    },
+    "assets/origin-6oRUfO6P.js": {
+      "raw": 6223,
+      "gzip9": 2453
+    },
+    "assets/origin-6oRUfO6P.js.map": {
+      "raw": 13820,
+      "gzip9": 5112
+    },
+    "assets/tournament-DXEIGRqF.css": {
+      "raw": 4335,
+      "gzip9": 1540
+    },
+    "assets/tournament-M60EacDA.js": {
+      "raw": 18097,
+      "gzip9": 5174
+    },
+    "assets/tournament-M60EacDA.js.map": {
+      "raw": 27996,
+      "gzip9": 8701
+    }
+  },
+  "assets_total": {
+    "raw": 878485,
+    "gzip9": 242612
+  },
+  "runtime_assets_total": {
+    "raw": 301570,
+    "gzip9": 80662
+  },
+  "page": "panel-mobile.html",
+  "initial_files": [
+    "assets/jsxRuntime-BJoMBIby.js",
+    "assets/main-B-2M1_54.css",
+    "assets/main-B2vSQgB_.js",
+    "assets/origin-6oRUfO6P.js",
+    "panel-mobile.html"
+  ],
+  "initial_total": {
+    "raw": 220598,
+    "gzip9": 58168
+  },
+  "excludes": [
+    "Twitch-hosted Helper script (external and unchanged)",
+    "HTTP API responses",
+    "source maps from initial traffic"
+  ]
+}

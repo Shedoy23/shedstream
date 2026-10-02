@@ -1,0 +1,35 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 1 failed) 162ms
+   × uses captured authorization and frozen body while caller data, JWT, viewer and channel change in flight 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uses captured authorization and frozen body while caller data, JWT, viewer and channel change in flight
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:67:13
+     65|     } catch {
+     66|       this.uncertain.add(identity);
+     67|       throw new UnknownActionOutcomeError();
+       |             ^
+     68|     } finally { this.inflight.delete(key); }
+     69|   }
+ ❯ test/panel-policy-transport.test.tsx:75:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 109 passed (110)
+   Start at  18:42:01
+   Duration  1.41s (environment 55%, transform 19%, tests 13%, import 12%)
+

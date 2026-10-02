@@ -1,0 +1,45 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 1 failed) 202ms
+   × uncertain boundary: unknown rate policy code keeps identity lock across JWT rotation and never reposts 8ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown rate policy code keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "Слишком много запросов. Попробуй через минуту.",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 109 passed (110)
+   Start at  18:41:42
+   Duration  1.20s (environment 55%, tests 19%, transform 15%, import 11%)
+

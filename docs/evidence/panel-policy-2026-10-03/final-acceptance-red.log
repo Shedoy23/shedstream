@@ -1,0 +1,367 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 24 failed) 153ms
+   × unregistered: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry 13ms
+   × unregistered: read keeps the exact known policy message without blocking mutations 6ms
+   × pending: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry 1ms
+   × pending: read keeps the exact known policy message without blocking mutations 1ms
+   × rate_limited: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry 1ms
+   × rate_limited: read keeps the exact known policy message without blocking mutations 1ms
+   × does not whitelist, trim, interpret or replace new server refusal text 1ms
+   × uses captured authorization and frozen body while caller data, JWT, viewer and channel change in flight 1ms
+   × read classifies against its admitted channel even if the current channel switches 2ms
+   × uncertain boundary: mixed policy/action {"success":true} keeps identity lock across JWT rotation and never reposts 3ms
+   × uncertain boundary: mixed policy/action {"success":false} keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: 5xx with action envelope true keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: 5xx with action envelope false keeps identity lock across JWT rotation and never reposts 1ms
+   × accepts a canonical safe-integer channel boundary without a local ID allowlist 0ms
+   × rate metadata may use a future nonempty server tier and an arbitrary positive quota 1ms
+   × invalid response status 0 is uncertain even with success:false 1ms
+   × invalid response status undefined is uncertain even with success:false 1ms
+   × invalid response status NaN is uncertain even with success:false 1ms
+   × invalid response status 199 is uncertain even with success:false 0ms
+   × invalid response status 600 is uncertain even with success:false 0ms
+   × read preserves actual viewer_poll rate metadata boundary without inventing cooldown 1ms
+   × unregistered: native action button displays exact server text, stays available, and does not schedule success refresh 48ms
+   × pending: native action button displays exact server text, stays available, and does not schedule success refresh 21ms
+   × rate_limited: native action button displays exact server text, stays available, and does not schedule success refresh 12ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 24 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > unregistered: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry
+ FAIL  test/panel-policy-transport.test.tsx > pending: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry
+ FAIL  test/panel-policy-transport.test.tsx > rate_limited: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:44:13
+     42|     } catch {
+     43|       this.uncertain.add(identity);
+     44|       throw new UnknownActionOutcomeError();
+       |             ^
+     45|     } finally { this.inflight.delete(key); }
+     46|   }
+ ❯ test/panel-policy-transport.test.tsx:36:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > unregistered: read keeps the exact known policy message without blocking mutations
+AssertionError: expected [Function] to throw error including 'Стример не подключил расширение к пла…' but got 'Ошибка сервера (403)'
+
+Expected: "Стример не подключил расширение к платформе"
+Received: "Ошибка сервера (403)"
+
+ ❯ test/panel-policy-transport.test.tsx:55:62
+     53|   it(`${name}: read keeps the exact known policy message without block…
+     54|     const s = setup(name);
+     55|     await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.…
+       |                                                              ^
+     56|     expect(s.transport.mutationBlock()).toBeNull(); expect(s.fetcher).…
+     57|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > pending: read keeps the exact known policy message without blocking mutations
+AssertionError: expected [Function] to throw error including 'Заявка стримера принята и ждёт подклю…' but got 'Ошибка сервера (403)'
+
+Expected: "Заявка стримера принята и ждёт подключения"
+Received: "Ошибка сервера (403)"
+
+ ❯ test/panel-policy-transport.test.tsx:55:62
+     53|   it(`${name}: read keeps the exact known policy message without block…
+     54|     const s = setup(name);
+     55|     await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.…
+       |                                                              ^
+     56|     expect(s.transport.mutationBlock()).toBeNull(); expect(s.fetcher).…
+     57|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rate_limited: read keeps the exact known policy message without blocking mutations
+AssertionError: expected [Function] to throw error including 'Слишком много запросов. Попробуй чере…' but got 'Ошибка сервера (429)'
+
+Expected: "Слишком много запросов. Попробуй через минуту."
+Received: "Ошибка сервера (429)"
+
+ ❯ test/panel-policy-transport.test.tsx:55:62
+     53|   it(`${name}: read keeps the exact known policy message without block…
+     54|     const s = setup(name);
+     55|     await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.…
+       |                                                              ^
+     56|     expect(s.transport.mutationBlock()).toBeNull(); expect(s.fetcher).…
+     57|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > does not whitelist, trim, interpret or replace new server refusal text
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:44:13
+     42|     } catch {
+     43|       this.uncertain.add(identity);
+     44|       throw new UnknownActionOutcomeError();
+       |             ^
+     45|     } finally { this.inflight.delete(key); }
+     46|   }
+ ❯ test/panel-policy-transport.test.tsx:63:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uses captured authorization and frozen body while caller data, JWT, viewer and channel change in flight
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:44:13
+     42|     } catch {
+     43|       this.uncertain.add(identity);
+     44|       throw new UnknownActionOutcomeError();
+       |             ^
+     45|     } finally { this.inflight.delete(key); }
+     46|   }
+ ❯ test/panel-policy-transport.test.tsx:75:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > read classifies against its admitted channel even if the current channel switches
+AssertionError: expected [Function] to throw error including 'Заявка стримера принята и ждёт подклю…' but got 'Ошибка сервера (403)'
+
+Expected: "Заявка стримера принята и ждёт подключения"
+Received: "Ошибка сервера (403)"
+
+ ❯ test/panel-policy-transport.test.tsx:85:88
+     83| it('read classifies against its admitted channel even if the current c…
+     84|   const pending = deferred<Response>(); const s = setup('pending', () …
+     85|   const read = s.transport.read('/api/bannerlord/my-hero'); const resu…
+       |                                                                                        ^
+     86|   s.auth.authorize({ channelId: '333', userId: 'other', token: 'other-…
+     87|   pending.resolve(captured('pending')); await result;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: mixed policy/action {"success":true} keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ detail: { …(3) }, success: true }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "detail": {
++     "channel_id": 33,
++     "message": "Стример не подключил расширение к платформе",
++     "status": "channel_not_registered",
++   },
++   "success": true,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: mixed policy/action {"success":false} keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ detail: { …(3) }, success: false }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "detail": {
++     "channel_id": 33,
++     "message": "Стример не подключил расширение к платформе",
++     "status": "channel_not_registered",
++   },
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: 5xx with action envelope true keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ success: true, action_id: 'accepted' }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "action_id": "accepted",
++   "success": true,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: 5xx with action envelope false keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ success: false, message: 'No' }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "No",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > accepts a canonical safe-integer channel boundary without a local ID allowlist
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:44:13
+     42|     } catch {
+     43|       this.uncertain.add(identity);
+     44|       throw new UnknownActionOutcomeError();
+       |             ^
+     45|     } finally { this.inflight.delete(key); }
+     46|   }
+ ❯ test/panel-policy-transport.test.tsx:126:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rate metadata may use a future nonempty server tier and an arbitrary positive quota
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:44:13
+     42|     } catch {
+     43|       this.uncertain.add(identity);
+     44|       throw new UnknownActionOutcomeError();
+       |             ^
+     45|     } finally { this.inflight.delete(key); }
+     46|   }
+ ❯ test/panel-policy-transport.test.tsx:135:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > invalid response status 0 is uncertain even with success:false
+ FAIL  test/panel-policy-transport.test.tsx > invalid response status undefined is uncertain even with success:false
+ FAIL  test/panel-policy-transport.test.tsx > invalid response status NaN is uncertain even with success:false
+ FAIL  test/panel-policy-transport.test.tsx > invalid response status 199 is uncertain even with success:false
+ FAIL  test/panel-policy-transport.test.tsx > invalid response status 600 is uncertain even with success:false
+AssertionError: promise resolved "{ success: false, message: 'No' }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "No",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:163:59
+    161| for (const status of [0, undefined, NaN, 199, 600]) it(`invalid respon…
+    162|   const s = setup('unregistered', async () => ({ status, json: async (…
+    163|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    164| });
+    165| for (const [name, reply] of [
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > read preserves actual viewer_poll rate metadata boundary without inventing cooldown
+AssertionError: expected [Function] to throw error including 'Слишком много запросов. Попробуй чере…' but got 'Ошибка сервера (429)'
+
+Expected: "Слишком много запросов. Попробуй через минуту."
+Received: "Ошибка сервера (429)"
+
+ ❯ test/panel-policy-transport.test.tsx:212:60
+    210| it('read preserves actual viewer_poll rate metadata boundary without i…
+    211|   const s = setup('rate_limited', async () => json({ detail: { ...rate…
+    212|   await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.to…
+       |                                                            ^
+    213|   expect(s.transport.mutationBlock()).toBeNull();
+    214| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > unregistered: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected 'Исход предыдущей заявки неизвестен: о…' to be '  Отказ для unregistered: <b>новый се…' // Object.is equality
+
+Expected: "  Отказ для unregistered: <b>новый серверный текст</b>  "
+Received: "Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую."
+
+ ❯ test/panel-policy-transport.test.tsx:239:43
+    237|     expect(button.disabled).toBe(false);
+    238|     await act(async () => { button.click(); await flush(); });
+    239|     expect(controller.snapshot().message).toBe(message); expect(contro…
+       |                                           ^
+    240|     expect(ui.container.textContent).toContain(message); expect(ui.con…
+    241|     expect(button.disabled).toBe(false); expect(controller.cooldown('h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > pending: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected 'Исход предыдущей заявки неизвестен: о…' to be '  Отказ для pending: <b>новый серверн…' // Object.is equality
+
+Expected: "  Отказ для pending: <b>новый серверный текст</b>  "
+Received: "Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую."
+
+ ❯ test/panel-policy-transport.test.tsx:239:43
+    237|     expect(button.disabled).toBe(false);
+    238|     await act(async () => { button.click(); await flush(); });
+    239|     expect(controller.snapshot().message).toBe(message); expect(contro…
+       |                                           ^
+    240|     expect(ui.container.textContent).toContain(message); expect(ui.con…
+    241|     expect(button.disabled).toBe(false); expect(controller.cooldown('h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/24]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rate_limited: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected 'Исход предыдущей заявки неизвестен: о…' to be '  Отказ для rate_limited: <b>новый се…' // Object.is equality
+
+Expected: "  Отказ для rate_limited: <b>новый серверный текст</b>  "
+Received: "Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую."
+
+ ❯ test/panel-policy-transport.test.tsx:239:43
+    237|     expect(button.disabled).toBe(false);
+    238|     await act(async () => { button.click(); await flush(); });
+    239|     expect(controller.snapshot().message).toBe(message); expect(contro…
+       |                                           ^
+    240|     expect(ui.container.textContent).toContain(message); expect(ui.con…
+    241|     expect(button.disabled).toBe(false); expect(controller.cooldown('h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/24]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  24 failed | 86 passed (110)
+   Start at  18:42:49
+   Duration  1.04s (environment 55%, tests 17%, transform 16%, import 12%)
+

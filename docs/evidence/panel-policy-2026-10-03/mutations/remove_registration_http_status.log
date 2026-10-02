@@ -1,0 +1,76 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 9 failed) 170ms
+   × uncertain boundary: registration with HTTP 200 keeps identity lock across JWT rotation and never reposts 8ms
+   × uncertain boundary: registration with HTTP 201 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: registration with HTTP 301 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: registration with HTTP 401 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: registration with HTTP 404 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: registration with HTTP 409 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: registration with HTTP 422 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: registration with HTTP 429 keeps identity lock across JWT rotation and never reposts 1ms
+   × read does not adopt unverified nested text: policy-shaped 5xx 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 200 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 201 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 301 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 401 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 404 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 409 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 422 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 429 keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "Стример не подключил расширение к платформе",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > read does not adopt unverified nested text: policy-shaped 5xx
+AssertionError: expected [Function] to throw error including 'Ошибка сервера (503)' but got 'Стример не подключил расширение к пла…'
+
+Expected: "Ошибка сервера (503)"
+Received: "Стример не подключил расширение к платформе"
+
+ ❯ test/panel-policy-transport.test.tsx:207:60
+    205| ] as const) it(`read does not adopt unverified nested text: ${name}`, …
+    206|   const s = setup('unregistered', async () => json(body, status));
+    207|   await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.to…
+       |                                                            ^
+    208|   expect(s.transport.mutationBlock()).toBeNull();
+    209| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed | 101 passed (110)
+   Start at  18:41:39
+   Duration  1.10s (environment 55%, tests 18%, transform 15%, import 11%, worker 1%)
+

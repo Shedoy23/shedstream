@@ -1,0 +1,146 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 10 failed) 160ms
+   × unregistered: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry 32ms
+   × pending: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry 1ms
+   × rate_limited: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry 1ms
+   × does not whitelist, trim, interpret or replace new server refusal text 1ms
+   × uses captured authorization and frozen body while caller data, JWT, viewer and channel change in flight 1ms
+   × accepts a canonical safe-integer channel boundary without a local ID allowlist 1ms
+   × rate metadata may use a future nonempty server tier and an arbitrary positive quota 1ms
+   × unregistered: native action button displays exact server text, stays available, and does not schedule success refresh 52ms
+   × pending: native action button displays exact server text, stays available, and does not schedule success refresh 12ms
+   × rate_limited: native action button displays exact server text, stays available, and does not schedule success refresh 16ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > unregistered: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry
+ FAIL  test/panel-policy-transport.test.tsx > pending: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry
+ FAIL  test/panel-policy-transport.test.tsx > rate_limited: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:67:13
+     65|     } catch {
+     66|       this.uncertain.add(identity);
+     67|       throw new UnknownActionOutcomeError();
+       |             ^
+     68|     } finally { this.inflight.delete(key); }
+     69|   }
+ ❯ test/panel-policy-transport.test.tsx:36:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > does not whitelist, trim, interpret or replace new server refusal text
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:67:13
+     65|     } catch {
+     66|       this.uncertain.add(identity);
+     67|       throw new UnknownActionOutcomeError();
+       |             ^
+     68|     } finally { this.inflight.delete(key); }
+     69|   }
+ ❯ test/panel-policy-transport.test.tsx:63:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uses captured authorization and frozen body while caller data, JWT, viewer and channel change in flight
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:67:13
+     65|     } catch {
+     66|       this.uncertain.add(identity);
+     67|       throw new UnknownActionOutcomeError();
+       |             ^
+     68|     } finally { this.inflight.delete(key); }
+     69|   }
+ ❯ test/panel-policy-transport.test.tsx:75:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > accepts a canonical safe-integer channel boundary without a local ID allowlist
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:67:13
+     65|     } catch {
+     66|       this.uncertain.add(identity);
+     67|       throw new UnknownActionOutcomeError();
+       |             ^
+     68|     } finally { this.inflight.delete(key); }
+     69|   }
+ ❯ test/panel-policy-transport.test.tsx:126:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rate metadata may use a future nonempty server tier and an arbitrary positive quota
+Error: Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.
+ ❯ HttpPanelTransport.action src/panel/transport.ts:67:13
+     65|     } catch {
+     66|       this.uncertain.add(identity);
+     67|       throw new UnknownActionOutcomeError();
+       |             ^
+     68|     } finally { this.inflight.delete(key); }
+     69|   }
+ ❯ test/panel-policy-transport.test.tsx:135:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > unregistered: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected 'Исход предыдущей заявки неизвестен: о…' to be '  Отказ для unregistered: <b>новый се…' // Object.is equality
+
+Expected: "  Отказ для unregistered: <b>новый серверный текст</b>  "
+Received: "Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую."
+
+ ❯ test/panel-policy-transport.test.tsx:239:43
+    237|     expect(button.disabled).toBe(false);
+    238|     await act(async () => { button.click(); await flush(); });
+    239|     expect(controller.snapshot().message).toBe(message); expect(contro…
+       |                                           ^
+    240|     expect(ui.container.textContent).toContain(message); expect(ui.con…
+    241|     expect(button.disabled).toBe(false); expect(controller.cooldown('h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > pending: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected 'Исход предыдущей заявки неизвестен: о…' to be '  Отказ для pending: <b>новый серверн…' // Object.is equality
+
+Expected: "  Отказ для pending: <b>новый серверный текст</b>  "
+Received: "Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую."
+
+ ❯ test/panel-policy-transport.test.tsx:239:43
+    237|     expect(button.disabled).toBe(false);
+    238|     await act(async () => { button.click(); await flush(); });
+    239|     expect(controller.snapshot().message).toBe(message); expect(contro…
+       |                                           ^
+    240|     expect(ui.container.textContent).toContain(message); expect(ui.con…
+    241|     expect(button.disabled).toBe(false); expect(controller.cooldown('h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rate_limited: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected 'Исход предыдущей заявки неизвестен: о…' to be '  Отказ для rate_limited: <b>новый се…' // Object.is equality
+
+Expected: "  Отказ для rate_limited: <b>новый серверный текст</b>  "
+Received: "Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую."
+
+ ❯ test/panel-policy-transport.test.tsx:239:43
+    237|     expect(button.disabled).toBe(false);
+    238|     await act(async () => { button.click(); await flush(); });
+    239|     expect(controller.snapshot().message).toBe(message); expect(contro…
+       |                                           ^
+    240|     expect(ui.container.textContent).toContain(message); expect(ui.con…
+    241|     expect(button.disabled).toBe(false); expect(controller.cooldown('h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  10 failed | 100 passed (110)
+   Start at  18:41:34
+   Duration  1.08s (environment 51%, transform 19%, tests 17%, import 12%)
+

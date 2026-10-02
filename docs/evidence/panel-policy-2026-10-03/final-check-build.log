@@ -1,0 +1,8 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vite.config.ts:3:49). Add the file extension
+  - import "./src/skillgames/origin" without a file extension (vite.config.ts:4:44). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+PASS: six entrypoints; identical skillgame pages; validated EBS origin/CSP; isolated tournament preview; helper first; readable local assets; no legacy owner
+PASS: bundled runtime licenses and pinned versions included
+PASS: source maps confirm Preact-only runtime; readable build settings preserved
+PASS: original readable Preact source contents preserved in composed maps

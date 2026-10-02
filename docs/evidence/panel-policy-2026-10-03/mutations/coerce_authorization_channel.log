@@ -1,0 +1,53 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 5 failed) 172ms
+   × does not coerce ambiguous authorization channel "033" 8ms
+   × does not coerce ambiguous authorization channel " 33" 1ms
+   × does not coerce ambiguous authorization channel "33 " 1ms
+   × does not coerce ambiguous authorization channel "+33" 1ms
+   × does not coerce ambiguous authorization channel "3.3e1" 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "033"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel " 33"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "33 "
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "+33"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "3.3e1"
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "Стример не подключил расширение к платформе",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:140:59
+    138| for (const channelId of ['033', ' 33', '33 ', '+33', '3.3e1', '', 'unk…
+    139|   const s = setup(); s.auth.authorize({ ...authFor('unregistered'), ch…
+    140|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    141|   expect(s.fetcher).toHaveBeenCalledTimes(1);
+    142| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 105 passed (110)
+   Start at  18:41:52
+   Duration  1.13s (environment 55%, tests 17%, transform 16%, import 12%)
+

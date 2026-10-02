@@ -1,0 +1,139 @@
+{
+  "baseline_commit": "38beb210f553181915c8ea7fc434a0be1c3a92aa",
+  "source_test_commit": "37824e624347f2c73e6dab0173021d9a08e47e71",
+  "runtime_commit": "4dbd3843f4b5f68a9c11bbf2ababfb79c450e966",
+  "runtime_sha256": "a09d3bc530a70a9cd1ca23e3f140602bc7cd9bbdc89d329e0acb2f13f2e2a89a",
+  "runtime_changed_paths": [
+    "frontend-next/src/panel/transport.ts"
+  ],
+  "protected_paths_diff_empty": [
+    "Расширение/backend",
+    "Расширение/frontend",
+    "tests",
+    "BannerlordLink",
+    "BannerlordAutopilot",
+    "RimLink",
+    "frontend-next/package-lock.json"
+  ],
+  "owned_node_modules_all_symlinks_internal": true,
+  "backend_fixture_reproduction": {
+    "exit_code": 0,
+    "actual_main_app": true,
+    "network_blocked": true,
+    "canonical_and_auth_controls": 5,
+    "raw_status_body_match_original_capture": true,
+    "each_request_body_reads": 0,
+    "game_balances_and_queue_unchanged": true
+  },
+  "checks": {
+    "initial_default_baseline": {
+      "exit_code": 1,
+      "passed": 735,
+      "skipped": 2,
+      "reason": "one worker SIGKILL; cause unestablished"
+    },
+    "bounded_full_baseline": {
+      "exit_code": 0,
+      "passed": 763,
+      "skipped": 2
+    },
+    "red_first": {
+      "exit_code": 1,
+      "passed": 73,
+      "failed": 22
+    },
+    "final_acceptance_red_against_baseline_transport": {
+      "exit_code": 1,
+      "passed": 86,
+      "failed": 24
+    },
+    "policy_focused": {
+      "exit_code": 0,
+      "passed": 110
+    },
+    "full_aggregate": {
+      "exit_code": 0,
+      "passed": 873,
+      "skipped": 2,
+      "max_workers": 2
+    },
+    "typecheck": {
+      "exit_code": 0
+    },
+    "build": {
+      "exit_code": 0
+    },
+    "check_build": {
+      "exit_code": 0
+    },
+    "measure_panel_mobile": {
+      "exit_code": 0
+    },
+    "mutations": {
+      "exit_code": 0,
+      "killed": 20,
+      "expected_redundant": 1,
+      "restored_bytes_verified": true
+    }
+  },
+  "sizes": {
+    "baseline": {
+      "raw": 218909,
+      "gzip9": 57729
+    },
+    "final": {
+      "raw": 220598,
+      "gzip9": 58168
+    }
+  },
+  "not_tested": [
+    "browser",
+    "318px",
+    "phone",
+    "Hosted Test",
+    "production",
+    "game effects"
+  ],
+  "evidence_sha256": {
+    "docs/evidence/panel-policy-2026-10-03/asgi-probe.log": "bb229a2e281fca5bcea3f69189dd4c900d36fd390326fbcba53ba9ea6b8b3848",
+    "docs/evidence/panel-policy-2026-10-03/baseline-build.log": "43b494bfe1b92b0e921e1ce3a145376738b04663d3de2d680b0218e9a937f8fb",
+    "docs/evidence/panel-policy-2026-10-03/baseline-sizes.json": "1c49d8b4ae7d2652f7448f355aa983cfd2209edcc20cd0ad96d4b80a3d3997bb",
+    "docs/evidence/panel-policy-2026-10-03/baseline-suite-bounded.log": "70e866dad94c68a581f9d320aa49bcf4f3010a28eff43ebdc1c9e0d67f71e0d5",
+    "docs/evidence/panel-policy-2026-10-03/baseline-suite.log": "f8d62b9a902128b004e2857c903934073d846cef8920230b7f756d8d9698ebc6",
+    "docs/evidence/panel-policy-2026-10-03/check-parser-mutations.py": "9ca5df59d12b7add2cc0a5240b0602a190fd8f416b1be502da87bcb02e3773d5",
+    "docs/evidence/panel-policy-2026-10-03/final-acceptance-red.log": "a96f6b742dc848386e948e2663ff95c3e303cb9acc1b8a3797b5deb506691d44",
+    "docs/evidence/panel-policy-2026-10-03/final-build.log": "f352c0226102826151f532b317a1875cc750928ca09223a68fbeb8b72ae5adb4",
+    "docs/evidence/panel-policy-2026-10-03/final-check-build.log": "acc817a78c66664325330713aafd528ba7f9e6a1d5fffed5467c3b82557db282",
+    "docs/evidence/panel-policy-2026-10-03/final-sizes.json": "6f1d310c7ca95109ed6984a90ddf968da15c38d3f3095451487d742639b52448",
+    "docs/evidence/panel-policy-2026-10-03/final-suite.log": "13564cd2fd86a6e25c60ceb4661724df3f1441b6b75d4be4b98f046164defbd7",
+    "docs/evidence/panel-policy-2026-10-03/final-typecheck.log": "6759aca36d28bea59af946b50a2b5b073125231d095bd4449d3668a51ba13e2b",
+    "docs/evidence/panel-policy-2026-10-03/green-focused.log": "23956753e2a6ffd945139ffa497ac0a39fb2716f2f2f3bc88e3af06b34bd5baf",
+    "docs/evidence/panel-policy-2026-10-03/green-typecheck.log": "6759aca36d28bea59af946b50a2b5b073125231d095bd4449d3668a51ba13e2b",
+    "docs/evidence/panel-policy-2026-10-03/mutations/accept_arbitrary_4xx.log": "167ce1b2dc1cb310fb7bc68cc546c260d2b58206c739e6b184c0f65facd8f703",
+    "docs/evidence/panel-policy-2026-10-03/mutations/accept_poll_scope_for_action.log": "ab88b70d98a9dfbd877ae7178773900669cd0d50d918caecfa0884bbb61d98bf",
+    "docs/evidence/panel-policy-2026-10-03/mutations/accept_unknown_rate_code.log": "59275d8d771df77a17b2ad8bf5f4de186851ba42dc3387d30af1504830e51de9",
+    "docs/evidence/panel-policy-2026-10-03/mutations/allow_mixed_envelope.log": "b0db63e7003fc593ef52feff6ecc3226f22a72db30d113924b6f4c3cd7a588b2",
+    "docs/evidence/panel-policy-2026-10-03/mutations/allow_mixed_top_level_success.log": "faa45fe27d296a46c67ffaad7e8974b7f5b70f369ad9f90aa84979c69ac7a00c",
+    "docs/evidence/panel-policy-2026-10-03/mutations/allow_nested_action_fields.log": "a4415741591a4756d7022554d139e3c7c5ea486430f2d99895e2b9f242e5a510",
+    "docs/evidence/panel-policy-2026-10-03/mutations/coerce_authorization_channel.log": "3be41792096c5254c114ee4725a902f1ff9f62c1679dd54c7a6b28b4fb6c5687",
+    "docs/evidence/panel-policy-2026-10-03/mutations/redundant_channel_type_guard.log": "eb4d7ec4284d484a09fc8c240621fb1eccbe94abf14615dd469274a0987ddbef",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_action_5xx_guard.log": "1878cccab2000cf4b9feb8abd2cbef77e9dbf2e78417d3f2dddf871565674bd9",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_action_normalization.log": "e1b71bf96a1ab4f37913132f7da198cfcb42d91b57423080001c549b8a86a0ef",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_channel_binding.log": "6b2563fee32d2adce8ee5b314913235b9c201e4734220bbd1d4577dacd088831",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_integer_quota.log": "752bf3b3d0e9c8dacf4ce1990ff177c40f1301ad9160a3a8f2653734ccdea8b7",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_nonblank_message.log": "b21ddf4610d7507e856eee5dda80df15854a44f8f9358c67d59e893c1dec248c",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_positive_channel.log": "c120224414a2f5edcdde1e66b88bb5417a569290962379177aff4c6772e3e7a6",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_positive_quota.log": "c4f5093587fa58fa846a5af2f02037c8690794fbd2bfeee37a3c7f9aa5b5797e",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_rate_http_status.log": "0d27c15fba4a1bfe7ec76f78b13c003024490f91b134737c02c0a7f3b89b1ee5",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_read_message.log": "52a2ea686b2ede3958d660b99ff83fc0863a425cf5eb5175ba6e91364714b5d5",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_registration_http_status.log": "2c50980bedb562001c3a4af08e698c6396ba0451e9114b3b12198793cd72acb0",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_safe_integer_channel.log": "8f40a401c09af147f7ad123cfa524bac068e7cb5fbfddb5dcf1bdfe9b5f72ef4",
+    "docs/evidence/panel-policy-2026-10-03/mutations/remove_tier_shape.log": "c77d937b3135ea40f9dd692a87e0b1c892b729c9caa24e713058435dfd46901e",
+    "docs/evidence/panel-policy-2026-10-03/mutations/summary.json": "5eeae967d826956df152fca4b1670c377795e177c73c444db8ea62373fb0bfe3",
+    "docs/evidence/panel-policy-2026-10-03/mutations/use_current_channel_for_action.log": "e7e82656a4bd908e9224ceb1feb22c4451229df54bdc5ec643442e87fbc3ddaf",
+    "docs/evidence/panel-policy-2026-10-03/mutations-run.log": "9159902006d8f34db618bdeda0bc23daa1ea8855fa960e8a513d45cc52f49171",
+    "docs/evidence/panel-policy-2026-10-03/parser-boundaries-green.log": "5157a1397054239970e287dff95124c0aa80fb944d99953851921bc4ea0732a9",
+    "docs/evidence/panel-policy-2026-10-03/red-typecheck.log": "6759aca36d28bea59af946b50a2b5b073125231d095bd4449d3668a51ba13e2b",
+    "docs/evidence/panel-policy-2026-10-03/red.log": "f5a7f8891c940e584f32e3e9401675a8252cf25ca57bfc26703b0943dcdfa94a"
+  }
+}

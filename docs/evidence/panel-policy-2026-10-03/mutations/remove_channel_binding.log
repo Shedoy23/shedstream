@@ -1,0 +1,98 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 9 failed) 171ms
+   × uncertain boundary: invalid/mismatched channel 22 keeps identity lock across JWT rotation and never reposts 10ms
+   × does not coerce ambiguous authorization channel "033" 1ms
+   × does not coerce ambiguous authorization channel " 33" 1ms
+   × does not coerce ambiguous authorization channel "33 " 1ms
+   × does not coerce ambiguous authorization channel "+33" 1ms
+   × does not coerce ambiguous authorization channel "3.3e1" 1ms
+   × does not coerce ambiguous authorization channel "" 1ms
+   × does not coerce ambiguous authorization channel "unknown" 1ms
+   × read does not adopt unverified nested text: wrong channel 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel 22 keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "Стример не подключил расширение к платформе",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "033"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel " 33"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "33 "
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "+33"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "3.3e1"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel ""
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "unknown"
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "Стример не подключил расширение к платформе",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:140:59
+    138| for (const channelId of ['033', ' 33', '33 ', '+33', '3.3e1', '', 'unk…
+    139|   const s = setup(); s.auth.authorize({ ...authFor('unregistered'), ch…
+    140|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    141|   expect(s.fetcher).toHaveBeenCalledTimes(1);
+    142| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > read does not adopt unverified nested text: wrong channel
+AssertionError: expected [Function] to throw error including 'Ошибка сервера (403)' but got 'Стример не подключил расширение к пла…'
+
+Expected: "Ошибка сервера (403)"
+Received: "Стример не подключил расширение к платформе"
+
+ ❯ test/panel-policy-transport.test.tsx:207:60
+    205| ] as const) it(`read does not adopt unverified nested text: ${name}`, …
+    206|   const s = setup('unregistered', async () => json(body, status));
+    207|   await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.to…
+       |                                                            ^
+    208|   expect(s.transport.mutationBlock()).toBeNull();
+    209| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed | 101 passed (110)
+   Start at  18:41:47
+   Duration  1.11s (environment 52%, tests 18%, transform 17%, import 12%)
+

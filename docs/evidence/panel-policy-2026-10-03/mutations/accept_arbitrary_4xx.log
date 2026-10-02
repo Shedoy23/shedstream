@@ -1,0 +1,441 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 75 failed) 165ms
+   × unregistered: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry 26ms
+   × pending: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry 2ms
+   × rate_limited: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry 2ms
+   × does not whitelist, trim, interpret or replace new server refusal text 1ms
+   × uses captured authorization and frozen body while caller data, JWT, viewer and channel change in flight 1ms
+   × uncertain boundary: registration with HTTP 401 keeps identity lock across JWT rotation and never reposts 2ms
+   × uncertain boundary: registration with HTTP 404 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: registration with HTTP 409 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: registration with HTTP 422 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: registration with HTTP 429 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: rate limit with HTTP 403 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: rate limit with HTTP 404 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: invalid/mismatched channel 0 keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid/mismatched channel -1 keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid/mismatched channel 1.5 keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid/mismatched channel 9007199254740992 keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid/mismatched channel "33" keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: invalid/mismatched channel null keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid/mismatched channel undefined keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid/mismatched channel true keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid/mismatched channel {} keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid/mismatched channel 22 keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid message "" keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: invalid message " \n\t " keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid message null keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: invalid message undefined keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: invalid message 22 keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid message {} keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: invalid message [] keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: unknown policy "different_policy" keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: unknown policy "" keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: unknown policy null keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: unknown policy 403 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: unknown/malformed JSON 0 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: unknown/malformed JSON 1 keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: unknown/malformed JSON 2 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: unknown/malformed JSON 3 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: unknown/malformed JSON 4 keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: unknown/malformed JSON 5 keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: unknown/malformed JSON 6 keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: mixed policy/action {"success":true} keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: mixed policy/action {"success":false} keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: mixed policy/action {"success":"false"} keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: mixed policy/action {"action_id":"accepted"} keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: mixed policy/action {"charged":5} keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: mixed policy/action {"message":"contradictory top level"} keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: unknown rate policy code keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: rate quota wrong scope keeps identity lock across JWT rotation and never reposts 1ms
+   × uncertain boundary: rate quota blank tier keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: rate quota invalid limit keeps identity lock across JWT rotation and never reposts 0ms
+   × uncertain boundary: nested contradictory action keeps identity lock across JWT rotation and never reposts 1ms
+   × rejects invalid numeric response channel even when its string matches authorization: 0 1ms
+   × rejects invalid numeric response channel even when its string matches authorization: -1 0ms
+   × rejects invalid numeric response channel even when its string matches authorization: 1.5 0ms
+   × rejects invalid numeric response channel even when its string matches authorization: 9007199254740992 0ms
+   × accepts a canonical safe-integer channel boundary without a local ID allowlist 1ms
+   × malformed rate metadata is not normalized: {"limit_per_min":1.5} 1ms
+   × malformed rate metadata is not normalized: {"limit_per_min":"6000"} 0ms
+   × malformed rate metadata is not normalized: {"limit_per_min":null} 0ms
+   × malformed rate metadata is not normalized: {"limit_per_min":0} 0ms
+   × malformed rate metadata is not normalized: {"limit_per_min":9007199254740992} 1ms
+   × malformed rate metadata is not normalized: {"tier":null} 1ms
+   × malformed rate metadata is not normalized: {"tier":4} 1ms
+   × malformed rate metadata is not normalized: {"scope":"unknown"} 1ms
+   × rate metadata may use a future nonempty server tier and an arbitrary positive quota 1ms
+   × does not coerce ambiguous authorization channel "033" 1ms
+   × does not coerce ambiguous authorization channel " 33" 1ms
+   × does not coerce ambiguous authorization channel "33 " 1ms
+   × does not coerce ambiguous authorization channel "+33" 1ms
+   × does not coerce ambiguous authorization channel "3.3e1" 1ms
+   × does not coerce ambiguous authorization channel "" 1ms
+   × does not coerce ambiguous authorization channel "unknown" 1ms
+   × unregistered: native action button displays exact server text, stays available, and does not schedule success refresh 51ms
+   × pending: native action button displays exact server text, stays available, and does not schedule success refresh 12ms
+   × rate_limited: native action button displays exact server text, stays available, and does not schedule success refresh 12ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 75 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > unregistered: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry
+AssertionError: expected { success: false, …(1) } to deeply equal { success: false, …(1) }
+
+- Expected
++ Received
+
+  {
+-   "message": "Стример не подключил расширение к платформе",
++   "message": "unsafe blanket refusal",
+    "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:36:62
+     34|     const data = { skill_key: 'OneHanded', amount: 1, client_action_id…
+     35|     const original = structuredClone(data);
+     36|     expect(await s.transport.action('hero.add_focus', data)).toEqual({…
+       |                                                              ^
+     37|     expect(s.transport.mutationBlock()).toBeNull(); expect(data).toEqu…
+     38|     expect(s.fetcher).toHaveBeenCalledTimes(1); expect(s.newId).toHave…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > pending: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry
+AssertionError: expected { success: false, …(1) } to deeply equal { success: false, …(1) }
+
+- Expected
++ Received
+
+  {
+-   "message": "Заявка стримера принята и ждёт подключения",
++   "message": "unsafe blanket refusal",
+    "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:36:62
+     34|     const data = { skill_key: 'OneHanded', amount: 1, client_action_id…
+     35|     const original = structuredClone(data);
+     36|     expect(await s.transport.action('hero.add_focus', data)).toEqual({…
+       |                                                              ^
+     37|     expect(s.transport.mutationBlock()).toBeNull(); expect(data).toEqu…
+     38|     expect(s.fetcher).toHaveBeenCalledTimes(1); expect(s.newId).toHave…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rate_limited: actual policy envelope is definite, preserves exact text, allows only explicit recovered retry
+AssertionError: expected { success: false, …(1) } to deeply equal { success: false, …(1) }
+
+- Expected
++ Received
+
+  {
+-   "message": "Слишком много запросов. Попробуй через минуту.",
++   "message": "unsafe blanket refusal",
+    "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:36:62
+     34|     const data = { skill_key: 'OneHanded', amount: 1, client_action_id…
+     35|     const original = structuredClone(data);
+     36|     expect(await s.transport.action('hero.add_focus', data)).toEqual({…
+       |                                                              ^
+     37|     expect(s.transport.mutationBlock()).toBeNull(); expect(data).toEqu…
+     38|     expect(s.fetcher).toHaveBeenCalledTimes(1); expect(s.newId).toHave…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > does not whitelist, trim, interpret or replace new server refusal text
+AssertionError: expected { success: false, …(1) } to deeply equal { success: false, …(1) }
+
+- Expected
++ Received
+
+  {
+-   "message": "  Новый отказ сервера: <em>не разметка</em> & другой срок 17 секунд.  ",
++   "message": "unsafe blanket refusal",
+    "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:63:60
+     61|   const message = '  Новый отказ сервера: <em>не разметка</em> & друго…
+     62|   const s = setup('pending', async () => json({ detail: { ...cases.pen…
+     63|   expect(await s.transport.action('hero.army_create', {})).toEqual({ s…
+       |                                                            ^
+     64|   await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.to…
+     65| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uses captured authorization and frozen body while caller data, JWT, viewer and channel change in flight
+AssertionError: expected { success: false, …(1) } to deeply equal { success: false, …(1) }
+
+- Expected
++ Received
+
+  {
+-   "message": "Заявка стримера принята и ждёт подключения",
++   "message": "unsafe blanket refusal",
+    "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:75:25
+     73|   s.auth.authorize({ channelId: '333', userId: 'other-viewer', token: …
+     74|   pending.resolve(captured('pending'));
+     75|   expect(await request).toEqual({ success: false, message: cases.pendi…
+       |                         ^
+     76|   const options = s.fetcher.mock.calls[0][1]!;
+     77|   expect(new Headers(options.headers).get('X-Twitch-JWT')).toBe('synth…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 401 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 404 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 409 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 422 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: registration with HTTP 429 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: rate limit with HTTP 403 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: rate limit with HTTP 404 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel 0 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel -1 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel 1.5 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel 9007199254740992 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel "33" keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel null keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel undefined keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel true keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel {} keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid/mismatched channel 22 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid message "" keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid message " \n\t " keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid message null keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid message undefined keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid message 22 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid message {} keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid message [] keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown policy "different_policy" keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown policy "" keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown policy null keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown policy 403 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown/malformed JSON 0 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown/malformed JSON 1 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown/malformed JSON 2 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown/malformed JSON 3 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown/malformed JSON 4 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown/malformed JSON 5 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown/malformed JSON 6 keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: mixed policy/action {"success":true} keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: mixed policy/action {"success":false} keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: mixed policy/action {"success":"false"} keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: mixed policy/action {"action_id":"accepted"} keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: mixed policy/action {"charged":5} keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: mixed policy/action {"message":"contradictory top level"} keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: unknown rate policy code keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: rate quota wrong scope keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: rate quota blank tier keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: rate quota invalid limit keeps identity lock across JWT rotation and never reposts
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: nested contradictory action keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "unsafe blanket refusal",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rejects invalid numeric response channel even when its string matches authorization: 0
+ FAIL  test/panel-policy-transport.test.tsx > rejects invalid numeric response channel even when its string matches authorization: -1
+ FAIL  test/panel-policy-transport.test.tsx > rejects invalid numeric response channel even when its string matches authorization: 1.5
+ FAIL  test/panel-policy-transport.test.tsx > rejects invalid numeric response channel even when its string matches authorization: 9007199254740992
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "unsafe blanket refusal",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:120:59
+    118|   const s = setup('unregistered', async () => json({ detail: { ...deta…
+    119|   s.auth.authorize({ ...authFor('unregistered'), channelId: String(cha…
+    120|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    121| });
+    122| it('accepts a canonical safe-integer channel boundary without a local …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > accepts a canonical safe-integer channel boundary without a local ID allowlist
+AssertionError: expected { success: false, …(1) } to deeply equal { success: false, …(1) }
+
+- Expected
++ Received
+
+  {
+-   "message": "Стример не подключил расширение к платформе",
++   "message": "unsafe blanket refusal",
+    "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:126:60
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > malformed rate metadata is not normalized: {"limit_per_min":1.5}
+ FAIL  test/panel-policy-transport.test.tsx > malformed rate metadata is not normalized: {"limit_per_min":"6000"}
+ FAIL  test/panel-policy-transport.test.tsx > malformed rate metadata is not normalized: {"limit_per_min":null}
+ FAIL  test/panel-policy-transport.test.tsx > malformed rate metadata is not normalized: {"limit_per_min":0}
+ FAIL  test/panel-policy-transport.test.tsx > malformed rate metadata is not normalized: {"limit_per_min":9007199254740992}
+ FAIL  test/panel-policy-transport.test.tsx > malformed rate metadata is not normalized: {"tier":null}
+ FAIL  test/panel-policy-transport.test.tsx > malformed rate metadata is not normalized: {"tier":4}
+ FAIL  test/panel-policy-transport.test.tsx > malformed rate metadata is not normalized: {"scope":"unknown"}
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "unsafe blanket refusal",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:130:59
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rate metadata may use a future nonempty server tier and an arbitrary positive quota
+AssertionError: expected { success: false, …(1) } to deeply equal { success: false, …(1) }
+
+- Expected
++ Received
+
+  {
+-   "message": "Слишком много запросов. Попробуй через минуту.",
++   "message": "unsafe blanket refusal",
+    "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:135:60
+    133| it('rate metadata may use a future nonempty server tier and an arbitra…
+    134|   const s = setup('rate_limited', async () => json({ detail: { ...rate…
+    135|   expect(await s.transport.action('hero.army_create', {})).toEqual({ s…
+       |                                                            ^
+    136| });
+    137|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "033"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel " 33"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "33 "
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "+33"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "3.3e1"
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel ""
+ FAIL  test/panel-policy-transport.test.tsx > does not coerce ambiguous authorization channel "unknown"
+AssertionError: promise resolved "{ success: false, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "unsafe blanket refusal",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:140:59
+    138| for (const channelId of ['033', ' 33', '33 ', '+33', '3.3e1', '', 'unk…
+    139|   const s = setup(); s.auth.authorize({ ...authFor('unregistered'), ch…
+    140|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    141|   expect(s.fetcher).toHaveBeenCalledTimes(1);
+    142| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > unregistered: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected 'unsafe blanket refusal' to be '  Отказ для unregistered: <b>новый се…' // Object.is equality
+
+Expected: "  Отказ для unregistered: <b>новый серверный текст</b>  "
+Received: "unsafe blanket refusal"
+
+ ❯ test/panel-policy-transport.test.tsx:239:43
+    237|     expect(button.disabled).toBe(false);
+    238|     await act(async () => { button.click(); await flush(); });
+    239|     expect(controller.snapshot().message).toBe(message); expect(contro…
+       |                                           ^
+    240|     expect(ui.container.textContent).toContain(message); expect(ui.con…
+    241|     expect(button.disabled).toBe(false); expect(controller.cooldown('h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > pending: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected 'unsafe blanket refusal' to be '  Отказ для pending: <b>новый серверн…' // Object.is equality
+
+Expected: "  Отказ для pending: <b>новый серверный текст</b>  "
+Received: "unsafe blanket refusal"
+
+ ❯ test/panel-policy-transport.test.tsx:239:43
+    237|     expect(button.disabled).toBe(false);
+    238|     await act(async () => { button.click(); await flush(); });
+    239|     expect(controller.snapshot().message).toBe(message); expect(contro…
+       |                                           ^
+    240|     expect(ui.container.textContent).toContain(message); expect(ui.con…
+    241|     expect(button.disabled).toBe(false); expect(controller.cooldown('h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/75]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rate_limited: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected 'unsafe blanket refusal' to be '  Отказ для rate_limited: <b>новый се…' // Object.is equality
+
+Expected: "  Отказ для rate_limited: <b>новый серверный текст</b>  "
+Received: "unsafe blanket refusal"
+
+ ❯ test/panel-policy-transport.test.tsx:239:43
+    237|     expect(button.disabled).toBe(false);
+    238|     await act(async () => { button.click(); await flush(); });
+    239|     expect(controller.snapshot().message).toBe(message); expect(contro…
+       |                                           ^
+    240|     expect(ui.container.textContent).toContain(message); expect(ui.con…
+    241|     expect(button.disabled).toBe(false); expect(controller.cooldown('h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/75]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  75 failed | 35 passed (110)
+   Start at  18:41:37
+   Duration  1.40s (environment 55%, tests 17%, transform 16%, import 11%)
+

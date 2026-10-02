@@ -1,0 +1,123 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 6 failed) 180ms
+   × unregistered: read keeps the exact known policy message without blocking mutations 9ms
+   × pending: read keeps the exact known policy message without blocking mutations 2ms
+   × rate_limited: read keeps the exact known policy message without blocking mutations 2ms
+   × does not whitelist, trim, interpret or replace new server refusal text 2ms
+   × read classifies against its admitted channel even if the current channel switches 1ms
+   × read preserves actual viewer_poll rate metadata boundary without inventing cooldown 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > unregistered: read keeps the exact known policy message without blocking mutations
+AssertionError: expected [Function] to throw error including 'Стример не подключил расширение к пла…' but got 'Ошибка сервера (403)'
+
+Expected: "Стример не подключил расширение к платформе"
+Received: "Ошибка сервера (403)"
+
+ ❯ test/panel-policy-transport.test.tsx:55:62
+     53|   it(`${name}: read keeps the exact known policy message without block…
+     54|     const s = setup(name);
+     55|     await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.…
+       |                                                              ^
+     56|     expect(s.transport.mutationBlock()).toBeNull(); expect(s.fetcher).…
+     57|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > pending: read keeps the exact known policy message without blocking mutations
+AssertionError: expected [Function] to throw error including 'Заявка стримера принята и ждёт подклю…' but got 'Ошибка сервера (403)'
+
+Expected: "Заявка стримера принята и ждёт подключения"
+Received: "Ошибка сервера (403)"
+
+ ❯ test/panel-policy-transport.test.tsx:55:62
+     53|   it(`${name}: read keeps the exact known policy message without block…
+     54|     const s = setup(name);
+     55|     await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.…
+       |                                                              ^
+     56|     expect(s.transport.mutationBlock()).toBeNull(); expect(s.fetcher).…
+     57|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > rate_limited: read keeps the exact known policy message without blocking mutations
+AssertionError: expected [Function] to throw error including 'Слишком много запросов. Попробуй чере…' but got 'Ошибка сервера (429)'
+
+Expected: "Слишком много запросов. Попробуй через минуту."
+Received: "Ошибка сервера (429)"
+
+ ❯ test/panel-policy-transport.test.tsx:55:62
+     53|   it(`${name}: read keeps the exact known policy message without block…
+     54|     const s = setup(name);
+     55|     await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.…
+       |                                                              ^
+     56|     expect(s.transport.mutationBlock()).toBeNull(); expect(s.fetcher).…
+     57|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > does not whitelist, trim, interpret or replace new server refusal text
+AssertionError: expected [Function] to throw error including '  Новый отказ сервера: <em>не разметк…' but got 'Ошибка сервера (403)'
+
+Expected: "  Новый отказ сервера: <em>не разметка</em> & другой срок 17 секунд.  "
+Received: "Ошибка сервера (403)"
+
+ ❯ test/panel-policy-transport.test.tsx:64:60
+     62|   const s = setup('pending', async () => json({ detail: { ...cases.pen…
+     63|   expect(await s.transport.action('hero.army_create', {})).toEqual({ s…
+     64|   await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.to…
+       |                                                            ^
+     65| });
+     66|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > read classifies against its admitted channel even if the current channel switches
+AssertionError: expected [Function] to throw error including 'Заявка стримера принята и ждёт подклю…' but got 'Ошибка сервера (403)'
+
+Expected: "Заявка стримера принята и ждёт подключения"
+Received: "Ошибка сервера (403)"
+
+ ❯ test/panel-policy-transport.test.tsx:85:88
+     83| it('read classifies against its admitted channel even if the current c…
+     84|   const pending = deferred<Response>(); const s = setup('pending', () …
+     85|   const read = s.transport.read('/api/bannerlord/my-hero'); const resu…
+       |                                                                                        ^
+     86|   s.auth.authorize({ channelId: '333', userId: 'other', token: 'other-…
+     87|   pending.resolve(captured('pending')); await result;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > read preserves actual viewer_poll rate metadata boundary without inventing cooldown
+AssertionError: expected [Function] to throw error including 'Слишком много запросов. Попробуй чере…' but got 'Ошибка сервера (429)'
+
+Expected: "Слишком много запросов. Попробуй через минуту."
+Received: "Ошибка сервера (429)"
+
+ ❯ test/panel-policy-transport.test.tsx:212:60
+    210| it('read preserves actual viewer_poll rate metadata boundary without i…
+    211|   const s = setup('rate_limited', async () => json({ detail: { ...rate…
+    212|   await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.to…
+       |                                                            ^
+    213|   expect(s.transport.mutationBlock()).toBeNull();
+    214| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 104 passed (110)
+   Start at  18:41:36
+   Duration  1.20s (environment 56%, tests 17%, transform 16%, import 10%)
+

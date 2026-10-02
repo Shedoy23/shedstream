@@ -1,0 +1,87 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-policy-transport.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-policy-fix-38beb21/frontend-next
+
+ ❯ test/panel-policy-transport.test.tsx (110 tests | 3 failed) 195ms
+   × uncertain boundary: invalid message "" keeps identity lock across JWT rotation and never reposts 10ms
+   × uncertain boundary: invalid message " \n\t " keeps identity lock across JWT rotation and never reposts 1ms
+   × read does not adopt unverified nested text: blank message 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid message "" keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ success: false, message: '' }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": "",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > uncertain boundary: invalid message " \n\t " keeps identity lock across JWT rotation and never reposts
+AssertionError: promise resolved "{ success: false, message: ' \n\t ' }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "message": " 
++ 	 ",
++   "success": false,
+  }
+
+ ❯ test/panel-policy-transport.test.tsx:110:59
+    108| for (const { name, status, body } of invalid) it(`uncertain boundary: …
+    109|   const s = setup('unregistered', async () => json(body, status));
+    110|   await expect(s.transport.action('hero.army_create', {})).rejects.toB…
+       |                                                           ^
+    111|   expect(s.transport.mutationBlock()).toContain('Исход предыдущей заяв…
+    112|   s.auth.authorize({ ...authFor('unregistered'), token: 'rotated' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  test/panel-policy-transport.test.tsx > read does not adopt unverified nested text: blank message
+AssertionError: expected [Function] to throw error including 'Ошибка сервера (403)' but got ' '
+
+Expected: "Ошибка сервера (403)"
+Received: " "
+
+ ❯ test/panel-policy-transport.test.tsx:207:60
+    205| ] as const) it(`read does not adopt unverified nested text: ${name}`, …
+    206|   const s = setup('unregistered', async () => json(body, status));
+    207|   await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.to…
+       |                                                            ^
+    208|   expect(s.transport.mutationBlock()).toBeNull();
+    209| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 107 passed (110)
+   Start at  18:41:54
+   Duration  1.19s (environment 56%, tests 19%, transform 15%, import 11%)
+

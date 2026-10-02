@@ -31,7 +31,7 @@ mutations=[
  ('build-pending-revision',safety,'pre-action build response',[('controller.ts','() => revision === this.buildRevision);','() => true);')]),
  ('balance-interval',safety,'60-second balance phase',[('PanelApp.tsx','void controller.refreshBalance(); }, 60000);','void controller.refreshBalance(); }, 120000);')]),
  ('late-stance-ownership',safety,'older refunded stance',[('controller.ts',"r.action_id === this.pendingStance?.actionId && r.type === 'hero.set_combat_stance'", "r.type === 'hero.set_combat_stance'")]),
- ('battle-response-ownership',safety,'old viewer balance, battle, build',[('controller.ts','this.active && generation === this.generation && request >', 'this.active && request >')]),
+ ('battle-response-ownership',safety,'old viewer balance, battle, build',[('controller.ts','this.active && generation === this.generation && request >', 'this.active && request >'),('controller.ts','this.aborts.forEach(abort => abort.abort());','/* deliberately removed abort ownership fence */')]),
  ('combat-telemetry-feature',parity,'actual collector counts combat family player.spawn',[('controller.ts',"this.usage?.trackAction('bannerlord:' + type)", "this.usage?.trackAction('bannerlord:wrong.' + type)")]),
  ('combat-ui-order',parity,'server UI permutation',[('combat.ts',"order:order.filter(id=>id!=='tournament')", "order:combatSections.filter(id=>id!=='tournament')")]),
  ('new-balance-gate',safety,'new weapon balance boundary 299',[('combat.ts','state.points !== null && state.points >= power.price &&','true &&')]),

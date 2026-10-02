@@ -84,7 +84,9 @@ export function parseSession(value: unknown): Session {
 }
 export function parseSnapshot(value: unknown): SkillgameSnapshot {
   if (!isRecord(value) || value.success !== true || !isRecord(value.queue) || typeof value.queue.status !== 'string'
-    || !isRecord(value.ratings) || !Object.values(value.ratings).every(finite)) throw new Error('Неизвестный формат состояния игр');
+    || !isRecord(value.ratings) || !Object.values(value.ratings).every(finite)
+    || !finite(value.server_time) || (value.poll_interval_ms !== undefined && (!int(value.poll_interval_ms) || value.poll_interval_ms <= 0))
+    || !['idle', 'queued'].includes(value.queue.status) || (value.queue.status === 'queued' && !finite(value.queue.expires_at))) throw new Error('Неизвестный формат состояния игр');
   const catalog = parseCatalog(value.catalog);
   const active_session = value.active_session === null ? null : parseSession(value.active_session);
   return { ...value, catalog, active_session } as SkillgameSnapshot;

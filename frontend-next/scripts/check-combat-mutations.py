@@ -11,6 +11,9 @@ parity='test/panel-combat-parity.test.tsx';safety='test/panel-combat-safety.test
 # name, test, exact semantic replacement(s). These deliberately change behavior,
 # never assertions or fixtures. A selector mismatch is drift, not a passed probe.
 mutations=[
+ ('restored-startup-order',parity,'restored inventory initial selected-host',[('controller.ts','this.initialEquipment = false; this.primeEquipment();','this.initialEquipment = false;')]),
+ ('restored-read-consumption',parity,'restored inventory initial selected-host',[('controller.ts','return preload.promise as Promise<T>;','return this.transport.read<T>(path, signal);')]),
+ ('restored-initial-readiness',safety,'restored inventory preloads first',[('PanelApp.tsx',"state.canAct && (!combat || state.hero !== null)","state.canAct")]),
  ('order-price',parity,'old rendered hero.detach_hold', [('CombatView.tsx','const price=s.config?.action_prices?.[type],data={price}', 'const price=s.config?.action_prices?.[type],data={price:999999}')]),
  ('stance-key',parity,'old rendered stance aggressive',[('CombatView.tsx',"onClick={()=>act('hero.set_combat_stance',{stance:key})}","onClick={()=>act('hero.set_combat_stance',{stance:'defensive'})}")]),
  ('summon-side',parity,'old rendered enemy summon',[('CombatView.tsx','data={price,side},cd=',"data={price,side:'player'},cd=")]),

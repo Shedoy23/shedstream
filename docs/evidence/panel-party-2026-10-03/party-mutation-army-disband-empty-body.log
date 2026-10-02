@@ -1,0 +1,49 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --run test/panel-party-parity.test.tsx -t real danger modal.*army_disband.*answer true
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-party-parity.test.tsx (32 tests | 1 failed | 31 skipped) 472ms
+   × real danger modal [data-bnr-action="army_disband"] answer true 471ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(20) ] to deeply equal [ { method: 'GET', …(6) }, …(20) ]
+
+- Expected
++ Received
+
+@@ -101,10 +101,11 @@
+    {
+      "body": {
+        "action_type": "hero.army_disband",
+        "data": {
+          "client_action_id": "<generated-action-id>",
++         "unexpected_mutation": true,
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-party-parity.test.tsx:8:619
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 31 skipped (32)
+   Start at  17:45:57
+   Duration  1.44s (environment 37%, tests 36%, transform 17%, import 9%)

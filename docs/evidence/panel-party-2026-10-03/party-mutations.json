@@ -1,0 +1,93 @@
+[
+  {
+    "mutation": "clan-create-field",
+    "file": "frontend-next/src/panel/PartyView.tsx",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "99dd5a9e67c013a91fc1a6f9076f8e01447971588daea50742cc2f8bdfc3f7c8"
+  },
+  {
+    "mutation": "clan-join-field",
+    "file": "frontend-next/src/panel/PartyView.tsx",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "99dd5a9e67c013a91fc1a6f9076f8e01447971588daea50742cc2f8bdfc3f7c8"
+  },
+  {
+    "mutation": "clan-leave-empty-body",
+    "file": "frontend-next/src/panel/PartyView.tsx",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "99dd5a9e67c013a91fc1a6f9076f8e01447971588daea50742cc2f8bdfc3f7c8"
+  },
+  {
+    "mutation": "create-party-empty-body",
+    "file": "frontend-next/src/panel/PartyView.tsx",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "99dd5a9e67c013a91fc1a6f9076f8e01447971588daea50742cc2f8bdfc3f7c8"
+  },
+  {
+    "mutation": "order-set-target-field",
+    "file": "frontend-next/src/panel/PartyView.tsx",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "99dd5a9e67c013a91fc1a6f9076f8e01447971588daea50742cc2f8bdfc3f7c8"
+  },
+  {
+    "mutation": "order-release-empty-body",
+    "file": "frontend-next/src/panel/PartyView.tsx",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "99dd5a9e67c013a91fc1a6f9076f8e01447971588daea50742cc2f8bdfc3f7c8"
+  },
+  {
+    "mutation": "army-create-empty-body",
+    "file": "frontend-next/src/panel/PartyView.tsx",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "99dd5a9e67c013a91fc1a6f9076f8e01447971588daea50742cc2f8bdfc3f7c8"
+  },
+  {
+    "mutation": "army-disband-empty-body",
+    "file": "frontend-next/src/panel/PartyView.tsx",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "99dd5a9e67c013a91fc1a6f9076f8e01447971588daea50742cc2f8bdfc3f7c8"
+  },
+  {
+    "mutation": "party-read-reversal",
+    "file": "frontend-next/src/panel/controller.ts",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "dcbe2d55435dc747a0f9b146987255a57ac0cc3f43d61074a24f2081a47ac1b5"
+  },
+  {
+    "mutation": "danger-quote-context",
+    "file": "frontend-next/src/panel/PartyView.tsx",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "99dd5a9e67c013a91fc1a6f9076f8e01447971588daea50742cc2f8bdfc3f7c8"
+  },
+  {
+    "mutation": "local-tail-current-token",
+    "file": "frontend-next/src/panel/controller.ts",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "dcbe2d55435dc747a0f9b146987255a57ac0cc3f43d61074a24f2081a47ac1b5"
+  },
+  {
+    "mutation": "pending-tail-original-token",
+    "file": "frontend-next/src/panel/controller.ts",
+    "exit": 0,
+    "result": "survived: second timer JWT fence remains",
+    "restore_sha256": "dcbe2d55435dc747a0f9b146987255a57ac0cc3f43d61074a24f2081a47ac1b5"
+  },
+  {
+    "mutation": "pending-tail-both-token-fences",
+    "file": "frontend-next/src/panel/controller.ts",
+    "exit": 1,
+    "result": "killed",
+    "restore_sha256": "dcbe2d55435dc747a0f9b146987255a57ac0cc3f43d61074a24f2081a47ac1b5"
+  }
+]

@@ -1,0 +1,49 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --run test/panel-party-safety.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-party-safety.test.tsx > ignored pre-identity hero completion cannot launch a fresh party read for a new owner
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-party-safety.test.tsx (28 tests | 1 failed) 3214ms
+   × ignored pre-identity hero completion cannot launch a fresh party read for a new owner 141ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-party-safety.test.tsx > ignored pre-identity hero completion cannot launch a fresh party read for a new owner
+AssertionError: expected [ { method: 'GET', …(7) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/my-buffs",
++     "query": "",
++     "rawBody": null,
++     "token": "other-owner",
++   },
++ ]
+
+ ❯ test/panel-party-safety.test.tsx:22:258
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 27 passed (28)
+   Start at  17:35:39
+   Duration  4.16s (tests 79%, environment 12%, transform 6%, import 3%)

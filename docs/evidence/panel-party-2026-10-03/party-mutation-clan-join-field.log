@@ -1,0 +1,56 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --run test/panel-party-parity.test.tsx -t clan join trim
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-party-parity.test.tsx > clan join trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-party-parity.test.tsx (32 tests | 1 failed | 31 skipped) 524ms
+   × clan join trim and Enter exact payload 522ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-party-parity.test.tsx > clan join trim and Enter exact payload
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(18) ] to deeply equal [ { method: 'GET', …(6) }, …(18) ]
+
+- Expected
++ Received
+
+@@ -91,11 +91,11 @@
+    },
+    {
+      "body": {
+        "action_type": "hero.join_clan",
+        "data": {
+-         "clan_name": "Fixture Clan",
++         "clan_name_WRONG": "Fixture Clan",
+          "client_action_id": "<generated-action-id>",
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-party-parity.test.tsx:9:338
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 31 skipped (32)
+   Start at  17:45:45
+   Duration  1.56s (tests 36%, environment 35%, transform 19%, import 9%)
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

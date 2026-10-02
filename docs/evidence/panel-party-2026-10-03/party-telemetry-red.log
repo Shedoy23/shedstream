@@ -1,0 +1,163 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --run test/panel-party-parity.test.tsx test/panel-party-safety.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-clan-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-j-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-party-parity.test.tsx (32 tests | 4 failed) 5543ms
+   × actual usage collector and 30s complete family trace #bnr-clan-confirm 234ms
+   × actual usage collector and 30s complete family trace #bnr-j-confirm 221ms
+   × actual usage collector and 30s complete family trace #bnr-order-confirm 240ms
+   × details collapse/reopen retains exposure and exact 30s trace 211ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-clan-confirm
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(53) ] to deeply equal [ { method: 'GET', …(6) }, …(53) ]
+
+- Expected
++ Received
+
+@@ -478,15 +478,10 @@
+            "feature": "bannerlord:panel",
+            "kind": "panel_view",
+          },
+          {
+            "count": 1,
+-           "feature": "bannerlord:details.locked-create",
+-           "kind": "section_open",
+-         },
+-         {
+-           "count": 1,
+            "feature": "bannerlord:hero.create_clan",
+            "kind": "action_attempt",
+          },
+        ],
+        "surface": "desktop",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-party-parity.test.tsx:15:812
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-j-confirm
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(53) ] to deeply equal [ { method: 'GET', …(6) }, …(53) ]
+
+- Expected
++ Received
+
+@@ -478,15 +478,10 @@
+            "feature": "bannerlord:panel",
+            "kind": "panel_view",
+          },
+          {
+            "count": 1,
+-           "feature": "bannerlord:details.locked-join",
+-           "kind": "section_open",
+-         },
+-         {
+-           "count": 1,
+            "feature": "bannerlord:hero.join_clan",
+            "kind": "action_attempt",
+          },
+        ],
+        "surface": "desktop",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-party-parity.test.tsx:15:812
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(59) ] to deeply equal [ { method: 'GET', …(6) }, …(59) ]
+
+- Expected
++ Received
+
+@@ -534,15 +534,10 @@
+            "feature": "bannerlord:panel",
+            "kind": "panel_view",
+          },
+          {
+            "count": 1,
+-           "feature": "bannerlord:details.party-order",
+-           "kind": "section_open",
+-         },
+-         {
+-           "count": 1,
+            "feature": "bannerlord:hero.party_order_set",
+            "kind": "action_attempt",
+          },
+        ],
+        "surface": "desktop",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-party-parity.test.tsx:15:812
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(50) ] to deeply equal [ { method: 'GET', …(6) }, …(50) ]
+
+- Expected
++ Received
+
+@@ -443,20 +443,10 @@
+          {
+            "count": 1,
+            "feature": "bannerlord:panel",
+            "kind": "panel_view",
+          },
+-         {
+-           "count": 1,
+-           "feature": "bannerlord:details.dyn-clan",
+-           "kind": "section_open",
+-         },
+-         {
+-           "count": 1,
+-           "feature": "bannerlord:details.party-order",
+-           "kind": "section_open",
+-         },
+        ],
+        "surface": "desktop",
+      },
+      "cache": null,
+      "contentType": "application/json",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-party-parity.test.tsx:16:245
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  4 failed | 56 passed (60)
+   Start at  17:38:04
+   Duration  6.51s (tests 84%, environment 9%, transform 4%, import 2%)
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

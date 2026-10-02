@@ -1,0 +1,275 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --run test/panel-party-parity.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > clan create trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > clan join trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-party-parity.test.tsx (23 tests | 23 failed) 2493ms
+   × production selected host restores dynasty with exact initial and 8s active-only reads 412ms
+   × strategic siege exact target decoration and complete 2s/3.5s tails 155ms
+   × strategic defend exact target decoration and complete 2s/3.5s tails 120ms
+   × strategic raid exact target decoration and complete 2s/3.5s tails 106ms
+   × strategic garrison exact target decoration and complete 2s/3.5s tails 105ms
+   × strategic patrol exact target decoration and complete 2s/3.5s tails 88ms
+   × recruit hides target and sends empty strings; old placeholder defect remains an explicit exception 100ms
+   × release preserves real 1.5s explicit hidden read plus generic 3.5s tail 98ms
+   × complete [data-bnr-action="army_create"] action and full success tails 95ms
+   × complete .bnr-clan-party action and full success tails 99ms
+   × real danger modal [data-bnr-action="army_disband"] answer false 108ms
+   × real danger modal [data-bnr-action="army_disband"] answer true 86ms
+   × real danger modal .bnr-locked-leave answer false 87ms
+   × real danger modal .bnr-locked-leave answer true 75ms
+   × real danger modal .bnr-clan-leave answer false 79ms
+   × real danger modal .bnr-clan-leave answer true 80ms
+   × clan create trim and Enter exact payload 88ms
+   × clan join trim and Enter exact payload 78ms
+   × draft survives changing active orders on ordinary poll and target lists are preselected 84ms
+   × server refusal keeps exact message and still performs local order-read tail 81ms
+   × empty lists stay select-mode with no made-up target or POST 92ms
+   × absent lists permit manual target, trimmed with inherited three-character check 78ms
+   × hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence 96ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 23 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(9) ] to deeply equal [ { method: 'GET', …(6) }, …(10) ]
+
+- Expected
++ Received
+
+@@ -44,19 +44,10 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/party-orders",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-party-parity.test.tsx:15:130
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-parity.test.tsx:11:172
+
+ ❯ test/panel-party-parity.test.tsx:16:181
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-parity.test.tsx:11:172
+
+ ❯ test/panel-party-parity.test.tsx:17:147
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-party-parity.test.tsx:18:142
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails
+ FAIL  test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-party-parity.test.tsx:19:210
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false
+ FAIL  test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+ FAIL  test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer false
+ FAIL  test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer true
+ FAIL  test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false
+ FAIL  test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-party-parity.test.tsx:20:278
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > clan create trim and Enter exact payload
+ FAIL  test/panel-party-parity.test.tsx > clan join trim and Enter exact payload
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-parity.test.tsx:11:172
+
+ ❯ test/panel-party-parity.test.tsx:21:157
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-parity.test.tsx:11:172
+
+ ❯ test/panel-party-parity.test.tsx:22:164
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-parity.test.tsx:11:172
+
+ ❯ test/panel-party-parity.test.tsx:23:158
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-parity.test.tsx:11:172
+
+ ❯ test/panel-party-parity.test.tsx:24:260
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-parity.test.tsx:11:172
+
+ ❯ test/panel-party-parity.test.tsx:25:284
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/23]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(10) ] to deeply equal [ { method: 'GET', …(6) }, …(11) ]
+
+- Expected
++ Received
+
+@@ -44,19 +44,10 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/party-orders",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-party-parity.test.tsx:26:171
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/23]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  23 failed (23)
+   Start at  17:26:47
+   Duration  3.51s (tests 73%, environment 15%, transform 7%, import 4%)

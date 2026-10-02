@@ -4,6 +4,7 @@ import { TwitchAuthStore } from '../src/auth';
 import { IdentityBootstrap } from '../src/skillgames/identity';
 import { HttpPanelTransport } from '../src/panel/transport';
 import { PanelController } from '../src/panel/controller';
+import { PanelApp } from '../src/panel/PanelApp';
 import { EquipmentView } from '../src/panel/EquipmentView';
 import fixtures from './panel-fixtures/real-responses.json';
 export const f = fixtures.responses;
@@ -36,9 +37,9 @@ export function equipmentSetup(snapshot: unknown = f.equipment_inventory, action
   const register = controller.registerEquipmentRefresh.bind(controller);
   vi.spyOn(controller, 'registerEquipmentRefresh').mockImplementation(callback => { refresh = callback; return register(callback); });
   return { trace, routes, auth, identity, controller, authorize, detach,
-    async start(active = true) {
+    async start(active = true, host = false) {
       authorize({ token: 'alice-token', userId: 'opaque-alice', channelId: 'channel-a' }); await flush(); await controller.start(); await flush(); trace.length = 0;
-      let ui!: ReturnType<typeof render>; await act(async () => { ui = render(<EquipmentView controller={controller} active={active} />); await flush(); });
+      let ui!: ReturnType<typeof render>; await act(async () => { ui = render(host ? <PanelApp controller={controller} identity={identity} Equipment={EquipmentView} /> : <EquipmentView controller={controller} active={active} />); await flush(); });
       return ui;
     },
     async setActive(ui: ReturnType<typeof render>, active: boolean) { await act(async () => { ui.rerender(<EquipmentView controller={controller} active={active} />); await flush(); }); },

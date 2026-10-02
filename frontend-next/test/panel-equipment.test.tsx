@@ -89,13 +89,14 @@ it('preserves server refusal text and does not mark a refused request pending', 
   expect(ui.container.textContent).toContain('Новый точный отказ от сервера'); expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(false);
   expect(s.trace.map(r => r.path)).toEqual(['/api/bannerlord/equipment-shop','/api/bannerlord/action']); s.controller.stop();
 });
-it('retains search input and caret across background refresh and handles out of order replies', async () => {
+it('retains search input and caret while matching-context refreshes share the same pending read', async () => {
   const s = equipmentSetup(); const ui = await s.start(); const input = ui.container.querySelector('[data-bnr-eq-search]') as HTMLInputElement;
   input.focus(); await act(async () => { fireEvent.input(input, { target: { value: 'Sword' } }); await flush(); }); input.setSelectionRange(1, 3);
   await s.refresh(); expect(document.activeElement).toBe(input); expect(input.selectionStart).toBe(1); expect(input.selectionEnd).toBe(3);
   const a = deferred<Response>(), b = deferred<Response>(); s.routes['/api/bannerlord/equipment-shop'] = a.promise;
   const first = s.refresh(); s.routes['/api/bannerlord/equipment-shop'] = b.promise; const second = s.refresh();
-  b.resolve(response({ ...f.equipment_inventory, gold: 654 })); await second; a.resolve(response({ ...f.equipment_inventory, gold: 321 })); await first;
+  expect(s.trace.filter(row => row.path === '/api/bannerlord/equipment-shop')).toHaveLength(3);
+  a.resolve(response({ ...f.equipment_inventory, gold: 654 })); await Promise.all([first, second]);
   expect(ui.container.textContent).toContain('654'); expect(ui.container.textContent).not.toContain('321'); s.controller.stop();
 });
 it('never applies late equipment response or action result from a previous viewer', async () => {
@@ -214,4 +215,22 @@ it('zero server price remains a legitimate purchase without a synthesized outgoi
 it('equipment read failures preserve the exact server refusal rather than hiding it in a generic error', async () => {
   const s = equipmentSetup(); const ui = await s.start(); s.routes['/api/bannerlord/equipment-shop'] = Promise.resolve(new Response(JSON.stringify({ success: false, message: 'Точный неизвестный отказ магазина' }), { status: 503 }));
   await s.refresh(); expect(ui.container.textContent).toContain('Точный неизвестный отказ магазина'); expect(ui.container.querySelector('[data-bnr-eq-buy]')).toBeNull(); s.controller.stop();
+});
+
+it('action revision admits a new authoritative read and old completion cannot unlock its flight', async () => {
+  const s = equipmentSetup(); const ui = await s.start(); const before = deferred<Response>(), after = deferred<Response>();
+  s.routes['/api/bannerlord/equipment-shop'] = before.promise; const old = s.beginRefresh();
+  await click(ui.container, '[data-bnr-eq-buy="sword"]');
+  s.routes['/api/bannerlord/equipment-shop'] = after.promise; const current = s.beginRefresh();
+  expect(s.trace.filter(row => row.path === '/api/bannerlord/equipment-shop')).toHaveLength(3);
+  before.resolve(response({ ...f.equipment_inventory, gold: 456 })); await act(async () => { await old; await flush(); });
+  expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(true);
+  const duplicate = s.beginRefresh(); expect(s.trace.filter(row => row.path === '/api/bannerlord/equipment-shop')).toHaveLength(3);
+  after.resolve(response({ ...f.equipment_inventory, gold: 987 })); await act(async () => { await Promise.all([current, duplicate]); await flush(); });
+  expect(ui.container.textContent).toContain('987'); expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(false); s.controller.stop();
+});
+it('failed equipment GET releases its flight so explicit retry can load authoritative data', async () => {
+  const s = equipmentSetup(); const ui = await s.start(); s.routes['/api/bannerlord/equipment-shop'] = () => { throw new Error('temporary read failure'); };
+  await s.refresh(); expect(ui.container.textContent).toContain('temporary read failure');
+  s.routes['/api/bannerlord/equipment-shop'] = f.equipment_inventory; await s.refresh(); expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(false); s.controller.stop();
 });

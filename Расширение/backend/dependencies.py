@@ -229,7 +229,7 @@ def _check_request_rate_limit(request: Request, channel_id: int, claims: dict) -
                 else "opaque:" + str(claims["username"]) if claims.get("username") else "")
     polling = request.method in ("GET", "HEAD") or (
         request.method == "POST" and request.url.path in (
-            "/api/viewer/online", "/api/viewer/activity"))
+            "/api/viewer/online", "/api/viewer/activity", "/api/viewer/ui-usage"))
     if polling and identity:
         candidate = (channel_id, "read", identity)
         # Bound viewer bucket growth between cleanup passes; overflow stays limited.

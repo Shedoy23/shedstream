@@ -72,6 +72,7 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
         for p in self.patchers: p.start()
         self.secret = base64.b64decode(auth.TWITCH_EXTENSION_SECRET)
         app = FastAPI()
+        self.app = app
         app.include_router(skillgames.router)
         app.include_router(match.router)
         self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test')
@@ -518,6 +519,74 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.sleep(.02)
         self.assertEqual(self.rows('SELECT reason FROM skillgame_results WHERE channel_id=11'),[('attempt_expired',)])
         self.assertEqual(self.rows("SELECT elo FROM duel_stats WHERE channel_id=11 AND username='alice'"),[(984,)])
+
+
+    async def test_state_publishes_transport_and_history_limits(self):
+        result = await self.call('GET','/state')
+        self.assertEqual(result['request_retention_seconds'],24*60*60)
+        self.assertEqual(result['session_retention_seconds'],30*24*60*60)
+        self.assertEqual(result['max_requests_per_user'],4096)
+
+    async def test_opaque_twitch_onboarding_persists_identity_and_enables_play(self):
+        import jwt
+        import dependencies
+        from migrations import m122_twitch_login_map
+        from routes import misc
+        self.app.include_router(misc.router)
+        async with self.db._connect() as conn:
+            await m122_twitch_login_map.apply(conn)
+        opaque = 'UnewViewerIdentityABCDE'
+        unrelated = 'UanotherIdentityABCDE'
+        claims = {'opaque_user_id':opaque,'user_id':'301','channel_id':'11','role':'viewer','exp':int(time.time())+3600}
+        signed = jwt.encode(claims,self.secret,algorithm='HS256')
+        headers = {'X-Twitch-JWT':signed}
+        network = []
+        class Response:
+            status = 200
+            def __init__(self,data): self.data=data
+            async def __aenter__(self): return self
+            async def __aexit__(self,*args): pass
+            async def json(self): return self.data
+        class TwitchNetwork:
+            async def __aenter__(self): return self
+            async def __aexit__(self,*args): pass
+            def post(self,url,**kwargs):
+                network.append(('POST',url))
+                return Response({'access_token':'local-app-token','expires_in':3600})
+            def get(self,url,**kwargs):
+                network.append(('GET',url))
+                return Response({'data':[{'id':'301','login':'newviewer'}]})
+        with patch.dict(dependencies._twitch_login_cache,{},clear=True),patch.dict(misc._twitch_id_cache,{},clear=True),patch.object(misc,'_twitch_app_token',None),patch.object(misc,'_twitch_token_expires',0),patch.object(dependencies,'get_db',return_value=self.db),patch.object(misc.aiohttp,'ClientSession',TwitchNetwork):
+            response = await self.client.get('/api/skillgames/state',headers=headers)
+            self.assertEqual(response.status_code,401,'New signed opaque identities must be resolved, never guessed')
+            resolved = await self.client.post('/api/user/resolve-twitch-token',json={'token':signed,'opaque_id':opaque},headers=headers)
+            self.assertEqual(resolved.status_code,200)
+            self.assertEqual(resolved.json()['login'],'newviewer')
+            self.assertEqual(network,[('POST','https://id.twitch.tv/oauth2/token'),('GET','https://api.twitch.tv/helix/users?id=301')])
+            self.assertEqual(self.rows('SELECT key,login FROM twitch_login_map ORDER BY key'),[('301','newviewer'),(opaque,'newviewer')])
+            response = await self.client.get('/api/skillgames/state',headers=headers)
+            self.assertEqual(response.status_code,200)
+            body = dict(game_type='minesweeper',mode='ranked',difficulty='beginner',request_id='opaque-start-command')
+            response = await self.client.post('/api/skillgames/start',json=body,headers=headers)
+            self.assertEqual(response.status_code,200,response.text)
+            session = response.json()['session']
+            response = await self.client.post('/api/skillgames/action',json=dict(session_id=session['id'],version=0,request_id='opaque-first-open',action='open',cell=0),headers=headers)
+            self.assertEqual(response.status_code,200,response.text)
+            self.assertEqual(self.rows('SELECT username FROM skillgame_players WHERE channel_id=11'),[('newviewer',)])
+            # Real persisted M122 warm-up, no mock resolver or fabricated login.
+            dependencies._twitch_login_cache.clear()
+            await dependencies.warm_twitch_login_cache(self.db)
+            self.assertEqual((await self.client.get('/api/skillgames/state',headers=headers)).status_code,200)
+            spoof = await self.client.post('/api/user/resolve-twitch-token',json={'token':signed,'opaque_id':unrelated,'user_id':'999','username':'bobby'},headers=headers)
+            self.assertEqual(spoof.json()['login'],'newviewer')
+            self.assertNotIn(unrelated,dependencies._twitch_login_cache)
+            self.assertFalse(self.rows('SELECT key FROM twitch_login_map WHERE key=?',(unrelated,)))
+            unlinked = jwt.encode(dict(claims,opaque_user_id=unrelated,user_id=''),self.secret,algorithm='HS256')
+            response = await self.client.get('/api/skillgames/state',headers={'X-Twitch-JWT':unlinked})
+            self.assertEqual(response.status_code,401)
+            response = await self.client.post('/api/user/resolve-twitch-token',json={'token':unlinked,'user_id':'301','opaque_id':opaque})
+            self.assertIsNone(response.json()['login'])
+            self.assertEqual(len(network),2,'Unlinked/body-spoofed user IDs must not reach Helix')
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

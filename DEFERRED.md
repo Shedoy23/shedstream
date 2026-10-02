@@ -1,3 +1,10 @@
+## 03.10 — Preact panel: оставшиеся release gates и CI test-harness
+
+- Browser/318px/телефон/Hosted Test/реальный мод: не пройдены; cloud loopback denied, desktop offline
+- Остальные экраны согласованного плана отмечены в [panel отчёте](docs/PANEL_PREACT_RESULT_2026-10-03.md), не выдаются за готовые
+- Неизменённый backend deadline test воспроизводимо блокирует event loop синхронным SQLite UPDATE при конкурирующем heartbeat. Первый panel CI failed, один exact-head rerun success. Test-only fix НЕ применён, backend запрещён планом; [доказательства и отдельное предложение](docs/PANEL_CI_FLAKE_2026-10-03.md)
+- Equipment DTO не имеет save/session ID; невидимую смену при одинаковых observable полях frontend определить не может. Unknown-action lock только в памяти открытого transport; reload не подтверждает отказ исходной покупки
+
 ## 03.10 — Preact: обязательная живая проверка перед выпуском
 
 Cloud CUA блокирует loopback (`ERR_BLOCKED_BY_CLIENT`); 114 DOM/unit и два настоящих

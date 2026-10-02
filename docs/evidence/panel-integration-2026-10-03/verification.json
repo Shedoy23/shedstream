@@ -1,0 +1,42 @@
+{
+  "source_commit": "ac22deaf1235b6c428db6877edaee083bcf2c6c9",
+  "source_tree": "332b3058da714c271ea354bb3f92af39b26b2ad0",
+  "unit_dom": 883,
+  "opt_in_skipped_in_unit": 2,
+  "fresh_http_passed": 2,
+  "legacy_gate_files": 17,
+  "all_gate_exit_codes": 0,
+  "max_workers": 2,
+  "panel_mobile_initial": {
+    "raw": 220732,
+    "gzip9": 58181
+  },
+  "policy_cherry_pick_map": {
+    "46a0a64f6324d6686a257df1b741dd31412faa6f": "680c6be",
+    "4dbd3843f4b5f68a9c11bbf2ababfb79c450e966": "d3293ff",
+    "9d3e531178e66c4b7f5a3e5899c14a594ee827ce": "cc32b63",
+    "37824e624347f2c73e6dab0173021d9a08e47e71": "b10d464",
+    "4698f5f8821e1797a57d860d7bdafc3f3df147e3": "688336e"
+  },
+  "published_panel_commit": "58c2e4f9fc0a74303931b7eb335144ed1439706a",
+  "publication_status": "Further writes stopped pending explicit user clarification; this checkpoint has no GitHub CI.",
+  "not_verified": [
+    "browser",
+    "318px visual",
+    "phone",
+    "Twitch Hosted Test",
+    "CDN compression/3-second load",
+    "game effects"
+  ],
+  "consistency_note": "Initial system Python run skipped optional pyflakes. Repeated with existing backend venv + pyflakes4.0.1: exit0, lint OK(0 warnings). Unchanged Python SyntaxWarning output is retained.",
+  "log_format": "Only blank EOF lines normalized; original full captures also retained outside repository.",
+  "evidence_sha256": {
+    "docs/evidence/panel-integration-2026-10-03/combined-build.log": "41a6c8b524f410418a31748546678ce347c20f0689ace5c0cb199f7bb28cbf5a",
+    "docs/evidence/panel-integration-2026-10-03/combined-consistency-venv.log": "050949e2aaa930f592fdf2040cbb2ee970b3d74807402e1334644a4a9c3946ed",
+    "docs/evidence/panel-integration-2026-10-03/combined-consistency.log": "6fafe15365251f44e663ee6a83e132cae4274fb5ee4e8d3a8364a5e9c2628bfa",
+    "docs/evidence/panel-integration-2026-10-03/combined-legacy.log": "9d341c75cffda27cec5f8d42528d160a155955e2add8fc397ccae0eba799746f",
+    "docs/evidence/panel-integration-2026-10-03/combined-live-http.log": "1c4f5e7c11dbf53dec22c3e4ece103d010fd8d7d3f469a77c227e98fad8bea5f",
+    "docs/evidence/panel-integration-2026-10-03/combined-sizes.json": "09167f146cf615bc0e6db48656ded0e4cbc9a601d30d1faa8883fce24f0e71df",
+    "docs/evidence/panel-integration-2026-10-03/combined-tests.log": "160e5d6f508dfd84e73b704b0157289514172b2ad6b7fc78d1debac6581a4afd"
+  }
+}

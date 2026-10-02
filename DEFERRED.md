@@ -1,5 +1,9 @@
 ## 03.10 — Preact panel: оставшиеся release gates и CI test-harness
 
+- Общее server-state согласие не атомарно с POST: observed realm/role disagreement теперь закрывает зависимые kingdom/army/order действия, но невидимую смену той же формы без session ID frontend не обнаружит. Сервер/мод остаются авторитетом
+- RimWorld paid endpoints не принимают client_action_id: существующая dedup по содержимому действует 3 секунды. Frontend-only перенос не может добавить долговечную идемпотентность; требуется отдельное согласование backend либо явно ограниченный scope. Не добавлять фиктивное поле ради теста
+- Старые daily-claim и clan-upgrades/buy — отдельные POST families без client_action_id. При будущем переносе сохранить фактические endpoints и явно описать предел защиты, не подменять generic action
+
 - Публикация combat/JWT checkpoint заблокирована после одного повтора; remote panel58c2e4f, новый код только локально. Новых попыток/альтернативных маршрутов до явного уточнения пользователя не будет
 
 - Browser/318px/телефон/Hosted Test/реальный мод: не пройдены; cloud loopback denied, desktop offline

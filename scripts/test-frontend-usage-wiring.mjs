@@ -40,7 +40,7 @@ test('real tab changes count once; restored/current tabs are not opens',()=>{
         ShedLink:{usage:{trackSection:k=>events.push(k),trackPanel:k=>panels.push(k)}},
         loadMyPawn(){},shopAllItems:[1],loadStats(){}});
     const text=source('viewer.js');
-    const begin=text.indexOf('function _trackVisibleUsagePanel()');
+    const begin=text.indexOf('function _isViewerPanelVisible()')>=0 ? text.indexOf('function _isViewerPanelVisible()') : text.indexOf('function _trackVisibleUsagePanel()');
     assert(begin>=0,'missing authenticated visible-panel denominator');
     const end=text.indexOf('// ===== НАСТРОЙКА ОТСЛЕЖИВАНИЯ АКТИВНОСТИ',begin);
     vm.runInContext(text.slice(begin,end),context);
@@ -81,6 +81,32 @@ test('Bannerlord tabs/details count user transitions, not restore or render',()=
     section.open=false;section.dispatchEvent(new Event('toggle'));
     section.open=true;section.dispatchEvent(new Event('toggle'));
     assert.deepEqual(events,['bannerlord:tab.dynasty','bannerlord:details.retinue','bannerlord:section.army']);
+});
+test('offscreen panel has no exposure; real reopen refreshes visible game',()=>{
+    const {document}=parseHTML('<div id="overlay-panel"></div><button class="tab active" data-tab="rimworld"></button><div id="rimworld-tab" class="tab-content active"></div>');
+    const events=[],panels=[];let visible=0;
+    const context=vm.createContext({document,window:{innerWidth:1000},_activeIntegrationModule:'bannerlord',isAuthUser:()=>true,
+        ShedLink:{refreshVisibleGame:()=>visible++,usage:{trackSection:k=>events.push(k),trackPanel:k=>panels.push(k)}},
+        loadMyPawn(){},shopAllItems:[1],loadStats(){}});
+    const text=source('viewer.js');
+    const begin=text.indexOf('function _isViewerPanelVisible()')>=0 ? text.indexOf('function _isViewerPanelVisible()') : text.indexOf('function _trackVisibleUsagePanel()');
+    vm.runInContext(text.slice(begin,text.indexOf('// ===== НАСТРОЙКА ОТСЛЕЖИВАНИЯ АКТИВНОСТИ',begin)),context);
+    vm.runInContext(text.slice(text.indexOf('function togglePanel()'),text.indexOf('// ===== БАГРЕПОРТ')),context);
+    context._trackVisibleUsagePanel();assert.deepEqual(panels,[],'closed panel is not observed');
+    context.togglePanel();assert.deepEqual(panels,['core','bannerlord']);assert.equal(visible,1);
+    const panel=document.getElementById('overlay-panel');panel.style.right='-420px';
+    context._trackVisibleUsagePanel();assert.equal(panels.length,2,'hidePanel inline position is respected');
+    context.restorePanel();assert.equal(visible,2,'restore refreshes the visible game immediately');
+    context._trackVisibleUsagePanel();assert.equal(visible,2,'periodic denominator observation is not a refresh');
+});
+test('visible refresh stays owned by the active registered game',()=>{
+    const {document}=parseHTML('<div></div>');const context=vm.createContext({window:{document},console});
+    vm.runInContext(source('viewer-registry.js'),context);const api=context.window.ShedLink;
+    let called=0;api.registerGame('first',{visible:()=>called++});api.registerGame('second',{});
+    assert.equal(typeof api.refreshVisibleGame,'function','registry visibility lifecycle required');
+    api.refreshVisibleGame();assert.equal(called,0);
+    api.switchGame('first');api.refreshVisibleGame();assert.equal(called,1);
+    api.switchGame('second');api.refreshVisibleGame();assert.equal(called,1);
 });
 let failed=0;
 for(const [name,run] of tests) {

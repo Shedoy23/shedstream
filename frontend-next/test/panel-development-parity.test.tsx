@@ -122,3 +122,18 @@ it('manual refresh uses actual old refresh control and entire selected-host read
   const button = p.old.document.createElement('button'); button.id = 'refresh-hero-btn'; p.old.document.body.append(button);
   await p.old.click('#refresh-hero-btn'); await act(async () => { fireEvent.click(p.ui.getByRole('button', { name: 'Обновить' })); await flush(); }); await p.finish(0);
 });
+for (const [first, second] of [
+  [oldSelect.specialization('assault'), oldSelect.specialization('marksman')],
+  [oldSelect.specialization('assault'), oldSelect.starter('infantry')],
+  [oldSelect.starter('infantry'), oldSelect.specialization('assault')],
+]) it(`same-frame build-family clicks ${first} then ${second} preserve the actual old single flight`, async () => {
+  let resolve!: (reply: LegacyJson) => void;
+  const pending = new Promise<LegacyJson>(r => { resolve = r; });
+  const p = await pair({ build: f.build_ready, action: () => pending });
+  for (const selector of [first, second]) (p.old.document.querySelector(selector) as HTMLElement).click();
+  await p.old.settle();
+  await act(async () => { for (const selector of [first, second]) (p.ui.container.querySelector(selector) as HTMLElement).click(); await flush(); });
+  expect(p.old.trace.filter(r => r.method === 'POST')).toHaveLength(1);
+  expect(p.trace.filter(r => r.method === 'POST')).toHaveLength(1);
+  resolve(f.specialization_success.response); await p.finish();
+});

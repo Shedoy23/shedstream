@@ -141,11 +141,11 @@ it('slow restored-inventory preload cannot overwrite a newer observable hero sna
   await act(async()=>{s.ui.getByRole('button',{name:'Снаряжение'}).click();await flush();});
   s.routes['/api/bannerlord/my-hero']={...f.hero,hero:{...f.hero.hero,hero_id:'test_hero_successor'}};s.routes['/api/bannerlord/equipment-shop']=f.equipment_dead;await s.load('Hero');
   const requests=s.trace.filter(r=>r.path.endsWith('/equipment-shop')).length;expect(requests).toBe(2);
-  old.resolve(response(f.equipment_inventory));await act(flush);expect(s.ui.container.querySelector('[data-bnr-eq-buy]')).toBeNull();
+  old.resolve(response(f.equipment_inventory));await act(flush);expect([...s.ui.container.querySelectorAll('[data-bnr-eq-buy]')].every(n=>(n as HTMLButtonElement).disabled)).toBe(true);expect(s.ui.container.textContent).toContain(f.equipment_dead.message);
 });
 it('slow restored-inventory preload is cleared across viewer identity replacement',async()=>{
   const old=deferred<Response>();const s=await setup({'/api/bannerlord/equipment-shop':old.promise},'inventory');
   await act(async()=>{s.ui.getByRole('button',{name:'Снаряжение'}).click();await flush();});
   s.routes['/api/user/resolve-twitch-token']={login:'carol'};s.routes['/api/bannerlord/equipment-shop']=f.equipment_dead;await act(async()=>{s.authorize({...initial,userId:'opaque-carol',token:'carol-token'});await flush();});
-  expect(s.trace.filter(r=>r.path.endsWith('/equipment-shop')).at(-1)?.token).toBe('carol-token');old.resolve(response(f.equipment_inventory));await act(flush);expect(s.ui.container.querySelector('[data-bnr-eq-buy]')).toBeNull();
+  expect(s.trace.filter(r=>r.path.endsWith('/equipment-shop')).at(-1)?.token).toBe('carol-token');old.resolve(response(f.equipment_inventory));await act(flush);expect([...s.ui.container.querySelectorAll('[data-bnr-eq-buy]')].every(n=>(n as HTMLButtonElement).disabled)).toBe(true);expect(s.ui.container.textContent).toContain(f.equipment_dead.message);
 });

@@ -143,13 +143,13 @@ it('direct negative quote preserves separate full and trade-in amounts, modifier
   expect(ui.container.querySelector('[role="dialog"]')?.textContent).toContain('Получишь 300'); await click(ui.container, '#confirm-dyn-yes');
   expect(posts(s)[0].body?.data).toEqual({ item_id: 'sword', equip_now: true, slot: 'weapon0', replace_owned_id: 'equipped|weapon0', replace_item_id: 'sword', replace_modifier_id: 'fine', expected_price_gold: 1000, expected_trade_in_gold: 1300, client_action_id: 'test-id' }); s.controller.stop();
 });
-it('inactive equipment stays idle; activation loads once and preserves editor through hide/show', async () => {
+it('hidden mount is idle but explicit refresh works; activation preserves editor through hide/show', async () => {
   const s = equipmentSetup(); const ui = await s.start(false); expect(s.trace).toEqual([]);
-  await s.refresh(); expect(s.trace).toEqual([]);
-  await s.setActive(ui, true); expect(s.trace.map(r => r.path)).toEqual(['/api/bannerlord/equipment-shop']);
-  await click(ui.container, '[data-bnr-eq-view="owned"]'); await click(ui.container, '[data-bnr-owned-slot="weapon1"]');
-  await s.setActive(ui, false); await s.refresh(); expect(s.trace).toHaveLength(1);
+  await s.refresh(); expect(s.trace.map(r => r.path)).toEqual(['/api/bannerlord/equipment-shop']);
   await s.setActive(ui, true); expect(s.trace).toHaveLength(2);
+  await click(ui.container, '[data-bnr-eq-view="owned"]'); await click(ui.container, '[data-bnr-owned-slot="weapon1"]');
+  await s.setActive(ui, false); await s.refresh(); expect(s.trace).toHaveLength(3);
+  await s.setActive(ui, true); expect(s.trace).toHaveLength(4);
   expect(ui.container.querySelector('[data-bnr-owned-slot="weapon1"]')?.getAttribute('aria-pressed')).toBe('true'); s.controller.stop();
 });
 it('blocks duplicate clicks synchronously before the action reply and then preserves pending', async () => {

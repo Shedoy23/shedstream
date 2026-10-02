@@ -118,3 +118,22 @@ it('old discard reproduces the cross-identity dispatch; new identical lifecycle 
   expect(p.next.trace.filter(r => r.path === '/api/bannerlord/action')).toEqual([]);
   // This proves the old client dispatch defect, not unauthorized server deletion.
 });
+for (const [name, ui] of Object.entries({
+  defaults: undefined,
+  changed: { version: 1, labels: { discard: 'Убрать предмет' }, tier_colors: { '4': { text: '#112233', border: '#445566', background: '#778899' } } },
+  malformed: { version: 1, labels: { discard: '\u0000unsafe' }, tier_colors: { '4': { text: 'url(https://invalid.test)', border: '#fff', background: 'red;display:none' } } },
+  markup_text: { version: 1, labels: { discard: '<b>Предмет</b>' }, tier_colors: { '4': { text: '#AABBCC' } } },
+  wrong_version: { version: 2, labels: { discard: 'Ignore me' }, tier_colors: { '4': { text: '#000000' } } },
+})) it(`old/new equipment presentation config ${name} preserves labels and validated palette on every tier node`, async () => {
+  const p = await pair(); const config = { ...f.config, ui } as unknown as LegacyJson;
+  p.old.fixtures.config = config; p.next.routes['/api/bannerlord/config'] = config;
+  await p.old.refreshConfig(); await act(async () => { await p.next.controller.refreshConfig(); await flush(); });
+  const styles = (root: ParentNode) => [...root.querySelectorAll<HTMLElement>('[data-tier]')].map(node => ({
+    tier: node.getAttribute('data-tier'), text: node.style.getPropertyValue('--tier-color'), border: node.style.getPropertyValue('--tier-border'), background: node.style.getPropertyValue('--tier-bg'),
+  }));
+  expect(styles(p.ui.container)).toEqual(styles(p.old.document));
+  await p.click('[data-bnr-eq-view="owned"]');
+  const labels = (root: ParentNode) => [...root.querySelectorAll('[data-bnr-eq-discard]')].map(node => node.textContent);
+  expect(labels(p.ui.container)).toEqual(labels(p.old.document)); expect(styles(p.ui.container)).toEqual(styles(p.old.document));
+  expect(p.ui.container.querySelector('[data-bnr-eq-discard] b')).toBeNull(); await p.finish();
+});

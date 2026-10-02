@@ -2,13 +2,15 @@ import { TwitchAuthStore } from '../auth';
 import { isRecord } from '../contracts';
 import { requestJson } from '../skillgames/http';
 import { actionKey, UnknownActionOutcomeError, type ActionReply, type PanelTransport } from './contracts';
+const newClientActionId = () => typeof globalThis.crypto?.randomUUID === 'function'
+  ? globalThis.crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
 export class HttpPanelTransport implements PanelTransport {
   private inflight = new Set<string>();
   // No automatic retry after an unknown result: the server may already have
   // accepted it. Keep this identity blocked for this transport's lifetime.
   private uncertain = new Set<string>();
   mutationBlock() { const auth = this.auth.current(); return this.uncertain.has(JSON.stringify([auth?.channelId, auth?.userId])) ? new UnknownActionOutcomeError().message : null; }
-  constructor(private readonly baseUrl: string, private readonly auth: TwitchAuthStore, private readonly fetcher: typeof fetch = fetch, private readonly newId: () => string = () => crypto.randomUUID()) {}
+  constructor(private readonly baseUrl: string, private readonly auth: TwitchAuthStore, private readonly fetcher: typeof fetch = fetch, private readonly newId: () => string = newClientActionId) {}
   private authorization() { const value = this.auth.current(); if (!value?.token) throw new Error('Нужна авторизация Twitch'); return { ...value }; }
   async read<T>(path: string, signal?: AbortSignal): Promise<T> {
     if (!path.startsWith('/api/')) throw new Error('Недопустимый путь API');
@@ -26,11 +28,14 @@ export class HttpPanelTransport implements PanelTransport {
     if (this.uncertain.has(identity)) throw new UnknownActionOutcomeError();
     const key = identity + ':' + actionKey(type, data);
     if (this.inflight.has(key)) return null;
+    // A local ID/serialization failure happened before any request was sent.
+    // It cannot be evidence of an uncertain server-side acceptance.
+    const requestBody = JSON.stringify({ action_type: type, data: { ...data, client_action_id: this.newId() } });
     this.inflight.add(key);
     try {
       const { response, body } = await requestJson(this.fetcher, this.baseUrl + '/api/bannerlord/action', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': authorization.token },
-        body: JSON.stringify({ action_type: type, data: { ...data, client_action_id: this.newId() } }),
+        body: requestBody,
       });
       if (!isRecord(body) || typeof body.success !== 'boolean') throw new Error(`Ошибка ответа сервера (${response.status})`);
       return body as ActionReply;

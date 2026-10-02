@@ -93,6 +93,7 @@ from routes.tugofwar   import router as tugofwar_router   # 2026-09-01: кана
 from routes.pets       import router as pets_router       # Phase 7 (2026-05-12)
 from routes.tts        import router as tts_router        # Sprint 5.23 (2026-05-21)
 from routes.notices    import router as notices_router    # M103 (2026-07-29)
+from routes.skillgames import router as skillgames_router
 from routes.rps        import router as rps_router        # Sprint 5.24b (2026-05-21)
 from routes.bannerlord  import router as bannerlord_router # Sprint 1.3 (2026-05-15)
 from routes.shedcolony  import router as shedcolony_router # ShedColony viewer endpoints (2026-06-25)
@@ -137,6 +138,7 @@ app.include_router(tugofwar_router)    # 2026-09-01: «Перетягивани�
 app.include_router(pets_router)        # Phase 7 (2026-05-12): Pets MVP (cross-channel)
 app.include_router(tts_router)         # Sprint 5.23 (2026-05-21): TTS «Озвучить сообщение»
 app.include_router(notices_router)     # M103 (2026-07-29): причина отказа доходит до зрителя
+app.include_router(skillgames_router)  # Private persistent skill-game sessions
 app.include_router(rps_router)         # Sprint 5.24b (2026-05-21): RPS bo3 matchmade
 app.include_router(bannerlord_router)  # Sprint 1.3 (2026-05-15): Bannerlord viewer endpoints
 app.include_router(shedcolony_router)  # ShedColony viewer endpoints (buy / my-colonist / capacity)
@@ -1598,6 +1600,9 @@ async def run_migrations():
 
         from migrations import m134_ui_usage
         await m134_ui_usage.apply(conn)
+
+        from migrations import m135_skillgames
+        await m135_skillgames.apply(conn)
 
         print("✅ Migrations complete")
 

@@ -12,7 +12,8 @@ import yaml
 CLIENT = 'frontend-pilot-v1'
 MODULES = frozenset(('core', 'bannerlord', 'rimworld', 'shedcolony'))
 SECTIONS = frozenset(
-    ['core:tab.' + key for key in ('bot', 'integration', 'shop', 'stats')]
+    ['core:game.battleship', 'core:game.minesweeper']
+    + ['core:tab.' + key for key in ('bot', 'integration', 'shop', 'stats')]
     + ['bannerlord:tab.' + key for key in ('combat', 'hero', 'inventory', 'dynasty')]
     + ['bannerlord:section.' + key for key in ('army', 'caravans', 'diplomacy', 'fiefs', 'partyorders', 'workshops')]
     + ['bannerlord:details.' + key for key in (
@@ -33,7 +34,12 @@ def _manifest_actions():
     return frozenset(result)
 
 
-ACTIONS = _manifest_actions()
+# New rules are first-party core games, not streamed game-module manifests.
+# Only semantic intent is counted. Never add a cell/ship/seed to these keys.
+_SKILLGAME_ACTIONS = frozenset(
+    ['core:battleship.' + action for action in ('queue', 'place', 'autoplace', 'ready', 'fire', 'quit')]
+    + ['core:minesweeper.' + action for action in ('start', 'open', 'flag', 'unflag', 'quit', 'restart')])
+ACTIONS = _manifest_actions() | _SKILLGAME_ACTIONS
 
 
 def validate_batch(body):

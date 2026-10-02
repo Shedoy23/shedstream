@@ -144,3 +144,12 @@ describe('skillgame auth refresh and page lifecycle', () => {
     read.resolve(response(resumed));
   });
 });
+
+describe('server clock and queue validation', () => {
+  it('refuses malformed clock, poll cadence, or unknown queue admission instead of enabling actions', () => {
+    expect(() => parseSnapshot({ ...empty, server_time: 'yesterday' })).toThrow();
+    expect(() => parseSnapshot({ ...empty, poll_interval_ms: -1 })).toThrow();
+    expect(() => parseSnapshot({ ...empty, queue: { status: 'future-queue-state' } })).toThrow();
+    expect(() => parseSnapshot({ ...empty, queue: { status: 'queued', expires_at: 'unknown' } })).toThrow();
+  });
+});

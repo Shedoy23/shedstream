@@ -1,0 +1,4 @@
+export const catalog = [{ game_type: 'minesweeper', name: 'Сапёр', rules: ['Первое открытие безопасно'], modes: ['ranked', 'practice'], difficulties: [{ id: 'beginner', label: 'Простой' }], board: { rows: 6, cols: 6 }, timers: {}, rewards: { enabled: false, reason: 'Сезонные награды отключены' }, rating: { initial: 1000 } }];
+export const session = { id: 'one', game_type: 'minesweeper', mode: 'ranked', difficulty: 'beginner', status: 'awaiting_first_move', version: 0, created_at: 10, started_at: null, expires_at: 1000, state: { rows: 6, cols: 6, opened: {}, flags: [], status: 'awaiting_first_move' }, result: null };
+export const empty = { success: true, catalog, active_session: null, queue: { status: 'idle' }, ratings: { battleship: 1000, minesweeper: 1000 }, server_time: 10 };
+export const resumed = { ...empty, active_session: session };

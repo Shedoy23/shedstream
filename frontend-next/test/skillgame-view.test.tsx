@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { SkillgameView } from '../src/skillgames/SkillgameView';
 import type { SkillgameViewState } from '../src/skillgames/controller';
 import { parseSnapshot } from '../src/skillgames/contracts';
-import { catalog, empty, resumed, session } from './skillgames.test';
+import { catalog, empty, resumed, session } from './skillgame-fixtures';
 const battle = { ...session, game_type: 'battleship', status: 'active', difficulty: null, state: { rows: 6, cols: 6, fleet_sizes: [3, 2, 2, 1], phase: 'placement', own_ships: [], ready: false, opponent_ready: false, opponent: 'opponent', shots: [], incoming: [], sunk_count: 0, your_turn: false, turn_started_at: null, winner: null } };
 const state = (data: unknown): SkillgameViewState => ({ data: parseSnapshot(data), loading: false, pending: false, uncertain: false, error: null, notice: null, canAct: true, receivedAt: Date.now() });
 function mount(data: unknown = resumed) { const onSubmit = vi.fn(); render(<SkillgameView state={state(data)} onSubmit={onSubmit} onRefresh={vi.fn()} onRetry={vi.fn()} />); return onSubmit; }
@@ -41,7 +41,7 @@ describe('skillgame accessible controls', () => {
   });
   it('renders rules, reward gate and future game as unsupported rather than guessing mechanics', () => {
     mount({ ...empty, catalog: [...catalog, { ...catalog[0], game_type: 'future-game', name: 'Будущая игра' }] });
-    expect(screen.getByText('Сезонные награды отключены')).toBeTruthy();
+    expect(screen.getAllByText('Сезонные награды отключены')).toHaveLength(2);
     expect(screen.getByText('Будущая игра')).toBeTruthy();
     expect(screen.getByText('Нужна более новая версия панели')).toBeTruthy();
   });

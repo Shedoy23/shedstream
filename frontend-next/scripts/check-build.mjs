@@ -1,12 +1,15 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import assert from 'node:assert/strict';
-const html = readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8');
+for (const entry of ['index', 'extension', 'mobile', 'tournament']) {
+const html = readFileSync(new URL(`../dist/${entry}.html`, import.meta.url), 'utf8');
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
 assert.match(scripts[0][1], /src="https:\/\/extension-files\.twitch\.tv\/helper\/v1\/twitch-ext\.min\.js"/, 'Twitch helper must be FIRST');
 assert(scripts.every(script => !script[2].trim()), 'No inline JavaScript');
 assert(scripts.slice(1).every(script => /src="\.\//.test(script[1])), 'All application scripts must be relative local assets');
 assert(!/viewer(?:-bannerlord|-actions)?\.js/.test(html), 'Legacy DOM/action owners must not be loaded');
 assert(!/unsafe-eval|unsafe-inline/.test(html), 'Preview CSP must not require unsafe execution');
+}
+assert.equal(readFileSync(new URL('../dist/extension.html', import.meta.url), 'utf8'), readFileSync(new URL('../dist/mobile.html', import.meta.url), 'utf8'), 'Desktop and mobile must mount the same application');
 const assets = readdirSync(new URL('../dist/assets/', import.meta.url));
 const javascript = assets.filter(name => name.endsWith('.js')).map(name => readFileSync(new URL(`../dist/assets/${name}`, import.meta.url), 'utf8')).join('\n');
 assert(javascript.split('\n').length > 1000, 'React/application bundle must remain readable, not minified');
@@ -14,7 +17,8 @@ assert(!/https:\/\/(?:unpkg|esm\.sh|cdn\.jsdelivr)/.test(javascript), 'No runtim
 assert(!javascript.includes('shedoy23.ru'), 'Preview must not connect to production');
 assert(!javascript.includes('/api/bannerlord/action'), 'HTTP mutation transport must not enter preview bundle');
 assert(assets.some(name => name.endsWith('.css')), 'Styles must be external');
-console.log('PASS: helper first; relative local assets; readable bundled React; no legacy owner, inline code, remote runtime, or production mutation transport');
+assert(javascript.includes('/api/skillgames/'), 'New entrypoints must include the real skillgame HTTP adapter');
+console.log('PASS: all four entrypoints; paired desktop/mobile; helper first; readable local assets; real skillgame HTTP; no legacy owner or production URL');
 
 const noticesUrl = new URL('../dist/THIRD_PARTY_NOTICES.txt', import.meta.url);
 assert(existsSync(noticesUrl), 'Bundled React runtime requires third-party license notices');

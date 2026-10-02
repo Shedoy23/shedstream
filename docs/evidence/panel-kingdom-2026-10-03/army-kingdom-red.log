@@ -1,0 +1,130 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-army-kingdom-safety.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-army-kingdom-safety.test.tsx > army affirmative cannot use observed fixture_other_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-army-kingdom-safety.test.tsx > army affirmative cannot use observed fixture_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-army-kingdom-safety.test.tsx > army create saved button and controller admission reject fixture_other_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-army-kingdom-safety.test.tsx > army create saved button and controller admission reject fixture_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-army-kingdom-safety.test.tsx > agreement restores army create while previous contradiction sends nothing
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-army-kingdom-safety.test.tsx > agreement does not revive old army affirmative; fresh consent works
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-army-kingdom-safety.test.tsx (8 tests | 6 failed) 1634ms
+   × army affirmative cannot use observed fixture_other_kingdom/false contradiction 553ms
+   × army affirmative cannot use observed fixture_kingdom/false contradiction 175ms
+   × army create saved button and controller admission reject fixture_other_kingdom/false contradiction 127ms
+   × army create saved button and controller admission reject fixture_kingdom/false contradiction 122ms
+   × agreement restores army create while previous contradiction sends nothing 130ms
+   × agreement does not revive old army affirmative; fresh consent works 161ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-army-kingdom-safety.test.tsx > army affirmative cannot use observed fixture_other_kingdom/false contradiction
+ FAIL  test/panel-army-kingdom-safety.test.tsx > army affirmative cannot use observed fixture_kingdom/false contradiction
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-army-kingdom-safety.test.tsx:14:106
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  test/panel-army-kingdom-safety.test.tsx > army create saved button and controller admission reject fixture_other_kingdom/false contradiction
+ FAIL  test/panel-army-kingdom-safety.test.tsx > army create saved button and controller admission reject fixture_kingdom/false contradiction
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-army-kingdom-safety.test.tsx:18:191
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  test/panel-army-kingdom-safety.test.tsx > agreement restores army create while previous contradiction sends nothing
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-army-kingdom-safety.test.tsx:20:346
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  test/panel-army-kingdom-safety.test.tsx > agreement does not revive old army affirmative; fresh consent works
+AssertionError: expected <div role="dialog" …(3)>…(3)</div> to be null
+
+- Expected:
+null
+
++ Received:
+<div
+  aria-label="Подтверди"
+  aria-modal="true"
+  class="bnr-eq-modal"
+  role="dialog"
+>
+  <h2>
+    ⚠️ Подтверди
+  </h2>
+  <p>
+    Распустить армию? Собранные отряды разойдутся, и собирать их придётся заново. Отменить это нельзя.
+  </p>
+  <div
+    class="bnr-eq-modal-actions"
+  >
+    <button
+      id="confirm-dyn-yes"
+      type="button"
+    >
+      ✅ Да
+    </button>
+    <button
+      id="confirm-dyn-no"
+      type="button"
+    >
+      ❌ Нет
+    </button>
+  </div>
+</div>
+
+ ❯ test/panel-army-kingdom-safety.test.tsx:21:398
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 2 passed (8)
+   Start at  18:36:39
+   Duration  2.75s (tests 62%, environment 19%, transform 12%, import 6%)

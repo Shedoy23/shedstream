@@ -1,6 +1,6 @@
 # Королевство и политика: завершённые локальные карточки Preact
 
-Последний проверенный app/test SHA **85ad2cd9aa6a03d6a031efc77be2e802c74eda31** (runtime correction38beb21): **763 unit/DOM +2 real HTTP**,17legacy gates; canonical panel-mobile **218909 raw /57729 gzip-9**. Кандидат9b0056f отозван после независимого замечания и заменён исправлением ниже.
+Последний проверенный app/test SHA **03917d7a7312b21190fdd4d7b1a7be183c531cd7** (соседний army/order fix ecfb3f2): **773 unit/DOM +2 real HTTP**,17legacy gates; canonical panel-mobile **219043 raw /57742 gzip-9**. Предыдущий763/K1K2 этап85ad2cd остаётся проверенным, а независимая соседняя армейская находка закрыта в дополнении ниже. Кандидат9b0056f по-прежнему отозван после исходного split-realm замечания.
 
 Работа идёт только в `frontend-next`; публикация GitHub, merge, deploy и Twitch submission заблокированы. Legacy frontend, backend, моды, OBS и frozen ZIP не меняются. Браузер/318 px/телефон/Hosted Test и игровые эффекты не проверены.
 
@@ -91,7 +91,7 @@ Red **e09d3b5** воспроизвёл6/6 таких отправок/незащ
 Тестовая поддержка теперь по умолчанию выбирает согласованные настоящие hero/kingdom handler fixtures для independent/vassal/ruler/other. Противоречие задаётся явно в специальных тестах, а не наследуется случайно от дефолтного ruler. Ни одно ожидаемое нормальное request поле или tail для этого не нормализовано. Полный focused после correction **179/179 exit0**, typecheck0. Дополнительные3 mutations возвращают discard observation, premature clear и K1 admission bypass. Все3 новые mutations убиты exit1 и побайтно восстановлены; полный набор и aggregate повторены, итог ниже.
 
 
-## Окончательный восстановленный итог
+## Проверенный этап K1/K2 до соседней армейской правки
 
 Проверенный source/test **85ad2cd9aa6a03d6a031efc77be2e802c74eda31**, runtime fix **38beb21**. Полный aggregate после последнего byte-exact restore: **763 passed**,2 opt-in skipped. Затем новый отдельный disposable HTTP server на loopback4295 запущен и оба mini-game HTTP tests исполнены в той же exec-сессии: **2 passed**; сервер остановлен. **17/17** legacy gates, typecheck/build/check-build, ESLint/globals и diff check — exit0. K1 **74**, K2 **105** (вместе179) included unit/DOM scenarios. Старые756/217852/57551 относятся исключительно к отозванному9b и не являются последним результатом.
 
@@ -100,3 +100,18 @@ Red **e09d3b5** воспроизвёл6/6 таких отправок/незащ
 Canonical `panel-mobile.html` import closure **218909 raw /57729 gzip-9 bytes**, отдельный Helper/API/maps не входят. Команда и полный список файлов — `kingdom-quarantine-final-sizes.json`. Source/tests после последнего прогонa не менялись; завершающий commit сохраняет только этот report и доказательства. Final machine-readable record — `final-verification.json`; более ранний record переименован `superseded-9b0056-verification.json` и относится к кандидату, отклонённому независимым обзором.
 
 Независимое замечание не замолчано: исходный механизм, committed red, исправление, дополнительная защита K1 и повторный полный прогон сохранены. Browser318px/телефон/Hosted/game и atomic consent остаются честными ограничениями. GitHub publication/merge/deploy/Twitch submission не выполнялись.
+
+
+## Соседняя безопасность армии и приказа: bounded follow-up
+
+Независимый executable probe показал, что уже открытое подтверждение `army_disband` ещё отправляло POST после принятого kingdom-state другого realm. Дополнительный проверенный сценарий обнаружил такое же поведение у открытого party-order editor со старым own/enemy target catalog. Это было наблюдаемое противоречие, а не неизвестная game session. Старое поведение действительно исполнено неизменённым legacy DOM, новый POST до фикса тоже зафиксирован.
+
+- Red **ddd523e**:6 армейских сценариев упали,2 независимых no-observation/retinue сценария уже были зелёными. Red **709ccfa**:1/1 открытый order editor отправил старую enemy target
+- Fix **ecfb3f2** добавляет один узкий общий admission gate в `partyAllowed`: во время `kingdomConflicted` недоступны только `hero.army_create`, `hero.army_disband`, `hero.party_order_set`. Существующий confirmation lifecycle отменяет старый army consent и повторно проверяет saved Yes непосредственно перед отправкой
+- Согласование snapshots восстанавливает кнопки и редактор; старое army согласие не оживает, нужен новый confirm. До первого diplomacy observation прежние корректные army controls остаются доступны
+- Order cancellation/release, clan leave и retinue recruit не блокируются этим gate и исполнены отдельными тестами. Общий `mutationBlocked` не используется как подмена такого узкого запрета. Ни transport.ts, ни отдельный policy transport worktree не менялись
+- Паритетное окружение party теперь получает согласованный **настоящий** `my_kingdom_state` response для исходного Vlandia fixture, а не случайный ruler другого fixture realm. `generate-party-responses.py` добавляет ровно этот read; временный SQLite/config изолированы до imports, **64 handler bodies**. Wire assertions не ослаблены, oracle scripts не изменены
+
+После последнего собственного byte-exact restore: **773 unit/DOM passed +2 отдельно исполненных fresh real HTTP**, **17/17** legacy gates, typecheck/build/check-build и lint/globals exit0. Новый server4296 и HTTP tests работали в одной exec-сессии на новом disposable SQLite, затем server остановлен. **10** новых adjacent cases, прежние179 K1/K2 cases остаются зелёными. Controlled mutations удаляли каждый из3 gate членов отдельно: все **3 exit1 → own exact restore → focused exit0**, summary в `army-quarantine-mutations/summary.json`.
+
+Проверенный source/test **03917d7a7312b21190fdd4d7b1a7be183c531cd7**; canonical panel-mobile **219043 raw /57742 gzip-9 bytes**. Raw logs `army-quarantine-*`, новый итог `final-verification.json`, прежний корректный763/K1K2 record сохранён побайтно как `verified-k1-k2-stage-85ad2cd.json`. Последующий report commit не меняет app/tests. Backend/legacy/mod/OBS/ZIP и публикация не затронуты; Browser/318px/phone/Hosted/game остаются неисполненными проверками.

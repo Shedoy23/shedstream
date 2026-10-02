@@ -1,0 +1,38 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-army-kingdom-safety.test.tsx -t already-open order
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-army-kingdom-safety.test.tsx > already-open order editor cannot submit its old realm target during observed quarantine
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-army-kingdom-safety.test.tsx (9 tests | 1 failed | 8 skipped) 619ms
+   × already-open order editor cannot submit its old realm target during observed quarantine 618ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-army-kingdom-safety.test.tsx > already-open order editor cannot submit its old realm target during observed quarantine
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-army-kingdom-safety.test.tsx:24:1040
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  18:37:16
+   Duration  1.81s (tests 37%, environment 33%, transform 19%, import 10%)

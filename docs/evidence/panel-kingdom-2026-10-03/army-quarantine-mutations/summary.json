@@ -1,0 +1,23 @@
+[
+  {
+    "mutation": "army-create",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "04648becd30f248a49dc0801265483e3792676539f28e4998ac532b71785ba01"
+  },
+  {
+    "mutation": "army-disband",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "04648becd30f248a49dc0801265483e3792676539f28e4998ac532b71785ba01"
+  },
+  {
+    "mutation": "party-order",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "04648becd30f248a49dc0801265483e3792676539f28e4998ac532b71785ba01"
+  }
+]

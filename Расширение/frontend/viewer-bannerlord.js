@@ -20,7 +20,9 @@
 //   null         → подсказка «Подключи модуль игры»
 let _bannerlordLifecycle = 0;
 let _bnrHeroRequestSeq = 0;
+let _bnrHeroResponseSeq = 0;
 let _bnrVassalRequestSeq = 0;
+let _bnrVassalResponseSeq = 0;
 let _bnrBuffRequestSeq = 0;
 let _bnrBuffAppliedSeq = 0;
 let _bnrCooldownRevision = 0;
@@ -844,6 +846,10 @@ async function _bannerlordBuyAction(actionType, data) {
                 || actionType.startsWith('power.')
                 || actionType.startsWith('tournament.');
             if (isBannerlord && typeof loadBannerlordHero === 'function') {
+                // Accepted actions invalidate pre-action reads. Ordinary poll starts
+                // do not: a healthy response may take longer than the poll cadence.
+                _bnrHeroResponseSeq = ++_bnrHeroRequestSeq;
+                _bnrVassalResponseSeq = ++_bnrVassalRequestSeq;
                 setTimeout(() => {
                     if (!isCurrent()) return;
                     loadBannerlordHero();
@@ -1995,7 +2001,8 @@ async function loadBannerlordVassals() {
         ]);
         // A request started before editing/stop must not remove the new form,
         // including when its result is an empty list. Failed reads keep the last UI.
-        if (!isCurrent() || token !== authToken || requestSeq !== _bnrVassalRequestSeq || isEditing()) return;
+        if (!isCurrent() || token !== authToken || requestSeq < _bnrVassalResponseSeq || isEditing()) return;
+        _bnrVassalResponseSeq = requestSeq;
         if (!vassR?.success || !heirsR?.success) return;
         const vassals = (vassR.success && Array.isArray(vassR.vassals))
             ? vassR.vassals : [];
@@ -2064,7 +2071,7 @@ async function loadBannerlordVassals() {
             btn.addEventListener('click', (e) => {
                 const parent = e.target.closest('[data-vassal-id]');
                 if (!parent || !isCurrent()) return;
-                ++_bnrVassalRequestSeq;
+                _bnrVassalResponseSeq = ++_bnrVassalRequestSeq;
                 // Keep the real nodes and their handlers: restoring an HTML copy
                 // would leave a cache hit with a dead rename button.
                 const originalNodes = Array.from(parent.childNodes);
@@ -5284,7 +5291,7 @@ async function loadBannerlordHero() {
     const lifecycle = _bannerlordLifecycle, token = authToken;
     const requestSeq = ++_bnrHeroRequestSeq;
     const isCurrent = () => lifecycle === _bannerlordLifecycle && token === authToken
-        && requestSeq === _bnrHeroRequestSeq && document.getElementById('hero-body') === body;
+        && requestSeq >= _bnrHeroResponseSeq && document.getElementById('hero-body') === body;
     const showError = message => {
         // Direct error DOM replacement must invalidate both render caches.
         delete body._bnrLastStruct;
@@ -5297,6 +5304,7 @@ async function loadBannerlordHero() {
         });
         const data = await r.json();
         if (!isCurrent()) return;
+        _bnrHeroResponseSeq = requestSeq;
         if (!data?.success) {
             showError(data?.message || 'Ошибка');
             return;
@@ -5909,6 +5917,9 @@ async function loadBannerlordHero() {
         // ВЫШЕ за пределы if(_bnrChanged) — DOM пересоздаётся каждый poll.
       }  // ← end of `if (_bnrChanged)` for bindings
     } catch (e) {
-        if (isCurrent()) showError('Ошибка сети');
+        if (isCurrent()) {
+            _bnrHeroResponseSeq = requestSeq;
+            showError('Ошибка сети');
+        }
     }
 }

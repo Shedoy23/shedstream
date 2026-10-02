@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const html = readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8');
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
@@ -15,3 +15,13 @@ assert(!javascript.includes('shedoy23.ru'), 'Preview must not connect to product
 assert(!javascript.includes('/api/bannerlord/action'), 'HTTP mutation transport must not enter preview bundle');
 assert(assets.some(name => name.endsWith('.css')), 'Styles must be external');
 console.log('PASS: helper first; relative local assets; readable bundled React; no legacy owner, inline code, remote runtime, or production mutation transport');
+
+const noticesUrl = new URL('../dist/THIRD_PARTY_NOTICES.txt', import.meta.url);
+assert(existsSync(noticesUrl), 'Bundled React runtime requires third-party license notices');
+const notices = readFileSync(noticesUrl, 'utf8');
+for (const name of ['react', 'react-dom', 'scheduler']) {
+  const packageInfo = JSON.parse(readFileSync(new URL(`../node_modules/${name}/package.json`, import.meta.url), 'utf8'));
+  const license = readFileSync(new URL(`../node_modules/${name}/LICENSE`, import.meta.url), 'utf8').trim();
+  assert(notices.includes(`${name}@${packageInfo.version}`) && notices.includes(license), `Missing or stale license notice: ${name}`);
+}
+console.log('PASS: bundled runtime licenses and pinned versions included');

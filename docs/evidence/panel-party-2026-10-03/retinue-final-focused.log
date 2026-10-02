@@ -1,0 +1,17 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --run test/panel-retinue-parity.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+
+ Test Files  1 passed (1)
+      Tests  32 passed (32)
+   Start at  17:21:15
+   Duration  4.77s (tests 82%, environment 11%, transform 5%, import 3%)
+

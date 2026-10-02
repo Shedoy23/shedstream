@@ -1,0 +1,44 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --run test/panel-retinue-parity.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-retinue-parity.test.tsx > latest hero gold and cap prevent stale detached retinue controls acting after hero identity changes
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-retinue-parity.test.tsx (30 tests | 1 failed) 3625ms
+   × latest hero gold and cap prevent stale detached retinue controls acting after hero identity changes 79ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > latest hero gold and cap prevent stale detached retinue controls acting after hero identity changes
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-retinue-parity.test.tsx:71:139
+     69|   const p=await pair(),old=p.ui.container.querySelector(selectors[0]) …
+     70|   p.fixtures.hero={...r.hero_retinue_full,hero:{...r.hero_retinue_full…
+     71|   await act(async()=>{await p.controller.refreshHero();old.click();awa…
+       |                                                                                                                                           ^
+     72| });
+     73| it('retinue unknown-outcome locks every action and permits refresh',as…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 29 passed (30)
+   Start at  17:18:07
+   Duration  4.65s (tests 81%, environment 11%, transform 5%, import 3%)
+

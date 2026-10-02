@@ -1,0 +1,361 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --run test/panel-retinue-parity.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-retinue-parity.test.tsx > entire full retinue has three real controls with old affordance
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > entire empty retinue has three real controls with old affordance
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > entire poor retinue has three real controls with old affordance
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > entire full_poor retinue has three real controls with old affordance
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > entire cap7 retinue has three real controls with old affordance
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > retinue #bnr-recruit-basic-btn exact complete request action and hidden 3500ms tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > retinue #bnr-recruit-elite-btn exact complete request action and hidden 3500ms tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > retinue #bnr-train-troops-btn exact complete request action and hidden 3500ms tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > empty retinue affordability updates poor to rich to poor without reload (intentional legacy fix)
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > cap-only update and gold update reconcile buttons and retain expanded details
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > nondefault server tier prices and elite multiplier drive all estimates
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > missing server price and cap fail closed rather than quoting free or invented values
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > both recruit choices share returned cooldown and recover at expiry
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > same-turn duplicate action stays single flight and keeps usage attempts
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stderr | test/panel-retinue-parity.test.tsx > same-turn duplicate action stays single flight and keeps usage attempts
+[buyAction] duplicate-click guarded bannerlord:hero.recruit_troops:is_elite=false
+
+stdout | test/panel-retinue-parity.test.tsx > real cooldown refusal displays returned seconds and no success tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-retinue-parity.test.tsx > details exposure records real feature telemetry once per expansion
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-retinue-parity.test.tsx (17 tests | 16 failed) 1952ms
+   × entire full retinue has three real controls with old affordance 422ms
+   × entire empty retinue has three real controls with old affordance 131ms
+   × entire poor retinue has three real controls with old affordance 110ms
+   × entire full_poor retinue has three real controls with old affordance 98ms
+   × entire cap7 retinue has three real controls with old affordance 100ms
+   × retinue #bnr-recruit-basic-btn exact complete request action and hidden 3500ms tail 91ms
+   × retinue #bnr-recruit-elite-btn exact complete request action and hidden 3500ms tail 97ms
+   × retinue #bnr-train-troops-btn exact complete request action and hidden 3500ms tail 117ms
+   × empty retinue affordability updates poor to rich to poor without reload (intentional legacy fix) 89ms
+   × cap-only update and gold update reconcile buttons and retain expanded details 85ms
+   × nondefault server tier prices and elite multiplier drive all estimates 99ms
+   × missing server price and cap fail closed rather than quoting free or invented values 72ms
+   × both recruit choices share returned cooldown and recover at expiry 101ms
+   × same-turn duplicate action stays single flight and keeps usage attempts 86ms
+   × real cooldown refusal displays returned seconds and no success tail 84ms
+   × details exposure records real feature telemetry once per expansion 90ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > entire full retinue has three real controls with old affordance
+AssertionError: expected [ null, null, null ] to deeply equal [ { disabled: false, …(1) }, …(2) ]
+
+- Expected
++ Received
+
+  [
+-   {
+-     "disabled": false,
+-     "text": "⬆ Прокачать basic 10 000💰",
+-   },
+-   {
+-     "disabled": false,
+-     "text": "⬆ Прокачать elite 240 000💰",
+-   },
+-   {
+-     "disabled": false,
+-     "text": "🎯 Тренировать свиту ~280 000💰",
+-   },
++   null,
++   null,
++   null,
+  ]
+
+ ❯ test/panel-retinue-parity.test.tsx:17:62
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > entire empty retinue has three real controls with old affordance
+AssertionError: expected [ null, null, null ] to deeply equal [ { disabled: false, …(1) }, …(2) ]
+
+- Expected
++ Received
+
+  [
+-   {
+-     "disabled": false,
+-     "text": "➕ Нанять basic 5 000💰",
+-   },
+-   {
+-     "disabled": false,
+-     "text": "★ Нанять elite 15 000💰",
+-   },
+-   {
+-     "disabled": true,
+-     "text": "🎯 Тренировать свиту свита пуста",
+-   },
++   null,
++   null,
++   null,
+  ]
+
+ ❯ test/panel-retinue-parity.test.tsx:17:62
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > entire poor retinue has three real controls with old affordance
+AssertionError: expected [ null, null, null ] to deeply equal [ { disabled: true, …(1) }, …(2) ]
+
+- Expected
++ Received
+
+  [
+-   {
+-     "disabled": true,
+-     "text": "➕ Нанять basic 5 000💰 (не хватает 5 000💰)",
+-   },
+-   {
+-     "disabled": true,
+-     "text": "★ Нанять elite 15 000💰 (не хватает 15 000💰)",
+-   },
+-   {
+-     "disabled": true,
+-     "text": "🎯 Тренировать свиту свита пуста",
+-   },
++   null,
++   null,
++   null,
+  ]
+
+ ❯ test/panel-retinue-parity.test.tsx:17:62
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > entire full_poor retinue has three real controls with old affordance
+AssertionError: expected [ null, null, null ] to deeply equal [ { disabled: true, …(1) }, …(2) ]
+
+- Expected
++ Received
+
+  [
+-   {
+-     "disabled": true,
+-     "text": "⬆ Прокачать basic 10 000💰 (не хватает 10 000💰)",
+-   },
+-   {
+-     "disabled": true,
+-     "text": "⬆ Прокачать elite 240 000💰 (не хватает 240 000💰)",
+-   },
+-   {
+-     "disabled": true,
+-     "text": "🎯 Тренировать свиту ~280 000💰 (не хватает 280 000💰)",
+-   },
++   null,
++   null,
++   null,
+  ]
+
+ ❯ test/panel-retinue-parity.test.tsx:17:62
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > entire cap7 retinue has three real controls with old affordance
+AssertionError: expected [ null, null, null ] to deeply equal [ { disabled: false, …(1) }, …(2) ]
+
+- Expected
++ Received
+
+  [
+-   {
+-     "disabled": false,
+-     "text": "➕ Нанять basic 5 000💰",
+-   },
+-   {
+-     "disabled": false,
+-     "text": "★ Нанять elite 15 000💰",
+-   },
+-   {
+-     "disabled": false,
+-     "text": "🎯 Тренировать свиту ~280 000💰",
+-   },
++   null,
++   null,
++   null,
+  ]
+
+ ❯ test/panel-retinue-parity.test.tsx:17:62
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > retinue #bnr-recruit-basic-btn exact complete request action and hidden 3500ms tail
+ FAIL  test/panel-retinue-parity.test.tsx > retinue #bnr-recruit-elite-btn exact complete request action and hidden 3500ms tail
+ FAIL  test/panel-retinue-parity.test.tsx > retinue #bnr-train-troops-btn exact complete request action and hidden 3500ms tail
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-retinue-parity.test.tsx:20:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > empty retinue affordability updates poor to rich to poor without reload (intentional legacy fix)
+AssertionError: expected undefined to be true // Object.is equality
+
+- Expected:
+true
+
++ Received:
+undefined
+
+ ❯ test/panel-retinue-parity.test.tsx:24:83
+     22| it('empty retinue affordability updates poor to rich to poor without r…
+     23|   const p=await pair({hero:r.hero_empty_retinue_poor});
+     24|   expect(p.ui.container.querySelector<HTMLButtonElement>(selectors[0])…
+       |                                                                                   ^
+     25|   p.fixtures.hero=r.hero_empty_retinue_rich;await p.old.refreshHero();…
+     26|   expect(p.old.document.querySelector<HTMLButtonElement>(selectors[0])…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > cap-only update and gold update reconcile buttons and retain expanded details
+AssertionError: expected null not to be null
+ ❯ test/panel-retinue-parity.test.tsx:31:137
+     29| });
+     30| it('cap-only update and gold update reconcile buttons and retain expan…
+     31|   const p=await pair();const detail=p.ui.container.querySelector<HTMLD…
+       |                                                                                                                                         ^
+     32|   await act(async()=>{detail!.open=true;detail!.dispatchEvent(new Even…
+     33|   p.fixtures.hero=r.hero_retinue_cap7;await p.old.refreshHero();await …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > nondefault server tier prices and elite multiplier drive all estimates
+AssertionError: expected [ null, null, null ] to deeply equal [ { disabled: false, …(1) }, …(2) ]
+
+- Expected
++ Received
+
+  [
+-   {
+-     "disabled": false,
+-     "text": "⬆ Прокачать basic 2💰",
+-   },
+-   {
+-     "disabled": false,
+-     "text": "⬆ Прокачать elite 42💰",
+-   },
+-   {
+-     "disabled": false,
+-     "text": "🎯 Тренировать свиту ~48💰",
+-   },
++   null,
++   null,
++   null,
+  ]
+
+ ❯ test/panel-retinue-parity.test.tsx:37:145
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > missing server price and cap fail closed rather than quoting free or invented values
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ test/panel-retinue-parity.test.tsx:40:122
+     38| });
+     39| it('missing server price and cap fail closed rather than quoting free …
+     40|   const p=await pair({config:{...r.config,recruit_tier_costs:[]}});exp…
+       |                                                                                                                          ^
+     41|   p.fixtures.config=r.config;await act(async()=>{p.ui.getByRole('butto…
+     42| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > both recruit choices share returned cooldown and recover at expiry
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-retinue-parity.test.tsx:44:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > same-turn duplicate action stays single flight and keeps usage attempts
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-retinue-parity.test.tsx:47:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > real cooldown refusal displays returned seconds and no success tail
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-retinue-parity.test.tsx:50:58
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/16]⎯
+
+ FAIL  test/panel-retinue-parity.test.tsx > details exposure records real feature telemetry once per expansion
+AssertionError: expected null not to be null
+ ❯ test/panel-retinue-parity.test.tsx:53:178
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/16]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  16 failed | 1 passed (17)
+   Start at  17:01:48
+   Duration  2.90s (tests 70%, environment 17%, transform 8%, import 4%)
+

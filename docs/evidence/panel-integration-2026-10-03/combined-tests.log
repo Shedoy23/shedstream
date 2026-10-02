@@ -1,0 +1,25 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+
+ Test Files  34 passed | 2 skipped (36)
+      Tests  883 passed | 2 skipped (885)
+   Start at  18:53:12
+   Duration  54.17s (tests 80%, environment 16%, import 4%, transform 1%)
+
+    Isolate  36 workers spawned · ~557ms startup each (spawn + environment, per file)
+             at least ~9.47s faster with isolate: false — reuses workers across files instead of one per file
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

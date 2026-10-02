@@ -1,0 +1,7 @@
+/workspace/scratch/f566ddb2e035/panel-preact-implementation/scripts/lint_consistency.py:1477: SyntaxWarning: invalid escape sequence '\('
+  pattern = "catch \(Exception \w+\) when \(([^{]*?)\)"
+<unknown>:593: SyntaxWarning: invalid escape sequence '\/'
+/workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/backend/routes/streamer.py:593: SyntaxWarning: invalid escape sequence '\/'
+  module_js=json.dumps(module_raw).replace("</", "<\/"),
+<unknown>:593: SyntaxWarning: invalid escape sequence '\/'
+[lint] OK (0 warning(s))

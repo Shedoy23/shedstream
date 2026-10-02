@@ -1,0 +1,6 @@
+/workspace/scratch/f566ddb2e035/panel-preact-implementation/scripts/lint_consistency.py:1477: SyntaxWarning: invalid escape sequence '\('
+  pattern = "catch \(Exception \w+\) when \(([^{]*?)\)"
+<unknown>:593: SyntaxWarning: invalid escape sequence '\/'
+<unknown>:593: SyntaxWarning: invalid escape sequence '\/'
+[lint][warn] undefined-names: pyflakes not installed (pip install pyflakes) -- check skipped
+[lint] OK (1 warning(s))

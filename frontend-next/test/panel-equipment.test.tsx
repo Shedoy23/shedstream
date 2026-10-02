@@ -78,7 +78,7 @@ it('disables pending, forbidden, unavailable and missing party actions using ser
   for (const snapshot of [ { ...f.equipment_inventory, pending: true }, f.equipment_dead, { ...f.equipment_inventory, can_manage: false } ]) {
     const s = equipmentSetup(snapshot); const ui = await s.start();
     expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(true); await click(ui.container, '[data-bnr-eq-buy="sword"]');
-    await click(ui.container, '[data-bnr-eq-view="owned"]'); expect(button(ui.container, '[data-bnr-eq-equip="party|sword|fine"]').disabled).toBe(true);
+    await click(ui.container, '[data-bnr-eq-view="owned"]'); expect(button(ui.container, '[data-bnr-eq-equip="legacy-owned-1"]').disabled).toBe(true);
     expect(posts(s)).toHaveLength(0); ui.unmount(); s.controller.stop();
   }
   const s = equipmentSetup(f.equipment_direct); const ui = await s.start(); await click(ui.container, '[data-bnr-eq-view="owned"]');
@@ -103,4 +103,52 @@ it('never applies late equipment response or action result from a previous viewe
   await click(ui.container, '[data-bnr-eq-buy="sword"]'); await s.switchIdentity(); const before = s.trace.length;
   pending.resolve(response(f.equipment_buy.response)); await act(async () => { await flush(); });
   expect(s.trace.slice(before)).toEqual([]); expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(false); s.controller.stop();
+});
+
+it('a GET issued before purchase success cannot erase the fresh local pending barrier', async () => {
+  const s = equipmentSetup(); const ui = await s.start(); const late = deferred<Response>();
+  s.routes['/api/bannerlord/equipment-shop'] = late.promise; const beforePurchase = s.refresh();
+  await click(ui.container, '[data-bnr-eq-buy="sword"]');
+  late.resolve(response(f.equipment_inventory)); await beforePurchase;
+  expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(true);
+  s.routes['/api/bannerlord/equipment-shop'] = f.equipment_inventory; await s.refresh();
+  expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(false); s.controller.stop();
+});
+it('preserves pages and filters through refresh, clamps shrinking pages and resets changed filters', async () => {
+  const catalog = { ...f.equipment_inventory, items: Array.from({ length: 43 }, (_, i) => ({ ...f.equipment_inventory.items[0], item_id: 'sword-' + i, name: 'Sword ' + i, category: i === 42 ? 'shield' : 'one_handed' })) };
+  const s = equipmentSetup(catalog); const ui = await s.start();
+  expect(ui.container.querySelectorAll('[data-bnr-eq-buy]')).toHaveLength(20);
+  expect(button(ui.container, '[data-bnr-eq-page="-1"]').disabled).toBe(true);
+  await click(ui.container, '[data-bnr-eq-page="1"]'); await s.refresh();
+  expect(ui.container.querySelector('[data-bnr-eq-buy="sword-20"]')).not.toBeNull();
+  await click(ui.container, '[data-bnr-eq-page="1"]'); expect(button(ui.container, '[data-bnr-eq-page="1"]').disabled).toBe(true);
+  s.routes['/api/bannerlord/equipment-shop'] = { ...catalog, items: catalog.items.slice(0, 22) }; await s.refresh();
+  expect(ui.container.querySelector('[data-bnr-eq-pages]')?.textContent).toContain('2 / 2');
+  await change(ui.container, '[data-bnr-eq-tier]', '6'); expect(ui.container.textContent).toContain('Ничего не найдено');
+  await change(ui.container, '[data-bnr-eq-tier]', '4'); expect(ui.container.querySelector('[data-bnr-eq-pages]')?.textContent).toContain('1 / 2');
+  s.routes['/api/bannerlord/equipment-shop'] = catalog; await s.refresh(); await change(ui.container, '[data-bnr-eq-category]', 'shield');
+  expect(ui.container.querySelectorAll('[data-bnr-eq-buy]')).toHaveLength(1); s.controller.stop();
+});
+it('shows weight decrease as improvement and never conflates repeated item IDs with owned IDs', async () => {
+  const data = structuredClone(f.equipment_inventory); data.inventory[0].stats = { ...data.inventory[0].stats, weight: 2 } as typeof data.inventory[0]['stats'];
+  data.inventory[1].stats = { ...data.inventory[1].stats, weight: 1 } as typeof data.inventory[1]['stats'];
+  const s = equipmentSetup(data); const ui = await s.start(); await click(ui.container, '[data-bnr-eq-view="owned"]');
+  expect([...ui.container.querySelectorAll('.bnr-eq-delta.better')].map(n => n.textContent)).toContain('-1');
+  await click(ui.container, '[data-bnr-eq-discard="legacy-owned-1"]'); await click(ui.container, '#confirm-dyn-yes');
+  expect(posts(s)[0].body?.data).toEqual({ owned_id: 'legacy-owned-1', client_action_id: 'test-id' }); s.controller.stop();
+});
+it('direct negative quote preserves separate full and trade-in amounts, modifier and replacement IDs', async () => {
+  const data = structuredClone(f.equipment_direct); Object.assign(data.items[0].purchase_options[0], { replace_modifier_id: 'fine', trade_in_gold: 1300, net_price_gold: -300 });
+  const s = equipmentSetup(data); const ui = await s.start(); await click(ui.container, '[data-bnr-eq-buy="sword"]');
+  expect(ui.container.querySelector('[role="dialog"]')?.textContent).toContain('Получишь 300'); await click(ui.container, '#confirm-dyn-yes');
+  expect(posts(s)[0].body?.data).toEqual({ item_id: 'sword', equip_now: true, slot: 'weapon0', replace_owned_id: 'equipped|weapon0', replace_item_id: 'sword', replace_modifier_id: 'fine', expected_price_gold: 1000, expected_trade_in_gold: 1300, client_action_id: 'test-id' }); s.controller.stop();
+});
+it('inactive equipment stays idle; activation loads once and preserves editor through hide/show', async () => {
+  const s = equipmentSetup(); const ui = await s.start(false); expect(s.trace).toEqual([]);
+  await s.refresh(); expect(s.trace).toEqual([]);
+  await s.setActive(ui, true); expect(s.trace.map(r => r.path)).toEqual(['/api/bannerlord/equipment-shop']);
+  await click(ui.container, '[data-bnr-eq-view="owned"]'); await click(ui.container, '[data-bnr-owned-slot="weapon1"]');
+  await s.setActive(ui, false); await s.refresh(); expect(s.trace).toHaveLength(1);
+  await s.setActive(ui, true); expect(s.trace).toHaveLength(2);
+  expect(ui.container.querySelector('[data-bnr-owned-slot="weapon1"]')?.getAttribute('aria-pressed')).toBe('true'); s.controller.stop();
 });

@@ -111,7 +111,7 @@ async def main():
             await sql("UPDATE bannerlord_heroes SET is_alive=0 WHERE channel_id=? AND username='alice'",(CHANNEL_ID,))
             bodies['hero_dead']=decoded(await r.bannerlord_my_hero(request))
             bodies['equipment_dead']=decoded(await r.bannerlord_equipment_shop(request))
-            (OUT/'panel-real-responses.json').write_text(json.dumps({'provenance':{'repository':str(REPO),'handlers':'routes.bannerlord','database':'isolated full-migrations temporary SQLite','live_game':False,'representative_state_sources':['tests/test_bannerlord_buy_action.py','tests/test_bannerlord_build.py','tests/test_bannerlord_equipment_shop.py','BannerlordLink/src/Util/HeroBuildRuntime.cs']},'responses':bodies},ensure_ascii=False,indent=2)+'\n')
+            (OUT/'real-responses.json').write_text(json.dumps({'provenance':{'repository':str(REPO),'handlers':'routes.bannerlord','database':'isolated full-migrations temporary SQLite','live_game':False,'representative_state_sources':['tests/test_bannerlord_buy_action.py','tests/test_bannerlord_build.py','tests/test_bannerlord_equipment_shop.py','BannerlordLink/src/Util/HeroBuildRuntime.cs']},'responses':bodies},ensure_ascii=False,indent=2)+'\n')
             print('PROBE_OK',len(bodies),'bodies; real attributes:',bodies['hero']['attributes'],'classes:',len(bodies['classes']['classes']))
             failures=[key for key,value in bodies.items() if key.endswith('_success') and not value['response'].get('success')]
             assert not failures, failures

@@ -27,7 +27,8 @@ for (const slot of slots) it(`forge ${slot} real control exact wire, usage and c
 });
 for (const key of ['reforge_unsynced', 'reforge_bad_slot', 'reforge_best', 'reforge_pending_right', 'reforge_poor', 'reforge_no_hero'] as const) it(`forge real refusal ${key} preserves server text and the owned read tail`, async () => {
   const result = r[key].response; const p = await forgePair({ action: result }); await toggle(p, 'inv-forge');
-  await p.click('.bnr-reforge-btn[data-slot="head"]'); expect(p.ui.container.textContent).toContain(result.message);
+  await p.click('.bnr-reforge-btn[data-slot="head"]'); expect(p.ui.container.querySelector('#bnr-equipment-shop .panel-notice[role="status"]')?.textContent).toContain(result.message);
+  expect(p.ui.container.querySelector('#bnr-equipment-shop')?.closest('[hidden]')).toBeNull();
   await p.advance(3500); p.check();
 });
 it('forge reads its independent server quote without changing the wire or adding a prisoner restriction', async () => {
@@ -46,4 +47,15 @@ it('forge disclosure persists across tab changes, hero header rewrite and ordina
   await p.old.refreshHero(); await act(async () => { await p.controller.refreshHero(); await flush(); });
   expect((p.ui.container.querySelector('[data-bnr-details="inv-forge"]') as HTMLDetailsElement).open).toBe(true);
   await toggle(p, 'inv-forge', false); await toggle(p, 'inv-forge'); await p.advance(30000); p.check();
+});
+it('forge numeric zero quote remains real and never invents a fallback charge', async () => {
+  const p = await forgePair({ config: { ...r.config, reforge_price: 0 } }); await toggle(p, 'inv-forge');
+  expect(controls(p.ui.container)).toEqual(controls(p.old.document)); await p.click('.bnr-reforge-btn[data-slot="head"]'); await p.advance(3500); p.check();
+});
+it('forge shield and quality presentation use the actual item, with unknown quality retaining the inherited next label', async () => {
+  const p = await forgePair({ hero: { ...r.hero_forge, equipment: { ...r.hero_forge.equipment, head: { ...r.hero_forge.equipment.head, quality: 'future-quality' } } } }); await toggle(p, 'inv-forge');
+  expect(controls(p.ui.container)).toEqual(controls(p.old.document));
+  expect(p.ui.container.querySelector('[data-forge-slot="weapon1"]')?.textContent).toContain('🛡');
+  expect(p.ui.container.querySelector('[data-forge-slot="weapon1"]')?.textContent).toContain('◆ Хорошее');
+  expect(p.ui.container.querySelector('[data-forge-slot="body"]')?.textContent).toContain('▽ Низкое'); p.check();
 });

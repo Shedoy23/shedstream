@@ -111,5 +111,13 @@ for (const timing of ['pending', 'scheduled']) await test('shared action refresh
     assert.equal(h.requests.length, 0, 'accepted action must not restart hero request after stop');
     assert.deepEqual(h.calls, [], 'accepted action must not restart sibling loaders after stop');
 });
+for (const boundary of ['stop', 'token']) await test('shared action cooldown ignores late callback after ' + boundary, async () => {
+    const h = harness(); let cooldown;
+    h.context.ShedLink.buyAction = async (_module, _action, _data, options) => { cooldown = options.onCooldown; return { success: true }; };
+    await h.invoke('_bannerlordBuyAction("hero.rename_vassal", {vassal_id:1,new_name:"New"})');
+    if (boundary === 'stop') h.invoke('_stopBannerlordPolling()'); else h.context.authToken = 'refreshed-token';
+    cooldown('hero.rename_vassal', 60);
+    assert.equal(h.invoke('_bannerlordCooldowns.length'), 0, 'old request must not repopulate cooldown state');
+});
 console.log(`${total - failures.length}/${total} passed`);
 if (failures.length) process.exitCode = 1;

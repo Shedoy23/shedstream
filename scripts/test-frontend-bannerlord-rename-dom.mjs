@@ -6,6 +6,9 @@ import vm from 'node:vm';
 const { parseHTML } = createRequire(import.meta.url)('linkedom');
 const source = readFileSync(new URL('../Расширение/frontend/viewer-bannerlord.js', import.meta.url), 'utf8');
 const flush = async () => { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)); };
+function jwt(user = 'viewer-a', channel = 'channel-a', revision = '1') {
+    return 'header.' + Buffer.from(JSON.stringify({ user_id: user, channel_id: channel, opaque_user_id: 'U' + user, revision })).toString('base64url') + '.signature';
+}
 function harness() {
     const { window, document } = parseHTML('<html><head></head><body><div id="bnr-vassals-slot"></div></body></html>');
     window._bnrCdTickerStarted = true;
@@ -14,7 +17,8 @@ function harness() {
     const fixture = { vassals: [{ id: 1, vassal_name: 'Old clan' }], heirs: [] };
     let mutate = async () => ({ success: true });
     let respond = async url => ({ success: true, ...(url.includes('eligible-heirs') ? { heirs: fixture.heirs } : { vassals: fixture.vassals }) });
-    const context = vm.createContext({ window, document, API_URL: 'https://fixture.invalid', authToken: 'token',
+    const context = vm.createContext({ window, document, API_URL: 'https://fixture.invalid', authToken: jwt(), userId: 'Uviewer-a', _authUserId: 'viewer-a',
+        atob: value => Buffer.from(value, 'base64').toString('binary'),
         escapeHtml: value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
         console: { info() {}, warn() {}, error() {} }, ShedLink: { registerGame() {} },
         BnrBuilds: { reset() {} }, BnrEquipmentShop: { reset() {} }, showNotification() {},
@@ -141,6 +145,54 @@ await test('dynasty HTTP fanout is deferred but opening preserves real summaries
     assert(h.query('#bnr-workshops-slot summary'), 'collapsed summary is still rendered on refresh');
     h.invoke('_setBnrInnerTab("combat")'); const before = h.requests.length;
     await h.invoke('loadBannerlordHero()'); await flush(); assert.equal(h.requests.length, before + 1);
+});
+for (const poll of [false, true]) await test('JWT refresh keeps cached rename handler alive (poll=' + poll + ')', async () => {
+    const h = harness(); await h.invoke('loadBannerlordVassals()'); h.context.authToken = jwt('viewer-a', 'channel-a', '2');
+    if (poll) await h.invoke('loadBannerlordVassals()');
+    h.click('.bnr-vas-rename'); assert(h.query('form'), 'same identity must not lose cached DOM handlers');
+});
+for (const action of ['cancel', 'unchanged', 'submit']) await test('open editor survives JWT refresh: ' + action, async () => {
+    const h = harness(); await h.invoke('loadBannerlordVassals()'); h.edit(action === 'unchanged' ? 'Old clan' : 'New clan');
+    const token = jwt('viewer-a', 'channel-a', '2'); h.context.authToken = token;
+    let usedToken; h.mutation(async () => { usedToken = h.context.authToken; return { success: true }; });
+    if (action === 'cancel') h.click('[data-bnr-vassal-rename-cancel]'); else h.submit();
+    await flush(); assert.equal(!!h.query('form'), false, 'token refresh must not trap editor');
+    assert.equal(h.calls.length, action === 'submit' ? 1 : 0);
+    if (action === 'submit') assert.equal(usedToken, token, 'submit uses latest JWT');
+});
+for (const outcome of ['success', 'failure', 'throw']) await test('token rotation during pending rename fences old ' + outcome + ' and reloads', async () => {
+    const h = harness(); await h.invoke('loadBannerlordVassals()'); let resolve, reject;
+    h.mutation(() => new Promise((yes, no) => { resolve = yes; reject = no; })); h.edit('Pending name'); h.submit();
+    h.context.authToken = jwt('viewer-a', 'channel-a', '2'); h.fixture.vassals[0].vassal_name = 'Authoritative name';
+    if (outcome === 'throw') reject(Error('old-token error')); else resolve({ success: outcome === 'success', message: 'old-token error' });
+    await flush(); assert.equal(!!h.query('form'), false, 'stale outcome must release pending editor');
+    assert.equal(h.timers.length, 0, 'stale outcome must not schedule success callbacks');
+    assert.equal(h.requests.length, 4, 'settle with a new authenticated read');
+    assert.match(h.query('#bnr-vassals-slot').textContent, /Authoritative name/);
+    assert.doesNotMatch(h.query('#bnr-vassals-slot').textContent, /old-token error/);
+    h.edit('Fresh action'); assert(h.query('form'));
+});
+for (const identity of ['user', 'channel']) await test('changed ' + identity + ' cannot submit old form and can bind a fresh one', async () => {
+    const h = harness(); await h.invoke('loadBannerlordVassals()'); h.edit('Old identity action');
+    h.context.authToken = identity === 'user' ? jwt('viewer-b') : jwt('viewer-a', 'channel-b');
+    h.submit(); await flush(); assert.equal(h.calls.length, 0, 'old target must never be submitted as new identity');
+    await h.invoke('loadBannerlordVassals()'); assert.equal(!!h.query('form'), false, 'new identity read must invalidate old edit guard');
+    h.edit('New identity action'); h.submit(); await flush(); assert.equal(h.calls.length, 1);
+});
+await test('changed identity fences old pending result without erasing new editor', async () => {
+    const h = harness(); await h.invoke('loadBannerlordVassals()'); let resolve;
+    h.mutation(() => new Promise(r => { resolve = r; })); h.edit('Old pending'); h.submit();
+    h.context.authToken = jwt('viewer-b'); await h.invoke('loadBannerlordVassals()');
+    h.edit('New identity draft'); resolve({ success: true }); await flush();
+    assert.equal(h.query('input').value, 'New identity draft'); assert.equal(h.timers.length, 0);
+});
+await test('JWT refresh during a vassal read drops old response and new read recovers', async () => {
+    const h = harness(); const deferred = []; h.response(() => new Promise(resolve => deferred.push(resolve)));
+    const old = h.invoke('loadBannerlordVassals()'); await flush(); h.context.authToken = jwt('viewer-a', 'channel-a', '2');
+    deferred[0]({ success: true, vassals: [{ id: 1, vassal_name: 'Stale token' }] }); deferred[1]({ success: true, heirs: [] }); await old;
+    assert.equal(h.query('#bnr-vassals-slot').innerHTML, '');
+    h.response(async () => ({ success: true, vassals: [{ id: 1, vassal_name: 'Current token' }], heirs: [] }));
+    await h.invoke('loadBannerlordVassals()'); assert.match(h.query('#bnr-vassals-slot').textContent, /Current token/);
 });
 console.log(`${total - failures.length}/${total} passed`);
 if (failures.length) process.exitCode = 1;

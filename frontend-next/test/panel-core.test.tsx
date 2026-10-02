@@ -269,3 +269,13 @@ it('late old-JWT acceptance refreshes same-viewer balance but cannot create wrap
   await vi.advanceTimersByTimeAsync(3500); await flush();
   expect(s.trace).toEqual([]); expect(equipment).not.toHaveBeenCalled(); s.controller.stop();
 });
+
+it('late old-JWT build acceptance cannot put the refreshed view back into local pending', async () => {
+  vi.useFakeTimers(); const waiting = deferred<Response>();
+  const s = setup({ '/api/bannerlord/action': waiting.promise }); await s.start();
+  const action = s.controller.action('hero.set_specialization', { specialization: f.build_ready.build.specializations[0].id }, { tail: 'hero' });
+  s.authorize({ ...authValue, token: 'rotated-build' }); await flush();
+  expect(s.controller.snapshot().buildPending).toBe(false);
+  waiting.resolve(response(f.focus_success.response)); await action; await flush();
+  expect(s.controller.snapshot().buildPending).toBe(false); s.controller.stop();
+});

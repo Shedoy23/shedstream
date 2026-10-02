@@ -504,4 +504,20 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body.model_dump()['cell'],0)
 
 
+    async def test_deadline_finalizes_without_viewer_returning(self):
+        from skillgames import config
+        with patch.object(config,'HEARTBEAT_SECONDS',.02):
+            session = await self.action(await self.start(),'open',cell=0)
+            with sqlite3.connect(self.path) as conn:
+                conn.execute('UPDATE skillgame_sessions SET expires_at=? WHERE channel_id=11 AND id=?',(time.time()+.03,session['id']))
+            # No state request, no action, no second viewer: only the service's
+            # real heartbeat can establish the published expiry outcome.
+            for _ in range(50):
+                if self.rows('SELECT COUNT(*) FROM skillgame_results WHERE channel_id=11')==[(1,)]:
+                    break
+                await asyncio.sleep(.02)
+        self.assertEqual(self.rows('SELECT reason FROM skillgame_results WHERE channel_id=11'),[('attempt_expired',)])
+        self.assertEqual(self.rows("SELECT elo FROM duel_stats WHERE channel_id=11 AND username='alice'"),[(984,)])
+
+
 if __name__ == '__main__': unittest.main(verbosity=2)

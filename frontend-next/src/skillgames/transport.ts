@@ -21,16 +21,29 @@ export class HttpSkillgameTransport implements SkillgameTransport {
   private attempts = new Map<string, Attempt>();
   constructor(private readonly baseUrl: string, private readonly auth: TwitchAuthStore, private readonly fetcher: typeof fetch = fetch, private readonly newId: () => string = () => crypto.randomUUID()) {}
   private token() { const token = this.auth.current()?.token; if (!token) throw new Error('Нужна авторизация Twitch'); return token; }
+  private async request(url: string, options: RequestInit) {
+    const abort = new AbortController();
+    let rejectDeadline!: (error: Error) => void;
+    const interrupted = new Promise<never>((_, reject) => { rejectDeadline = reject; });
+    const onAbort = () => { abort.abort(); rejectDeadline(new Error('Запрос отменён')); };
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    const timer = setTimeout(() => { abort.abort(); rejectDeadline(new Error('Сервер не ответил за 20 секунд. Обновите состояние.')); }, 20000);
+    if (options.signal?.aborted) onAbort();
+    try {
+      return await Promise.race([
+        this.fetcher(url, { ...options, signal: abort.signal }).then(async response => ({ response, body: await response.json() as unknown })),
+        interrupted,
+      ]);
+    } finally { clearTimeout(timer); options.signal?.removeEventListener('abort', onAbort); }
+  }
   async config(signal: AbortSignal) {
-    const response = await this.fetcher(`${this.baseUrl}/api/skillgames/config`, { headers: { 'X-Twitch-JWT': this.token() }, signal });
-    const body: unknown = await response.json();
+    const { response, body } = await this.request(`${this.baseUrl}/api/skillgames/config`, { headers: { 'X-Twitch-JWT': this.token() }, signal });
     if (!response.ok || !isRecord(body) || body.success !== true) throw new Error('Не удалось загрузить правила сервера');
     return { ...body, catalog: parseCatalog(body.catalog) };
   }
   async read(signal: AbortSignal, sessionId?: string): Promise<SkillgameSnapshot> {
     const suffix = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
-    const response = await this.fetcher(`${this.baseUrl}/api/skillgames/state${suffix}`, { headers: { 'X-Twitch-JWT': this.token() }, signal });
-    const body: unknown = await response.json();
+    const { response, body } = await this.request(`${this.baseUrl}/api/skillgames/state${suffix}`, { headers: { 'X-Twitch-JWT': this.token() }, signal });
     const rejected = refusal(body, response.status);
     if (rejected) throw new Error(`${rejected.message} (${rejected.reason})`);
     if (!response.ok) throw new Error(`Ошибка HTTP ${response.status}`);
@@ -52,10 +65,10 @@ export class HttpSkillgameTransport implements SkillgameTransport {
   }
   private async send(key: string, attempt: Attempt): Promise<MutationReply> {
     try {
-      const response = await this.fetcher(`${this.baseUrl}/api/skillgames/${attempt.endpoint === 'cancel' ? 'queue/cancel' : attempt.endpoint}`, {
+      const { response, body } = await this.request(`${this.baseUrl}/api/skillgames/${attempt.endpoint === 'cancel' ? 'queue/cancel' : attempt.endpoint}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': this.token() }, body: attempt.body,
       });
-      const body: unknown = await response.json(); const rejected = refusal(body, response.status);
+      const rejected = refusal(body, response.status);
       if (rejected) { this.attempts.delete(key); return rejected; }
       if (!response.ok || !isRecord(body) || body.success !== true) throw new UnknownMutationError();
       if (body.session !== undefined) parseSession(body.session);

@@ -57,7 +57,7 @@ describe('skillgame controller lifecycle', () => {
     const controller = new SkillgameController(transport, store); controller.start();
     await controller.refresh(); await controller.refresh(); expect(transport.read).toHaveBeenCalledTimes(1);
     store.authorize({ ...authOne, userId: 'other-viewer' });
-    old.resolve(resumed); next.resolve(empty); await flush();
+    next.resolve(empty); await flush(); old.resolve(resumed); await flush();
     expect(controller.snapshot().data?.active_session).toBeNull();
     controller.stop();
   });
@@ -112,5 +112,35 @@ describe('skillgame network deadlines', () => {
       expect(await pending).toBeInstanceOf(UnknownMutationError);
       expect(fetcher.mock.calls[0][1].signal.aborted).toBe(true);
     } finally { vi.useRealTimers(); }
+  });
+});
+
+describe('skillgame auth refresh and page lifecycle', () => {
+  it('token rotation during mutation keeps it locked and uses fresh auth for reconciliation', async () => {
+    const store = auth(); const post = deferred<{ success: true; session: typeof session }>();
+    const transport = { read: vi.fn().mockResolvedValue(resumed), mutate: vi.fn().mockReturnValue(post.promise), retry: vi.fn(), hasUncertain: () => false };
+    const controller = new SkillgameController(transport, store); controller.start(); await flush();
+    const pending = controller.submit('action', { session_id: 'one', version: 0, action: 'open', cell: 8 });
+    store.authorize({ ...authOne, token: 'new-token' });
+    expect(controller.snapshot().pending).toBe(true); expect(controller.snapshot().canAct).toBe(false);
+    post.resolve({ success: true, session }); await pending;
+    expect(controller.snapshot().canAct).toBe(true); expect(transport.mutate).toHaveBeenCalledTimes(1); controller.stop();
+  });
+  it('retains a settled mutation across stop/start and does not send quit', async () => {
+    const post = deferred<{ success: true; session: typeof session }>();
+    const transport = { read: vi.fn().mockResolvedValue(resumed), mutate: vi.fn().mockReturnValue(post.promise), retry: vi.fn(), hasUncertain: () => false };
+    const controller = new SkillgameController(transport, auth()); controller.start(); await flush();
+    const pending = controller.submit('action', { session_id: 'one', version: 0, action: 'open', cell: 8 });
+    controller.stop(); post.resolve({ success: true, session }); await pending;
+    controller.start(); await flush();
+    expect(controller.snapshot().canAct).toBe(true); expect(transport.mutate).toHaveBeenCalledTimes(1); controller.stop();
+  });
+  it('aborts old JWT read and never exposes its delayed body to a replacement owner', async () => {
+    const read = deferred<Response>(); const fetcher = vi.fn().mockReturnValue(read.promise); const store = auth();
+    const transport = new HttpSkillgameTransport('', store, fetcher); const abort = new AbortController();
+    const pending = transport.read(abort.signal).catch(error => error);
+    abort.abort();
+    expect(await pending).toBeInstanceOf(Error); expect(fetcher.mock.calls[0][1].signal.aborted).toBe(true);
+    read.resolve(response(resumed));
   });
 });

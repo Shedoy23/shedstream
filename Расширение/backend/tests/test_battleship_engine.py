@@ -25,6 +25,7 @@ class BattleshipTests(unittest.TestCase):
         self.assertEqual(state['status'], 'active')
         self.assertIn(state['turn'], ['alice', 'bob'])
         self.assertEqual(state['turn_started_at'], 13)
+        self.assertEqual(state['started_at'], 13, 'Battle total clock begins after both fleets are ready')
         with self.assertRaises(b.InvalidAction):
             b.apply_action(state, 'alice', 'place', ships=FLEET)
 

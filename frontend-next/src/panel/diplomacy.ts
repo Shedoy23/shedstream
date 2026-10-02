@@ -1,4 +1,4 @@
-import type { PanelState } from './contracts';
+import { validPrice, type PanelState } from './contracts';
 import { clanInfo, kingdomInfo } from './party';
 import { kingdomOwner } from './kingdom';
 export interface PolicyStatus { policy_id:string; policy_name?:string; status?:string; [key:string]:unknown }
@@ -32,11 +32,13 @@ export const policies = [
       desc: 'Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.' },
 ];
 export const diplomacyOwner=(s:PanelState)=>JSON.stringify([kingdomOwner(s.hero),s.diplomacy?.has_hero,s.diplomacy?.kingdom_id,s.diplomacy?.is_king,s.diplomacy?.is_clan_leader]);
-export function diplomacyPrice(s:PanelState,type:string){const fallback=type==='hero.enact_policy'?1500:type==='kingdom.propose_peace'?3000:2000,raw=s.config?.action_prices?.[type];return raw==null||raw===''||!Number.isFinite(Number(raw))?fallback:Number(raw);}
+export function diplomacyPrice(s:PanelState,type:string){const raw=s.config?.action_prices?.[type];return validPrice(raw)?raw:null;}
+export function diplomacyLabel(s:PanelState,type:string){const price=diplomacyPrice(s,type);return price===null?'Цена не загружена':price+'💎';}
 export const proposalTargets=(s:PanelState,peace:boolean)=>{const all=kingdomInfo(s.hero)?.all_kingdoms;return Array.isArray(all)?all.filter((k):k is NonNullable<typeof k>=>!!k&&!!k.at_war===peace):[];};
 export function diplomacyAllowed(s:PanelState,type:string,data:Record<string,unknown>={},now=Date.now()){
   const d=s.diplomacy,ki=kingdomInfo(s.hero);
   if(!s.canAct||s.mutationBlocked||!s.hero?.has_hero||!s.hero.hero?.is_alive||!clanInfo(s.hero)?.is_leader||!d?.has_hero||!d.kingdom_id||!ki?.id||d.kingdom_id!==ki.id)return false;
+  if(type!=='kingdom.set_tax_rate'&&diplomacyPrice(s,type)===null)return false;
   const lead=!!(d.is_king||d.is_clan_leader);
   switch(type){
     case 'hero.enact_policy':return lead&&!d.policies_pending?.some(p=>p.policy_id===data.policy_id);

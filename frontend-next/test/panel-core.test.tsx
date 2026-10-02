@@ -24,7 +24,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     const path = String(url); const method = init?.method || 'GET';
     trace.push({ method, path, body: init?.body ? JSON.parse(String(init.body)) : undefined, token: new Headers(init?.headers).get('X-Twitch-JWT') });
     if (!(path in routes)) throw new Error(`UNMATCHED ${method} ${path}`);
-    const body = routes[path]; return body instanceof Promise ? body : response(body);
+    const body = routes[path]; return body instanceof Promise ? (await body).clone() : response(body);
   }) as unknown as typeof fetch;
   const auth = new TwitchAuthStore(); let authorize!: (value: typeof authValue) => void;
   const identity = new IdentityBootstrap(auth, '', fetcher);
@@ -111,4 +111,22 @@ it('absent/dead hero has no mutation controls and enabled-but-syncing never fall
   }
   const s = setup({ '/api/bannerlord/build': f.build_syncing }); await s.start(); const ui = render(<HeroDevelopmentView controller={s.controller} />);
   expect(ui.container.querySelector('select')).toBeNull(); expect(ui.container.textContent).toContain(f.build_syncing.message); s.controller.stop();
+});
+it('manual refresh recovers missing prices and classes without reloading the document', async () => {
+  const s = setup({ '/api/bannerlord/config': { success: false, message: 'Временный сбой цен' }, '/api/bannerlord/classes': { success: false, message: 'Временный сбой классов' } });
+  await s.start(); const ui = render(<HeroDevelopmentView controller={s.controller} />);
+  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(true);
+  s.routes['/api/bannerlord/config'] = f.config; s.routes['/api/bannerlord/classes'] = f.classes;
+  await act(async () => { fireEvent.click(ui.getByRole('button', { name: 'Обновить' })); await flush(); });
+  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(false);
+  expect(s.controller.snapshot().classes).toEqual(f.classes); expect(s.controller.snapshot().error).toBe(''); s.controller.stop();
+});
+it('failed new-build refresh removes stale enabled choices without exposing legacy picker', async () => {
+  const s = setup(); await s.start(); const ui = render(<HeroDevelopmentView controller={s.controller} />);
+  s.routes['/api/bannerlord/build'] = { success: false, message: 'Сборка недоступна' };
+  await act(async () => { await s.controller.refreshBuild(); });
+  const choices = [...ui.container.querySelectorAll('[data-bnr-build-spec],[data-bnr-build-starter]')];
+  expect(choices.every(button => (button as HTMLButtonElement).disabled)).toBe(true);
+  expect(ui.container.querySelector('select')).toBeNull();
+  choices.forEach(button => fireEvent.click(button)); await flush(); expect(s.trace.filter(r => r.method === 'POST')).toEqual([]); s.controller.stop();
 });

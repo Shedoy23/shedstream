@@ -107,7 +107,7 @@ export const legacySelectors = {
 };
 
 export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, options: {
-  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean; combatHost?: boolean; retinueHost?: boolean; partyHost?: boolean; initialTab?: 'combat' | 'hero' | 'inventory' | 'dynasty';
+  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean; combatHost?: boolean; retinueHost?: boolean; partyHost?: boolean; forgeHost?: boolean; initialTab?: 'combat' | 'hero' | 'inventory' | 'dynasty';
 } = {}) {
   let login = options.login ?? 'alice';
   let token = options.token ?? 'alice-token';
@@ -258,7 +258,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
       <div id="bnr-progression-slot"></div>
       ${options.retinueHost ? '<div id="bnr-retinue-slot"></div>' : ''}
     </section>
-    ${options.equipmentHost || options.panelLifecycle ? '<section class="bnr-tab-pane" data-bnr-pane="inventory"><div id="bnr-equipment-shop"></div></section>' : ''}
+    ${options.equipmentHost || options.panelLifecycle ? '<section class="bnr-tab-pane" data-bnr-pane="inventory"><div id="bnr-equipment-shop"></div>' + (options.forgeHost ? '<div id="bnr-pane-inventory-body"></div>' : '') + '</section>' : ''}
   </main>`;
   evaluate(`authToken=${JSON.stringify(token)};userLogin=${JSON.stringify(login)};window.userLogin=userLogin;`);
   if (options.panelLifecycle) evaluate(`localStorage.setItem('bnr_active_tab',${JSON.stringify(options.initialTab || (options.combatHost ? 'combat' : 'hero'))});_bindBnrInnerTabs();`);

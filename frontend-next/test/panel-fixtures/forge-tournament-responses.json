@@ -1,0 +1,2879 @@
+{
+  "provenance": {
+    "repository": "/workspace/scratch/f566ddb2e035/panel-preact-implementation",
+    "head": "eec667d18e304da5d3c7c0621caad5c3251b23cb",
+    "database": "isolated temporary SQLite + current main.run_migrations()",
+    "handlers": "real public route functions, real BannerlordAdapter events and equipment/queue snapshot handlers",
+    "auth": "require_jwt_user test stub; real JWT verification not exercised",
+    "game": false,
+    "network": false,
+    "source_sha256": {
+      "Расширение/frontend/extension.html": "c881af31fa89d61c2deb3bea6400a0f0fdffb8beac46c5addc43a67e12572e98",
+      "Расширение/frontend/mobile.html": "d94f3e0e7aa6dba6ac3140b7fd9cc466c9b851ac28c33d6d8325d39eb9f6687e",
+      "Расширение/frontend/viewer-bannerlord.js": "87c439858b98171936aaf020cbcaf01f9215e6eef275603951cf2b144fbc35da",
+      "Расширение/frontend/viewer-actions.js": "2acf7cf3070ba475643790db371c95d01ea625837424ecabef0ac912cd7a7b2c",
+      "Расширение/backend/routes/bannerlord.py": "44d81d0f54bc2947f54e7586d34e083739f3f416b2b8bb5eb9b95a662727e9d7",
+      "Расширение/backend/modules/bannerlord/reforge.py": "70377ddc9a277207035d6e5cdbec849b21311737f358b55e5da6f7a3b80fab8b",
+      "Расширение/backend/modules/bannerlord/_adapter.py": "9a6e7f1f4cad23e7936b248cfa36d15a6175f5eedb459574bf7c5c8b7cc9c150",
+      "BannerlordLink/src/Actions/ReforgeQualityHandler.cs": "ac703b2692899fdc421a427f2bc5f42aa5db515ced43b32d4a4700d9dc3c52a7",
+      "BannerlordLink/src/Actions/JoinTournamentHandler.cs": "1b1bc130d813b564a059a425aec61f5e40bd843caf4c5be0396a00999e73a80a"
+    }
+  },
+  "responses": {
+    "config": {
+      "ui": {
+        "version": 1,
+        "combat_order": [
+          "summon",
+          "active_powers",
+          "tournament",
+          "weapon_choice"
+        ],
+        "combat_visible": {
+          "summon": true,
+          "active_powers": true,
+          "tournament": true,
+          "weapon_choice": true
+        },
+        "labels": {
+          "active_powers": "Активки",
+          "tournament": "🏆 Турнир зрителей",
+          "weapon_choice": "Оружейная способность",
+          "summon_ally": "📯 Призвать за стримера",
+          "summon_enemy": "⚔️ Призвать против стримера",
+          "discard": "🗑 Выкинуть вещь"
+        },
+        "tier_colors": {
+          "1": {
+            "text": "#c0c3ca",
+            "border": "#5b5e66",
+            "background": "#2b2d31"
+          },
+          "2": {
+            "text": "#89dba1",
+            "border": "#467457",
+            "background": "#203127"
+          },
+          "3": {
+            "text": "#87c6fa",
+            "border": "#426c91",
+            "background": "#202d3a"
+          },
+          "4": {
+            "text": "#c7a0f5",
+            "border": "#785398",
+            "background": "#30253b"
+          },
+          "5": {
+            "text": "#f2b17f",
+            "border": "#966139",
+            "background": "#3b2b20"
+          },
+          "6": {
+            "text": "#f5d174",
+            "border": "#aa8436",
+            "background": "#39311e"
+          }
+        }
+      },
+      "give_gold_presets": [
+        {
+          "crusticov": 1000,
+          "dinars": 5000
+        },
+        {
+          "crusticov": 5000,
+          "dinars": 25000
+        },
+        {
+          "crusticov": 20000,
+          "dinars": 100000
+        }
+      ],
+      "add_skill_presets": [
+        {
+          "crusticov": 500,
+          "xp": 50
+        },
+        {
+          "crusticov": 1000,
+          "xp": 100
+        },
+        {
+          "crusticov": 5000,
+          "xp": 500
+        }
+      ],
+      "focus_tier_costs": [
+        30000,
+        40000,
+        50000,
+        60000,
+        75000
+      ],
+      "attribute_cost": 50000,
+      "recruit_tier_costs": [
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        80000
+      ],
+      "recruit_elite_mult": 3,
+      "gear_upgrade_costs": {
+        "1": 50000,
+        "2": 100000,
+        "3": 200000,
+        "4": 400000,
+        "5": 800000,
+        "6": 1500000
+      },
+      "reforge_price": 20000,
+      "spawn_prices": {
+        "player": 50,
+        "enemy": 100
+      },
+      "gender_swap_cost": 50000,
+      "baby_cost": 100000,
+      "workshop_price": 2500,
+      "caravan_price": 4000,
+      "tournament_prize_gold": 50000,
+      "tournament_round_gold": 10000,
+      "action_prices": {
+        "hero.set_specialization": 0,
+        "hero.select_weapon_power": 0,
+        "hero.claim_starter": 0,
+        "hero.buy_equipment": 0,
+        "hero.equip_owned": 0,
+        "hero.unequip_owned": 0,
+        "hero.discard_owned": 0,
+        "hero.create": 0,
+        "player.modify_attribute": 50,
+        "world.trigger_event": 1000,
+        "hero.reforge_quality": 20000,
+        "hero.set_combat_stance": 0,
+        "hero.discard_item": 0,
+        "hero.detach": 10,
+        "hero.attach": 10,
+        "hero.detach_hold": 30,
+        "hero.detach_charge": 30,
+        "hero.detach_skirmish": 30,
+        "hero.detach_raid": 30,
+        "hero.detach_walls": 30,
+        "hero.detach_gate": 30,
+        "hero.propose_marriage": 100,
+        "hero.respond_marriage_proposal": 0,
+        "hero.cancel_proposal": 0,
+        "hero.rename_child": 50,
+        "hero.change_child_looks": 200,
+        "hero.respec_child_skills": 500,
+        "hero.create_vassal_clan": 0,
+        "hero.recruit_vassal_clan": 0,
+        "hero.rename_vassal": 100,
+        "hero.party_order_set": 500,
+        "hero.party_order_release": 0,
+        "hero.army_create": 1000,
+        "hero.army_disband": 0,
+        "hero.enact_policy": 1500,
+        "hero.make_peace": 2000,
+        "kingdom.propose_war": 2000,
+        "kingdom.propose_peace": 3000,
+        "hero.pay_ransom": 500,
+        "kingdom.set_tax_rate": 0,
+        "hero.buy_workshop": 2500,
+        "hero.sell_workshop": 0,
+        "hero.buy_caravan": 4000,
+        "hero.sell_caravan": 0
+      },
+      "power_prices": {
+        "heal_burst": 100,
+        "shield_break_burst": 200,
+        "rage": 300,
+        "retribution_toggle": 300,
+        "poison_dot": 350,
+        "disarm_burst": 250,
+        "berserker_charge": 200,
+        "lifesteal_burst": 300,
+        "ironskin_toggle": 300,
+        "explosive_arrows": 350,
+        "cleave": 350
+      },
+      "hero_gold_costs": {
+        "marry": 50000,
+        "create_clan": 1000000,
+        "join_clan": 50000,
+        "create_kingdom": 5000000,
+        "join_kingdom": 100000,
+        "create_party": 200000,
+        "recruit_vassal": 3000000,
+        "make_baby": 100000,
+        "create_vassal_clan": 250000
+      }
+    },
+    "tournament_unauthorized": {
+      "success": false,
+      "message": "❌ Требуется авторизация Twitch"
+    },
+    "tournament_empty": {
+      "success": true,
+      "queue": [],
+      "state": {
+        "status": "idle",
+        "current_round": 0,
+        "participants": [],
+        "last_winner": null,
+        "started_at": null
+      },
+      "in_queue": false,
+      "my_prediction": null,
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "join": {
+      "request": {
+        "action_type": "hero.join_tournament",
+        "data": {
+          "price": 0,
+          "client_action_id": "forge-tournament-join"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "5d3a34d050b9441586faa4f6821763a1",
+        "charged": 0,
+        "message": "⚔️ Action hero.join_tournament в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      },
+      "balance_before": 100000,
+      "balance_after": 100000,
+      "queued": [
+        {
+          "type": "hero.join_tournament",
+          "data": {
+            "price": 0,
+            "client_action_id": "forge-tournament-join",
+            "_user_role": "viewer",
+            "hero_gold_cost": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "join_buffs": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "hero.join_tournament",
+          "remaining_s": 30.0
+        }
+      ]
+    },
+    "tournament_pending_join": {
+      "success": true,
+      "queue": [],
+      "state": {
+        "status": "idle",
+        "current_round": 0,
+        "participants": [],
+        "last_winner": null,
+        "started_at": null
+      },
+      "in_queue": false,
+      "my_prediction": null,
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "join_cooldown": {
+      "request": {
+        "action_type": "hero.join_tournament",
+        "data": {
+          "price": 0,
+          "client_action_id": "forge-tournament-join_cooldown"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (29с)",
+        "cooldown_remaining_s": 30.0
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "join_pending": {
+      "request": {
+        "action_type": "hero.join_tournament",
+        "data": {
+          "price": 0,
+          "client_action_id": "forge-tournament-join_pending"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Заявка уже отправлена — подожди подтверждения"
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "tournament_queue": {
+      "success": true,
+      "queue": [
+        {
+          "username": "bobby",
+          "entry_fee": 0,
+          "class_key": null
+        }
+      ],
+      "state": {
+        "status": "idle",
+        "current_round": 0,
+        "participants": [],
+        "last_winner": null,
+        "started_at": null
+      },
+      "in_queue": false,
+      "my_prediction": null,
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "tournament_joined": {
+      "success": true,
+      "queue": [
+        {
+          "username": "bobby",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "alice",
+          "entry_fee": 0,
+          "class_key": null
+        }
+      ],
+      "state": {
+        "status": "idle",
+        "current_round": 0,
+        "participants": [],
+        "last_winner": null,
+        "started_at": null
+      },
+      "in_queue": true,
+      "my_prediction": null,
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "join_already": {
+      "request": {
+        "action_type": "hero.join_tournament",
+        "data": {
+          "price": 0,
+          "client_action_id": "forge-tournament-join_already"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Ты уже в очереди на турнир"
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "tournament_left_mod_event": {
+      "success": true,
+      "queue": [
+        {
+          "username": "bobby",
+          "entry_fee": 0,
+          "class_key": null
+        }
+      ],
+      "state": {
+        "status": "idle",
+        "current_round": 0,
+        "participants": [],
+        "last_winner": null,
+        "started_at": null
+      },
+      "in_queue": false,
+      "my_prediction": null,
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "join_spoof_price": {
+      "request": {
+        "action_type": "hero.join_tournament",
+        "data": {
+          "price": 98765,
+          "hero_gold_cost": 54321,
+          "client_action_id": "forge-tournament-join_spoof_price"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "9b8738161b7a42989d9da856cd6fee37",
+        "charged": 0,
+        "message": "⚔️ Action hero.join_tournament в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      },
+      "balance_before": 100000,
+      "balance_after": 100000,
+      "queued": [
+        {
+          "type": "hero.join_tournament",
+          "data": {
+            "price": 0,
+            "hero_gold_cost": 0,
+            "client_action_id": "forge-tournament-join_spoof_price",
+            "_user_role": "viewer",
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "join_no_hero": {
+      "request": {
+        "action_type": "hero.join_tournament",
+        "data": {
+          "price": 0,
+          "client_action_id": "forge-tournament-join_no_hero"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Сначала нужно создать героя. Action hero.create."
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "predict_idle": {
+      "request": {
+        "action_type": "tournament.predict",
+        "data": {
+          "target": "bobby",
+          "client_action_id": "forge-tournament-predict_idle"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Турнир не идёт"
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "tournament_running": {
+      "success": true,
+      "queue": [],
+      "state": {
+        "status": "running",
+        "current_round": 0,
+        "participants": [
+          "alice",
+          "bobby",
+          "carol"
+        ],
+        "last_winner": null,
+        "started_at": "2026-10-02 23:01:36"
+      },
+      "in_queue": false,
+      "my_prediction": null,
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "join_running": {
+      "request": {
+        "action_type": "hero.join_tournament",
+        "data": {
+          "price": 0,
+          "client_action_id": "forge-tournament-join_running"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Турнир уже идёт — подожди следующий"
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "predict_blank": {
+      "request": {
+        "action_type": "tournament.predict",
+        "data": {
+          "target": "",
+          "client_action_id": "forge-tournament-predict_blank"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Не указан участник"
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "predict_not_participant": {
+      "request": {
+        "action_type": "tournament.predict",
+        "data": {
+          "target": "missing",
+          "client_action_id": "forge-tournament-predict_not_participant"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "@missing не участвует в турнире"
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "predict": {
+      "request": {
+        "action_type": "tournament.predict",
+        "data": {
+          "target": "bobby",
+          "client_action_id": "forge-tournament-predict"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "d470efb4bf1a41dba12d380f08b3c52a",
+        "charged": 0,
+        "message": "⚔️ Action tournament.predict в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 3
+      },
+      "balance_before": 100000,
+      "balance_after": 100000,
+      "queued": []
+    },
+    "predict_buffs": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "tournament.predict",
+          "remaining_s": 3.0
+        }
+      ]
+    },
+    "tournament_predicted": {
+      "success": true,
+      "queue": [],
+      "state": {
+        "status": "running",
+        "current_round": 0,
+        "participants": [
+          "alice",
+          "bobby",
+          "carol"
+        ],
+        "last_winner": null,
+        "started_at": "2026-10-02 23:01:36"
+      },
+      "in_queue": false,
+      "my_prediction": {
+        "target": "bobby",
+        "amount": 0
+      },
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "predict_cooldown": {
+      "request": {
+        "action_type": "tournament.predict",
+        "data": {
+          "target": "carol",
+          "client_action_id": "forge-tournament-predict_cooldown"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (2с)",
+        "cooldown_remaining_s": 3.0
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "predict_duplicate_round": {
+      "request": {
+        "action_type": "tournament.predict",
+        "data": {
+          "target": "carol",
+          "client_action_id": "forge-tournament-predict_duplicate_round"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Ты уже ставил в раунде 1"
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "predict_no_hero": {
+      "request": {
+        "action_type": "tournament.predict",
+        "data": {
+          "target": " ALICE ",
+          "price": 999,
+          "amount": 999,
+          "client_action_id": "forge-tournament-predict_no_hero"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "bc5929d1187a4d8d99db1f44801061de",
+        "charged": 0,
+        "message": "⚔️ Action tournament.predict в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 3
+      },
+      "balance_before": 100000,
+      "balance_after": 100000,
+      "queued": []
+    },
+    "tournament_next_round": {
+      "success": true,
+      "queue": [],
+      "state": {
+        "status": "running",
+        "current_round": 1,
+        "participants": [
+          "alice",
+          "bobby",
+          "carol"
+        ],
+        "last_winner": null,
+        "started_at": "2026-10-02 23:01:36"
+      },
+      "in_queue": false,
+      "my_prediction": null,
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "predict_next_round": {
+      "request": {
+        "action_type": "tournament.predict",
+        "data": {
+          "target": "carol",
+          "client_action_id": "forge-tournament-predict_next_round"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "3198224556634bc59521fd85ee0d63f2",
+        "charged": 0,
+        "message": "⚔️ Action tournament.predict в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 3
+      },
+      "balance_before": 100000,
+      "balance_after": 100000,
+      "queued": []
+    },
+    "tournament_queue17": {
+      "success": true,
+      "queue": [
+        {
+          "username": "fixture_0",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_1",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_2",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_3",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_4",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_5",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_6",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_7",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_8",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_9",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_10",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_11",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_12",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_13",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_14",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_15",
+          "entry_fee": 0,
+          "class_key": null
+        },
+        {
+          "username": "fixture_16",
+          "entry_fee": 0,
+          "class_key": null
+        }
+      ],
+      "state": {
+        "status": "idle",
+        "current_round": 1,
+        "participants": [
+          "alice",
+          "bobby",
+          "carol"
+        ],
+        "last_winner": "bobby",
+        "started_at": "2026-10-02 23:01:36"
+      },
+      "in_queue": false,
+      "my_prediction": null,
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "join_queue17": {
+      "request": {
+        "action_type": "hero.join_tournament",
+        "data": {
+          "price": 0,
+          "client_action_id": "forge-tournament-join_queue17"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "b33a327f0b9b440c8cbe97e3b5af4c7a",
+        "charged": 0,
+        "message": "⚔️ Action hero.join_tournament в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      },
+      "balance_before": 100000,
+      "balance_after": 100000,
+      "queued": [
+        {
+          "type": "hero.join_tournament",
+          "data": {
+            "price": 0,
+            "client_action_id": "forge-tournament-join_queue17",
+            "_user_role": "viewer",
+            "hero_gold_cost": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_unsynced": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "head",
+          "client_action_id": "forge-tournament-reforge_unsynced"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Снаряжение ещё не синхронизировано: обнови мод и дождись загрузки."
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "hero_forge": {
+      "equipment_shop_ready": true,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 23:01:36",
+        "last_sync": "2026-10-02 23:01:36",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {
+        "weapon0": {
+          "item_id": "fixture_weapon0",
+          "item_name": "Fixture weapon0",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "weapon1": {
+          "item_id": "fixture_weapon1",
+          "item_name": "Fixture weapon1",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {
+            "hp": 450,
+            "body": 10
+          },
+          "quality": "fine"
+        },
+        "weapon2": {
+          "item_id": "fixture_weapon2",
+          "item_name": "Fixture weapon2",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "masterwork"
+        },
+        "weapon3": {
+          "item_id": "fixture_weapon3",
+          "item_name": "Fixture weapon3",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "legendary"
+        },
+        "head": {
+          "item_id": "fixture_head",
+          "item_name": "Fixture head",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "poor"
+        },
+        "body": {
+          "item_id": "fixture_body",
+          "item_name": "Fixture body",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "inferior"
+        },
+        "leg": {
+          "item_id": "fixture_leg",
+          "item_name": "Fixture leg",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "common"
+        },
+        "gloves": {
+          "item_id": "fixture_gloves",
+          "item_name": "Fixture gloves",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "cape": {
+          "item_id": "fixture_cape",
+          "item_name": "Fixture cape",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "horse": {
+          "item_id": "fixture_horse",
+          "item_name": "Fixture horse",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "horseharness": {
+          "item_id": "fixture_horseharness",
+          "item_name": "Fixture horseharness",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        }
+      },
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "equipment_forge": {
+      "success": true,
+      "items": [],
+      "inventory": [
+        {
+          "source": "equipped",
+          "slot": "weapon0",
+          "owned_id": "equipped|weapon0",
+          "item_id": "fixture_weapon0",
+          "name": "Fixture weapon0",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "weapon1",
+          "owned_id": "equipped|weapon1",
+          "item_id": "fixture_weapon1",
+          "name": "Fixture weapon1",
+          "quality": "fine",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {
+            "hp": 450,
+            "body": 10
+          },
+          "modifier_id": "fine",
+          "quality_rank": 1,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "weapon2",
+          "owned_id": "equipped|weapon2",
+          "item_id": "fixture_weapon2",
+          "name": "Fixture weapon2",
+          "quality": "masterwork",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "masterwork",
+          "quality_rank": 2,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "weapon3",
+          "owned_id": "equipped|weapon3",
+          "item_id": "fixture_weapon3",
+          "name": "Fixture weapon3",
+          "quality": "legendary",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "legendary",
+          "quality_rank": 3,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "head",
+          "owned_id": "equipped|head",
+          "item_id": "fixture_head",
+          "name": "Fixture head",
+          "quality": "poor",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "poor",
+          "quality_rank": -2,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "body",
+          "owned_id": "equipped|body",
+          "item_id": "fixture_body",
+          "name": "Fixture body",
+          "quality": "inferior",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "inferior",
+          "quality_rank": -1,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "leg",
+          "owned_id": "equipped|leg",
+          "item_id": "fixture_leg",
+          "name": "Fixture leg",
+          "quality": "common",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "common",
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "gloves",
+          "owned_id": "equipped|gloves",
+          "item_id": "fixture_gloves",
+          "name": "Fixture gloves",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "cape",
+          "owned_id": "equipped|cape",
+          "item_id": "fixture_cape",
+          "name": "Fixture cape",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "horse",
+          "owned_id": "equipped|horse",
+          "item_id": "fixture_horse",
+          "name": "Fixture horse",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": []
+        },
+        {
+          "source": "equipped",
+          "slot": "horseharness",
+          "owned_id": "equipped|horseharness",
+          "item_id": "fixture_horseharness",
+          "name": "Fixture horseharness",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        }
+      ],
+      "party_inventory": {
+        "available": true,
+        "reason": null,
+        "message": "",
+        "party_id": "fixture-party",
+        "party_name": null
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "required_level": 1
+        },
+        {
+          "tier": 2,
+          "required_level": 10
+        },
+        {
+          "tier": 3,
+          "required_level": 15
+        },
+        {
+          "tier": 4,
+          "required_level": 25
+        },
+        {
+          "tier": 5,
+          "required_level": 30
+        },
+        {
+          "tier": 6,
+          "required_level": 35
+        }
+      ],
+      "hero_level": 1,
+      "gold": 500000,
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": true,
+      "reason": null,
+      "message": ""
+    },
+    "hero_forge_upgraded": {
+      "equipment_shop_ready": true,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 23:01:36",
+        "last_sync": "2026-10-02 23:01:36",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {
+        "weapon0": {
+          "item_id": "fixture_weapon0",
+          "item_name": "Fixture weapon0",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "weapon1": {
+          "item_id": "fixture_weapon1",
+          "item_name": "Fixture weapon1",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {
+            "hp": 450,
+            "body": 10
+          },
+          "quality": "fine"
+        },
+        "weapon2": {
+          "item_id": "fixture_weapon2",
+          "item_name": "Fixture weapon2",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "masterwork"
+        },
+        "weapon3": {
+          "item_id": "fixture_weapon3",
+          "item_name": "Fixture weapon3",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "legendary"
+        },
+        "head": {
+          "item_id": "fixture_head",
+          "item_name": "Fixture head",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "fine"
+        },
+        "body": {
+          "item_id": "fixture_body",
+          "item_name": "Fixture body",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "inferior"
+        },
+        "leg": {
+          "item_id": "fixture_leg",
+          "item_name": "Fixture leg",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "common"
+        },
+        "gloves": {
+          "item_id": "fixture_gloves",
+          "item_name": "Fixture gloves",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "cape": {
+          "item_id": "fixture_cape",
+          "item_name": "Fixture cape",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "horse": {
+          "item_id": "fixture_horse",
+          "item_name": "Fixture horse",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "horseharness": {
+          "item_id": "fixture_horseharness",
+          "item_name": "Fixture horseharness",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        }
+      },
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "hero_forge_dead": {
+      "equipment_shop_ready": true,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": false,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 23:01:36",
+        "last_sync": "2026-10-02 23:01:36",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {
+        "weapon0": {
+          "item_id": "fixture_weapon0",
+          "item_name": "Fixture weapon0",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "weapon1": {
+          "item_id": "fixture_weapon1",
+          "item_name": "Fixture weapon1",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {
+            "hp": 450,
+            "body": 10
+          },
+          "quality": "fine"
+        },
+        "weapon2": {
+          "item_id": "fixture_weapon2",
+          "item_name": "Fixture weapon2",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "masterwork"
+        },
+        "weapon3": {
+          "item_id": "fixture_weapon3",
+          "item_name": "Fixture weapon3",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "legendary"
+        },
+        "head": {
+          "item_id": "fixture_head",
+          "item_name": "Fixture head",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "fine"
+        },
+        "body": {
+          "item_id": "fixture_body",
+          "item_name": "Fixture body",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "inferior"
+        },
+        "leg": {
+          "item_id": "fixture_leg",
+          "item_name": "Fixture leg",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "common"
+        },
+        "gloves": {
+          "item_id": "fixture_gloves",
+          "item_name": "Fixture gloves",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "cape": {
+          "item_id": "fixture_cape",
+          "item_name": "Fixture cape",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "horse": {
+          "item_id": "fixture_horse",
+          "item_name": "Fixture horse",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "horseharness": {
+          "item_id": "fixture_horseharness",
+          "item_name": "Fixture horseharness",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        }
+      },
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "reforge_horse": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "horse",
+          "client_action_id": "forge-tournament-reforge_horse"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Коня перековать нельзя — в кузнице улучшается только оружие и броня героя."
+      },
+      "balance_before": 1000000,
+      "balance_after": 1000000
+    },
+    "reforge_bad_slot": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "missing",
+          "client_action_id": "forge-tournament-reforge_bad_slot"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Для перековки обнови мод и дождись снимка надетого предмета."
+      },
+      "balance_before": 1000000,
+      "balance_after": 1000000
+    },
+    "reforge_best": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "weapon3",
+          "client_action_id": "forge-tournament-reforge_best"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Предмет уже лучшего доступного качества."
+      },
+      "balance_before": 1000000,
+      "balance_after": 1000000
+    },
+    "reforge": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "head",
+          "client_action_id": "forge-tournament-reforge"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "1b5dddd0d285449784e9bf611c347948",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 1000000,
+      "balance_after": 980000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "head",
+            "client_action_id": "forge-tournament-reforge",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "head",
+              "item_id": "fixture_head",
+              "expected_modifier": "poor",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_buffs": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": []
+    },
+    "reforge_pending_right": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "head",
+          "client_action_id": "forge-tournament-reforge_pending_right"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Оплаченное качество восстанавливается. Дождись синхронизации; повторно платить не нужно."
+      },
+      "balance_before": 980000,
+      "balance_after": 980000
+    },
+    "reforge_harness": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "horseharness",
+          "client_action_id": "forge-tournament-reforge_harness"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "c6cfa3365dad4d67b51a7af03bd63bfe",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 980000,
+      "balance_after": 960000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "horseharness",
+            "client_action_id": "forge-tournament-reforge_harness",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "horseharness",
+              "item_id": "fixture_horseharness",
+              "expected_modifier": "",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_upper_slot": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "WEAPON0",
+          "price": 1,
+          "client_action_id": "forge-tournament-reforge_upper_slot"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "7d485d8e6c714caf9da7c32b4e5b62c1",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 960000,
+      "balance_after": 940000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "weapon0",
+            "price": 20000,
+            "client_action_id": "forge-tournament-reforge_upper_slot",
+            "_user_role": "viewer",
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "weapon0",
+              "item_id": "fixture_weapon0",
+              "expected_modifier": "",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "equipment_mission": {
+      "success": true,
+      "items": [],
+      "inventory": [
+        {
+          "source": "equipped",
+          "slot": "weapon0",
+          "owned_id": "equipped|weapon0",
+          "item_id": "fixture_weapon0",
+          "name": "Fixture weapon0",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "weapon1",
+          "owned_id": "equipped|weapon1",
+          "item_id": "fixture_weapon1",
+          "name": "Fixture weapon1",
+          "quality": "fine",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {
+            "hp": 450,
+            "body": 10
+          },
+          "modifier_id": "fine",
+          "quality_rank": 1,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "weapon2",
+          "owned_id": "equipped|weapon2",
+          "item_id": "fixture_weapon2",
+          "name": "Fixture weapon2",
+          "quality": "masterwork",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "masterwork",
+          "quality_rank": 2,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "weapon3",
+          "owned_id": "equipped|weapon3",
+          "item_id": "fixture_weapon3",
+          "name": "Fixture weapon3",
+          "quality": "legendary",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "legendary",
+          "quality_rank": 3,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "head",
+          "owned_id": "equipped|head",
+          "item_id": "fixture_head",
+          "name": "Fixture head",
+          "quality": "poor",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "poor",
+          "quality_rank": -2,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "body",
+          "owned_id": "equipped|body",
+          "item_id": "fixture_body",
+          "name": "Fixture body",
+          "quality": "inferior",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "inferior",
+          "quality_rank": -1,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "leg",
+          "owned_id": "equipped|leg",
+          "item_id": "fixture_leg",
+          "name": "Fixture leg",
+          "quality": "common",
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": "common",
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "gloves",
+          "owned_id": "equipped|gloves",
+          "item_id": "fixture_gloves",
+          "name": "Fixture gloves",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "cape",
+          "owned_id": "equipped|cape",
+          "item_id": "fixture_cape",
+          "name": "Fixture cape",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        },
+        {
+          "source": "equipped",
+          "slot": "horse",
+          "owned_id": "equipped|horse",
+          "item_id": "fixture_horse",
+          "name": "Fixture horse",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": []
+        },
+        {
+          "source": "equipped",
+          "slot": "horseharness",
+          "owned_id": "equipped|horseharness",
+          "item_id": "fixture_horseharness",
+          "name": "Fixture horseharness",
+          "quality": null,
+          "tier": 3,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "modifier_id": null,
+          "quality_rank": 0,
+          "reforge_options": [
+            {
+              "rank": 1,
+              "modifier_id": "fixture_rank1"
+            },
+            {
+              "rank": 2,
+              "modifier_id": "fixture_rank2"
+            },
+            {
+              "rank": 3,
+              "modifier_id": "fixture_rank3"
+            }
+          ]
+        }
+      ],
+      "party_inventory": {
+        "available": true,
+        "reason": null,
+        "message": "",
+        "party_id": "fixture-party",
+        "party_name": null
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "required_level": 1
+        },
+        {
+          "tier": 2,
+          "required_level": 10
+        },
+        {
+          "tier": 3,
+          "required_level": 15
+        },
+        {
+          "tier": 4,
+          "required_level": 25
+        },
+        {
+          "tier": 5,
+          "required_level": 30
+        },
+        {
+          "tier": 6,
+          "required_level": 35
+        }
+      ],
+      "hero_level": 1,
+      "gold": 500000,
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": true,
+      "reason": null,
+      "message": ""
+    },
+    "reforge_in_mission": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "body",
+          "client_action_id": "forge-tournament-reforge_in_mission"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "1480a66b17b047738cff9747e8122623",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 940000,
+      "balance_after": 920000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "body",
+            "client_action_id": "forge-tournament-reforge_in_mission",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "body",
+              "item_id": "fixture_body",
+              "expected_modifier": "inferior",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_poor": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "gloves",
+          "client_action_id": "forge-tournament-reforge_poor"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Недостаточно крустиков: 1 < 20000"
+      },
+      "balance_before": 1,
+      "balance_after": 1
+    },
+    "smith_retired": {
+      "request": {
+        "action_type": "hero.smith_item",
+        "data": {
+          "client_action_id": "forge-tournament-smith_retired"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Action 'hero.smith_item' не разрешён"
+      },
+      "balance_before": 1,
+      "balance_after": 1
+    },
+    "trophy_retired": {
+      "request": {
+        "action_type": "hero.equip_trophy",
+        "data": {
+          "client_action_id": "forge-tournament-trophy_retired"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Action 'hero.equip_trophy' не разрешён"
+      },
+      "balance_before": 1,
+      "balance_after": 1
+    },
+    "leave_absent": {
+      "request": {
+        "action_type": "hero.leave_tournament",
+        "data": {
+          "client_action_id": "forge-tournament-leave_absent"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Action 'hero.leave_tournament' не разрешён"
+      },
+      "balance_before": 1,
+      "balance_after": 1
+    },
+    "hero_absent": {
+      "success": true,
+      "has_hero": false
+    },
+    "reforge_no_hero": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "head",
+          "client_action_id": "forge-tournament-reforge_no_hero"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Сначала нужно создать героя. Action hero.create."
+      },
+      "balance_before": 100000,
+      "balance_after": 100000
+    },
+    "hero_prisoner": {
+      "equipment_shop_ready": true,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": true,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 23:01:36",
+        "last_sync": "2026-10-02 23:01:36",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {
+        "weapon0": {
+          "item_id": "fixture_weapon0",
+          "item_name": "Fixture weapon0",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "weapon1": {
+          "item_id": "fixture_weapon1",
+          "item_name": "Fixture weapon1",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {
+            "hp": 450,
+            "body": 10
+          },
+          "quality": "fine"
+        },
+        "weapon2": {
+          "item_id": "fixture_weapon2",
+          "item_name": "Fixture weapon2",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "masterwork"
+        },
+        "weapon3": {
+          "item_id": "fixture_weapon3",
+          "item_name": "Fixture weapon3",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "legendary"
+        },
+        "head": {
+          "item_id": "fixture_head",
+          "item_name": "Fixture head",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "poor"
+        },
+        "body": {
+          "item_id": "fixture_body",
+          "item_name": "Fixture body",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "inferior"
+        },
+        "leg": {
+          "item_id": "fixture_leg",
+          "item_name": "Fixture leg",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": "common"
+        },
+        "gloves": {
+          "item_id": "fixture_gloves",
+          "item_name": "Fixture gloves",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "cape": {
+          "item_id": "fixture_cape",
+          "item_name": "Fixture cape",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "horse": {
+          "item_id": "fixture_horse",
+          "item_name": "Fixture horse",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        },
+        "horseharness": {
+          "item_id": "fixture_horseharness",
+          "item_name": "Fixture horseharness",
+          "tier": 2,
+          "item_value": 1000,
+          "weight": 1.25,
+          "stats": {},
+          "quality": null
+        }
+      },
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "reforge_prisoner": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "cape",
+          "client_action_id": "forge-tournament-reforge_prisoner"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "2863902b13bd4df98bede0e8ed31fe9d",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 1000000,
+      "balance_after": 980000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "cape",
+            "client_action_id": "forge-tournament-reforge_prisoner",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "cape",
+              "item_id": "fixture_cape",
+              "expected_modifier": "",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_slot_weapon0": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "weapon0",
+          "client_action_id": "forge-tournament-reforge_slot_weapon0"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "afd995cdfd9c4f7f95129a8892ac0408",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 980000,
+      "balance_after": 960000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "weapon0",
+            "client_action_id": "forge-tournament-reforge_slot_weapon0",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "weapon0",
+              "item_id": "fixture_weapon0",
+              "expected_modifier": "",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_slot_weapon1": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "weapon1",
+          "client_action_id": "forge-tournament-reforge_slot_weapon1"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "b37c1e5fdb364408aacad4c06d630051",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 960000,
+      "balance_after": 940000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "weapon1",
+            "client_action_id": "forge-tournament-reforge_slot_weapon1",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "weapon1",
+              "item_id": "fixture_weapon1",
+              "expected_modifier": "fine",
+              "modifier_id": "fixture_rank2",
+              "rank": 2
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_slot_weapon2": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "weapon2",
+          "client_action_id": "forge-tournament-reforge_slot_weapon2"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "9cf21e6fec144e239549c55743e3584b",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 940000,
+      "balance_after": 920000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "weapon2",
+            "client_action_id": "forge-tournament-reforge_slot_weapon2",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "weapon2",
+              "item_id": "fixture_weapon2",
+              "expected_modifier": "masterwork",
+              "modifier_id": "fixture_rank3",
+              "rank": 3
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_slot_head": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "head",
+          "client_action_id": "forge-tournament-reforge_slot_head"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "b3edade44cf6411ba42d807ecfba78f9",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 920000,
+      "balance_after": 900000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "head",
+            "client_action_id": "forge-tournament-reforge_slot_head",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "head",
+              "item_id": "fixture_head",
+              "expected_modifier": "poor",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_slot_body": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "body",
+          "client_action_id": "forge-tournament-reforge_slot_body"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "f3cc15d9dbea4112ba7c274e812e06a1",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 900000,
+      "balance_after": 880000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "body",
+            "client_action_id": "forge-tournament-reforge_slot_body",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "body",
+              "item_id": "fixture_body",
+              "expected_modifier": "inferior",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_slot_leg": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "leg",
+          "client_action_id": "forge-tournament-reforge_slot_leg"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "ef6b9e76b6684ec3bb8a19460223a51b",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 880000,
+      "balance_after": 860000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "leg",
+            "client_action_id": "forge-tournament-reforge_slot_leg",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "leg",
+              "item_id": "fixture_leg",
+              "expected_modifier": "common",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_slot_gloves": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "gloves",
+          "client_action_id": "forge-tournament-reforge_slot_gloves"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "ac31a5abd13142a4b5812a374fa3f140",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 860000,
+      "balance_after": 840000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "gloves",
+            "client_action_id": "forge-tournament-reforge_slot_gloves",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "gloves",
+              "item_id": "fixture_gloves",
+              "expected_modifier": "",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_slot_cape": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "cape",
+          "client_action_id": "forge-tournament-reforge_slot_cape"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "31db66295bd845a98d4a1cf7e2a9c701",
+        "charged": 20000,
+        "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "balance_before": 840000,
+      "balance_after": 820000,
+      "queued": [
+        {
+          "type": "hero.reforge_quality",
+          "data": {
+            "slot": "cape",
+            "client_action_id": "forge-tournament-reforge_slot_cape",
+            "_user_role": "viewer",
+            "price": 20000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "_reforge": {
+              "save_id": "forge-save",
+              "hero_id": "test_hero_alice",
+              "session_id": "forge-session",
+              "slot": "cape",
+              "item_id": "fixture_cape",
+              "expected_modifier": "",
+              "modifier_id": "fixture_rank1",
+              "rank": 1
+            },
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "reforge_slot_horse": {
+      "request": {
+        "action_type": "hero.reforge_quality",
+        "data": {
+          "slot": "horse",
+          "client_action_id": "forge-tournament-reforge_slot_horse"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Коня перековать нельзя — в кузнице улучшается только оружие и броня героя."
+      },
+      "balance_before": 820000,
+      "balance_after": 820000
+    }
+  }
+}

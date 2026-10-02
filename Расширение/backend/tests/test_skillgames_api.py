@@ -458,4 +458,34 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.rows('SELECT COUNT(*) FROM skillgame_results WHERE channel_id=11'),[(1,)])
 
 
+    async def test_disabled_game_prevents_new_entries_but_preserves_resume(self):
+        from skillgames import config
+        session = await self.start()
+        disabled = {'minesweeper':{'enabled':False,'reason':'Техническая пауза'},'battleship':{'enabled':False,'reason':'Техническая пауза'}}
+        with patch.object(config,'GAME_AVAILABILITY',disabled,create=True):
+            catalog = (await self.call('GET','/config'))['catalog']
+            self.assertTrue(all(not item['availability']['enabled'] for item in catalog))
+            self.assertEqual((await self.start())['id'],session['id'])
+            session = await self.action(session,'open',cell=0)
+            await self.action(session,'quit')
+            body = dict(game_type='minesweeper',mode='practice',difficulty='beginner',request_id='disabled-new-start')
+            result = await self.call('POST','/start',body,code=409)
+            self.assertEqual(result['reason'],'game_unavailable')
+            self.assertEqual(result['message'],'Техническая пауза')
+            await self.call('POST','/queue',{'request_id':'disabled-new-queue'},code=409)
+
+    async def test_private_session_retention_preserves_result_audit(self):
+        from skillgames import config
+        session = await self.action(await self.start(),'open',cell=0)
+        session = await self.action(session,'quit')
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('UPDATE skillgame_sessions SET created_at=0 WHERE channel_id=11 AND id=?',(session['id'],))
+        with patch.object(config,'SESSION_RETENTION_SECONDS',10,create=True):
+            await self.call('POST','/queue/cancel',{'request_id':'trigger-history-cleanup'})
+        self.assertFalse(self.rows('SELECT * FROM skillgame_sessions WHERE channel_id=11'))
+        self.assertFalse(self.rows('SELECT * FROM skillgame_players WHERE channel_id=11'))
+        self.assertEqual(self.rows('SELECT COUNT(*) FROM skillgame_results WHERE channel_id=11'),[(1,)])
+        self.assertEqual(self.rows("SELECT elo FROM duel_stats WHERE channel_id=11 AND username='alice'"),[(984,)])
+
+
 if __name__ == '__main__': unittest.main(verbosity=2)

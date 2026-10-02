@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { RetinueView } from './RetinueView';
 import { actionKey, hasProgressionPrices, validPrice } from './contracts';
 import type { PanelController } from './controller';
 const groups = [
@@ -34,6 +35,7 @@ export function HeroDevelopmentView({ controller }: { controller: PanelControlle
       <p className="panel-muted">{!hero.is_alive ? 'Герой погиб' : hero.is_prisoner ? 'В плену' : hero.is_wounded ? 'Ранен' : 'Жив'}</p></article>}
     {hero && !hero.is_alive && <p>Развитие погибшего героя недоступно. Возрождение доступно в действующей панели.</p>}
     {hero?.is_alive ? <>
+      <RetinueView key={state.generation + ':' + hero.hero_id} controller={controller} />
       <section className="panel-card" aria-label="Атрибуты и навыки"><h2>Атрибуты и навыки</h2>
         <p className="panel-muted">Атрибут влияет на три навыка. Фокус повышает скорость развития навыка.</p>
         {hasPriceError && <p className="panel-error" role="status">Сервер не передал цены развития. Покупки без подтверждённой цены недоступны.</p>}

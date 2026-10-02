@@ -191,7 +191,7 @@ export class PanelController {
       if (token === this.auth.current()?.token && typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0) {
         this.cooldownRevision++; this.publish({ cooldowns: { ...this.state.cooldowns, [options.cooldownKey || type]: this.clock() + seconds * 1000 } });
       }
-      this.publish({ message: (result.required_role && !result.success ? '🔒 ' : '') + (result.success && options.successMessage || result.message || (result.success ? 'Заявка отправлена' : 'Действие не выполнено')) });
+      this.publish({ message: options.quietCooldown && !result.success && typeof result.cooldown_remaining_s === 'number' && result.cooldown_remaining_s > 0 ? '' : (result.required_role && !result.success ? '🔒 ' : '') + (result.success && options.successMessage || result.message || (result.success ? 'Заявка отправлена' : 'Действие не выполнено')) });
       if (result.success) {
         void this.balance(generation, login);
         // BnrBuilds' own accepted-action continuation is viewer-owned, not

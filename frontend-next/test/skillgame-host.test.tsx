@@ -1,5 +1,5 @@
 import { it, expect, vi } from 'vitest';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/preact';
 import { empty, session } from './skillgame-fixtures';
 import type { TwitchAuthorization } from '../src/auth';
 import { authOne, deferred } from './fixtures';

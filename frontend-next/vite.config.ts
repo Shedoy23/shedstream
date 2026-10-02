@@ -1,11 +1,13 @@
 import { defineConfig, loadEnv } from 'vite';
 import { fileURLToPath } from 'node:url';
+import { preactAliases } from './preact.config';
 import { validateSkillgameEbsOrigin } from './src/skillgames/origin';
 
 export default defineConfig(({ mode }) => {
   const apiOrigin = validateSkillgameEbsOrigin(loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_').VITE_SKILLGAME_EBS_ORIGIN);
   return {
     base: './',
+    resolve: { alias: preactAliases },
     define: { 'import.meta.env.VITE_SKILLGAME_EBS_ORIGIN': JSON.stringify(apiOrigin) },
     plugins: [{
       name: 'skillgame-ebs-csp',

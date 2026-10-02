@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { isRecord } from '../contracts';
 import { knownGame, terminal, type Command, type Endpoint, type GameCatalog, type Session } from './contracts';
 import type { SkillgameViewState } from './controller';
@@ -10,7 +10,7 @@ const ships = (value: unknown): number[][] => Array.isArray(value) ? value.map(c
 const shots = (value: unknown) => new Map<number, string>((Array.isArray(value) ? value : []).filter(isRecord).filter(v => typeof v.cell === 'number' && typeof v.result === 'string').map(v => [v.cell as number, v.result as string]));
 const modeName = (mode: string) => mode === 'ranked' ? 'Рейтинг' : mode === 'practice' ? 'Тренировка' : mode;
 const timerName: Record<string, string> = { attempt_seconds: 'Партия', first_move_wait_seconds: 'До первого хода', setup_seconds: 'Расстановка', turn_seconds: 'Ход', total_seconds: 'Весь матч', grace_seconds: 'Запас при обрыве', queue_seconds: 'Поиск соперника' };
-function Board({ rows, cols, label, renderCell }: { rows: number; cols: number; label: string; renderCell: (cell: number) => React.ReactNode }) {
+function Board({ rows, cols, label, renderCell }: { rows: number; cols: number; label: string; renderCell: (cell: number) => ReactNode }) {
   return <table className="sg-board" aria-label={label}><tbody>{Array.from({ length: rows }, (_, row) => <tr key={row}>{Array.from({ length: cols }, (_, col) => <td key={col}>{renderCell(row * cols + col)}</td>)}</tr>)}</tbody></table>;
 }
 function Mines({ session, disabled, act }: { session: Session; disabled: boolean; act: (command: Command) => void }) {
@@ -80,7 +80,7 @@ function CatalogCard({ game, rating, disabled, onSubmit }: { game: GameCatalog; 
     <RewardDisclosure game={game} />
     {game.availability?.enabled !== true && knownGame(game.game_type) && <p className="sg-notice">{game.availability?.reason || 'Сервер не подтвердил доступность новых партий'}</p>}
     {!knownGame(game.game_type) ? <p className="sg-hint">Нужна более новая версия панели</p> : <>
-      {game.difficulties.length > 0 && <label className="sg-difficulty">Сложность<select value={difficulty} onChange={event => setDifficulty(event.target.value)} disabled={entryDisabled}>{game.difficulties.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}</select></label>}
+      {game.difficulties.length > 0 && <label className="sg-difficulty">Сложность<select value={difficulty} onChange={event => setDifficulty(event.currentTarget.value)} disabled={entryDisabled}>{game.difficulties.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}</select></label>}
       <div className="sg-actions">{game.modes.filter(mode => mode === 'ranked' || mode === 'practice').map(mode => <button className={mode === 'ranked' ? 'sg-primary' : ''} disabled={entryDisabled} key={mode} onClick={() => game.game_type === 'battleship' ? onSubmit('queue', {}) : onSubmit('start', { game_type: game.game_type, mode, difficulty })}>{game.game_type === 'battleship' ? 'Найти соперника' : modeName(mode)}</button>)}</div>
     </>}
   </article>;

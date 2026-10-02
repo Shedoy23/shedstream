@@ -1,2 +1,3 @@
 import { defineConfig } from 'vitest/config';
-export default defineConfig({ test: { environment: 'jsdom', restoreMocks: true } });
+import { preactAliases } from './preact.config';
+export default defineConfig({ resolve: { alias: preactAliases }, test: { environment: 'jsdom', restoreMocks: true } });

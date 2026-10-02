@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/preact';
 import { SkillgameView } from '../src/skillgames/SkillgameView';
 import type { SkillgameViewState } from '../src/skillgames/controller';
 import { parseSnapshot } from '../src/skillgames/contracts';
@@ -31,6 +31,11 @@ describe('skillgame accessible controls', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Корабль 4/ })); fireEvent.click(screen.getByRole('button', { name: /^F6 —/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить расстановку' }));
     expect(submit).toHaveBeenCalledWith('action', { session_id: 'one', version: 0, action: 'place', ships: [[0, 1, 2], [12, 13], [5, 11], [35]] });
+  });
+  it('fires exactly one selected enemy coordinate with the server session and version', () => {
+    const submit = mount({ ...empty, active_session: { ...battle, version: 7, state: { ...battle.state, phase: 'active', your_turn: true } } });
+    fireEvent.click(screen.getByRole('button', { name: /^B2 —/ }));
+    expect(submit).toHaveBeenCalledExactlyOnceWith('action', { session_id: 'one', version: 7, action: 'fire', cell: 7 });
   });
   it('shows enemy as main board and toggles own board without firing at it', () => {
     const submit = mount({ ...empty, active_session: { ...battle, state: { ...battle.state, phase: 'active', your_turn: true, own_ships: [[0, 1, 2], [12, 13], [5, 11], [35]] } } });

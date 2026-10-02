@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
 import { TournamentView } from '../src/TournamentView';
 import { idle, running } from './fixtures';
 afterEach(cleanup);

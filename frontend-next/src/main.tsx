@@ -25,7 +25,7 @@ function App() {
   const [scenario, setScenario] = useState<Scenario>('queue');
   return <main className="layout"><header className="brand"><span className="brand-icon">S</span><div><strong>ShedLink</strong><span>Frontend reliability pilot</span></div><span className="pilot-label">LOCAL PREVIEW</span></header>
     <aside className="preview-warning"><strong>Только локальный макет</strong><p>Вымышленные данные. Кнопки меняют пример в памяти; запросов к игровому серверу и списаний нет.</p></aside>
-    <label className="scenario-picker">Проверить состояние <select value={scenario} onChange={event => setScenario(event.target.value as Scenario)}>
+    <label className="scenario-picker">Проверить состояние <select value={scenario} onChange={event => setScenario(event.currentTarget.value as Scenario)}>
       <option value="queue">Очередь</option><option value="empty">Пустая очередь</option><option value="running">Турнир идёт</option><option value="joined">Уже в очереди</option><option value="predicted">Прогноз сделан</option><option value="refusal">Отказ сервера</option><option value="offline">Ошибка загрузки</option><option value="uncertain">Неизвестный исход заявки</option>
     </select></label>
     <PreviewPanel key={scenario} scenario={scenario} />

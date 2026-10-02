@@ -5,7 +5,7 @@ Twitch ZIP, production и релизный упаковщик не меняют�
 
 ## Входы
 
-- `index.html`, `extension.html`, `mobile.html`: одинаковое React-приложение
+- `index.html`, `extension.html`, `mobile.html`: одинаковое Preact-приложение
   новых мини-игр. Обычный вход использует настоящий `HttpSkillgameTransport`,
   проверенный сервером Twitch Helper JWT и `/api/skillgames/*` выбранного при сборке EBS
 - `tournament.html`: прежний полностью синтетический макет турнира, без HTTP
@@ -176,3 +176,15 @@ localhost); скриншоты настоящих 318px viewport пока не �
 Twitch Hosted Test, реальные мобильные устройства, production auth и публичный
 release. Клиентские тесты не доказывают работу серверной генерации или рейтинга;
 для этого нужны backend/ASGI проверки и настоящий локальный сетевой прогон.
+
+## Preact runtime
+
+Preact 11.0.0 закреплён точно (npm latest проверен 02.10.2026). Компоненты
+сохраняют React API через `preact/compat`; React/ReactDOM/scheduler в дереве
+зависимостей отсутствуют. `tsconfig.json` задаёт единую таблицу aliases для
+TypeScript, Vite и Vitest через `preact.config.ts`. Тесты рендерят настоящий
+Preact с `@testing-library/preact`, без React peer runtime.
+
+Сборка остаётся неминифицированной, с sourcemaps. `check-build.mjs` сверяет
+лицензию Preact и все внешние пакеты в картах исходников. При добавлении новой
+библиотеки нужно осознанно обновить этот список и notices.

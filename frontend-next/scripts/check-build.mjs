@@ -23,7 +23,7 @@ assert.equal(pages.get('index'), pages.get('extension'), 'Index and desktop must
 assert.equal(pages.get('extension'), pages.get('mobile'), 'Desktop and mobile must mount the same application');
 const assets = readdirSync(new URL('../dist/assets/', import.meta.url));
 const javascript = assets.filter(name => name.endsWith('.js')).map(name => readFileSync(new URL(`../dist/assets/${name}`, import.meta.url), 'utf8')).join('\n');
-assert(javascript.split('\n').length > 1000, 'React/application bundle must remain readable, not minified');
+assert(javascript.split('\n').length > 1000, 'Preact/application bundle must remain readable, not minified');
 assert(!/https:\/\/(?:unpkg|esm\.sh|cdn\.jsdelivr)/.test(javascript), 'No runtime CDN dependency');
 if (!apiOrigin) assert(!javascript.includes('shedoy23.ru'), 'Default local build must not include a production URL');
 assert(!javascript.includes('/api/bannerlord/action'), 'HTTP mutation transport must not enter preview bundle');
@@ -45,11 +45,25 @@ checkTournament('tournament.html');
 console.log('PASS: four entrypoints; identical skillgame pages; validated EBS origin/CSP; isolated tournament preview; helper first; readable local assets; no legacy owner');
 
 const noticesUrl = new URL('../dist/THIRD_PARTY_NOTICES.txt', import.meta.url);
-assert(existsSync(noticesUrl), 'Bundled React runtime requires third-party license notices');
+assert(existsSync(noticesUrl), 'Bundled Preact runtime requires third-party license notices');
 const notices = readFileSync(noticesUrl, 'utf8');
-for (const name of ['react', 'react-dom', 'scheduler']) {
+for (const name of ['preact']) {
   const packageInfo = JSON.parse(readFileSync(new URL(`../node_modules/${name}/package.json`, import.meta.url), 'utf8'));
   const license = readFileSync(new URL(`../node_modules/${name}/LICENSE`, import.meta.url), 'utf8').trim();
   assert(notices.includes(`${name}@${packageInfo.version}`) && notices.includes(license), `Missing or stale license notice: ${name}`);
 }
 console.log('PASS: bundled runtime licenses and pinned versions included');
+
+// Source maps prove which third-party modules actually entered the bundle.
+const bundledPackages = new Set();
+for (const name of assets.filter(name => name.endsWith('.js.map'))) {
+  const map = JSON.parse(readFileSync(new URL(`../dist/assets/${name}`, import.meta.url), 'utf8'));
+  for (const source of map.sources) {
+    const packageName = source.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/)?.[1];
+    if (packageName) bundledPackages.add(packageName);
+  }
+}
+assert.deepEqual([...bundledPackages].sort(), ['preact'], 'Only the licensed Preact runtime may be bundled; no React/scheduler');
+assert.equal(config.build.minify, false, 'Reviewer-readable JavaScript is required');
+assert.equal(config.build.sourcemap, true, 'Reviewer source maps are required');
+console.log('PASS: source maps confirm Preact-only runtime; readable build settings preserved');

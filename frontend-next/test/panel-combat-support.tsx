@@ -35,7 +35,7 @@ export async function combatPair(overrides: Partial<LegacyFixtures> = {}, hidden
     'GET /api/bannerlord/config': 'config', 'GET /api/bannerlord/my-hero': 'hero', 'GET /api/bannerlord/classes': 'classes',
     'GET /api/bannerlord/build': 'build', 'GET /api/bannerlord/my-buffs': 'buffs', 'POST /api/bannerlord/action': 'action',
     'GET /api/viewer/stats/alice': 'stats', 'GET /api/user/level/alice': 'level', 'GET /api/duel/list': 'duels',
-    'GET /api/bannerlord/party-orders': 'partyOrders', 'GET /api/bannerlord/equipment-shop': 'equipment', 'GET /api/bannerlord/battle-status': 'battle', 'POST /api/viewer/ui-usage': 'usage',
+    'GET /api/bannerlord/kingdom-state': 'kingdomState', 'GET /api/bannerlord/party-orders': 'partyOrders', 'GET /api/bannerlord/equipment-shop': 'equipment', 'GET /api/bannerlord/battle-status': 'battle', 'POST /api/viewer/ui-usage': 'usage',
   };
   let resolver: () => Promise<Response> = async () => new Response(JSON.stringify({ login: 'alice' }));
   const fetcher: typeof fetch = async (input, init = {}) => {

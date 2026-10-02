@@ -110,12 +110,12 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
         default: throw new Error(`Unmatched legacy action fixture: ${body?.action_type}`);
       }
     },
-    // These three unrelated shared-shell replies are deliberately minimal test
-    // fixtures, not represented as output from the Bannerlord fixture generator.
-    stats: { points: 1000000, active_module: 'bannerlord', quests: [], unopened_cases: {} },
-    level: { level: 1, exp: 0, exp_needed: 100, title: 'Тест', bonus_pct: 0 },
-    duels: { duels: [] },
-    usage: { success: true },
+    // The shared-shell success tail also comes from actual route handlers on
+    // the isolated full-migrations DB, not a hand-invented minimal shape.
+    stats: legacyResponses.stats,
+    level: legacyResponses.level,
+    duels: legacyResponses.duels,
+    usage: legacyHttpReply(legacyResponses.usage_unauthorized, 401),
     equipment: legacyResponses.equipment_inventory,
     ...overrides,
   };

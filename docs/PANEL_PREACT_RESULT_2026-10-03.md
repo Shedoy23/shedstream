@@ -2,8 +2,8 @@
 
 ## Следующий проверенный checkpoint: боевые действия
 
-Исходный frozen SHA `0bbc802bc0e37dacf62e353543bbbfef235eea17`, runtime
-`8db206d0cc50aaea292dcbc42dc689ed5c936353`. Отдельный panel вход теперь включает
+Combat checkpoint `0bbc802bc0e37dacf62e353543bbbfef235eea17`, последний runtime
+`fc0dde744ceed2089238185a305d27c5644ab313` (JWT callback ownership исправлен). Отдельный panel вход теперь включает
 развитие героя, снаряжение **и полный боевой экран без турниров**. Это по-прежнему
 не весь старый Hero/Battle tab и не вся панель. Свита/отряд/армия — следующий этап.
 
@@ -13,17 +13,19 @@
 | Общий host трёх областей | Да: default и saved combat/hero/inventory startup, actual controls, polls, hidden explicit tails, 60s balance dependency и счётчики | Это выбранный host, не весь старый SDK/bootstrap остальных модулей |
 | Поздние отказы мода | Да: настоящий recent_refunds response, action_id dedup, 6s уведомление, identity ownership | Наблюдаются серверные сообщения; это не проверка игровых эффектов |
 
-Полный suite: **469 passed + 2 explicit live skips**, typecheck/build/check-build exit0.
+Полный suite: **474 passed + 2 explicit live skips**, typecheck/build/check-build exit0.
 Отдельный новый disposable HTTP server: **2/2**, включая полный морской бой и6побед
 сапёра. **27/27 combat mutations** обнаружены (exit1), исходники восстановлены
-побайтно и aggregate снова зелёный. Независимый review исходного combat runtime
+побайтно и aggregate снова зелёный. Дополнительно4 JWT mutations дали exit1;
+после exact restore весь suite474 снова зелёный. Независимый review исходного combat runtime
 также дал463/463, types/build/17legacy gates/lint/globals exit0; поздний узкий
-saved-inventory preload дополнительно проверяется отдельно.
+saved-inventory preload отдельно прошёл независимый review469/469 и3 дополнительных
+adversarial probes. Последний JWT/pending fix имеет отдельные red/green сценарии.
 
-Мобильный initial import graph: **150305 bytes raw /42250 bytes gzip-9**,
-+35673/+9270 к первому checkpoint. Отдельная чистая сборка с собственными
+Мобильный initial import graph: **150518 bytes raw /42292 bytes gzip-9**,
++35886/+9312 к первому checkpoint. Отдельная чистая сборка с собственными
 node_modules, прежние minify:false/cssMinify:false/sourcemaps/лицензии сохранены.
-[Все ассеты](evidence/panel-combat-2026-10-03/sizes.json).
+[Все ассеты](evidence/panel-combat-2026-10-03/final-local-sizes.json).
 
 Найдены и исправлены: смысловые cooldown keys для powers/сторон призыва;
 отвергнутая optimistic стойка (включая поздний отказ по собственному action_id);
@@ -36,8 +38,12 @@ Missing/malformed prices и потеря свежих battle/buffs/build дан�
 [Подробный combat отчёт](PANEL_COMBAT_PARITY_2026-10-03.md) включает98реальных
 handler-response записей,38успешных actions, все request families, тесты и границы.
 Браузер/318px/телефон/Twitch Hosted Test/реальная игра по-прежнему **НЕ проверены**.
-Первый CI и его единственный повтор, включая унаследованный backend test-flake,
-сохранены ниже; новый опубликованный SHA/его CI проверяются отдельно.
+**Публикация текущего combat/JWT checkpoint заблокирована.** После отказа и одного
+повтора по подтверждённому плану дальнейшие GitHub записи остановлены. Remote
+`feature/panel-preact` остаётся на `58c2e4f9fc0a74303931b7eb335144ed1439706a`:
+это только первый321-test checkpoint, без описанного выше combat/JWT кода.
+Для новых локальных SHA GitHub CI **не запускался**. Все474/types/build/HTTP выше —
+локальные проверки. Первый CI и единственный повтор сохранены ниже. Нет merge/deploy.
 
 
 ## Первый проверенный checkpoint: развитие героя, снаряжение, счётчики

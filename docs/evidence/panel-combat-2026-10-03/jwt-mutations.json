@@ -1,0 +1,22 @@
+{
+  "mutations": [
+    {
+      "name": "jwt-tail-fire",
+      "exit": 1
+    },
+    {
+      "name": "jwt-cooldown",
+      "exit": 1
+    },
+    {
+      "name": "jwt-build-pending",
+      "exit": 1
+    },
+    {
+      "name": "jwt-build-revision",
+      "exit": 1
+    }
+  ],
+  "restored_sha256": "3721b380cc8ecc963f6fb872979ed721210f5202036c326185fac62af858e273",
+  "supersedes": "Earlier third acceptance-gate mutant used an incorrect pending expectation; discarded after independent legacy-oracle review."
+}

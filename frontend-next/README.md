@@ -6,7 +6,9 @@ Twitch ZIP, production и релизный упаковщик не меняют�
 ## Входы
 
 - `panel-extension.html`, `panel-mobile.html`: отдельный Preact-кандидат подэкранов
-  развития героя Bannerlord и магазина/инвентаря. Это ещё не вся старая панель.
+  развития героя Bannerlord, магазина/инвентаря и боевых действий (без турниров).
+  Это ещё не вся старая панель; фактический published/local scope указан в
+  `docs/PANEL_PREACT_RESULT_2026-10-03.md`.
   Парные входы одинаковы, используют прежний Twitch resolver и тот же проверяемый
   build-time EBS origin. Старые viewer scripts в их граф не входят
 - `index.html`, `extension.html`, `mobile.html`: одинаковое Preact-приложение

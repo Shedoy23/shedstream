@@ -187,3 +187,25 @@ Generator требует заявленные backend test dependencies; лок�
 Test, реальный Bannerlord и фактическое действие приказа/способности в игре не
 проверены.** CSS содержит узкий breakpoint, но это не доказательство визуального
 качества. Перед использованием нужна проверка глазами и дальнейший review.
+
+## Последний локальный JWT lifecycle fix и публикация
+
+Runtime `fc0dde744ceed2089238185a305d27c5644ab313` сохраняет два разных владельца:
+legacy wrapper cooldown и3.5s hero-tail принадлежат исходному JWT; принятый
+BnrBuilds pending принадлежит той же viewer identity и переживает обновление JWT.
+Общий balance refresh остаётся текущим. Red670d48e показал лишние старые callback
+GET/cooldown; независимый старый DOM oracle затем обнаружил, что слишком широкий
+JWT guard ошибочно разрешал второй build POST. Corrected red ce63851 и fix fc0dde7
+сохраняют pending=true/одинPOST, не позволяют старому pre-ack build GET снять pending.
+Первоначальное противоположное ожидание теста было неверным и заменено; его старый
+mutation outcome не считается доказательством.
+
+Финально474unit/DOM +2отдельных realHTTP, types/build/check-build exit0;27combat +
+[4 актуальные JWT mutations](evidence/panel-combat-2026-10-03/jwt-mutations.json),
+все exit1 → byte-exact restore → полный474-green. Новый initial mobile размер:
+**150518 raw /42292 gzip-9**, [перечень](evidence/panel-combat-2026-10-03/final-local-sizes.json).
+
+Публикация нового checkpoint не прошла; после одного разрешённого повтора
+дальнейшие записи остановлены. Ветка GitHub пока58c2e4f (первые321tests без combat).
+Для этого нового локального кода GitHub CI не заявляется; предыдущий remote CI и
+его flaky backend-test история — в основном отчёте. Backend и его тесты не менялись.

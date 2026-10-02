@@ -1,8 +1,9 @@
 ## 03.10.2026 — новая Preact панель, проверенный частичный кандидат
 
 От опубликованной Preact базы: развитие героя, снаряжение и боевые действия (без турниров).
-469 unit/DOM +2 realHTTP,27 combat mutations; mobile initial150305 raw/42250 gzip-9.
-Ветки опубликованы отдельно, merge/deploy нет. Первый panel CI: frontend зелёный сразу,
+474 unit/DOM +2 realHTTP,27 combat +4 JWT mutations; initial150518 raw/42292 gzip-9.
+Combat/JWT checkpoint локальный: публикация заблокирована, remote panel пока58c2e4f.
+Merge/deploy нет. Первый panel CI: frontend зелёный сразу,
 общий gate зелёный после одного повтора; унаследованный backend test-flake не исправлен.
 Браузер/318px/телефон/Hosted Test/игровые эффекты не проверены. Остальная панель ещё в работе.
 [Текущие экраны, проверки и ограничения](docs/PANEL_PREACT_RESULT_2026-10-03.md).

@@ -1,5 +1,7 @@
 ## 03.10 — Preact panel: оставшиеся release gates и CI test-harness
 
+- Публикация combat/JWT checkpoint заблокирована после одного повтора; remote panel58c2e4f, новый код только локально. Новых попыток/альтернативных маршрутов до явного уточнения пользователя не будет
+
 - Browser/318px/телефон/Hosted Test/реальный мод: не пройдены; cloud loopback denied, desktop offline
 - Остальные экраны согласованного плана отмечены в [panel отчёте](docs/PANEL_PREACT_RESULT_2026-10-03.md), не выдаются за готовые
 - Неизменённый backend deadline test воспроизводимо блокирует event loop синхронным SQLite UPDATE при конкурирующем heartbeat. Первый panel CI failed, один exact-head rerun success. Test-only fix НЕ применён, backend запрещён планом; [доказательства и отдельное предложение](docs/PANEL_CI_FLAKE_2026-10-03.md)

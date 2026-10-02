@@ -22,6 +22,7 @@ let _bannerlordLifecycle = 0;
 let _bnrHeroRequestSeq = 0;
 let _bnrVassalRequestSeq = 0;
 let _bnrBuffRequestSeq = 0;
+let _bnrBuffAppliedSeq = 0;
 let _bnrCooldownRevision = 0;
 let _bannerlordPollId = null;
 let _bannerlordBuffPollId = null;   // 4.6 — periodic GET /api/bannerlord/my-buffs (2.5s)
@@ -3836,7 +3837,7 @@ function renderBannerlordSummonButton() {
 async function loadBannerlordBuffs() {
     const request = ++_bnrBuffRequestSeq, lifecycle = _bannerlordLifecycle, token = authToken;
     const cooldownRevision = _bnrCooldownRevision;
-    const isCurrent = () => request === _bnrBuffRequestSeq && lifecycle === _bannerlordLifecycle && token === authToken;
+    const isCurrent = () => request > _bnrBuffAppliedSeq && lifecycle === _bannerlordLifecycle && token === authToken;
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/my-buffs`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
@@ -3844,6 +3845,9 @@ async function loadBannerlordBuffs() {
         const data = await r.json();
         if (!isCurrent()) return;
         if (data.success) {
+            // Apply in monotonic order, not only the latest issued request:
+            // a slow connection can keep a newer poll in flight indefinitely.
+            _bnrBuffAppliedSeq = request;
             const now = Date.now();
             _bannerlordBuffs = (data.buffs || []).map(b => ({
                 ...b,

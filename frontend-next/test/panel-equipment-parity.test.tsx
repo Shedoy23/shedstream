@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup } from '@testing-library/preact';
 import { createLegacyHarness, legacyHttpReply, type LegacyJson, type LegacyRequest } from './panel-legacy-harness';
-import { equipmentSetup, f, click, change, flush, type Trace } from './panel-equipment-support';
+import { equipmentSetup, f, click, change, deferred, flush, response, type Trace } from './panel-equipment-support';
 const closers: (() => void)[] = [];
 afterEach(() => { cleanup(); closers.splice(0).forEach(close => close()); vi.useRealTimers(); });
 function normalized(trace: (LegacyRequest | Trace)[]) {
@@ -136,4 +136,24 @@ for (const [name, ui] of Object.entries({
   const labels = (root: ParentNode) => [...root.querySelectorAll('[data-bnr-eq-discard]')].map(node => node.textContent);
   expect(labels(p.ui.container)).toEqual(labels(p.old.document)); expect(styles(p.ui.container)).toEqual(styles(p.old.document));
   expect(p.ui.container.querySelector('[data-bnr-eq-discard] b')).toBeNull(); await p.finish();
+});
+
+it('old/new actual active inventory double click coalesces one pending equipment GET', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+  const old = createLegacyHarness({}, { panelLifecycle: true }); closers.push(old.dispose); await old.bootHero();
+  const next = equipmentSetup(); closers.push(() => next.controller.stop()); const ui = await next.start(true, true);
+  // Both hosts are already authorized/hydrated; compare the entire tab scenario.
+  old.trace.length = 0; next.trace.length = 0;
+  const oldReply = deferred<LegacyJson>(), newReply = deferred<Response>();
+  old.fixtures.equipment = () => oldReply.promise; next.routes['/api/bannerlord/equipment-shop'] = newReply.promise;
+  const newTab = ui.getByRole('button', { name: 'Снаряжение' });
+  await old.click('[data-bnr-tab="inventory"]'); await act(async () => { newTab.click(); await flush(); });
+  await old.click('[data-bnr-tab="inventory"]'); await act(async () => { newTab.click(); await flush(); });
+  expect(normalized(next.trace), 'no duplicate GET while same-context equipment request is pending').toEqual(normalized(old.trace));
+  expect(next.trace.filter(row => row.path === '/api/bannerlord/equipment-shop')).toHaveLength(1);
+  oldReply.resolve(f.equipment_inventory); newReply.resolve(response(f.equipment_inventory)); await old.settle(); await act(async () => { await flush(); });
+  old.fixtures.equipment = f.equipment_inventory; next.routes['/api/bannerlord/equipment-shop'] = f.equipment_inventory;
+  await old.click('[data-bnr-tab="inventory"]'); await act(async () => { newTab.click(); await flush(); });
+  expect(normalized(next.trace)).toEqual(normalized(old.trace));
+  expect(next.trace.filter(row => row.path === '/api/bannerlord/equipment-shop')).toHaveLength(2);
 });

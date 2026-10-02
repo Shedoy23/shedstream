@@ -62,7 +62,9 @@ export class PanelController {
     return this.load<BuffsReply>('buffs', '/api/bannerlord/my-buffs', data => ({ cooldowns: revision === this.cooldownRevision ? Object.fromEntries((data.cooldowns || []).map(c => [c.power_key, this.clock() + Math.max(0, c.remaining_s) * 1000])) : this.state.cooldowns }));
   };
   async refreshDevelopment() {
-    await Promise.all([this.refreshHero(), this.refreshBuild(), this.equipmentRefresh?.(),
+    // The old explicit refresh orders mounted equipment before build; the
+    // delayed successful-action tail below deliberately uses the reverse order.
+    await Promise.all([this.refreshHero(), this.equipmentRefresh?.(), this.refreshBuild(),
       !hasProgressionPrices(this.state.config) ? this.refreshConfig() : undefined,
       !this.state.classes ? this.refreshClasses() : undefined]);
   }

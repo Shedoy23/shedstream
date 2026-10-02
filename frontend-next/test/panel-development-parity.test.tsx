@@ -142,7 +142,7 @@ for (const [name, hero] of Object.entries({ absent: f.hero_absent, dead: f.hero_
   expect(p.old.document.querySelector('[data-skill],[data-attr]')).toBeNull();
   expect(p.ui.container.querySelector('[data-skill],[data-attr]')).toBeNull(); await p.finish(); expect(p.trace).toEqual([]);
 });
-it('claimed starter and equipment-ready legacy mode preserve the old information-only state', async () => {
+it('claimed starter preserves the old information-only state', async () => {
   const p = await pair({ build: f.build_claimed });
   expect(p.old.document.querySelector('[data-bnr-build-starter]')).toBeNull(); expect(p.ui.container.querySelector('[data-bnr-build-starter]')).toBeNull();
   expect(p.ui.container.textContent).toContain('Стартовый набор получен'); await p.finish();

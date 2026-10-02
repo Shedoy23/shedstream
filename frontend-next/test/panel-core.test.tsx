@@ -216,3 +216,11 @@ it('unknown-outcome disables visible mutation controls while refresh and another
   expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(true);
   s.controller.stop();
 });
+it('an already rendered action button cannot dispatch during token identity verification', async () => {
+  const s = setup(); await s.start(); const ui = render(<HeroDevelopmentView controller={s.controller} />);
+  const pending = deferred<Response>(); s.routes['/api/user/resolve-twitch-token'] = pending.promise;
+  const button = ui.container.querySelector('[data-attr="Vigor"]') as HTMLElement;
+  s.authorize({ ...authValue, token: 'rotated' }); button.click();
+  expect(s.trace.filter(row => row.path === '/api/bannerlord/action')).toEqual([]);
+  pending.resolve(response({ login: 'alice' })); await flush(); s.controller.stop();
+});

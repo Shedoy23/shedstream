@@ -5,6 +5,7 @@ import { configuredApiOrigin } from '../skillgames/origin';
 import { PanelController } from './controller';
 import { HttpPanelTransport } from './transport';
 import { PanelApp } from './PanelApp';
+import { EquipmentView } from './EquipmentView';
 import './style.css';
 declare global { interface Window { Twitch?: { ext?: IdentityHelper } } }
 const auth = new TwitchAuthStore();
@@ -13,4 +14,4 @@ const controller = new PanelController(new HttpPanelTransport(configuredApiOrigi
 if (window.Twitch?.ext) identity.attach(window.Twitch.ext);
 const root = document.getElementById('panel-root');
 if (!root) throw new Error('Panel root is missing');
-createRoot(root).render(<PanelApp controller={controller} identity={identity} />);
+createRoot(root).render(<PanelApp controller={controller} identity={identity} Equipment={EquipmentView} />);

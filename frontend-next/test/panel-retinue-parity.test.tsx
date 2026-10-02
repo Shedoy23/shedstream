@@ -80,3 +80,9 @@ it('retinue buttons use new identity authorization only after fresh resolution',
   const p=await pair();await act(async()=>{p.authorize({token:'rotated',channelId:'channel-a',userId:'opaque-alice'});await flush();});
   await act(async()=>{(p.ui.container.querySelector(selectors[0]) as HTMLButtonElement).click();await flush();});expect(p.trace.filter(x=>x.path.endsWith('/action')).at(-1)?.token).toBe('rotated');
 });
+it('real server insufficient-gold refusal keeps exact text and has no success refresh tail',async()=>{
+  const p=await pair({action:r.recruit_insufficient.response});await p.click(selectors[0]);expect(p.ui.container.textContent).toContain(r.recruit_insufficient.response.message);await p.hide(true);await p.advance(3500);p.check();expect(p.trace.filter(x=>x.path.endsWith('/my-hero'))).toHaveLength(1);
+});
+it('unknown server retinue cap prevents all three mutations without inventing five slots',async()=>{
+  const hero={...r.hero_retinue_full,hero:{...r.hero_retinue_full.hero,retinue_cap:null}};const p=await pair({hero});expect(buttons(p.ui.container).every(b=>b?.disabled)).toBe(true);expect(p.ui.container.textContent).toContain('Свита (5/—)');
+});

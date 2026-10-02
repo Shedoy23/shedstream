@@ -227,6 +227,7 @@ def _check_request_rate_limit(request: Request, channel_id: int, claims: dict) -
     key = channel_id
     identity = ("uid:" + str(claims["user_id"]) if claims.get("user_id")
                 else "opaque:" + str(claims["username"]) if claims.get("username") else "")
+    telemetry = request.method == "POST" and request.url.path == "/api/viewer/ui-usage"
     polling = request.method in ("GET", "HEAD") or (
         request.method == "POST" and request.url.path in (
             "/api/viewer/online", "/api/viewer/activity", "/api/viewer/ui-usage"))
@@ -235,6 +236,14 @@ def _check_request_rate_limit(request: Request, channel_id: int, claims: dict) -
         # Bound viewer bucket growth between cleanup passes; overflow stays limited.
         if candidate in _channel_rate_buckets or len(_channel_rate_buckets) < _CHANNEL_POLL_BUCKETS_MAX:
             key = candidate
+        elif telemetry:
+            # Best-effort analytics must never spend the shared action budget,
+            # even when the bounded polling-identity cache is saturated.
+            _raise_channel_rate_limited(channel_id, scope="viewer_poll")
+    elif telemetry:
+        # Its route rejects missing linked identity; do not charge actions on
+        # the way to that rejection.
+        return
     if not check_channel_rate_limit(channel_id, bucket_key=key):
         remaining = _channel_rate_buckets[key]["reset"] - _time.time()
         _raise_channel_rate_limited(channel_id, retry_after=max(1, math.ceil(remaining)),

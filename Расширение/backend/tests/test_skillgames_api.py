@@ -407,4 +407,55 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.rows('SELECT points FROM viewers WHERE channel_id=11 AND username=?',('alice',)),[(1234,)])
 
 
+    async def test_stale_generation_reservations_cannot_block_channel(self):
+        alice, bob = await self.start(), await self.start(user='bobby')
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("INSERT INTO skillgame_runtimes VALUES('dead-owner',0)")
+            conn.execute("UPDATE skillgame_sessions SET status='generating',runtime_id='dead-owner',expires_at=? WHERE channel_id=11",(time.time()+600,))
+        charlie = await self.start(user='charlie')
+        opened = await self.action(charlie,'open',user='charlie',cell=0)
+        self.assertEqual(opened['status'],'active')
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM skillgame_sessions WHERE channel_id=11 AND status='generating'"),[(0,)])
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM skillgame_results WHERE channel_id=11 AND outcome='void'"),[(2,)])
+        self.assertFalse(self.rows('SELECT * FROM duel_stats'))
+
+    async def test_auth_policy_preserves_forbidden_and_retry_after(self):
+        import dependencies
+        with patch.object(dependencies,'is_channel_approved',return_value=False):
+            result = await self.call('GET','/state',code=403)
+        self.assertEqual(result['detail']['status'],'channel_pending_approval')
+        with patch.object(dependencies,'is_channel_registered',return_value=False):
+            result = await self.call('GET','/state',code=403)
+        self.assertEqual(result['detail']['status'],'channel_not_registered')
+        def limited(*args):
+            dependencies._raise_channel_rate_limited(11,retry_after=17)
+        with patch.object(dependencies,'_check_request_rate_limit',side_effect=limited):
+            response = await self.client.get('/api/skillgames/state',headers=self.headers())
+        self.assertEqual(response.status_code,429)
+        self.assertEqual(response.headers.get('retry-after'),'17')
+
+    async def test_receipts_have_bounded_retention_and_terminal_replay_safety(self):
+        from skillgames import config
+        with patch.object(config,'REQUEST_RETENTION_SECONDS',10,create=True),patch.object(config,'MAX_RECEIPTS_PER_USER',3,create=True):
+            first = {'request_id':'first-bounded-cancel'}
+            response = await self.call('POST','/queue/cancel',first)
+            await self.call('POST','/queue/cancel',{'request_id':'second-bounded-cancel'})
+            await self.call('POST','/queue/cancel',{'request_id':'third-bounded-cancel'})
+            self.assertEqual(response,await self.call('POST','/queue/cancel',first))
+            await self.call('POST','/queue/cancel',{'request_id':'fourth-bounded-cancel'},code=429)
+            self.assertEqual(self.rows('SELECT COUNT(*) FROM skillgame_requests WHERE channel_id=11'),[(3,)])
+            with sqlite3.connect(self.path) as conn:
+                conn.execute('UPDATE skillgame_requests SET created_at=? WHERE channel_id=11',(time.time()-20,))
+            await self.call('POST','/queue/cancel',{'request_id':'after-receipt-expiry'})
+            self.assertEqual(self.rows('SELECT COUNT(*) FROM skillgame_requests WHERE channel_id=11'),[(1,)])
+        session = await self.action(await self.start(),'open',cell=0)
+        body = dict(session_id=session['id'],version=session['version'],request_id='expired-result-retry',action='quit')
+        await self.call('POST','/action',body)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('UPDATE skillgame_requests SET created_at=0 WHERE channel_id=11')
+        await self.call('POST','/action',body,code=409)
+        self.assertEqual(self.rows("SELECT elo FROM duel_stats WHERE channel_id=11 AND username='alice'"),[(984,)])
+        self.assertEqual(self.rows('SELECT COUNT(*) FROM skillgame_results WHERE channel_id=11'),[(1,)])
+
+
 if __name__ == '__main__': unittest.main(verbosity=2)

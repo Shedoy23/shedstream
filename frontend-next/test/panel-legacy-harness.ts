@@ -30,6 +30,7 @@ import { dirname, resolve } from 'node:path';
 import vm from 'node:vm';
 import savedResponses from './panel-fixtures/real-responses.json';
 import combatSaved from './panel-fixtures/combat-responses.json';
+import partySaved from './panel-fixtures/party-responses.json';
 
 const require = createRequire(import.meta.url);
 type LegacyWindow = Window & {
@@ -92,6 +93,7 @@ export interface LegacyFixtures {
   usage: LegacyFixture;
   equipment: LegacyFixture;
   battle: LegacyFixture;
+  partyOrders: LegacyFixture;
 }
 export const legacySelectors = {
   focus: (key: string) => `.bnr-prog-focus-btn[data-skill=${JSON.stringify(key)}]`,
@@ -103,7 +105,7 @@ export const legacySelectors = {
 };
 
 export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, options: {
-  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean; combatHost?: boolean; retinueHost?: boolean; initialTab?: 'combat' | 'hero' | 'inventory';
+  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean; combatHost?: boolean; retinueHost?: boolean; partyHost?: boolean; initialTab?: 'combat' | 'hero' | 'inventory' | 'dynasty';
 } = {}) {
   let login = options.login ?? 'alice';
   let token = options.token ?? 'alice-token';
@@ -139,6 +141,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     usage: legacyHttpReply(legacyResponses.usage_unauthorized, 401),
     equipment: legacyResponses.equipment_inventory,
     battle: combatResponses.battle_idle,
+    partyOrders: partySaved.responses.orders_none,
     ...overrides,
   };
   const dom = new JSDOM(shell, { url: 'https://extension-files.twitch.tv/extension.html', runScripts: 'outside-only', pretendToBeVisual: true });
@@ -199,6 +202,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     ['GET /api/bannerlord/my-buffs', 'buffs'], ['POST /api/bannerlord/action', 'action'],
     ['GET /api/bannerlord/equipment-shop', 'equipment'],
     ['GET /api/bannerlord/battle-status', 'battle'],
+    ['GET /api/bannerlord/party-orders', 'partyOrders'],
     [`GET /api/viewer/stats/${login}`, 'stats'], [`GET /api/user/level/${login}`, 'level'],
     ['GET /api/duel/list', 'duels'], ['POST /api/viewer/ui-usage', 'usage'],
   ]);
@@ -242,6 +246,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     ${options.combatHost ? '<button class="bnr-tab-btn" data-bnr-tab="combat">Боевые действия</button>' : ''}
     ${options.panelLifecycle ? '<button class="bnr-tab-btn" data-bnr-tab="hero">Развитие</button><button class="bnr-tab-btn" data-bnr-tab="inventory">Снаряжение</button>' : ''}
     ${options.combatHost ? '<section class="bnr-tab-pane" data-bnr-pane="combat"><div id="bnr-battle-banner-slot"></div><div id="bnr-combat-stance-slot"></div><div id="bnr-buff-hud"></div><div id="bnr-detachment-slot"></div><div id="bnr-summon-slot" data-bnr-ui-section="summon"></div><div id="bnr-active-powers-slot" data-bnr-ui-section="active_powers"></div><div id="bnr-build-choice-slot" data-bnr-ui-section="weapon_choice"></div></section>' : ''}
+    ${options.partyHost ? '<button class="bnr-tab-btn" data-bnr-tab="dynasty">Клан, отряд и армия</button><section class="bnr-tab-pane" data-bnr-pane="dynasty"><div id="bnr-dynasty-locked-actions"></div><details data-bnr-details="dyn-clan" open><summary>🏰 Клан</summary><div id="bnr-clan-mgmt-slot"></div></details><div id="bnr-party-orders-slot"></div><div id="bnr-army-slot"></div></section>' : ''}
     <div id="hero-body"></div>
     <section id="bnr-pane-hero-body" class="bnr-tab-pane active" data-bnr-pane="hero">
       <div id="bnr-pane-hero-stats"></div>
@@ -320,6 +325,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     if (booted) throw new Error('bootHero may be called only once; use refreshHero/refreshBuild/refreshBuffs');
     if (equipmentOnly) throw new Error('bootHero needs the hero scope');
     enterLifecycle();
+    if (options.partyHost) { await evaluate<Promise<void>>("Promise.all([_hydrateBnrConfig(),loadBannerlordHero(),loadBannerlordClasses(),loadBannerlordBuild(),loadBannerlordBuffs()])"); await settle(); return; }
     for (const loader of ['_hydrateBnrConfig', 'loadBannerlordHero', 'loadBannerlordClasses', 'loadBannerlordBuild', 'loadBannerlordBuffs']) {
       await evaluate<Promise<void>>(`${loader}()`);
       await settle();
@@ -361,6 +367,8 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
   function dispose() { disposed = true; timers.clear(); window.close(); }
   assertHealthy();
   return { bootHero, bootCombat, bootEquipment, resetEquipment, setIdentity, exposeUsagePanels, setHidden, trace, document, window, fixtures, sourceFiles: [...sourceFiles], settle, advance, click, change,
+    stop: () => { evaluate('_stopBannerlordPolling()'); },
+    refreshPartyOrders: () => refresh('loadBannerlordPartyOrders'),
     refreshConfig: () => refresh('_hydrateBnrConfig'),
     refreshHero: () => refresh('loadBannerlordHero'), refreshBuild: () => refresh('loadBannerlordBuild'),
     refreshBuffs: () => refresh('loadBannerlordBuffs'),

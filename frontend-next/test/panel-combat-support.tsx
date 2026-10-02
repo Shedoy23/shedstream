@@ -24,10 +24,10 @@ export function normalized(trace: LegacyRequest[]) {
   });
 }
 export const usageEvents = (trace: LegacyRequest[]) => trace.filter(row => row.path === '/api/viewer/ui-usage').flatMap(row => (row.body as { events: { kind: string; feature: string; count: number }[] }).events);
-export async function combatPair(overrides: Partial<LegacyFixtures> = {}, hidden = false, initialTab?: 'combat' | 'hero' | 'inventory', retinueHost = false) {
+export async function combatPair(overrides: Partial<LegacyFixtures> = {}, hidden = false, initialTab?: 'combat' | 'hero' | 'inventory' | 'dynasty', retinueHost = false, partyHost = false) {
   if (initialTab) localStorage.setItem('bnr_active_tab', initialTab);
   Object.defineProperty(document, 'hidden', { configurable: true, value: hidden });
-  const old = createLegacyHarness({ usage: f.usage_ok, build: c.build_no_session, classes: c.classes_by_key.tank, battle: c.battle_siege, buffs: c.buffs_empty, action: combatAction, ...overrides }, { panelLifecycle: true, combatHost: true, retinueHost, initialTab, now }); drains.push(old.dispose);
+  const old = createLegacyHarness({ usage: f.usage_ok, build: c.build_no_session, classes: c.classes_by_key.tank, battle: c.battle_siege, buffs: c.buffs_empty, action: combatAction, ...overrides }, { panelLifecycle: true, combatHost: true, retinueHost, partyHost, initialTab, now }); drains.push(old.dispose);
   if (hidden) await old.setHidden(true);
   await old.bootCombat(); await old.exposeUsagePanels();
   const trace: LegacyRequest[] = [], failures: string[] = [], calls: Record<string, number> = {};
@@ -35,7 +35,7 @@ export async function combatPair(overrides: Partial<LegacyFixtures> = {}, hidden
     'GET /api/bannerlord/config': 'config', 'GET /api/bannerlord/my-hero': 'hero', 'GET /api/bannerlord/classes': 'classes',
     'GET /api/bannerlord/build': 'build', 'GET /api/bannerlord/my-buffs': 'buffs', 'POST /api/bannerlord/action': 'action',
     'GET /api/viewer/stats/alice': 'stats', 'GET /api/user/level/alice': 'level', 'GET /api/duel/list': 'duels',
-    'GET /api/bannerlord/equipment-shop': 'equipment', 'GET /api/bannerlord/battle-status': 'battle', 'POST /api/viewer/ui-usage': 'usage',
+    'GET /api/bannerlord/party-orders': 'partyOrders', 'GET /api/bannerlord/equipment-shop': 'equipment', 'GET /api/bannerlord/battle-status': 'battle', 'POST /api/viewer/ui-usage': 'usage',
   };
   let resolver: () => Promise<Response> = async () => new Response(JSON.stringify({ login: 'alice' }));
   const fetcher: typeof fetch = async (input, init = {}) => {
@@ -60,10 +60,10 @@ export async function combatPair(overrides: Partial<LegacyFixtures> = {}, hidden
   const usage = new PanelUsage({ auth, identity, baseUrl: '', surface: 'desktop', fetcher });
   const controller = new PanelController(new HttpPanelTransport('', auth, fetcher), auth, identity, Date.now, usage);
   let ui!: ReturnType<typeof render>;
-  await act(async () => { authorize({ token: 'alice-token', channelId: 'channel-a', userId: 'opaque-alice' }); await flush(); ui = render(<PanelApp controller={controller} identity={identity} Equipment={EquipmentView} {...{ combat: true }} />); await flush(); });
+  await act(async () => { authorize({ token: 'alice-token', channelId: 'channel-a', userId: 'opaque-alice' }); await flush(); ui = render(<PanelApp controller={controller} identity={identity} Equipment={EquipmentView} {...{ combat: true, party: partyHost }} />); await flush(); });
   await act(async () => { await flush(); });
   const check = () => { expect(failures).toEqual([]); old.assertHealthy(); expect(normalized(trace), 'complete admitted-host request trace, including telemetry and all action/poll tails').toEqual(normalized(old.trace)); };
-  check();
+  if (!partyHost) check();
   return { old, trace, controller, usage, ui, authorize, identity, fixtures: old.fixtures, failures,
     resolver: (fn: () => Promise<Response>) => { resolver = fn; }, check,
     async advance(ms: number) { await old.advance(ms); await act(async () => { await vi.advanceTimersByTimeAsync(ms); await flush(); }); },
@@ -71,7 +71,7 @@ export async function combatPair(overrides: Partial<LegacyFixtures> = {}, hidden
       for (let i = 0; i < count; i++) (old.document.querySelector(oldSelector) as HTMLElement).click(); await old.settle();
       await act(async () => { for (let i = 0; i < count; i++) (ui.container.querySelector(newSelector) as HTMLElement).click(); await flush(); }); await act(async () => { await flush(); });
     },
-    async tab(tab: 'hero' | 'inventory' | 'combat') { await old.click(`[data-bnr-tab="${tab}"]`); await act(async () => { ui.getByRole('button', { name: tab === 'hero' ? 'Развитие' : tab === 'combat' ? 'Боевые действия' : 'Снаряжение' }).click(); await flush(); }); await act(async () => { await flush(); }); },
+    async tab(tab: 'hero' | 'inventory' | 'combat' | 'dynasty') { await old.click(`[data-bnr-tab="${tab}"]`); await act(async () => { ui.getByRole('button', { name: tab === 'hero' ? 'Развитие' : tab === 'combat' ? 'Боевые действия' : tab === 'dynasty' ? 'Клан, отряд и армия' : 'Снаряжение' }).click(); await flush(); }); await act(async () => { await flush(); }); },
     async hide(value: boolean) { await old.setHidden(value); await act(async () => { Object.defineProperty(document, 'hidden', { configurable: true, value }); document.dispatchEvent(new Event('visibilitychange')); await flush(); }); },
   };
 }

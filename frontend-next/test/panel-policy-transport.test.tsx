@@ -113,6 +113,27 @@ for (const { name, status, body } of invalid) it(`uncertain boundary: ${name} ke
   expect(s.fetcher).toHaveBeenCalledTimes(1); expect(s.newId).toHaveBeenCalledTimes(1);
 });
 
+for (const channel_id of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) it(`rejects invalid numeric response channel even when its string matches authorization: ${channel_id}`, async () => {
+  const s = setup('unregistered', async () => json({ detail: { ...detail, channel_id } }, 403));
+  s.auth.authorize({ ...authFor('unregistered'), channelId: String(channel_id) });
+  await expect(s.transport.action('hero.army_create', {})).rejects.toBeInstanceOf(UnknownActionOutcomeError);
+});
+it('accepts a canonical safe-integer channel boundary without a local ID allowlist', async () => {
+  const channel_id = Number.MAX_SAFE_INTEGER;
+  const s = setup('unregistered', async () => json({ detail: { ...detail, channel_id } }, 403));
+  s.auth.authorize({ ...authFor('unregistered'), channelId: String(channel_id) });
+  expect(await s.transport.action('hero.army_create', {})).toEqual({ success: false, message: detail.message });
+});
+for (const extra of [{ limit_per_min: 1.5 }, { limit_per_min: '6000' }, { limit_per_min: null }, { limit_per_min: 0 }, { limit_per_min: Number.MAX_SAFE_INTEGER + 1 }, { tier: null }, { tier: 4 }, { scope: 'unknown' }]) it(`malformed rate metadata is not normalized: ${JSON.stringify(extra)}`, async () => {
+  const s = setup('rate_limited', async () => json({ detail: { ...rate, ...extra } }, 429));
+  await expect(s.transport.action('hero.army_create', {})).rejects.toBeInstanceOf(UnknownActionOutcomeError);
+  await expect(s.transport.read('/api/bannerlord/my-hero')).rejects.toThrow('Ошибка сервера (429)');
+});
+it('rate metadata may use a future nonempty server tier and an arbitrary positive quota', async () => {
+  const s = setup('rate_limited', async () => json({ detail: { ...rate, tier: 'new-server-tier', limit_per_min: 7 } }, 429, { 'Retry-After': '17' }));
+  expect(await s.transport.action('hero.army_create', {})).toEqual({ success: false, message: rate.message });
+});
+
 for (const channelId of ['033', ' 33', '33 ', '+33', '3.3e1', '', 'unknown']) it(`does not coerce ambiguous authorization channel ${JSON.stringify(channelId)}`, async () => {
   const s = setup(); s.auth.authorize({ ...authFor('unregistered'), channelId });
   await expect(s.transport.action('hero.army_create', {})).rejects.toBeInstanceOf(UnknownActionOutcomeError);

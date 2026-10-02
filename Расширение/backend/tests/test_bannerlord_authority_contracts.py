@@ -57,10 +57,15 @@ check("лимит пяти вассалов enforced backend",
       "vassals.length < 5" in front)
 check("bulk limit 10 enforced backend и отражён frontend",
       "len(upgrade_ids) > 10" in backend and "count <= 10" in front)
-check("дипломатический cooldown 300 enforced backend и отражён frontend",
+# The user-requested thin frontend must not duplicate the server's duration.
+# Keep the backend rule pinned; actual response/expiry/race behaviour is executed
+# by scripts/test-frontend-bannerlord-diplomacy-cooldowns.mjs in the frontend gate.
+check("дипломатический cooldown 300 enforced backend; frontend использует серверный clock",
       bool(re.search(r'"kingdom\.propose_war"\s*:\s*300', adapter)) and
       bool(re.search(r'"kingdom\.propose_peace"\s*:\s*300', adapter)) and
-      "const _DIPLO_CD = 300" in front)
+      'data-bnr-cd="kingdom.propose_war"' in front and
+      'data-bnr-cd="kingdom.propose_peace"' in front and
+      '_DIPLO_CD' not in front and '_bnrDiploCd' not in front)
 check("лимит детей объявлен одинаково в backend, моде и фронте",
       "MAX_ALIVE_CHILDREN = 5" in backend and
       "DEFAULT_MAX_ALIVE_CHILDREN = 5" in mod_baby and

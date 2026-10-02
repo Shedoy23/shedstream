@@ -9,7 +9,7 @@ export class HttpPanelTransport implements PanelTransport {
   async read<T>(path: string, signal?: AbortSignal): Promise<T> {
     if (!path.startsWith('/api/')) throw new Error('Недопустимый путь API');
     const authorization = this.authorization();
-    const { response, body } = await requestJson(this.fetcher, this.baseUrl + path, { headers: { 'X-Twitch-JWT': authorization.token }, signal, ...(path.startsWith('/api/viewer/stats/') ? { cache: 'no-store' as const } : {}) });
+    const { response, body } = await requestJson(this.fetcher, this.baseUrl + path, { headers: { 'X-Twitch-JWT': authorization.token }, signal, ...((path.startsWith('/api/viewer/stats/') || path === '/api/bannerlord/config') ? { cache: 'no-store' as const } : {}) });
     if (!response.ok || !isRecord(body) || body.success === false) {
       throw new Error(isRecord(body) && typeof body.message === 'string' ? body.message : `Ошибка сервера (${response.status})`);
     }

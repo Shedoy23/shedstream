@@ -9,7 +9,7 @@ import sys
 import tempfile
 import time
 import re
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -66,7 +66,7 @@ async def main():
             except HTTPException as exc:
                 return exc.status_code, exc.detail
         def rows(sql, values=()):
-            with sqlite3.connect(db.path) as conn:
+            with closing(sqlite3.connect(db.path)) as conn, conn:
                 return conn.execute(sql, values).fetchall()
         deps._channel_rate_buckets.clear()
         with patch.object(route, 'get_db', return_value=db), patch.object(deps, 'is_channel_registered', return_value=True), patch.object(deps, 'is_channel_approved', return_value=True):
@@ -119,7 +119,7 @@ async def main():
                 assert (await post(batch(), uid='990'))[0] == 429, 'Telemetry cache overflow must fail closed instead of consuming action quota'
                 assert not deps._channel_rate_buckets, 'Telemetry overload cannot create a shared action bucket'
             # Commit old rows, then ingestion must prune only its own channel.
-            with sqlite3.connect(db.path) as conn:
+            with closing(sqlite3.connect(db.path)) as conn, conn:
                 conn.execute("UPDATE ui_feature_usage SET day='2000-01-01' WHERE channel_id=22")
                 conn.execute("UPDATE ui_usage_batches SET created_at=0 WHERE channel_id=22")
             await post(batch(), cid=22, uid='107')
@@ -137,7 +137,7 @@ async def main():
             spec = importlib.util.spec_from_file_location('ui_report', report_path)
             reporter = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(reporter)
-            with sqlite3.connect(db.path) as conn:
+            with closing(sqlite3.connect(db.path)) as conn, conn:
                 conn.execute("""INSERT INTO ui_feature_usage
                     SELECT channel_id,date(day,'-1 day'),viewer_id,client,surface,module_id,active_module,kind,feature_key,count
                     FROM ui_feature_usage WHERE channel_id=11 AND viewer_id='101' AND kind='action_attempt'""")
@@ -152,7 +152,7 @@ async def main():
             run = subprocess.run([sys.executable, str(report_path), '--db', db.path, '--channel', '11'], capture_output=True, text=True)
             assert run.returncode == 0, run.stderr
             assert 'viewer_id' not in run.stdout and 'private' not in run.stdout
-            with sqlite3.connect(db.path) as conn:
+            with closing(sqlite3.connect(db.path)) as conn, conn:
                 assert list(conn.iterdump()) == before, 'Report command is read-only'
             print('PASS: report cohort intersection, cross-channel isolation, eligibility, unique viewers and read-only CLI')
             print('PASS: JWT, tenant/viewer isolation, allowlist/bounds, retry dedupe, rate, retention, existing metrics unchanged')

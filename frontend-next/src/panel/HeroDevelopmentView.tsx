@@ -13,7 +13,8 @@ const money = (value: number) => value.toLocaleString('ru-RU') + ' 💰';
 export function HeroDevelopmentView({ controller }: { controller: PanelController }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   const hero = state.hero?.hero;
-  const canAct = state.canAct && controller.ready();
+  const canRead = state.canAct && controller.ready();
+  const canAct = canRead && !state.mutationBlocked;
   const build = state.build?.build;
   const newBuild = !!state.build?.enabled || build?.version === 1;
   const buildBusy = state.busy.some(key => key.startsWith('hero.set_specialization:') || key.startsWith('hero.claim_starter:'));
@@ -23,7 +24,7 @@ export function HeroDevelopmentView({ controller }: { controller: PanelControlle
   const perform = (type: string, data: Record<string, unknown>, immediateHero = false) => { if (controller.ready()) void controller.action(type, data, { tail: 'hero', immediateHero }); };
   return <section className="panel-development" aria-label="Развитие героя">
     <div className="panel-section-heading"><div><p className="panel-eyebrow">BANNERLORD</p><h1>Развитие героя</h1></div>
-      <button type="button" disabled={!canAct || state.loading} onClick={() => { void controller.refreshDevelopment(); }}>Обновить</button></div>
+      <button type="button" disabled={!canRead || state.loading} onClick={() => { void controller.refreshDevelopment(); }}>Обновить</button></div>
     {state.loading && !state.hero && <p role="status">Загружаем героя…</p>}
     {state.error && <p className="panel-error" role="alert">{state.error}</p>}
     {state.message && <p className="panel-notice" role="status">{state.message}</p>}

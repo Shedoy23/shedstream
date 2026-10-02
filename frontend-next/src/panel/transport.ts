@@ -1,13 +1,13 @@
 import { TwitchAuthStore } from '../auth';
 import { isRecord } from '../contracts';
 import { requestJson } from '../skillgames/http';
-import { actionKey, type ActionReply, type PanelTransport } from './contracts';
+import { actionKey, UnknownActionOutcomeError, type ActionReply, type PanelTransport } from './contracts';
 export class HttpPanelTransport implements PanelTransport {
   private inflight = new Set<string>();
   // No automatic retry after an unknown result: the server may already have
   // accepted it. Keep this identity blocked for this transport's lifetime.
   private uncertain = new Set<string>();
-  private unknownOutcome() { return new Error('Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы до проверки результата. Обновление данных доступно; не повторяйте покупку вслепую.'); }
+  mutationBlock() { const auth = this.auth.current(); return this.uncertain.has(JSON.stringify([auth?.channelId, auth?.userId])) ? new UnknownActionOutcomeError().message : null; }
   constructor(private readonly baseUrl: string, private readonly auth: TwitchAuthStore, private readonly fetcher: typeof fetch = fetch, private readonly newId: () => string = () => crypto.randomUUID()) {}
   private authorization() { const value = this.auth.current(); if (!value?.token) throw new Error('Нужна авторизация Twitch'); return { ...value }; }
   async read<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -23,7 +23,7 @@ export class HttpPanelTransport implements PanelTransport {
     // Snapshot once. A token rotation must not change an already admitted request.
     const authorization = this.authorization();
     const identity = JSON.stringify([authorization.channelId, authorization.userId]);
-    if (this.uncertain.has(identity)) throw this.unknownOutcome();
+    if (this.uncertain.has(identity)) throw new UnknownActionOutcomeError();
     const key = identity + ':' + actionKey(type, data);
     if (this.inflight.has(key)) return null;
     this.inflight.add(key);
@@ -36,7 +36,7 @@ export class HttpPanelTransport implements PanelTransport {
       return body as ActionReply;
     } catch {
       this.uncertain.add(identity);
-      throw this.unknownOutcome();
+      throw new UnknownActionOutcomeError();
     } finally { this.inflight.delete(key); }
   }
 }

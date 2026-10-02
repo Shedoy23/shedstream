@@ -1,6 +1,6 @@
 import { TwitchAuthStore } from '../auth';
 import type { IdentityBootstrap } from '../skillgames/identity';
-import { actionKey, hasProgressionPrices, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
+import { actionKey, hasProgressionPrices, UnknownActionOutcomeError, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
 export class PanelController {
   private state: PanelState;
@@ -9,24 +9,25 @@ export class PanelController {
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
   constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now) { this.state = this.empty(); }
-  private empty(): PanelState { return { hero: null, config: null, build: null, classes: null, loading: false, canAct: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
+  private empty(): PanelState { return { hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
   snapshot = () => this.state;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   private publish(patch: Partial<PanelState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()); }
   identityGeneration = () => this.generation;
   ready = () => this.active && this.identity.snapshot().status === 'ready' && !!this.identity.snapshot().login && !!this.auth.current()?.token && this.owner === owner(this.auth);
   private invalidate() { this.generation++; this.aborts.forEach(abort => abort.abort()); this.aborts.clear(); this.timers.forEach(timer => clearTimeout(timer)); this.timers.clear(); this.issued = {}; this.applied = {}; this.cooldownRevision++; this.buildRevision++; this.state = this.empty(); }
+  private mutationGate() { const message = this.transport.mutationBlock?.(); return { mutationBlocked: !!message, ...(message ? { message } : {}) }; }
   private syncIdentity = () => {
     const next = owner(this.auth); const changed = next !== this.owner;
     if (changed) { this.owner = next; this.invalidate(); }
-    const previouslyReady = this.state.canAct; const canAct = this.ready(); this.publish({ canAct });
+    const previouslyReady = this.state.canAct; const canAct = this.ready(); this.publish({ canAct, ...this.mutationGate() });
     if (canAct && (changed || !previouslyReady)) void this.refresh();
   };
   async start() {
     if (this.active) return;
     this.active = true; this.owner = owner(this.auth);
     this.unsubscribe = [this.auth.subscribe(this.syncIdentity), this.identity.subscribe(this.syncIdentity)];
-    this.publish({ canAct: this.ready() }); if (this.ready()) await this.refresh();
+    this.publish({ canAct: this.ready(), ...this.mutationGate() }); if (this.ready()) await this.refresh();
   }
   stop() { this.active = false; this.unsubscribe.forEach(fn => fn()); this.unsubscribe = []; this.invalidate(); this.publish({ canAct: false }); }
   registerEquipmentRefresh(callback: () => void | Promise<unknown>) { this.equipmentRefresh = callback; return () => { if (this.equipmentRefresh === callback) this.equipmentRefresh = undefined; }; }
@@ -83,7 +84,7 @@ export class PanelController {
     } catch (error) { if (generation === this.generation) this.publish({ error: error instanceof Error ? error.message : 'Не удалось обновить баланс' }); }
   }
   async action(type: string, data: Record<string, unknown>, options: ActionOptions): Promise<ActionReply | null> {
-    if (!this.ready()) return null;
+    if (!this.ready() || this.state.mutationBlocked) return null;
     const generation = this.generation, login = this.identity.snapshot().login!, key = actionKey(type, data);
     // BnrBuilds has one synchronous family lock. Rendered disabled state alone
     // is too late for two different choices clicked before Preact commits.
@@ -118,7 +119,7 @@ export class PanelController {
       }
       return result;
     } catch (error) {
-      if (generation === this.generation) this.publish({ message: 'Ошибка сети: ' + (error instanceof Error ? error.message : String(error)) });
+      if (generation === this.generation) this.publish({ mutationBlocked: error instanceof UnknownActionOutcomeError || this.state.mutationBlocked, message: error instanceof UnknownActionOutcomeError ? error.message : 'Ошибка сети: ' + (error instanceof Error ? error.message : String(error)) });
       return null;
     } finally { if (generation === this.generation) this.publish({ busy: this.state.busy.filter(value => value !== key) }); }
   }

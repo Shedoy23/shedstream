@@ -7,10 +7,14 @@ export interface ClassesReply { success: boolean; classes: { class_key: string; 
 export interface BuffsReply { success: boolean; buffs: { power_key: string; remaining_s: number }[]; cooldowns: { power_key: string; remaining_s: number }[] }
 export interface ActionReply { success: boolean; message?: string; cooldown_applied_s?: number; cooldown_remaining_s?: number; required_role?: string; [key: string]: unknown }
 export interface ActionOptions { tail: 'hero' | 'balance'; immediateHero?: boolean; successMessage?: string }
-export interface PanelState { hero: HeroReply | null; config: PanelConfig | null; build: BuildReply | null; classes: ClassesReply | null; loading: boolean; canAct: boolean; message: string; error: string; errors: Record<string, string>; buildPending: boolean; busy: readonly string[]; cooldowns: Record<string, number>; now: number; generation: number }
-export interface PanelTransport { read<T>(path: string, signal?: AbortSignal): Promise<T>; action(type: string, data: Record<string, unknown>): Promise<ActionReply | null> }
+export interface PanelState { hero: HeroReply | null; config: PanelConfig | null; build: BuildReply | null; classes: ClassesReply | null; loading: boolean; canAct: boolean; mutationBlocked: boolean; message: string; error: string; errors: Record<string, string>; buildPending: boolean; busy: readonly string[]; cooldowns: Record<string, number>; now: number; generation: number }
+export interface PanelTransport { mutationBlock?(): string | null; read<T>(path: string, signal?: AbortSignal): Promise<T>; action(type: string, data: Record<string, unknown>): Promise<ActionReply | null> }
 export const validPrice = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 export const actionKey = (type: string, data: Record<string, unknown>) => type + ':' + Object.keys(data).sort().filter(key => key !== 'client_action_id').map(key => key + '=' + String(data[key])).join('&');
 
 // These five positions reflect the inherited UI cap, not a newly invented price table.
 export const hasProgressionPrices = (config: PanelConfig | null) => validPrice(config?.attribute_cost) && Array.isArray(config?.focus_tier_costs) && config.focus_tier_costs.length >= 5 && config.focus_tier_costs.slice(0, 5).every(validPrice);
+
+export class UnknownActionOutcomeError extends Error {
+  constructor() { super('Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы в этой открытой панели. Обновление данных доступно; не повторяйте покупку вслепую.'); }
+}

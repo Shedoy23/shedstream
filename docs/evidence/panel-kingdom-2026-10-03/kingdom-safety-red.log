@@ -297,4 +297,3 @@ TypeError: Cannot read properties of null (reading 'click')
       Tests  37 failed | 2 passed (39)
    Start at  17:58:14
    Duration  4.60s (tests 80%, environment 11%, transform 6%, import 3%)
-

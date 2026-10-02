@@ -4,8 +4,9 @@
     "database": "isolated temporary full-schema SQLite",
     "seed": "representative HeroStateSync-shaped data applied through real BannerlordAdapter._on_player_state_update, fixture_* IDs local only",
     "handlers": [
-      "routes.bannerlord",
-      "routes.bannerlord_diplomacy",
+      "routes.bannerlord._bannerlord_buy_action_locked (inner action orchestrator, not outer JWT wrapper)",
+      "routes.bannerlord.bannerlord_my_hero",
+      "routes.bannerlord_diplomacy.my_kingdom_state",
       "BannerlordAdapter._on_player_state_update"
     ],
     "auth": "require_jwt_user locally returns test alice/channel; production JWT verification not exercised",
@@ -17,7 +18,7 @@
       "Расширение/backend/routes/bannerlord_diplomacy.py": "a7e062bcc97eb0614e3850fef0b1c6a8d29125e538d7a8400f7bee94aa58a4c1",
       "BannerlordLink/src/Util/HeroStateSync.cs": "874790c639613ac68495aac52e956cd024a1e14ac6f292cb41599a5a82dc2fcf"
     },
-    "head": "d3520db7b4e050664327f75230a9409e8c991aa9"
+    "head": "07741be15c38cbd27adfe89b193a63d0fc606119"
   },
   "responses": {
     "config": {
@@ -231,8 +232,8 @@
         "is_prisoner": false,
         "gold": 10000000,
         "location": null,
-        "adopted_at": "2026-10-02 21:57:02",
-        "last_sync": "2026-10-02 21:57:02",
+        "adopted_at": "2026-10-02 22:14:45",
+        "last_sync": "2026-10-02 22:14:45",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": null,
@@ -289,7 +290,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "653548c00d344345918c5d3850e9925f",
+        "action_id": "cf97f1e4739f4757a0faf019a81d86fc",
         "charged": 0,
         "message": "⚔️ Action hero.create_kingdom в очереди (0💎 списано)",
         "perk": "viewer",
@@ -322,7 +323,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "c18729e60cd249748ec34e07f8631eac",
+        "action_id": "0b68d6154410484c8c5c06be1a38c99b",
         "charged": 0,
         "message": "⚔️ Action hero.create_kingdom в очереди (0💎 списано)",
         "perk": "viewer",
@@ -368,7 +369,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "c35f1e18e979468f9bc7d8fb6cd366a6",
+        "action_id": "0e7830ebc9e7479990e056b88088af20",
         "charged": 0,
         "message": "⚔️ Action hero.join_kingdom в очереди (0💎 списано)",
         "perk": "viewer",
@@ -403,8 +404,8 @@
         "is_prisoner": false,
         "gold": 0,
         "location": null,
-        "adopted_at": "2026-10-02 21:57:02",
-        "last_sync": "2026-10-02 21:57:02",
+        "adopted_at": "2026-10-02 22:14:45",
+        "last_sync": "2026-10-02 22:14:45",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": null,
@@ -489,8 +490,8 @@
         "is_prisoner": false,
         "gold": 10000000,
         "location": null,
-        "adopted_at": "2026-10-02 21:57:02",
-        "last_sync": "2026-10-02 21:57:02",
+        "adopted_at": "2026-10-02 22:14:45",
+        "last_sync": "2026-10-02 22:14:45",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Fixture Kingdom",
@@ -576,7 +577,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "9b39b5d63f8e4170805177e84987921e",
+        "action_id": "dad123364df6448baa79f8779d78ebc8",
         "charged": 0,
         "message": "⚔️ Action hero.leave_kingdom в очереди (0💎 списано)",
         "perk": "viewer",
@@ -606,7 +607,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "eaf207b42ea14e7495aa0f4d75b52603",
+        "action_id": "0c605b4e76ec42158851017fdbfd24b7",
         "charged": 0,
         "message": "⚔️ Action hero.recruit_vassal_clan в очереди (0💎 списано)",
         "perk": "viewer",
@@ -649,7 +650,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "d9726606ee1a4eb1abe79c0a891bb4a0",
+        "action_id": "fb847ad41ce34b97927b092ddcb0dce1",
         "charged": 1500,
         "message": "⚔️ Action hero.enact_policy в очереди (1500💎 списано)",
         "perk": "viewer",
@@ -687,7 +688,7 @@
           "policy_name": "Королевская гвардия",
           "requester": "alice",
           "status": "pending",
-          "requested_at": "2026-10-02 21:57:02"
+          "requested_at": "2026-10-02 22:14:45"
         }
       ],
       "policies_enacted": [],
@@ -749,7 +750,7 @@
           "policy_name": "Королевская гвардия",
           "requester": "alice",
           "status": "enacted",
-          "requested_at": "2026-10-02 21:57:02"
+          "requested_at": "2026-10-02 22:14:45"
         }
       ],
       "peace_offers": []
@@ -765,7 +766,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "77e530fbe9cf4f07b2720bcd2ea6f78a",
+        "action_id": "c444590934474cdd98a3a6a015330af8",
         "charged": 1500,
         "message": "⚔️ Action hero.enact_policy в очереди (1500💎 списано)",
         "perk": "viewer",
@@ -812,7 +813,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "325cf3feb1964fcaaa01c082baa6ff40",
+        "action_id": "2f7905e342e34a9fb7eddd2849ad6cbe",
         "charged": 2000,
         "message": "⚔️ Action hero.make_peace в очереди (2000💎 списано)",
         "perk": "viewer",
@@ -852,7 +853,7 @@
           "target_kingdom_name": "Fixture Enemy",
           "offered_tribute": -200,
           "status": "pending",
-          "offered_at": "2026-10-02 21:57:02"
+          "offered_at": "2026-10-02 22:14:45"
         }
       ]
     },
@@ -868,7 +869,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "df8292e2a8774ee38a35daab673d9bbe",
+        "action_id": "b4b25199b1b54a8b9fc2608ed50d79f2",
         "charged": 2000,
         "message": "⚔️ Action hero.make_peace в очереди (2000💎 списано)",
         "perk": "viewer",
@@ -915,7 +916,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "e6f273fbdc624be3b8fac009540e850c",
+        "action_id": "6be9a0b7c8f74e888f90b471fd39a684",
         "charged": 0,
         "message": "⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
         "perk": "viewer",
@@ -952,7 +953,7 @@
           "target_kingdom_name": "Fixture Enemy",
           "offered_tribute": 10000,
           "status": "pending",
-          "offered_at": "2026-10-02 21:57:02"
+          "offered_at": "2026-10-02 22:14:45"
         }
       ]
     },
@@ -966,7 +967,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "96923a5176ca43b988e5a0586380024f",
+        "action_id": "8d6b48d18d8545229052dfed3bc3c18a",
         "charged": 0,
         "message": "⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1003,7 +1004,7 @@
           "target_kingdom_name": "Fixture Enemy",
           "offered_tribute": 10000,
           "status": "pending",
-          "offered_at": "2026-10-02 21:57:02"
+          "offered_at": "2026-10-02 22:14:45"
         }
       ]
     },
@@ -1017,7 +1018,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "a52b724a61774a35b8c01ffd5299f003",
+        "action_id": "8d1b71abd4a74976b6fee55ccc4a3e14",
         "charged": 0,
         "message": "⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1054,7 +1055,7 @@
           "target_kingdom_name": "Fixture Enemy",
           "offered_tribute": 10000,
           "status": "pending",
-          "offered_at": "2026-10-02 21:57:02"
+          "offered_at": "2026-10-02 22:14:45"
         }
       ]
     },
@@ -1068,7 +1069,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "2eb36b6198db42eca7e4af7f081af3a1",
+        "action_id": "e3e59558f8f1435c880dd4902c0edd81",
         "charged": 0,
         "message": "⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1105,7 +1106,7 @@
           "target_kingdom_name": "Fixture Enemy",
           "offered_tribute": 10000,
           "status": "pending",
-          "offered_at": "2026-10-02 21:57:02"
+          "offered_at": "2026-10-02 22:14:45"
         }
       ]
     },
@@ -1120,7 +1121,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "6f70146d16c44db89fb84b87f99cfaa1",
+        "action_id": "18e8fd7e6a9b4bd4806f5f603c6487a8",
         "charged": 2000,
         "message": "⚔️ Action kingdom.propose_war в очереди (2000💎 списано)",
         "perk": "viewer",
@@ -1179,7 +1180,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "b79ce540d3c24dac994916cc0be950bc",
+        "action_id": "da69b6cbdabe45c9948b88856c8020ec",
         "charged": 3000,
         "message": "⚔️ Action kingdom.propose_peace в очереди (3000💎 списано)",
         "perk": "viewer",
@@ -1214,8 +1215,8 @@
         "is_prisoner": false,
         "gold": 10000000,
         "location": null,
-        "adopted_at": "2026-10-02 21:57:02",
-        "last_sync": "2026-10-02 21:57:02",
+        "adopted_at": "2026-10-02 22:14:45",
+        "last_sync": "2026-10-02 22:14:45",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Fixture Kingdom",
@@ -1303,7 +1304,7 @@
           "target_kingdom_name": "Fixture Enemy",
           "offered_tribute": 10000,
           "status": "pending",
-          "offered_at": "2026-10-02 21:57:02"
+          "offered_at": "2026-10-02 22:14:45"
         }
       ]
     },
@@ -1317,7 +1318,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "703db1e9f67e45a7968fd0a078066bb9",
+        "action_id": "8ea7b8c30d994c448dc15c9eda5ff490",
         "charged": 0,
         "message": "⚔️ Action hero.create_kingdom в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1390,8 +1391,8 @@
         "is_prisoner": false,
         "gold": 10000000,
         "location": null,
-        "adopted_at": "2026-10-02 21:57:02",
-        "last_sync": "2026-10-02 21:57:02",
+        "adopted_at": "2026-10-02 22:14:45",
+        "last_sync": "2026-10-02 22:14:45",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Fixture Kingdom",
@@ -1484,7 +1485,7 @@
           "target_kingdom_name": "Fixture Enemy",
           "offered_tribute": 10000,
           "status": "pending",
-          "offered_at": "2026-10-02 21:57:02"
+          "offered_at": "2026-10-02 22:14:45"
         }
       ]
     },
@@ -1500,8 +1501,8 @@
         "is_prisoner": false,
         "gold": 10000000,
         "location": null,
-        "adopted_at": "2026-10-02 21:57:02",
-        "last_sync": "2026-10-02 21:57:02",
+        "adopted_at": "2026-10-02 22:14:45",
+        "last_sync": "2026-10-02 22:14:45",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Fixture Kingdom",
@@ -1583,7 +1584,7 @@
           "target_kingdom_name": "Fixture Enemy",
           "offered_tribute": 10000,
           "status": "pending",
-          "offered_at": "2026-10-02 21:57:02"
+          "offered_at": "2026-10-02 22:14:45"
         }
       ]
     },
@@ -1612,7 +1613,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "b25f3dfd22c04a72a8123f77260ce48a",
+        "action_id": "d27cd267fe75441ba145e8c32d386755",
         "charged": 2000,
         "message": "⚔️ Action kingdom.propose_war в очереди (2000💎 списано)",
         "perk": "viewer",
@@ -1647,8 +1648,8 @@
         "is_prisoner": false,
         "gold": 10000000,
         "location": null,
-        "adopted_at": "2026-10-02 21:57:02",
-        "last_sync": "2026-10-02 21:57:02",
+        "adopted_at": "2026-10-02 22:14:45",
+        "last_sync": "2026-10-02 22:14:45",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": null,
@@ -1706,7 +1707,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "93f7a4a6d5ca4489b885a253837a0192",
+        "action_id": "b8667d3c38fb4e2380b6562d35f7f789",
         "charged": 2000,
         "message": "⚔️ Action kingdom.propose_war в очереди (2000💎 списано)",
         "perk": "viewer",
@@ -1741,8 +1742,8 @@
         "is_prisoner": false,
         "gold": 10000000,
         "location": null,
-        "adopted_at": "2026-10-02 21:57:02",
-        "last_sync": "2026-10-02 21:57:02",
+        "adopted_at": "2026-10-02 22:14:45",
+        "last_sync": "2026-10-02 22:14:45",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Other Kingdom",

@@ -96,23 +96,25 @@ jobs:
       - name: RimLink writes its own log even when the engine log is silenced
         run: dotnet run --project RimLink/tests/LogFileHarness -c Release
 
-      # 2026-09-09 — гейты фронта запускаются ЦЕЛИКОМ, а не перечислением.
-      # Раньше каждый был отдельным шагом, и добавленный гейт молча не попадал
-      # в CI: test-frontend-state-race.mjs пролежал вне проверок с момента
-      # написания (нашла внешняя проверка). Список, который надо не забыть
-      # дополнить, — это тот же класс, что спящий линтер: выглядит настроенным,
-      # но не держит. Цикл подхватывает новые файлы сам.
-      - name: Frontend behaviour gates (all scripts/test-frontend-*.mjs)
-        shell: bash
-        run: |
-          shopt -s nullglob
-          files=(scripts/test-frontend-*.mjs scripts/test-viewer-*.mjs)
-          if [ ${#files[@]} -eq 0 ]; then echo "нет гейтов фронта — это ошибка"; exit 1; fi
-          for f in "${files[@]}"; do
-            echo "── $f"
-            node "$f" || exit 1
-          done
-          echo "гейтов пройдено: ${#files[@]}"
-
       - name: Bannerlord state mirror is confirmed before it is cached
         run: dotnet run --project BannerlordLink/tests/StateSyncHarness -c Release
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend-next/package-lock.json
+      - run: npm ci
+      - run: npm run lint:js
+      - run: npm run globals:selftest
+      - name: All frontend behaviour gates (discovered, not a fixed list)
+        run: npm run test:frontend
+      - run: npm --prefix frontend-next ci
+      - name: Isolated tournament pilot tests, types and static build
+        run: npm run check:pilot

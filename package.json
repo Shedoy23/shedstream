@@ -1,14 +1,16 @@
 {
   "name": "shedstream-tooling",
   "version": "1.0.0",
-  "description": "Инструменты проверки фронта расширения (eslint no-undef). Сборки у фронта нет — это только линт.",
+  "description": "Проверки статического фронта ShedLink и изолированного React-пилота frontend-next.",
   "main": "index.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
     "lint:js": "eslint \"Расширение/frontend\"",
-    "globals:selftest": "node scripts/frontend-globals.mjs --self-test"
+    "globals:selftest": "node scripts/frontend-globals.mjs --self-test",
+    "test:frontend": "node scripts/run-frontend-tests.mjs",
+    "check:pilot": "npm --prefix frontend-next test && npm --prefix frontend-next run build"
   },
   "repository": {
     "type": "git",
@@ -24,7 +26,8 @@
   "homepage": "https://github.com/Shedoy23/shedstream#readme",
   "devDependencies": {
     "eslint": "^10.9.0",
-    "globals": "^17.11.0"
+    "globals": "^17.11.0",
+    "linkedom": "0.18.12"
   },
   "private": true
 }

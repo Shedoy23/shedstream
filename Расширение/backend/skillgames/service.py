@@ -274,7 +274,10 @@ class SkillgameService:
         elif row['status']=='awaiting_first_move' and now-row['created_at'] > row['rules']['timers']['first_move_wait_seconds']:
             row['version'] += 1
             await self._finish(conn,row,reason='first_move_not_started',void=True)
-        elif row['expires_at'] is not None and now >= row['expires_at']:
+        elif row['expires_at'] is not None and now >= row['expires_at'] and lease[0] >= row['expires_at']:
+            # A lease from just BEFORE the deadline cannot prove uptime through
+            # it. Wait for a post-deadline heartbeat; if its owner died, the
+            # lease expires and the earlier branch voids instead of penalizing.
             row['version'] += 1
             if row['game_type']=='minesweeper':
                 await self._finish(conn,row,reason='attempt_expired')
@@ -396,8 +399,10 @@ class SkillgameService:
                 row = await self._load(conn,cid,payload['session_id'],user)
                 await self._expire(conn,row)
                 # Expiration must commit, even when the submitted move is now stale.
-                if row['status'] not in ACTIVE or row['version'] != payload['version']:
-                    result = dict(success=False,reason='stale_version',message='Обнови состояние игры',session=self._projection(row,user),server_time=time.time())
+                expired_pending = row['status']=='active' and row['expires_at'] is not None and time.time()>=row['expires_at']
+                if row['status'] not in ACTIVE or row['version'] != payload['version'] or expired_pending:
+                    reason = 'expiry_verification_pending' if expired_pending else 'stale_version'
+                    result = dict(success=False,reason=reason,message='Обнови состояние игры',session=self._projection(row,user),server_time=time.time())
                     await self._record(conn,cid,user,payload['request_id'],fp,result,409,row['id'])
                     return result,409
                 if row['status']=='generating': raise GameError('generation_in_progress')

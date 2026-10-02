@@ -1,0 +1,1823 @@
+{
+  "provenance": {
+    "repository": "/workspace/scratch/f566ddb2e035/panel-preact-implementation",
+    "database": "isolated temporary full-schema SQLite",
+    "seed": "representative HeroStateSync-shaped data applied through real BannerlordAdapter._on_player_state_update, fixture_* IDs local only",
+    "handlers": [
+      "routes.bannerlord",
+      "routes.bannerlord_diplomacy",
+      "BannerlordAdapter._on_player_state_update"
+    ],
+    "auth": "require_jwt_user locally returns test alice/channel; production JWT verification not exercised",
+    "game": false,
+    "source_sha256": {
+      "Расширение/frontend/viewer-bannerlord.js": "87c439858b98171936aaf020cbcaf01f9215e6eef275603951cf2b144fbc35da",
+      "Расширение/frontend/viewer-actions.js": "2acf7cf3070ba475643790db371c95d01ea625837424ecabef0ac912cd7a7b2c",
+      "Расширение/backend/routes/bannerlord.py": "44d81d0f54bc2947f54e7586d34e083739f3f416b2b8bb5eb9b95a662727e9d7",
+      "Расширение/backend/routes/bannerlord_diplomacy.py": "a7e062bcc97eb0614e3850fef0b1c6a8d29125e538d7a8400f7bee94aa58a4c1",
+      "BannerlordLink/src/Util/HeroStateSync.cs": "874790c639613ac68495aac52e956cd024a1e14ac6f292cb41599a5a82dc2fcf"
+    },
+    "head": "d3520db7b4e050664327f75230a9409e8c991aa9"
+  },
+  "responses": {
+    "config": {
+      "ui": {
+        "version": 1,
+        "combat_order": [
+          "summon",
+          "active_powers",
+          "tournament",
+          "weapon_choice"
+        ],
+        "combat_visible": {
+          "summon": true,
+          "active_powers": true,
+          "tournament": true,
+          "weapon_choice": true
+        },
+        "labels": {
+          "active_powers": "Активки",
+          "tournament": "🏆 Турнир зрителей",
+          "weapon_choice": "Оружейная способность",
+          "summon_ally": "📯 Призвать за стримера",
+          "summon_enemy": "⚔️ Призвать против стримера",
+          "discard": "🗑 Выкинуть вещь"
+        },
+        "tier_colors": {
+          "1": {
+            "text": "#c0c3ca",
+            "border": "#5b5e66",
+            "background": "#2b2d31"
+          },
+          "2": {
+            "text": "#89dba1",
+            "border": "#467457",
+            "background": "#203127"
+          },
+          "3": {
+            "text": "#87c6fa",
+            "border": "#426c91",
+            "background": "#202d3a"
+          },
+          "4": {
+            "text": "#c7a0f5",
+            "border": "#785398",
+            "background": "#30253b"
+          },
+          "5": {
+            "text": "#f2b17f",
+            "border": "#966139",
+            "background": "#3b2b20"
+          },
+          "6": {
+            "text": "#f5d174",
+            "border": "#aa8436",
+            "background": "#39311e"
+          }
+        }
+      },
+      "give_gold_presets": [
+        {
+          "crusticov": 1000,
+          "dinars": 5000
+        },
+        {
+          "crusticov": 5000,
+          "dinars": 25000
+        },
+        {
+          "crusticov": 20000,
+          "dinars": 100000
+        }
+      ],
+      "add_skill_presets": [
+        {
+          "crusticov": 500,
+          "xp": 50
+        },
+        {
+          "crusticov": 1000,
+          "xp": 100
+        },
+        {
+          "crusticov": 5000,
+          "xp": 500
+        }
+      ],
+      "focus_tier_costs": [
+        30000,
+        40000,
+        50000,
+        60000,
+        75000
+      ],
+      "attribute_cost": 50000,
+      "recruit_tier_costs": [
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        80000
+      ],
+      "recruit_elite_mult": 3,
+      "gear_upgrade_costs": {
+        "1": 50000,
+        "2": 100000,
+        "3": 200000,
+        "4": 400000,
+        "5": 800000,
+        "6": 1500000
+      },
+      "reforge_price": 20000,
+      "spawn_prices": {
+        "player": 50,
+        "enemy": 100
+      },
+      "gender_swap_cost": 50000,
+      "baby_cost": 100000,
+      "workshop_price": 2500,
+      "caravan_price": 4000,
+      "tournament_prize_gold": 50000,
+      "tournament_round_gold": 10000,
+      "action_prices": {
+        "hero.set_specialization": 0,
+        "hero.select_weapon_power": 0,
+        "hero.claim_starter": 0,
+        "hero.buy_equipment": 0,
+        "hero.equip_owned": 0,
+        "hero.unequip_owned": 0,
+        "hero.discard_owned": 0,
+        "hero.create": 0,
+        "player.modify_attribute": 50,
+        "world.trigger_event": 1000,
+        "hero.reforge_quality": 20000,
+        "hero.set_combat_stance": 0,
+        "hero.discard_item": 0,
+        "hero.detach": 10,
+        "hero.attach": 10,
+        "hero.detach_hold": 30,
+        "hero.detach_charge": 30,
+        "hero.detach_skirmish": 30,
+        "hero.detach_raid": 30,
+        "hero.detach_walls": 30,
+        "hero.detach_gate": 30,
+        "hero.propose_marriage": 100,
+        "hero.respond_marriage_proposal": 0,
+        "hero.cancel_proposal": 0,
+        "hero.rename_child": 50,
+        "hero.change_child_looks": 200,
+        "hero.respec_child_skills": 500,
+        "hero.create_vassal_clan": 0,
+        "hero.recruit_vassal_clan": 0,
+        "hero.rename_vassal": 100,
+        "hero.party_order_set": 500,
+        "hero.party_order_release": 0,
+        "hero.army_create": 1000,
+        "hero.army_disband": 0,
+        "hero.enact_policy": 1500,
+        "hero.make_peace": 2000,
+        "kingdom.propose_war": 2000,
+        "kingdom.propose_peace": 3000,
+        "hero.pay_ransom": 500,
+        "kingdom.set_tax_rate": 0,
+        "hero.buy_workshop": 2500,
+        "hero.sell_workshop": 0,
+        "hero.buy_caravan": 4000,
+        "hero.sell_caravan": 0
+      },
+      "power_prices": {
+        "heal_burst": 100,
+        "shield_break_burst": 200,
+        "rage": 300,
+        "retribution_toggle": 300,
+        "poison_dot": 350,
+        "disarm_burst": 250,
+        "berserker_charge": 200,
+        "lifesteal_burst": 300,
+        "ironskin_toggle": 300,
+        "explosive_arrows": 350,
+        "cleave": 350
+      },
+      "hero_gold_costs": {
+        "marry": 50000,
+        "create_clan": 1000000,
+        "join_clan": 50000,
+        "create_kingdom": 5000000,
+        "join_kingdom": 100000,
+        "create_party": 200000,
+        "recruit_vassal": 3000000,
+        "make_baby": 100000,
+        "create_vassal_clan": 250000
+      }
+    },
+    "kingdom_unauthorized": {
+      "success": false,
+      "message": "auth required"
+    },
+    "kingdom_absent": {
+      "success": true,
+      "has_hero": false
+    },
+    "hero_independent": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 10000000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:57:02",
+        "last_sync": "2026-10-02 21:57:02",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1
+        },
+        "kingdom_info": null,
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "kingdom_independent": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": null,
+      "kingdom_name": null,
+      "is_clan_leader": true,
+      "is_king": false,
+      "captured": false,
+      "kingdom_tax_pct": 0,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": []
+    },
+    "create": {
+      "request": {
+        "action_type": "hero.create_kingdom",
+        "data": {
+          "kingdom_name": "Fixture New Kingdom",
+          "client_action_id": "kingdom-probe-create"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "653548c00d344345918c5d3850e9925f",
+        "charged": 0,
+        "message": "⚔️ Action hero.create_kingdom в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 1200
+      },
+      "queued": [
+        {
+          "type": "hero.create_kingdom",
+          "data": {
+            "kingdom_name": "Fixture New Kingdom",
+            "client_action_id": "kingdom-probe-create",
+            "hero_gold_cost": 5000000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "create_blank": {
+      "request": {
+        "action_type": "hero.create_kingdom",
+        "data": {
+          "kingdom_name": "",
+          "client_action_id": "kingdom-probe-create_blank"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "c18729e60cd249748ec34e07f8631eac",
+        "charged": 0,
+        "message": "⚔️ Action hero.create_kingdom в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 1200
+      },
+      "queued": [
+        {
+          "type": "hero.create_kingdom",
+          "data": {
+            "kingdom_name": "",
+            "client_action_id": "kingdom-probe-create_blank",
+            "hero_gold_cost": 5000000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "create_bad_name": {
+      "request": {
+        "action_type": "hero.create_kingdom",
+        "data": {
+          "kingdom_name": "<bad>",
+          "client_action_id": "kingdom-probe-create_bad_name"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Недопустимые символы в имени"
+      }
+    },
+    "join": {
+      "request": {
+        "action_type": "hero.join_kingdom",
+        "data": {
+          "kingdom_name": "Fixture Existing",
+          "client_action_id": "kingdom-probe-join"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "c35f1e18e979468f9bc7d8fb6cd366a6",
+        "charged": 0,
+        "message": "⚔️ Action hero.join_kingdom в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 120
+      },
+      "queued": [
+        {
+          "type": "hero.join_kingdom",
+          "data": {
+            "kingdom_name": "Fixture Existing",
+            "client_action_id": "kingdom-probe-join",
+            "hero_gold_cost": 100000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "hero_poor": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 0,
+        "location": null,
+        "adopted_at": "2026-10-02 21:57:02",
+        "last_sync": "2026-10-02 21:57:02",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1
+        },
+        "kingdom_info": null,
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "kingdom_poor": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": null,
+      "kingdom_name": null,
+      "is_clan_leader": true,
+      "is_king": false,
+      "captured": false,
+      "kingdom_tax_pct": 0,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": []
+    },
+    "create_poor": {
+      "request": {
+        "action_type": "hero.create_kingdom",
+        "data": {
+          "kingdom_name": "",
+          "client_action_id": "kingdom-probe-create_poor"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Нужно 5,000,000💰 динаров (у тебя 0💰)."
+      }
+    },
+    "join_poor": {
+      "request": {
+        "action_type": "hero.join_kingdom",
+        "data": {
+          "kingdom_name": "Fixture",
+          "client_action_id": "kingdom-probe-join_poor"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Нужно 100,000💰 динаров (у тебя 0💰)."
+      }
+    },
+    "hero_ruler": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 10000000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:57:02",
+        "last_sync": "2026-10-02 21:57:02",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Fixture Kingdom",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1
+        },
+        "kingdom_info": {
+          "id": "fixture_kingdom",
+          "name": "Fixture Kingdom",
+          "ruler_name": "Alice Hero",
+          "is_ruler": true,
+          "is_clan_leader": true,
+          "clans_count": 3,
+          "fiefs_count": 5,
+          "at_war_count": 1,
+          "at_war_names": [
+            "Fixture Enemy"
+          ],
+          "own_settlements": [],
+          "enemy_settlements": [],
+          "all_kingdoms": [
+            {
+              "id": "fixture_neutral",
+              "name": "Fixture Neutral",
+              "at_war": false
+            },
+            {
+              "id": "fixture_enemy",
+              "name": "Fixture Enemy",
+              "at_war": true
+            }
+          ],
+          "rebellion_supporters": [],
+          "rebellion_supporters_required": 2,
+          "rebellion_relation_required": 50,
+          "culture": "vlandia"
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "kingdom_ruler": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": true,
+      "captured": false,
+      "kingdom_tax_pct": 0,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": []
+    },
+    "leave": {
+      "request": {
+        "action_type": "hero.leave_kingdom",
+        "data": {
+          "client_action_id": "kingdom-probe-leave"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "9b39b5d63f8e4170805177e84987921e",
+        "charged": 0,
+        "message": "⚔️ Action hero.leave_kingdom в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 60
+      },
+      "queued": [
+        {
+          "type": "hero.leave_kingdom",
+          "data": {
+            "client_action_id": "kingdom-probe-leave",
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "recruit": {
+      "request": {
+        "action_type": "hero.recruit_vassal_clan",
+        "data": {
+          "client_action_id": "kingdom-probe-recruit"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "eaf207b42ea14e7495aa0f4d75b52603",
+        "charged": 0,
+        "message": "⚔️ Action hero.recruit_vassal_clan в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      },
+      "queued": [
+        {
+          "type": "hero.recruit_vassal_clan",
+          "data": {
+            "client_action_id": "kingdom-probe-recruit",
+            "hero_gold_cost": 3000000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "buffs_recruit": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "hero.recruit_vassal_clan",
+          "remaining_s": 300.0
+        }
+      ]
+    },
+    "policy_enact": {
+      "request": {
+        "action_type": "hero.enact_policy",
+        "data": {
+          "policy_id": "policy_royal_guard",
+          "policy_name": "Королевская гвардия",
+          "client_action_id": "kingdom-probe-policy_enact"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "d9726606ee1a4eb1abe79c0a891bb4a0",
+        "charged": 1500,
+        "message": "⚔️ Action hero.enact_policy в очереди (1500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      },
+      "queued": [
+        {
+          "type": "hero.enact_policy",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "kingdom_id": "fixture_kingdom",
+            "policy_id": "policy_royal_guard",
+            "policy_name": "Королевская гвардия",
+            "want": "enact",
+            "price": 1500
+          }
+        }
+      ]
+    },
+    "kingdom_pending": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": true,
+      "captured": false,
+      "kingdom_tax_pct": 0,
+      "policies_pending": [
+        {
+          "id": 1,
+          "policy_id": "policy_royal_guard",
+          "policy_name": "Королевская гвардия",
+          "requester": "alice",
+          "status": "pending",
+          "requested_at": "2026-10-02 21:57:02"
+        }
+      ],
+      "policies_enacted": [],
+      "peace_offers": []
+    },
+    "buffs_policy": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "hero.enact_policy",
+          "remaining_s": 300.0
+        }
+      ]
+    },
+    "policy_cooldown": {
+      "request": {
+        "action_type": "hero.enact_policy",
+        "data": {
+          "policy_id": "policy_trial_by_jury",
+          "policy_name": "Суд присяжных",
+          "client_action_id": "kingdom-probe-policy_cooldown"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (299с)",
+        "cooldown_remaining_s": 300.0
+      }
+    },
+    "policy_duplicate": {
+      "request": {
+        "action_type": "hero.enact_policy",
+        "data": {
+          "policy_id": "policy_royal_guard",
+          "policy_name": "Королевская гвардия",
+          "client_action_id": "kingdom-probe-policy_duplicate"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Заявка по этому закону уже обрабатывается — подожди пару секунд"
+      }
+    },
+    "kingdom_enacted": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": true,
+      "captured": false,
+      "kingdom_tax_pct": 0,
+      "policies_pending": [],
+      "policies_enacted": [
+        {
+          "id": 1,
+          "policy_id": "policy_royal_guard",
+          "policy_name": "Королевская гвардия",
+          "requester": "alice",
+          "status": "enacted",
+          "requested_at": "2026-10-02 21:57:02"
+        }
+      ],
+      "peace_offers": []
+    },
+    "policy_remove": {
+      "request": {
+        "action_type": "hero.enact_policy",
+        "data": {
+          "policy_id": "policy_royal_guard",
+          "policy_name": "Королевская гвардия",
+          "client_action_id": "kingdom-probe-policy_remove"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "77e530fbe9cf4f07b2720bcd2ea6f78a",
+        "charged": 1500,
+        "message": "⚔️ Action hero.enact_policy в очереди (1500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      },
+      "queued": [
+        {
+          "type": "hero.enact_policy",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "kingdom_id": "fixture_kingdom",
+            "policy_id": "policy_royal_guard",
+            "policy_name": "Королевская гвардия",
+            "want": "remove",
+            "price": 1500
+          }
+        }
+      ]
+    },
+    "kingdom_removed": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": true,
+      "captured": false,
+      "kingdom_tax_pct": 0,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": []
+    },
+    "direct_peace": {
+      "request": {
+        "action_type": "hero.make_peace",
+        "data": {
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": -200,
+          "client_action_id": "kingdom-probe-direct_peace"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "325cf3feb1964fcaaa01c082baa6ff40",
+        "charged": 2000,
+        "message": "⚔️ Action hero.make_peace в очереди (2000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 600
+      },
+      "queued": [
+        {
+          "type": "hero.make_peace",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "my_kingdom_id": "fixture_kingdom",
+            "target_kingdom_id": "fixture_enemy",
+            "target_kingdom_name": "Fixture Enemy",
+            "offered_tribute": -200,
+            "price": 2000
+          }
+        }
+      ]
+    },
+    "kingdom_peace_pending": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": true,
+      "captured": false,
+      "kingdom_tax_pct": 0,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": [
+        {
+          "id": 1,
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": -200,
+          "status": "pending",
+          "offered_at": "2026-10-02 21:57:02"
+        }
+      ]
+    },
+    "direct_peace_clamp": {
+      "request": {
+        "action_type": "hero.make_peace",
+        "data": {
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": 20000,
+          "client_action_id": "kingdom-probe-direct_peace_clamp"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "df8292e2a8774ee38a35daab673d9bbe",
+        "charged": 2000,
+        "message": "⚔️ Action hero.make_peace в очереди (2000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 600
+      },
+      "queued": [
+        {
+          "type": "hero.make_peace",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "my_kingdom_id": "fixture_kingdom",
+            "target_kingdom_id": "fixture_enemy",
+            "target_kingdom_name": "Fixture Enemy",
+            "offered_tribute": 10000,
+            "price": 2000
+          }
+        }
+      ]
+    },
+    "direct_peace_self": {
+      "request": {
+        "action_type": "hero.make_peace",
+        "data": {
+          "target_kingdom_id": "fixture_kingdom",
+          "target_kingdom_name": "Fixture Kingdom",
+          "offered_tribute": 0,
+          "client_action_id": "kingdom-probe-direct_peace_self"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Нельзя сделать peace с самим собой"
+      }
+    },
+    "tax_0": {
+      "request": {
+        "action_type": "kingdom.set_tax_rate",
+        "data": {
+          "tax_rate_pct": 0,
+          "client_action_id": "kingdom-probe-tax_0"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "e6f273fbdc624be3b8fac009540e850c",
+        "charged": 0,
+        "message": "⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued": [
+        {
+          "type": "kingdom.set_tax_rate",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "tax_rate_pct": 0,
+            "price": 0
+          }
+        }
+      ]
+    },
+    "kingdom_tax_0": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": true,
+      "captured": false,
+      "kingdom_tax_pct": 0,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": [
+        {
+          "id": 2,
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": 10000,
+          "status": "pending",
+          "offered_at": "2026-10-02 21:57:02"
+        }
+      ]
+    },
+    "tax_10": {
+      "request": {
+        "action_type": "kingdom.set_tax_rate",
+        "data": {
+          "tax_rate_pct": 10,
+          "client_action_id": "kingdom-probe-tax_10"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "96923a5176ca43b988e5a0586380024f",
+        "charged": 0,
+        "message": "⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued": [
+        {
+          "type": "kingdom.set_tax_rate",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "tax_rate_pct": 10,
+            "price": 0
+          }
+        }
+      ]
+    },
+    "kingdom_tax_10": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": true,
+      "captured": false,
+      "kingdom_tax_pct": 10,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": [
+        {
+          "id": 2,
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": 10000,
+          "status": "pending",
+          "offered_at": "2026-10-02 21:57:02"
+        }
+      ]
+    },
+    "tax_25": {
+      "request": {
+        "action_type": "kingdom.set_tax_rate",
+        "data": {
+          "tax_rate_pct": 25,
+          "client_action_id": "kingdom-probe-tax_25"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "a52b724a61774a35b8c01ffd5299f003",
+        "charged": 0,
+        "message": "⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued": [
+        {
+          "type": "kingdom.set_tax_rate",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "tax_rate_pct": 25,
+            "price": 0
+          }
+        }
+      ]
+    },
+    "kingdom_tax_25": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": true,
+      "captured": false,
+      "kingdom_tax_pct": 25,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": [
+        {
+          "id": 2,
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": 10000,
+          "status": "pending",
+          "offered_at": "2026-10-02 21:57:02"
+        }
+      ]
+    },
+    "tax_50": {
+      "request": {
+        "action_type": "kingdom.set_tax_rate",
+        "data": {
+          "tax_rate_pct": 50,
+          "client_action_id": "kingdom-probe-tax_50"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "2eb36b6198db42eca7e4af7f081af3a1",
+        "charged": 0,
+        "message": "⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued": [
+        {
+          "type": "kingdom.set_tax_rate",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "tax_rate_pct": 50,
+            "price": 0
+          }
+        }
+      ]
+    },
+    "kingdom_tax_50": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": true,
+      "captured": false,
+      "kingdom_tax_pct": 50,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": [
+        {
+          "id": 2,
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": 10000,
+          "status": "pending",
+          "offered_at": "2026-10-02 21:57:02"
+        }
+      ]
+    },
+    "war": {
+      "request": {
+        "action_type": "kingdom.propose_war",
+        "data": {
+          "target_kingdom_id": "fixture_neutral",
+          "target_kingdom_name": "Fixture Neutral",
+          "client_action_id": "kingdom-probe-war"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "6f70146d16c44db89fb84b87f99cfaa1",
+        "charged": 2000,
+        "message": "⚔️ Action kingdom.propose_war в очереди (2000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      },
+      "queued": [
+        {
+          "type": "kingdom.propose_war",
+          "data": {
+            "target_kingdom_id": "fixture_neutral",
+            "target_kingdom_name": "Fixture Neutral",
+            "client_action_id": "kingdom-probe-war",
+            "price": 2000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "buffs_war": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "kingdom.propose_war",
+          "remaining_s": 300.0
+        }
+      ]
+    },
+    "war_cooldown": {
+      "request": {
+        "action_type": "kingdom.propose_war",
+        "data": {
+          "target_kingdom_id": "fixture_neutral",
+          "target_kingdom_name": "Fixture Neutral",
+          "client_action_id": "kingdom-probe-war_cooldown"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (299с)",
+        "cooldown_remaining_s": 300.0
+      }
+    },
+    "peace_vote": {
+      "request": {
+        "action_type": "kingdom.propose_peace",
+        "data": {
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "client_action_id": "kingdom-probe-peace_vote"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "b79ce540d3c24dac994916cc0be950bc",
+        "charged": 3000,
+        "message": "⚔️ Action kingdom.propose_peace в очереди (3000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      },
+      "queued": [
+        {
+          "type": "kingdom.propose_peace",
+          "data": {
+            "target_kingdom_id": "fixture_enemy",
+            "target_kingdom_name": "Fixture Enemy",
+            "client_action_id": "kingdom-probe-peace_vote",
+            "price": 3000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "hero_vassal": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 10000000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:57:02",
+        "last_sync": "2026-10-02 21:57:02",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Fixture Kingdom",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1
+        },
+        "kingdom_info": {
+          "id": "fixture_kingdom",
+          "name": "Fixture Kingdom",
+          "ruler_name": "Other Ruler",
+          "is_ruler": false,
+          "is_clan_leader": true,
+          "clans_count": 3,
+          "fiefs_count": 5,
+          "at_war_count": 1,
+          "at_war_names": [
+            "Fixture Enemy"
+          ],
+          "own_settlements": [],
+          "enemy_settlements": [],
+          "all_kingdoms": [
+            {
+              "id": "fixture_neutral",
+              "name": "Fixture Neutral",
+              "at_war": false
+            },
+            {
+              "id": "fixture_enemy",
+              "name": "Fixture Enemy",
+              "at_war": true
+            }
+          ],
+          "rebellion_supporters": [
+            {
+              "id": "fixture_supporter",
+              "name": "Supporter Clan",
+              "fiefs_count": 1
+            }
+          ],
+          "rebellion_supporters_required": 2,
+          "rebellion_relation_required": 50,
+          "culture": "vlandia"
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "kingdom_vassal": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": false,
+      "captured": false,
+      "kingdom_tax_pct": 50,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": [
+        {
+          "id": 2,
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": 10000,
+          "status": "pending",
+          "offered_at": "2026-10-02 21:57:02"
+        }
+      ]
+    },
+    "rebellion_low_supporters": {
+      "request": {
+        "action_type": "hero.create_kingdom",
+        "data": {
+          "kingdom_name": "Rebellion",
+          "client_action_id": "kingdom-probe-rebellion_low_supporters"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "703db1e9f67e45a7968fd0a078066bb9",
+        "charged": 0,
+        "message": "⚔️ Action hero.create_kingdom в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 1200
+      },
+      "queued": [
+        {
+          "type": "hero.create_kingdom",
+          "data": {
+            "kingdom_name": "Rebellion",
+            "client_action_id": "kingdom-probe-rebellion_low_supporters",
+            "hero_gold_cost": 5000000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "recruit_not_ruler": {
+      "request": {
+        "action_type": "hero.recruit_vassal_clan",
+        "data": {
+          "client_action_id": "kingdom-probe-recruit_not_ruler"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Только правитель королевства может нанимать вассальные кланы."
+      }
+    },
+    "tax_not_ruler": {
+      "request": {
+        "action_type": "kingdom.set_tax_rate",
+        "data": {
+          "tax_rate_pct": 25,
+          "client_action_id": "kingdom-probe-tax_not_ruler"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Только король задаёт налог королевства"
+      }
+    },
+    "peace_not_ruler": {
+      "request": {
+        "action_type": "hero.make_peace",
+        "data": {
+          "target_kingdom_id": "fixture_enemy",
+          "client_action_id": "kingdom-probe-peace_not_ruler"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Только король может предлагать peace"
+      }
+    },
+    "hero_vassal_supported": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 10000000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:57:02",
+        "last_sync": "2026-10-02 21:57:02",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Fixture Kingdom",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1
+        },
+        "kingdom_info": {
+          "id": "fixture_kingdom",
+          "name": "Fixture Kingdom",
+          "ruler_name": "Other Ruler",
+          "is_ruler": false,
+          "is_clan_leader": true,
+          "clans_count": 3,
+          "fiefs_count": 5,
+          "at_war_count": 1,
+          "at_war_names": [
+            "Fixture Enemy"
+          ],
+          "own_settlements": [],
+          "enemy_settlements": [],
+          "all_kingdoms": [
+            {
+              "id": "fixture_neutral",
+              "name": "Fixture Neutral",
+              "at_war": false
+            },
+            {
+              "id": "fixture_enemy",
+              "name": "Fixture Enemy",
+              "at_war": true
+            }
+          ],
+          "rebellion_supporters": [
+            {
+              "id": "fixture_supporter",
+              "name": "Supporter Clan",
+              "fiefs_count": 1
+            },
+            {
+              "id": "fixture_supporter_2",
+              "name": "Another Clan",
+              "fiefs_count": 2
+            }
+          ],
+          "rebellion_supporters_required": 2,
+          "rebellion_relation_required": 50,
+          "culture": "vlandia"
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "kingdom_vassal_supported": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": true,
+      "is_king": false,
+      "captured": false,
+      "kingdom_tax_pct": 50,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": [
+        {
+          "id": 2,
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": 10000,
+          "status": "pending",
+          "offered_at": "2026-10-02 21:57:02"
+        }
+      ]
+    },
+    "hero_member": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 10000000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:57:02",
+        "last_sync": "2026-10-02 21:57:02",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Fixture Kingdom",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": false,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1
+        },
+        "kingdom_info": {
+          "id": "fixture_kingdom",
+          "name": "Fixture Kingdom",
+          "ruler_name": "Alice Hero",
+          "is_ruler": false,
+          "is_clan_leader": false,
+          "clans_count": 3,
+          "fiefs_count": 5,
+          "at_war_count": 1,
+          "at_war_names": [
+            "Fixture Enemy"
+          ],
+          "own_settlements": [],
+          "enemy_settlements": [],
+          "all_kingdoms": [
+            {
+              "id": "fixture_neutral",
+              "name": "Fixture Neutral",
+              "at_war": false
+            },
+            {
+              "id": "fixture_enemy",
+              "name": "Fixture Enemy",
+              "at_war": true
+            }
+          ],
+          "rebellion_supporters": [],
+          "rebellion_supporters_required": 2,
+          "rebellion_relation_required": 50,
+          "culture": "vlandia"
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "kingdom_member": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_kingdom",
+      "kingdom_name": "Fixture Kingdom",
+      "is_clan_leader": false,
+      "is_king": false,
+      "captured": false,
+      "kingdom_tax_pct": 50,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": [
+        {
+          "id": 2,
+          "target_kingdom_id": "fixture_enemy",
+          "target_kingdom_name": "Fixture Enemy",
+          "offered_tribute": 10000,
+          "status": "pending",
+          "offered_at": "2026-10-02 21:57:02"
+        }
+      ]
+    },
+    "policy_not_leader": {
+      "request": {
+        "action_type": "hero.enact_policy",
+        "data": {
+          "policy_id": "policy_trial_by_jury",
+          "policy_name": "Суд присяжных",
+          "client_action_id": "kingdom-probe-policy_not_leader"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Только король/лидер клана может предлагать политики"
+      }
+    },
+    "war_not_leader_backend": {
+      "request": {
+        "action_type": "kingdom.propose_war",
+        "data": {
+          "target_kingdom_id": "fixture_neutral",
+          "target_kingdom_name": "Fixture Neutral",
+          "client_action_id": "kingdom-probe-war_not_leader_backend"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "b25f3dfd22c04a72a8123f77260ce48a",
+        "charged": 2000,
+        "message": "⚔️ Action kingdom.propose_war в очереди (2000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      },
+      "queued": [
+        {
+          "type": "kingdom.propose_war",
+          "data": {
+            "target_kingdom_id": "fixture_neutral",
+            "target_kingdom_name": "Fixture Neutral",
+            "client_action_id": "kingdom-probe-war_not_leader_backend",
+            "price": 2000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "hero_no_kingdom": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 10000000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:57:02",
+        "last_sync": "2026-10-02 21:57:02",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1
+        },
+        "kingdom_info": null,
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "kingdom_no_kingdom": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": null,
+      "kingdom_name": null,
+      "is_clan_leader": true,
+      "is_king": false,
+      "captured": false,
+      "kingdom_tax_pct": 50,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": []
+    },
+    "war_no_kingdom_backend": {
+      "request": {
+        "action_type": "kingdom.propose_war",
+        "data": {
+          "target_kingdom_id": "fixture_neutral",
+          "target_kingdom_name": "Fixture Neutral",
+          "client_action_id": "kingdom-probe-war_no_kingdom_backend"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "93f7a4a6d5ca4489b885a253837a0192",
+        "charged": 2000,
+        "message": "⚔️ Action kingdom.propose_war в очереди (2000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      },
+      "queued": [
+        {
+          "type": "kingdom.propose_war",
+          "data": {
+            "target_kingdom_id": "fixture_neutral",
+            "target_kingdom_name": "Fixture Neutral",
+            "client_action_id": "kingdom-probe-war_no_kingdom_backend",
+            "price": 2000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "hero_other": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 10000000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:57:02",
+        "last_sync": "2026-10-02 21:57:02",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Other Kingdom",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1
+        },
+        "kingdom_info": {
+          "id": "fixture_other_kingdom",
+          "name": "Other Kingdom",
+          "ruler_name": "Other Ruler",
+          "is_ruler": false,
+          "is_clan_leader": true,
+          "clans_count": 3,
+          "fiefs_count": 5,
+          "at_war_count": 1,
+          "at_war_names": [
+            "Fixture Enemy"
+          ],
+          "own_settlements": [],
+          "enemy_settlements": [],
+          "all_kingdoms": [
+            {
+              "id": "fixture_neutral",
+              "name": "Fixture Neutral",
+              "at_war": false
+            },
+            {
+              "id": "fixture_enemy",
+              "name": "Fixture Enemy",
+              "at_war": true
+            }
+          ],
+          "rebellion_supporters": [],
+          "rebellion_supporters_required": 2,
+          "rebellion_relation_required": 50,
+          "culture": "vlandia"
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "kingdom_other": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "fixture_other_kingdom",
+      "kingdom_name": "Other Kingdom",
+      "is_clan_leader": true,
+      "is_king": false,
+      "captured": false,
+      "kingdom_tax_pct": 50,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": []
+    }
+  }
+}

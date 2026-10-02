@@ -39,6 +39,7 @@ export function PanelApp({ controller, identity, Equipment, combat = false }: { 
       {!gate.canShare && <p className="panel-muted">Откройте расширение на странице Twitch и проверьте вход в аккаунт.</p>}
     </section>}
     <div hidden={gate.status !== 'ready' || !state.canAct}>
+      {state.refundNotices.map(notice => <p className="panel-notice" role="alert" key={notice.id}>{notice.message}</p>)}
       {(Equipment || combat) && <nav className="panel-tabs" aria-label="Раздел героя"><button type="button" aria-pressed={tab === 'development'} onClick={() => changeTab('development')}>Развитие</button>{Equipment && <button type="button" aria-pressed={tab === 'equipment'} onClick={() => changeTab('equipment')}>Снаряжение</button>}{combat && <button type="button" aria-pressed={tab === 'combat'} onClick={() => changeTab('combat')}>Боевые действия</button>}</nav>}
       {combat && <div hidden={tab !== 'combat'}><CombatView controller={controller} /></div>}
       <div hidden={tab !== 'development'}><HeroDevelopmentView controller={controller} /></div>

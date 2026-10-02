@@ -2,23 +2,25 @@ import { TwitchAuthStore } from '../auth';
 import type { PanelUsage } from './usage';
 import type { IdentityBootstrap } from '../skillgames/identity';
 import { actionKey, hasProgressionPrices, UnknownActionOutcomeError, type BattleReply, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
+import { refundText } from './refunds';
 import { combatAllowed, semanticCooldown } from './combat';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
 export class PanelController {
   private state: PanelState;
   private listeners = new Set<() => void>(); private active = false; private generation = 0; private owner = '';
   private unsubscribe: (() => void)[] = []; private issued: Record<string, number> = {}; private applied: Record<string, number> = {};
+  private shownRefunds = new Set<string>(); private pendingStance: { actionId: string; revision: number } | null = null;
   private combatEnabled = false; private stanceRevision = 0;
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
   constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now, private readonly usage?: Pick<PanelUsage, 'start' | 'stop' | 'trackPanel' | 'trackSection' | 'trackAction'>) { this.state = this.empty(); }
-  private empty(): PanelState { return { battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
+  private empty(): PanelState { return { refundNotices: [], battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
   snapshot = () => this.state;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   private publish(patch: Partial<PanelState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()); }
   identityGeneration = () => this.generation;
   ready = () => this.active && this.identity.snapshot().status === 'ready' && !!this.identity.snapshot().login && !!this.auth.current()?.token && this.owner === owner(this.auth);
-  private invalidate() { this.generation++; this.aborts.forEach(abort => abort.abort()); this.aborts.clear(); this.timers.forEach(timer => clearTimeout(timer)); this.timers.clear(); this.issued = {}; this.applied = {}; this.cooldownRevision++; this.buildRevision++; this.stanceRevision++; this.state = this.empty(); }
+  private invalidate() { this.generation++; this.aborts.forEach(abort => abort.abort()); this.aborts.clear(); this.timers.forEach(timer => clearTimeout(timer)); this.timers.clear(); this.issued = {}; this.applied = {}; this.cooldownRevision++; this.buildRevision++; this.stanceRevision++; this.pendingStance = null; this.shownRefunds.clear(); this.state = this.empty(); }
   private mutationGate() { const message = this.transport.mutationBlock?.(); return { mutationBlocked: !!message, ...(message ? { message } : {}) }; }
   private syncIdentity = () => {
     const next = owner(this.auth); const changed = next !== this.owner;
@@ -63,7 +65,20 @@ export class PanelController {
         ...(key === 'build' && this.state.build ? { build: { ...this.state.build, ready: false, can_manage: false, build: undefined, enabled: !!this.state.build.enabled || this.state.build.build?.version === 1, message: errors[key] } } : {}), errors, error: Object.values(errors)[0] || '' });
     } finally { this.aborts.delete(abort); }
   }
-  refreshHero = () => this.load<HeroReply>('hero', '/api/bannerlord/my-hero', hero => ({ hero, optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance ? null : this.state.optimisticStance }));
+  private refundNotices(hero: HeroReply) {
+    const notices = [...this.state.refundNotices], generation = this.generation;
+    if (this.shownRefunds.size > 1000) this.shownRefunds.clear();
+    for (const refund of hero.recent_refunds || []) {
+      if (!refund.action_id || this.shownRefunds.has(refund.action_id)) continue;
+      this.shownRefunds.add(refund.action_id);
+      notices.push({ id: refund.action_id, message: refundText(refund.reason, refund.refunded) });
+      const timer = setTimeout(() => { this.timers.delete(timer); if (generation === this.generation) this.publish({ refundNotices: this.state.refundNotices.filter(n => n.id !== refund.action_id) }); }, 6000);
+      this.timers.add(timer);
+    }
+    return notices;
+  }
+  private stanceRefused(hero: HeroReply | null) { return !!this.pendingStance && this.pendingStance.revision === this.stanceRevision && !!hero?.recent_refunds?.some(r => r.action_id === this.pendingStance?.actionId && r.type === 'hero.set_combat_stance'); }
+  refreshHero = () => this.load<HeroReply>('hero', '/api/bannerlord/my-hero', hero => ({ hero, refundNotices: this.refundNotices(hero), optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance || this.stanceRefused(hero) ? null : this.state.optimisticStance }));
   refreshConfig = () => this.load<PanelConfig>('config', '/api/bannerlord/config', config => ({ config }));
   refreshClasses = () => this.load<ClassesReply>('classes', '/api/bannerlord/classes', classes => ({ classes }));
   refreshBuild = () => { const revision = this.buildRevision; return this.load<BuildReply>('build', '/api/bannerlord/build', build => ({ build, buildPending: !!build.pending, newBuild: this.state.newBuild || !!build.enabled || build.build?.version === 1, buildCooldownUntil: Math.max(this.clock() + (Number.isFinite(build.cooldown_remaining_s) ? Math.max(0, build.cooldown_remaining_s!) : 0) * 1000, Number.isFinite(build.build?.weapon_power_cooldown_until) ? build.build!.weapon_power_cooldown_until! * 1000 : 0) }), () => revision === this.buildRevision); };
@@ -113,9 +128,12 @@ export class PanelController {
   async combatAction(type: string, data: Record<string, unknown>, buildFamily = false) {
     if (!combatAllowed(this.state, type, data, buildFamily, this.clock())) return null;
     const generation = this.generation, stanceRevision = type === 'hero.set_combat_stance' ? ++this.stanceRevision : this.stanceRevision;
-    if (type === 'hero.set_combat_stance') this.publish({ optimisticStance: String(data.stance) });
+    if (type === 'hero.set_combat_stance') { this.pendingStance = null; this.publish({ optimisticStance: String(data.stance) }); }
     const result = await this.action(type, data, { tail: 'hero', buildFamily, cooldownKey: semanticCooldown(type, data, buildFamily) });
-    if (generation === this.generation && stanceRevision === this.stanceRevision && type === 'hero.set_combat_stance' && !result?.success) this.publish({ optimisticStance: null });
+    if (generation === this.generation && stanceRevision === this.stanceRevision && type === 'hero.set_combat_stance') {
+      if (result?.success && typeof result.action_id === 'string') this.pendingStance = { actionId: result.action_id, revision: stanceRevision };
+      if (!result?.success || this.stanceRefused(this.state.hero)) this.publish({ optimisticStance: null });
+    }
     return result;
   }
   async action(type: string, data: Record<string, unknown>, options: ActionOptions): Promise<ActionReply | null> {

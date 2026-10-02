@@ -40,10 +40,14 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
         import auth
         import dependencies
         import httpx
+        from routes import match
+        from database import Database
         from fastapi import FastAPI
         self.tmp = tempfile.TemporaryDirectory()
         self.path = str(Path(self.tmp.name) / 'skillgames.db')
         class DB:
+            get_room = Database.get_room
+
             @asynccontextmanager
             async def _connect(inner):
                 async with aiosqlite.connect(self.path, timeout=10) as conn:
@@ -54,13 +58,14 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
                 CREATE TABLE duel_stats(channel_id INTEGER, username TEXT, game_type TEXT, elo INTEGER DEFAULT 1100, win_streak INTEGER DEFAULT 0, season_id INTEGER DEFAULT 1, updated_at TEXT, PRIMARY KEY(channel_id,username,game_type));
                 CREATE TABLE duel_seasons(id INTEGER PRIMARY KEY AUTOINCREMENT,channel_id INTEGER,game_type TEXT,started_at TEXT,ends_at TEXT,finished INTEGER DEFAULT 0);
                 CREATE TABLE viewers(channel_id INTEGER,username TEXT,points INTEGER DEFAULT 0,PRIMARY KEY(channel_id,username));
-                CREATE TABLE match_rooms(room_id TEXT PRIMARY KEY,channel_id INTEGER,game_type TEXT,state TEXT);
+                CREATE TABLE match_rooms(room_id TEXT PRIMARY KEY,channel_id INTEGER,game_type TEXT,player_a TEXT,player_b TEXT,player_a_elo INTEGER,player_b_elo INTEGER,state TEXT,status TEXT,winner TEXT,outcome TEXT,created_at TEXT,finished_at TEXT);
                 INSERT INTO viewers VALUES(11,'alice',1234),(11,'bobby',987),(22,'alice',4321);
             ''')
             await m135_skillgames.apply(conn)
             await m135_skillgames.apply(conn)
         self.service = SkillgameService(self.db)
         self.patchers = [patch.object(skillgames, 'get_service', return_value=self.service),
+                         patch.object(match, 'get_db', return_value=self.db),
                          patch.object(dependencies, 'is_channel_registered', return_value=True),
                          patch.object(dependencies, 'is_channel_approved', return_value=True),
                          patch.object(dependencies, '_check_request_rate_limit')]
@@ -68,6 +73,7 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
         self.secret = base64.b64decode(auth.TWITCH_EXTENSION_SECRET)
         app = FastAPI()
         app.include_router(skillgames.router)
+        app.include_router(match.router)
         self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test')
 
     async def asyncTearDown(self):
@@ -363,6 +369,42 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(observed['status'],'void')
         self.assertEqual(observed['result']['reason'],'service_unavailable')
         self.assertFalse(self.rows('SELECT * FROM duel_stats'))
+
+
+    async def test_generic_room_endpoint_cannot_see_private_boards(self):
+        session = await self.action(await self.start(),'open',cell=0)
+        response = await self.client.get('/api/match/room/'+session['id']+'/state',headers=self.headers())
+        self.assertEqual(response.status_code,200)
+        self.assertFalse(response.json()['success'])
+        self.assertNotIn('mines',response.text)
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("INSERT INTO match_rooms(room_id,channel_id,game_type,player_a,player_b,player_a_elo,player_b_elo,state,status) VALUES (?,?,?,?,?,?,?,?,?)",('old-rps-room',11,'rps','alice','bobby',1000,1000,'{}','active'))
+        response = await self.client.get('/api/match/room/old-rps-room/state',headers=self.headers())
+        self.assertEqual(response.status_code,200)
+        self.assertTrue(response.json()['success'])
+        self.assertEqual(response.json()['room']['game_type'],'rps')
+        other = await self.client.get('/api/match/room/old-rps-room/state',headers=self.headers(channel=22))
+        self.assertFalse(other.json()['success'])
+
+    async def test_real_mines_win_difficulty_and_old_rating_isolation(self):
+        with sqlite3.connect(self.path) as conn:
+            conn.execute("INSERT INTO duel_stats(channel_id,username,game_type,elo,win_streak,season_id) VALUES (11,'alice','rps',1555,7,99)")
+        start = dict(game_type='minesweeper',mode='ranked',difficulty='advanced',request_id='advanced-rated-start')
+        session = (await self.call('POST','/start',start))['session']
+        session = await self.action(session,'open',cell=0)
+        secret = json.loads(self.rows('SELECT secret_state FROM skillgame_sessions WHERE channel_id=11 AND id=?',(session['id'],))[0][0])
+        for cell in range(36):
+            if session['status']=='finished': break
+            if cell not in secret['mines'] and str(cell) not in session['state']['opened']:
+                session = await self.action(session,'open',cell=cell)
+        self.assertEqual(session['status'],'finished')
+        self.assertEqual(session['result']['outcome'],'win')
+        self.assertEqual(session['result']['rating'],{'before':1000,'after':1024,'delta':24})
+        self.assertEqual(self.rows("SELECT elo,win_streak FROM duel_stats WHERE channel_id=11 AND username='alice' AND game_type='rps'"),[(1555,7)])
+        self.assertFalse(self.rows("SELECT * FROM duel_stats WHERE game_type='battleship' OR channel_id=22"))
+        for secret_key in ('mines','certification','generation','seed'):
+            self.assertNotIn('"'+secret_key+'"',json.dumps(session))
+        self.assertEqual(self.rows('SELECT points FROM viewers WHERE channel_id=11 AND username=?',('alice',)),[(1234,)])
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

@@ -7,7 +7,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && vite build && node scripts/check-build.mjs",
-    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort"
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "test:live": "vitest run test/skillgame-live.test.ts"
   },
   "dependencies": {
     "react": "19.3.0",

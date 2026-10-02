@@ -166,3 +166,8 @@ it('new-build zero-priced ability is allowed with a verified zero balance and st
   const build={...c.build_combat_one_handed,build:{...c.build_combat_one_handed.build,power_options:c.build_combat_one_handed.build.power_options.map(p=>({...p,price:0}))}};
   const p=await combatPair({build,stats:{...f.stats,points:0}});await p.click('[data-bnr-build-activate="rage"]');await p.advance(3500);p.check();expect(posts(p)).toHaveLength(1);expect((posts(p)[0].body as {data:object}).data).not.toHaveProperty('price');
 });
+for(const [saved,label] of [['combat','Боевые действия'],['hero','Развитие'],['inventory','Снаряжение']] as const)it(`restored ${saved} initial selected-host request trace matches actual old initialization`,async()=>{
+  const p=await combatPair({},false,saved);p.check();expect(p.ui.getByRole('button',{name:label}).getAttribute('aria-pressed')).toBe('true');
+  expect(p.trace.filter(r=>r.path.endsWith('/equipment-shop'))).toHaveLength(saved==='inventory'?1:0);
+  await p.advance(8000);p.check();await p.tab('combat');await p.advance(8000);p.check();await p.tab('inventory');p.check();
+});

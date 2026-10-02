@@ -15,7 +15,7 @@ export class PanelController {
   private shownRefunds = new Set<string>(); private pendingStance: { actionId: string; revision: number } | null = null;
   private initialEquipment = false;
   private equipmentPreload: { generation: number; hero?: string; promise: Promise<unknown>; abort: AbortController } | null = null;
-  private partyActive = false;
+  private partyActive = false; private messageRevision = 0;
   private combatEnabled = false; private stanceRevision = 0;
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
@@ -145,7 +145,7 @@ export class PanelController {
     return this.load<PartyOrdersReply>('party', '/api/bannerlord/party-orders', partyOrders => ({ partyOrders }), () => context === partyOwner(this.state.hero) && token === this.auth.current()?.token);
   };
   captureRequestOwner() { const generation=this.generation,token=this.auth.current()?.token; return () => generation===this.generation&&token===this.auth.current()?.token&&this.ready(); }
-  showMessage(message: string, duration?: number) { this.publish({ message }); if(duration){const generation=this.generation;const timer=setTimeout(()=>{this.timers.delete(timer);if(generation===this.generation&&this.state.message===message)this.publish({message:''});},duration);this.timers.add(timer);} }
+  showMessage(message: string, duration?: number) { const revision=++this.messageRevision; this.publish({ message }); if(duration){const generation=this.generation;const timer=setTimeout(()=>{this.timers.delete(timer);if(generation===this.generation&&revision===this.messageRevision&&this.state.message===message)this.publish({message:''});},duration);this.timers.add(timer);} }
   async kingdomAction(type: string, data: Record<string, unknown>) {
     if(!this.partyActive||!kingdomAllowed(this.state,type)||!this.ready())return null;
     const owns=this.captureRequestOwner(),context=kingdomOwner(this.state.hero);

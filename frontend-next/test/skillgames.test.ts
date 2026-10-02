@@ -21,15 +21,16 @@ describe('skillgame HTTP contract', () => {
     expect(JSON.parse(options.body)).toEqual({ session_id: 'one', version: 0, action: 'open', cell: 8, request_id: 'request-one' });
   });
   it('blocks duplicate clicks; uncertain retries keep exact body and request ID', async () => {
-    const request = deferred<Response>(); const fetcher = vi.fn().mockReturnValueOnce(request.promise).mockResolvedValue(response({ success: true, session }));
+    const request = deferred<Response>(); const fetcher = vi.fn().mockResolvedValueOnce(response({ ...empty, request_retention_seconds: 86400 })).mockReturnValueOnce(request.promise).mockResolvedValue(response({ success: true, session }));
     const transport = new HttpSkillgameTransport('', auth(), fetcher, () => 'same-id');
+    await transport.read(new AbortController().signal);
     const pending = transport.mutate('action', { session_id: 'one', version: 0, action: 'open', cell: 8 });
     await expect(transport.mutate('action', { session_id: 'one', version: 0, action: 'open', cell: 9 })).rejects.toThrow();
     request.reject(new Error('lost response'));
     await expect(pending).rejects.toBeInstanceOf(UnknownMutationError);
     await expect(transport.mutate('start', { game_type: 'minesweeper', mode: 'ranked', difficulty: 'beginner' })).rejects.toThrow();
     await transport.retry();
-    expect(fetcher.mock.calls[0][1].body).toBe(fetcher.mock.calls[1][1].body);
+    expect(fetcher.mock.calls[1][1].body).toBe(fetcher.mock.calls[2][1].body);
   });
   it('preserves unfamiliar refusal code and text without replaying stale moves', async () => {
     const fetcher = vi.fn().mockResolvedValue(response({ success: false, reason: 'new_future_reason', message: 'Сервер объяснил отказ' }, 409));

@@ -13,7 +13,7 @@ const identity = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.chan
 export class SkillgameUsage {
   private events = new Map<string, { kind: string; feature: string; count: number }>();
   private owner: string; private lastFlush: number; private busy = false;
-  constructor(private readonly auth: TwitchAuthStore, private readonly surface: 'desktop' | 'mobile', private readonly fetcher: typeof fetch = fetch, private readonly clock = () => Date.now()) { this.owner = identity(auth); this.lastFlush = clock(); }
+  constructor(private readonly auth: TwitchAuthStore, private readonly surface: 'desktop' | 'mobile', private readonly fetcher: typeof fetch = fetch, private readonly clock = () => Date.now(), private readonly baseUrl = '') { this.owner = identity(auth); this.lastFlush = clock(); }
   private sync() { const next = identity(this.auth); if (next !== this.owner) { this.events.clear(); this.owner = next; } }
   record(kind: string, feature: string) {
     this.sync(); if (!this.auth.current() || !allowed.get(kind)?.has(feature)) return;
@@ -28,7 +28,7 @@ export class SkillgameUsage {
     if (this.busy || !token || !this.events.size || this.clock() - this.lastFlush < 15000) return;
     const events = [...this.events.values()]; this.events.clear(); this.busy = true; this.lastFlush = this.clock();
     try {
-      await this.fetcher('/api/viewer/ui-usage', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': token }, body: JSON.stringify({ batch_id: crypto.randomUUID(), surface: this.surface, events }) });
+      await this.fetcher(`${this.baseUrl}/api/viewer/ui-usage`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': token }, body: JSON.stringify({ batch_id: crypto.randomUUID(), surface: this.surface, events }) });
     } catch { /* Best effort: gameplay and privacy take precedence over telemetry. */ }
     finally { this.busy = false; }
   }

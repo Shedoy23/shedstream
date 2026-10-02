@@ -1,6 +1,6 @@
 import { TwitchAuthStore } from '../auth';
 import type { Command, Endpoint, MutationReply, SkillgameSnapshot, SkillgameTransport } from './contracts';
-export interface SkillgameViewState { data: SkillgameSnapshot | null; loading: boolean; pending: boolean; uncertain: boolean; error: string | null; notice: string | null; canAct: boolean; receivedAt: number }
+export interface SkillgameViewState { data: SkillgameSnapshot | null; loading: boolean; pending: boolean; uncertain: boolean; retryExpired?: boolean; error: string | null; notice: string | null; canAct: boolean; receivedAt: number }
 const initial: SkillgameViewState = { data: null, loading: false, pending: false, uncertain: false, error: null, notice: null, canAct: false, receivedAt: 0 };
 const scope = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
 export class SkillgameController {
@@ -9,10 +9,11 @@ export class SkillgameController {
   private abort?: AbortController; private detach?: () => void; private sessionId?: string;
   constructor(private readonly transport: SkillgameTransport, private readonly auth: TwitchAuthStore) { this.identity = scope(auth); }
   snapshot = () => this.state;
+  hasCurrentIdentity = () => this.identity === scope(this.auth);
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private publish(patch: Partial<SkillgameViewState>) {
     if (!this.active) return;
-    this.state = { ...this.state, ...patch, uncertain: this.transport.hasUncertain(), pending: this.pending };
+    this.state = { ...this.state, ...patch, uncertain: this.transport.hasUncertain(), retryExpired: this.transport.retryExpired?.() || false, pending: this.pending };
     this.state.canAct = !!this.auth.current() && !!this.state.data && !this.state.error && !this.state.loading && !this.pending && !this.state.uncertain;
     this.listeners.forEach(fn => fn());
   }
@@ -35,9 +36,10 @@ export class SkillgameController {
     const generation = this.generation; const abort = new AbortController(); this.abort = abort; this.inFlight = true;
     this.publish({ loading: true });
     try {
+      const expired = this.transport.retryExpired?.() || false;
       const data = await this.transport.read(abort.signal, this.sessionId);
       if (!this.active || generation !== this.generation) return;
-      this.publish({ data, error: null, loading: false, receivedAt: Date.now() });
+      this.publish({ data, error: null, loading: false, receivedAt: Date.now(), ...(expired ? { notice: 'Срок безопасного повтора истёк или не подтверждён. Состояние обновлено; старый запрос не повторён. Новое действие выберите отдельно.' } : {}) });
     } catch (error) {
       if (!this.active || generation !== this.generation || abort.signal.aborted) return;
       this.publish({ loading: false, error: error instanceof Error ? error.message : 'Не удалось обновить состояние' });

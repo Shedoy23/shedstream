@@ -107,7 +107,8 @@ export function SkillgameView({ state, onSubmit, onRefresh, onRetry, demo, local
     {state.error && <p className="sg-error" role="alert">{state.error}</p>}
     {state.notice && <p className="sg-notice" role="status">{state.notice}</p>}
     {state.pending && <p role="status" className="sg-hint">Ждём ответ сервера…</p>}
-    {state.uncertain && <button className="sg-primary" disabled={state.pending} onClick={onRetry}>Безопасно повторить тот же запрос</button>}
+    {state.uncertain && state.retryExpired && <p className="sg-notice">Срок безопасного повтора истёк или не подтверждён сервером. Обновите состояние; новое действие нужно выбрать отдельно.</p>}
+    {state.uncertain && !state.retryExpired && <button className="sg-primary" disabled={state.pending} onClick={onRetry}>Безопасно повторить тот же запрос</button>}
     {state.loading && !data && <p className="sg-hint" role="status">Загружаем правила и сохранённую партию…</p>}
     {data?.queue.status === 'queued' && <section className="sg-session"><h2>Ищем соперника</h2><p className="sg-hint">Можно закрыть панель и вернуться. Поиск и его срок хранит сервер.</p>{typeof data.queue.expires_at === 'number' && <p className="sg-expiry">До конца поиска: {Math.max(0, Math.ceil(data.queue.expires_at - serverNow))} с</p>}<button disabled={!state.canAct} onClick={() => onSubmit('cancel', {})}>Отменить поиск</button></section>}
     {session && <article className="sg-session"><header className="sg-session-heading"><div><p className="sg-eyebrow">{modeName(session.mode)}</p><h2>{config?.name || session.game_type}</h2></div><span className="sg-version">#{session.version}</span></header>

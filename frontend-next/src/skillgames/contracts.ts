@@ -18,7 +18,7 @@ export interface Session {
 export interface SkillgameSnapshot {
   success: true; catalog: GameCatalog[]; active_session: Session | null;
   queue: { status: string; [key: string]: unknown }; ratings: Record<string, number>;
-  server_time?: number; poll_interval_ms?: number;
+  server_time?: number; poll_interval_ms?: number; request_retention_seconds?: number; session_retention_seconds?: number; max_requests_per_user?: number;
 }
 export type Endpoint = 'start' | 'action' | 'queue' | 'cancel';
 export type Command = Record<string, unknown>;
@@ -31,6 +31,7 @@ export interface SkillgameTransport {
   mutate(endpoint: Endpoint, command: Command): Promise<MutationReply>;
   retry(): Promise<MutationReply>;
   hasUncertain(): boolean;
+  retryExpired?(): boolean;
 }
 const int = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n);
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
@@ -85,6 +86,7 @@ export function parseSession(value: unknown): Session {
 export function parseSnapshot(value: unknown): SkillgameSnapshot {
   if (!isRecord(value) || value.success !== true || !isRecord(value.queue) || typeof value.queue.status !== 'string'
     || !isRecord(value.ratings) || !Object.values(value.ratings).every(finite)
+    || (value.request_retention_seconds !== undefined && (!finite(value.request_retention_seconds) || value.request_retention_seconds <= 0))
     || !finite(value.server_time) || (value.poll_interval_ms !== undefined && (!int(value.poll_interval_ms) || value.poll_interval_ms <= 0))
     || !['idle', 'queued'].includes(value.queue.status) || (value.queue.status === 'queued' && !finite(value.queue.expires_at))) throw new Error('Неизвестный формат состояния игр');
   const catalog = parseCatalog(value.catalog);

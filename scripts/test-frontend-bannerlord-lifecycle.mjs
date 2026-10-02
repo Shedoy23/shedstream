@@ -38,7 +38,9 @@ function hero(name = 'Current hero', leader = true) {
 }
 async function load(h, data = hero()) { const p = h.invoke('loadBannerlordHero()'); h.reply(h.requests.length - 1, data); await p; }
 const failures = [];
+let total = 0;
 async function test(name, fn) {
+    total++;
     try { await fn(); console.log('PASS ' + name); }
     catch (error) { failures.push(name); console.error('FAIL ' + name + ': ' + error.message); }
 }
@@ -91,5 +93,23 @@ await test('hidden document and nonleader do not start leader requests', async (
     h.calls.length = 0; h.document.hidden = true; await load(h);
     assert.deepEqual(h.calls.filter(c => dynasty.includes(c)), []);
 });
-console.log(`${9 - failures.length}/9 passed`);
+for (const state of ['missing', 'dead']) await test('same hero returns after ' + state + ' DOM replacement', async () => {
+    const h = harness(); await load(h); const good = h.body.innerHTML;
+    const changed = state === 'missing' ? { success: true, has_hero: false } : hero();
+    if (state === 'dead') changed.hero.is_alive = false;
+    await load(h, changed); assert.notEqual(h.body.innerHTML, good);
+    await load(h); assert.equal(h.body.innerHTML, good, 'direct state DOM must not survive the returning hero');
+});
+for (const timing of ['pending', 'scheduled']) await test('shared action refresh rejects stopped lifecycle (' + timing + ')', async () => {
+    const h = harness(); let success;
+    h.context.ShedLink.buyAction = async (_module, _action, _data, options) => { success = options.onSuccess; return { success: true }; };
+    await h.invoke('_bannerlordBuyAction("hero.rename_vassal", {vassal_id:1,new_name:"New"})');
+    if (timing === 'scheduled') success();
+    h.invoke('_stopBannerlordPolling()');
+    if (timing === 'pending') success();
+    for (const fn of h.timers.splice(0)) fn();
+    assert.equal(h.requests.length, 0, 'accepted action must not restart hero request after stop');
+    assert.deepEqual(h.calls, [], 'accepted action must not restart sibling loaders after stop');
+});
+console.log(`${total - failures.length}/${total} passed`);
 if (failures.length) process.exitCode = 1;

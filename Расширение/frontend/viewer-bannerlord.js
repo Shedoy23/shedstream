@@ -21,6 +21,8 @@
 let _bannerlordLifecycle = 0;
 let _bnrHeroRequestSeq = 0;
 let _bnrVassalRequestSeq = 0;
+let _bnrBuffRequestSeq = 0;
+let _bnrCooldownRevision = 0;
 let _bannerlordPollId = null;
 let _bannerlordBuffPollId = null;   // 4.6 — periodic GET /api/bannerlord/my-buffs (2.5s)
 let _bannerlordBuffTickId = null;   // 4.6 — client-side decrement (1s) для smooth countdown
@@ -731,6 +733,7 @@ function _bnrCdRemaining(key) {
 // dispatcher'а сразу после ответа backend'а — кнопка реагирует мгновенно.
 function _bnrSetLocalCooldown(key, seconds) {
     if (!key || !(seconds > 0)) return;
+    _bnrCooldownRevision++;
     const expires_at_ms = Date.now() + seconds * 1000;
     const existing = _bannerlordCooldowns.find(c => c.power_key === key);
     if (existing) {
@@ -3831,25 +3834,34 @@ function renderBannerlordSummonButton() {
 // Раньше client-side декремент drift'ил когда tab throttled — viewer видел
 // power как "unlocked" пока CD реально active, кликал → backend rejects.
 async function loadBannerlordBuffs() {
+    const request = ++_bnrBuffRequestSeq, lifecycle = _bannerlordLifecycle, token = authToken;
+    const cooldownRevision = _bnrCooldownRevision;
+    const isCurrent = () => request === _bnrBuffRequestSeq && lifecycle === _bannerlordLifecycle && token === authToken;
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/my-buffs`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const data = await r.json();
+        if (!isCurrent()) return;
         if (data.success) {
             const now = Date.now();
             _bannerlordBuffs = (data.buffs || []).map(b => ({
                 ...b,
                 expires_at_ms: now + (b.remaining_s || 0) * 1000,
             }));
-            _bannerlordCooldowns = (data.cooldowns || []).map(c => ({
-                ...c,
-                expires_at_ms: now + (c.remaining_s || 0) * 1000,
-            }));
+            // A GET started before /action replied cannot erase that newer CD.
+            // The next poll still replaces the snapshot, including an empty one.
+            if (cooldownRevision === _bnrCooldownRevision) {
+                _bannerlordCooldowns = (data.cooldowns || []).map(c => ({
+                    ...c,
+                    expires_at_ms: now + (c.remaining_s || 0) * 1000,
+                }));
+            }
             _renderBannerlordBuffs();
             renderBannerlordActivePowers();
         }
     } catch (e) {
+        if (!isCurrent()) return;
         // Sprint 5.29 audit fix #36: было silent — теперь warn (HUD-poll)
         console.warn('[BNR loadBannerlordBuffs]', e);
     }

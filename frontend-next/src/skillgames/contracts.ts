@@ -1,5 +1,6 @@
 import { isRecord } from '../contracts';
 export interface GameCatalog {
+  availability?: { enabled: boolean; reason: string | null };
   game_type: string; name: string; rules: string[]; modes: string[];
   difficulties: { id: string; label: string; mine_count?: number; puzzle_rating?: number }[];
   board: { rows: number; cols: number }; fleet?: number[];
@@ -12,7 +13,7 @@ export interface Session {
   id: string; game_type: string; mode: string; difficulty: string | null; status: string; version: number;
   created_at: number; started_at: number | null; expires_at: number | null;
   state: Record<string, unknown> & { rows: number; cols: number };
-  result: null | { outcome?: string; winner?: string | null; reason?: string; rating?: { before: number; after: number; delta: number }; [key: string]: unknown };
+  result: null | { message?: string; reason_message?: string; outcome?: string; winner?: string | null; reason?: string; rating?: { before: number; after: number; delta: number }; [key: string]: unknown };
 }
 export interface SkillgameSnapshot {
   success: true; catalog: GameCatalog[]; active_session: Session | null;
@@ -40,6 +41,7 @@ function dimensions(v: unknown): v is { rows: number; cols: number } {
 export function parseCatalog(value: unknown): GameCatalog[] {
   if (!Array.isArray(value) || !value.every(v => isRecord(v) && typeof v.game_type === 'string' && typeof v.name === 'string'
     && textArray(v.rules) && textArray(v.modes) && Array.isArray(v.difficulties) && v.difficulties.every(d => isRecord(d) && typeof d.id === 'string' && typeof d.label === 'string')
+    && (v.availability === undefined || (isRecord(v.availability) && typeof v.availability.enabled === 'boolean' && (typeof v.availability.reason === 'string' || v.availability.reason === null)))
     && dimensions(v.board) && isRecord(v.timers) && Object.values(v.timers).every(n => finite(n) && n >= 0)
     && isRecord(v.rewards) && typeof v.rewards.enabled === 'boolean' && typeof v.rewards.reason === 'string' && isRecord(v.rating))) {
     throw new Error('Неизвестный формат каталога игр. Действия отключены.');
@@ -72,7 +74,7 @@ export function parseSession(value: unknown): Session {
   }
   if (isRecord(value.result)) {
     const result = value.result;
-    if ((result.outcome !== undefined && typeof result.outcome !== 'string') || (result.reason !== undefined && typeof result.reason !== 'string')
+    if ((['message', 'reason_message', 'outcome'].some(key => result[key] !== undefined && typeof result[key] !== 'string')) || (result.reason !== undefined && typeof result.reason !== 'string')
       || (result.rating != null && (!isRecord(result.rating) || !['before', 'after', 'delta'].every(key => finite((result.rating as Record<string, unknown>)[key]))))) {
       throw new Error('Неизвестный формат результата партии');
     }

@@ -41,7 +41,9 @@ describe('skillgame accessible controls', () => {
     const submit = mount({ ...empty, active_session: { ...battle, state: { ...battle.state, phase: 'active', your_turn: true, own_ships: [[0, 1, 2], [12, 13], [5, 11], [35]] } } });
     expect(screen.getByRole('table', { name: 'Поле соперника' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Моё поле' }));
-    const own = screen.getByRole('table', { name: 'Моё поле' }); fireEvent.click(within(own).getByRole('button', { name: /^A1 —/ }));
+    const own = screen.getByRole('table', { name: 'Моё поле' });
+    // Native click obeys disabled, as a real mouse/tap does; dispatchEvent does not.
+    (within(own).getByRole('button', { name: /^A1 —/ }) as HTMLButtonElement).click();
     expect(submit).not.toHaveBeenCalled();
   });
   it('renders rules, reward gate and future game as unsupported rather than guessing mechanics', () => {
@@ -105,7 +107,7 @@ describe('server admission flags', () => {
   it('disables new games with the exact server availability reason', () => {
     const submit = mount({ ...empty, catalog: [{ ...catalog[0], availability: { enabled: false, reason: 'Техническая пауза сервера' } }] });
     expect(screen.getByText('Техническая пауза сервера')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Рейтинг' })); expect(submit).not.toHaveBeenCalled();
+    (screen.getByRole('button', { name: 'Рейтинг' }) as HTMLButtonElement).click(); expect(submit).not.toHaveBeenCalled();
   });
   it('preserves moves in an existing session when admission is disabled', () => {
     const submit = mount({ ...resumed, catalog: [{ ...catalog[0], availability: { enabled: false, reason: 'Техническая пауза сервера' } }] });

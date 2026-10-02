@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { isRecord } from '../contracts';
 import { knownGame, terminal, type Command, type Endpoint, type GameCatalog, type Session } from './contracts';
 import type { SkillgameViewState } from './controller';
@@ -31,7 +31,9 @@ function Battleship({ session, disabled, act }: { session: Session; disabled: bo
   const state = session.state; const fleet = cells(state.fleet_sizes); const own = ships(state.own_ships); const ownFleetRevision = JSON.stringify(own);
   const [draft, setDraft] = useState<number[][]>(own); const [selected, setSelected] = useState(0); const [vertical, setVertical] = useState(false);
   const [ownBoard, setOwnBoard] = useState(false); const [placementError, setPlacementError] = useState('');
-  useEffect(() => { setDraft(JSON.parse(ownFleetRevision) as number[][]); setPlacementError(''); }, [session.id, ownFleetRevision]);
+  // Synchronize before the board is interactive; a deferred mount effect can
+  // otherwise overwrite the first tap in Preact.
+  useLayoutEffect(() => { setDraft(JSON.parse(ownFleetRevision) as number[][]); setPlacementError(''); }, [session.id, ownFleetRevision]);
   const placement = state.phase === 'placement'; const locked = disabled || state.ready === true;
   const draftSaved = JSON.stringify(draft) === JSON.stringify(own); const complete = fleet.length > 0 && fleet.every((size, i) => draft[i]?.length === size);
   function place(cell: number) {

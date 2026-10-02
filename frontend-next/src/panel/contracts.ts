@@ -14,6 +14,7 @@ export interface ActionOptions { buildFamily?: boolean; cooldownKey?: string; ta
 export interface PanelState { refundNotices: { id: string; message: string }[]; battle: BattleReply | null; buffs: Record<string, number>; buffsReady: boolean; points: number | null; newBuild: boolean; buildBusy: boolean; buildCooldownUntil: number; optimisticStance: string | null; hero: HeroReply | null; config: PanelConfig | null; build: BuildReply | null; classes: ClassesReply | null; loading: boolean; canAct: boolean; mutationBlocked: boolean; message: string; error: string; errors: Record<string, string>; buildPending: boolean; busy: readonly string[]; cooldowns: Record<string, number>; now: number; generation: number }
 export interface PanelTransport { mutationBlock?(): string | null; read<T>(path: string, signal?: AbortSignal): Promise<T>; action(type: string, data: Record<string, unknown>): Promise<ActionReply | null> }
 export const validPrice = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+export const heroContext = (data: HeroReply | null) => JSON.stringify([data?.has_hero, data?.hero?.hero_id, data?.hero?.iteration, data?.hero?.adopted_at]);
 export const actionKey = (type: string, data: Record<string, unknown>) => type + ':' + Object.keys(data).sort().filter(key => key !== 'client_action_id').map(key => key + '=' + String(data[key])).join('&');
 
 // These five positions reflect the inherited UI cap, not a newly invented price table.

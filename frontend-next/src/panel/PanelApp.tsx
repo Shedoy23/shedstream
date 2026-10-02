@@ -13,7 +13,7 @@ export function PanelApp({ controller, identity, Equipment, combat = false }: { 
   });
   const balanceTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const currentTab = useRef(tab); currentTab.current = tab;
-  useLayoutEffect(() => { if (combat) controller.enableCombat(); void controller.start(); return () => controller.stop(); }, [controller, combat]);
+  useLayoutEffect(() => { if (combat) controller.enableCombat(); void controller.start({ equipmentFirst: combat && !!Equipment && currentTab.current === 'equipment' }); return () => controller.stop(); }, [controller, combat]);
   useEffect(() => {
     if (!state.canAct) return;
     const snapshotTimer = setInterval(() => { if (!document.hidden) { void controller.refreshHero(); void controller.refreshClasses(); void controller.refreshBuild(); if (currentTab.current === 'equipment') void controller.refreshEquipment(); } }, 8000);
@@ -35,7 +35,8 @@ export function PanelApp({ controller, identity, Equipment, combat = false }: { 
   useEffect(() => () => { clearInterval(balanceTimer.current); balanceTimer.current = undefined; }, [controller, combat]);
   const changeTab = (next: typeof tab) => {
     if (currentTab.current !== next) controller.trackSection(next === 'development' ? 'bannerlord:tab.hero' : next === 'combat' ? 'bannerlord:tab.combat' : 'bannerlord:tab.inventory');
-    else if (next === 'equipment' && tab === next) void controller.refreshEquipment();
+    else if (next === 'equipment' && tab === next && (!combat || state.hero !== null)) void controller.refreshEquipment();
+    if (currentTab.current === 'equipment' && next !== 'equipment') controller.discardEquipmentPreload();
     if (combat) { try { localStorage.setItem('bnr_active_tab', next === 'development' ? 'hero' : next === 'equipment' ? 'inventory' : 'combat'); } catch { /* Optional tab persistence. */ } }
     currentTab.current = next; setTab(next);
   };
@@ -50,7 +51,7 @@ export function PanelApp({ controller, identity, Equipment, combat = false }: { 
       {(Equipment || combat) && <nav className="panel-tabs" aria-label="Раздел героя"><button type="button" aria-pressed={tab === 'development'} onClick={() => changeTab('development')}>Развитие</button>{Equipment && <button type="button" aria-pressed={tab === 'equipment'} onClick={() => changeTab('equipment')}>Снаряжение</button>}{combat && <button type="button" aria-pressed={tab === 'combat'} onClick={() => changeTab('combat')}>Боевые действия</button>}</nav>}
       {combat && <div hidden={tab !== 'combat'}><CombatView controller={controller} /></div>}
       <div hidden={tab !== 'development'}><HeroDevelopmentView controller={controller} /></div>
-      {Equipment && <div hidden={tab !== 'equipment'}><Equipment key={state.generation} controller={controller} active={tab === 'equipment' && state.canAct} /></div>}
+      {Equipment && <div hidden={tab !== 'equipment'}><Equipment key={state.generation} controller={controller} active={tab === 'equipment' && state.canAct && (!combat || state.hero !== null)} /></div>}
     </div>
   </main>;
 }

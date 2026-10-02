@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { heroContext } from './contracts';
 import type { PanelController } from './controller';
 import { categories, directPayload, equipmentPresentation, number, numericStats, paymentText, priceText, purchaseOption, slotNames, statNames, stats, tierName, validQuote, type EquipmentReply, type OwnedItem, type ShopItem } from './equipment';
 import './equipment.css';
@@ -6,12 +7,9 @@ interface Confirmation {
   message: string; yes: string; opener: HTMLElement | null; generation: number; hero: string;
   action: 'hero.buy_equipment' | 'hero.discard_owned'; id: string; signature: string; data: Record<string, unknown>;
 }
-const heroIdentity = (controller: PanelController) => {
-  const data = controller.snapshot().hero; const hero = data?.hero;
-  // These are observable fields. Equipment responses contain no save/session ID,
-  // so an invisible switch with identical hero data cannot be detected here.
-  return JSON.stringify([data?.has_hero, hero?.hero_id, hero?.iteration, hero?.adopted_at]);
-};
+// The server's equipment reply has no save/session ID. Preserve the same
+// observable hero fence for preload consumption and ordinary refreshes.
+const heroIdentity = (controller: PanelController) => heroContext(controller.snapshot().hero);
 const quoteSignature = (item: ShopItem, slots: Record<string, string>) => JSON.stringify([item.item_id, item.name, item.price_gold, item.purchase_mode, item.can_buy, item.unavailable, purchaseOption(item, slots)]);
 function DangerDialog({ confirmation, accept, cancel }: { confirmation: Confirmation; accept: () => void; cancel: () => void }) {
   const dialog = useRef<HTMLDivElement>(null);

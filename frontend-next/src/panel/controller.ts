@@ -1,7 +1,7 @@
 import { TwitchAuthStore } from '../auth';
 import type { PanelUsage } from './usage';
 import type { IdentityBootstrap } from '../skillgames/identity';
-import { actionKey, hasProgressionPrices, UnknownActionOutcomeError, type BattleReply, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
+import { actionKey, hasProgressionPrices, heroContext, UnknownActionOutcomeError, type BattleReply, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
 import { refundText } from './refunds';
 import { combatAllowed, semanticCooldown } from './combat';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
@@ -10,6 +10,8 @@ export class PanelController {
   private listeners = new Set<() => void>(); private active = false; private generation = 0; private owner = '';
   private unsubscribe: (() => void)[] = []; private issued: Record<string, number> = {}; private applied: Record<string, number> = {};
   private shownRefunds = new Set<string>(); private pendingStance: { actionId: string; revision: number } | null = null;
+  private initialEquipment = false;
+  private equipmentPreload: { generation: number; hero?: string; promise: Promise<unknown>; abort: AbortController } | null = null;
   private combatEnabled = false; private stanceRevision = 0;
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
@@ -20,7 +22,7 @@ export class PanelController {
   private publish(patch: Partial<PanelState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()); }
   identityGeneration = () => this.generation;
   ready = () => this.active && this.identity.snapshot().status === 'ready' && !!this.identity.snapshot().login && !!this.auth.current()?.token && this.owner === owner(this.auth);
-  private invalidate() { this.generation++; this.aborts.forEach(abort => abort.abort()); this.aborts.clear(); this.timers.forEach(timer => clearTimeout(timer)); this.timers.clear(); this.issued = {}; this.applied = {}; this.cooldownRevision++; this.buildRevision++; this.stanceRevision++; this.pendingStance = null; this.shownRefunds.clear(); this.state = this.empty(); }
+  private invalidate() { this.generation++; this.aborts.forEach(abort => abort.abort()); this.aborts.clear(); this.timers.forEach(timer => clearTimeout(timer)); this.timers.clear(); this.issued = {}; this.applied = {}; this.cooldownRevision++; this.buildRevision++; this.stanceRevision++; this.pendingStance = null; this.equipmentPreload = null; this.shownRefunds.clear(); this.state = this.empty(); }
   private mutationGate() { const message = this.transport.mutationBlock?.(); return { mutationBlocked: !!message, ...(message ? { message } : {}) }; }
   private syncIdentity = () => {
     const next = owner(this.auth); const changed = next !== this.owner;
@@ -29,8 +31,9 @@ export class PanelController {
     if (canAct && (changed || !previouslyReady)) void this.refresh();
   };
   enableCombat() { this.combatEnabled = true; }
-  async start() {
+  async start(options: { equipmentFirst?: boolean } = {}) {
     if (this.active) return;
+    this.initialEquipment = !!options.equipmentFirst;
     this.active = true; this.owner = owner(this.auth);
     try { this.usage?.start(); } catch { /* Observability cannot block the panel. */ }
     this.unsubscribe = [this.auth.subscribe(this.syncIdentity), this.identity.subscribe(this.syncIdentity)];
@@ -44,7 +47,24 @@ export class PanelController {
   trackSection = (feature: string) => { if (this.ready()) { try { this.usage?.trackSection(feature); } catch { /* Best effort only. */ } } };
   registerEquipmentRefresh(callback: () => void | Promise<unknown>) { this.equipmentRefresh = callback; return () => { if (this.equipmentRefresh === callback) this.equipmentRefresh = undefined; }; }
   refreshEquipment = () => this.equipmentRefresh?.();
-  async read<T>(path: string, signal?: AbortSignal) { if (!this.ready()) throw new Error('Личность Twitch пока не подтверждена'); return this.transport.read<T>(path, signal); }
+  discardEquipmentPreload() { this.equipmentPreload?.abort.abort(); this.equipmentPreload = null; }
+  private primeEquipment() {
+    const abort = new AbortController(); this.aborts.add(abort);
+    const promise = this.transport.read('/api/bannerlord/equipment-shop', abort.signal).finally(() => this.aborts.delete(abort));
+    // A rejected prefetch must be handled even if the viewer leaves this tab
+    // before EquipmentView consumes the promise. The original error is retained.
+    void promise.catch(() => {});
+    this.equipmentPreload = { generation: this.generation, promise, abort };
+  }
+  async read<T>(path: string, signal?: AbortSignal) {
+    if (!this.ready()) throw new Error('Личность Twitch пока не подтверждена');
+    if (path === '/api/bannerlord/equipment-shop' && this.equipmentPreload) {
+      const preload = this.equipmentPreload; this.equipmentPreload = null;
+      if (preload.generation === this.generation && preload.hero !== undefined && preload.hero === heroContext(this.state.hero)) return preload.promise as Promise<T>;
+      preload.abort.abort();
+    }
+    return this.transport.read<T>(path, signal);
+  }
   private async load<T>(key: string, path: string, apply: (value: T) => Partial<PanelState>, barrier?: () => boolean) {
     if (!this.ready()) return;
     const generation = this.generation, request = this.issued[key] = (this.issued[key] || 0) + 1;
@@ -78,7 +98,13 @@ export class PanelController {
     return notices;
   }
   private stanceRefused(hero: HeroReply | null) { return !!this.pendingStance && this.pendingStance.revision === this.stanceRevision && !!hero?.recent_refunds?.some(r => r.action_id === this.pendingStance?.actionId && r.type === 'hero.set_combat_stance'); }
-  refreshHero = () => this.load<HeroReply>('hero', '/api/bannerlord/my-hero', hero => ({ hero, refundNotices: this.refundNotices(hero), optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance || this.stanceRefused(hero) ? null : this.state.optimisticStance }));
+  refreshHero = () => this.load<HeroReply>('hero', '/api/bannerlord/my-hero', hero => {
+    if (this.equipmentPreload) {
+      if (this.equipmentPreload.hero === undefined) this.equipmentPreload.hero = heroContext(hero);
+      else if (this.equipmentPreload.hero !== heroContext(hero)) this.discardEquipmentPreload();
+    }
+    return { hero, refundNotices: this.refundNotices(hero), optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance || this.stanceRefused(hero) ? null : this.state.optimisticStance };
+  });
   refreshConfig = () => this.load<PanelConfig>('config', '/api/bannerlord/config', config => ({ config }));
   refreshClasses = () => this.load<ClassesReply>('classes', '/api/bannerlord/classes', classes => ({ classes }));
   refreshBuild = () => { const revision = this.buildRevision; return this.load<BuildReply>('build', '/api/bannerlord/build', build => ({ build, buildPending: !!build.pending, newBuild: this.state.newBuild || !!build.enabled || build.build?.version === 1, buildCooldownUntil: Math.max(this.clock() + (Number.isFinite(build.cooldown_remaining_s) ? Math.max(0, build.cooldown_remaining_s!) : 0) * 1000, Number.isFinite(build.build?.weapon_power_cooldown_until) ? build.build!.weapon_power_cooldown_until! * 1000 : 0) }), () => revision === this.buildRevision); };
@@ -100,7 +126,9 @@ export class PanelController {
   }
   async refresh() {
     if (!this.ready()) return;
-    const generation = this.generation; this.publish({ loading: true });
+    const generation = this.generation;
+    if (this.initialEquipment) { this.initialEquipment = false; this.primeEquipment(); }
+    this.publish({ loading: true });
     await Promise.all([this.refreshConfig(), this.refreshHero(), this.refreshClasses(), this.refreshBuild(), this.refreshBuffs()]);
     if (generation === this.generation && this.combatEnabled) { await this.refreshBalance(); if (generation === this.generation) await this.refreshBattle(); }
     if (generation === this.generation) this.publish({ loading: false });

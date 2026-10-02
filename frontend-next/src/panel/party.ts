@@ -1,7 +1,7 @@
 import { heroContext, validPrice, type HeroReply, type PanelState } from './contracts';
 export interface Settlement { id:string; name?:string; type?:string; days?:number|null }
 export interface ClanInfo { name?:string; is_leader?:boolean; tier?:number; renown?:number; members_count?:number; parties_count?:number; fiefs_count?:number }
-export interface KingdomInfo { id?:string; own_settlements?:Settlement[]|null; enemy_settlements?:Settlement[]|null; is_clan_leader?:boolean }
+export interface KingdomInfo { id?:string; name?:string; ruler_name?:string; is_ruler?:boolean; clans_count?:number; fiefs_count?:number; at_war_count?:number; at_war_names?:string[]; rebellion_supporters?:{id:string;name?:string;fiefs_count?:number}[]; rebellion_supporters_required?:number; rebellion_relation_required?:number; all_kingdoms?:({id:string;name?:string;at_war?:boolean}|null)[]|null; own_settlements?:Settlement[]|null; enemy_settlements?:Settlement[]|null; is_clan_leader?:boolean }
 export interface PartyInfo { size?:number; task?:string; target?:string; in_army?:boolean|number; has_army?:boolean|number; army_party_count?:number; cohesion?:number }
 export interface PartyOrder { id:number; order_type:string; target_settlement_id:string; target_settlement_name:string; issued_at:string; expires_at:string }
 export interface PartyOrdersReply { success:boolean; active:PartyOrder|null }

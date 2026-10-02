@@ -1,3 +1,4 @@
+import { kingdomAllowed, kingdomOwner } from './kingdom';
 import { clanInfo, partyAllowed, partyOwner, type PartyOrdersReply } from './party';
 import { TwitchAuthStore } from '../auth';
 import type { PanelUsage } from './usage';
@@ -116,7 +117,15 @@ export class PanelController {
     const context = partyOwner(this.state.hero), token = this.auth.current()?.token;
     return this.load<PartyOrdersReply>('party', '/api/bannerlord/party-orders', partyOrders => ({ partyOrders }), () => context === partyOwner(this.state.hero) && token === this.auth.current()?.token);
   };
-  showMessage(message: string) { this.publish({ message }); }
+  captureRequestOwner() { const generation=this.generation,token=this.auth.current()?.token; return () => generation===this.generation&&token===this.auth.current()?.token&&this.ready(); }
+  showMessage(message: string, duration?: number) { this.publish({ message }); if(duration){const generation=this.generation;const timer=setTimeout(()=>{this.timers.delete(timer);if(generation===this.generation&&this.state.message===message)this.publish({message:''});},duration);this.timers.add(timer);} }
+  async kingdomAction(type: string, data: Record<string, unknown>) {
+    if(!this.partyActive||!kingdomAllowed(this.state,type)||!this.ready())return null;
+    const owns=this.captureRequestOwner(),context=kingdomOwner(this.state.hero);
+    const result=await this.action(type,data,{tail:'hero'});
+    if(result?.success&&owns()&&context===kingdomOwner(this.state.hero)&&type==='hero.recruit_vassal_clan')this.showMessage('🛡 Заявка принята. NPC-лорд и его клан появятся в твоём королевстве в течение пары секунд (после обработки в игре). Динары спишутся при создании.',7000);
+    return result;
+  }
   async partyAction(type: string, data: Record<string, unknown>) {
     if (!this.partyActive || !partyAllowed(this.state, type) || !this.ready()) return null;
     const generation = this.generation, context = partyOwner(this.state.hero), token = this.auth.current()?.token;

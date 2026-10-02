@@ -46,7 +46,14 @@ def run():
                     if time.monotonic()>deadline or process.poll() is not None:
                         log.seek(0); raise AssertionError(log.read())
                     time.sleep(.1)
-            tokens={p:call('/local-identity?player='+p)['token'] for p in ('alice','bobby')}
+            identities={p:call('/local-identity?player='+p) for p in ('alice','bobby')}
+            tokens={p:identity['token'] for p,identity in identities.items()}
+            for player,identity in identities.items():
+                assert identity['userId'].startswith('U')
+                call('/api/skillgames/state',token=tokens[player],expected=401)
+                resolved=call('/api/user/resolve-twitch-token',{'token':identity['token'],'opaque_id':identity['userId']})
+                assert resolved['login']==player
+            print('PASS TCP new opaque Twitch identities: no access before real resolver, then verified persisted onboarding',flush=True)
             html=call('/mobile.html?player=bobby')
             assert '/local-twitch-helper.js' in html and 'assets/' in html
             call('/api/skillgames/state',expected=401)

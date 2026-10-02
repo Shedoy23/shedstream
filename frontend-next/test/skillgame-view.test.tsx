@@ -46,3 +46,19 @@ describe('skillgame accessible controls', () => {
     expect(screen.getByText('Нужна более новая версия панели')).toBeTruthy();
   });
 });
+
+describe('skillgame polling and rules regressions', () => {
+  it('keeps unsaved tap placement during unchanged polling snapshots', () => {
+    const submit = vi.fn(); const props = { onSubmit: submit, onRefresh: vi.fn(), onRetry: vi.fn() };
+    const data = { ...empty, active_session: battle };
+    const result = render(<SkillgameView state={state(data)} {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /^A1 —/ }));
+    expect(screen.getByRole('button', { name: 'A1 — корабль' })).toBeTruthy();
+    result.rerender(<SkillgameView state={state(JSON.parse(JSON.stringify(data)))} {...props} />);
+    expect(screen.getByRole('button', { name: 'A1 — корабль' })).toBeTruthy();
+  });
+  it('displays immutable session reward rules rather than changed catalog rules', () => {
+    mount({ ...resumed, active_session: { ...session, rules: { ...catalog[0], rewards: { enabled: false, reason: 'Правила этой сохранённой партии' } } } });
+    expect(screen.getByText('Правила этой сохранённой партии')).toBeTruthy();
+  });
+});

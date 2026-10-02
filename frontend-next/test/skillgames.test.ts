@@ -72,3 +72,30 @@ describe('skillgame controller lifecycle', () => {
     expect(controller.snapshot().notice).toContain('stale_version'); controller.stop();
   });
 });
+
+describe('skillgame integration boundary regressions', () => {
+  it('maps queue cancellation to the published route', async () => {
+    const fetcher = vi.fn().mockResolvedValue(response({ success: true, queue: { status: 'idle' } }));
+    await new HttpSkillgameTransport('', auth(), fetcher).mutate('cancel', {});
+    expect(fetcher.mock.calls[0][0]).toBe('/api/skillgames/queue/cancel');
+  });
+  it('does not pin a completed previous match while entering a new queue', async () => {
+    const transport = { read: vi.fn().mockResolvedValue(empty), mutate: vi.fn().mockResolvedValueOnce({ success: true, session }).mockResolvedValueOnce({ success: true, queue: { status: 'queued' } }), retry: vi.fn(), hasUncertain: () => false };
+    const controller = new SkillgameController(transport, auth()); controller.start(); await flush();
+    await controller.submit('start', { game_type: 'minesweeper', mode: 'ranked', difficulty: 'beginner' });
+    await controller.submit('queue', {});
+    expect(transport.read.mock.calls.at(-1)?.[1]).toBeUndefined(); controller.stop();
+  });
+  it('holds commands disabled through post-action state reconciliation', async () => {
+    const read = deferred<typeof resumed>();
+    const transport = { read: vi.fn().mockResolvedValueOnce(resumed).mockReturnValue(read.promise), mutate: vi.fn().mockResolvedValue({ success: true, session }), retry: vi.fn(), hasUncertain: () => false };
+    const controller = new SkillgameController(transport, auth()); controller.start(); await flush();
+    const action = controller.submit('action', { session_id: 'one', version: 0, action: 'open', cell: 8 }); await flush();
+    expect(controller.snapshot().canAct).toBe(false); read.resolve(resumed); await action;
+    expect(controller.snapshot().canAct).toBe(true); controller.stop();
+  });
+  it('rejects unknown Battleship data and mismatched active rules', () => {
+    expect(() => parseSnapshot({ ...resumed, active_session: { ...session, game_type: 'battleship' } })).toThrow();
+    expect(() => parseSnapshot({ ...resumed, active_session: { ...session, rules: { ...catalog[0], game_type: 'battleship' } } })).toThrow();
+  });
+});

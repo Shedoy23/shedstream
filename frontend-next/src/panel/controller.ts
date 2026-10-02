@@ -1,3 +1,4 @@
+import { clanInfo, partyAllowed, partyOwner, type PartyOrdersReply } from './party';
 import { TwitchAuthStore } from '../auth';
 import type { PanelUsage } from './usage';
 import type { IdentityBootstrap } from '../skillgames/identity';
@@ -12,11 +13,12 @@ export class PanelController {
   private shownRefunds = new Set<string>(); private pendingStance: { actionId: string; revision: number } | null = null;
   private initialEquipment = false;
   private equipmentPreload: { generation: number; hero?: string; promise: Promise<unknown>; abort: AbortController } | null = null;
+  private partyActive = false;
   private combatEnabled = false; private stanceRevision = 0;
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
   constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now, private readonly usage?: Pick<PanelUsage, 'start' | 'stop' | 'trackPanel' | 'trackSection' | 'trackAction'>) { this.state = this.empty(); }
-  private empty(): PanelState { return { refundNotices: [], battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
+  private empty(): PanelState { return { partyOrders: null, refundNotices: [], battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
   snapshot = () => this.state;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   private publish(patch: Partial<PanelState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()); }
@@ -76,6 +78,7 @@ export class PanelController {
       this.applied[key] = request;
       const errors = { ...this.state.errors }; delete errors[key];
       this.publish({ ...apply(value), errors, error: Object.values(errors)[0] || '' });
+      return true;
     } catch (error) {
       if (!current() || abort.signal.aborted) return;
       this.applied[key] = request;
@@ -103,8 +106,29 @@ export class PanelController {
       if (this.equipmentPreload.hero === undefined) this.equipmentPreload.hero = heroContext(hero);
       else if (this.equipmentPreload.hero !== heroContext(hero)) this.discardEquipmentPreload();
     }
+    if (partyOwner(hero) !== partyOwner(this.state.hero)) { this.applied.party = this.issued.party = (this.issued.party || 0) + 1; this.state = { ...this.state, partyOrders: null }; }
     return { hero, refundNotices: this.refundNotices(hero), optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance || this.stanceRefused(hero) ? null : this.state.optimisticStance };
-  });
+  }).then(applied => { if (applied) this.refreshVisibleParty(); });
+  setPartyActive(active: boolean) { this.partyActive = active; if (active) this.refreshVisibleParty(); }
+  refreshVisibleParty = () => { if (this.partyActive && !document.hidden && this.state.hero?.hero?.is_alive && clanInfo(this.state.hero)?.is_leader) void this.refreshPartyOrders(); };
+  refreshPartyOrders = () => {
+    if (!this.state.hero?.hero?.is_alive || !clanInfo(this.state.hero)?.is_leader) return Promise.resolve();
+    const context = partyOwner(this.state.hero), token = this.auth.current()?.token;
+    return this.load<PartyOrdersReply>('party', '/api/bannerlord/party-orders', partyOrders => ({ partyOrders }), () => context === partyOwner(this.state.hero) && token === this.auth.current()?.token);
+  };
+  showMessage(message: string) { this.publish({ message }); }
+  async partyAction(type: string, data: Record<string, unknown>) {
+    if (!this.partyActive || !partyAllowed(this.state, type) || !this.ready()) return null;
+    const generation = this.generation, context = partyOwner(this.state.hero), token = this.auth.current()?.token;
+    const result = await this.action(type, data, { tail: 'hero' });
+    if (generation !== this.generation || context !== partyOwner(this.state.hero) || token !== this.auth.current()?.token || !this.ready()) return result;
+    if (['hero.party_order_set','hero.party_order_release'].includes(type)) {
+      if (result?.success) this.applied.party = this.issued.party = (this.issued.party || 0) + 1;
+      const timer = setTimeout(() => { this.timers.delete(timer); if (generation === this.generation && context === partyOwner(this.state.hero) && token === this.auth.current()?.token && this.ready()) void this.refreshPartyOrders(); }, type === 'hero.party_order_set' ? 2000 : 1500);
+      this.timers.add(timer);
+    }
+    return result;
+  }
   refreshConfig = () => this.load<PanelConfig>('config', '/api/bannerlord/config', config => ({ config }));
   refreshClasses = () => this.load<ClassesReply>('classes', '/api/bannerlord/classes', classes => ({ classes }));
   refreshBuild = () => { const revision = this.buildRevision; return this.load<BuildReply>('build', '/api/bannerlord/build', build => ({ build, buildPending: !!build.pending, newBuild: this.state.newBuild || !!build.enabled || build.build?.version === 1, buildCooldownUntil: Math.max(this.clock() + (Number.isFinite(build.cooldown_remaining_s) ? Math.max(0, build.cooldown_remaining_s!) : 0) * 1000, Number.isFinite(build.build?.weapon_power_cooldown_until) ? build.build!.weapon_power_cooldown_until! * 1000 : 0) }), () => revision === this.buildRevision); };

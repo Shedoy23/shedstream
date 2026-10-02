@@ -1,19 +1,21 @@
+import { PartyView } from './PartyView';
+import { partyOwner } from './party';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType } from 'react';
 import type { IdentityBootstrap } from '../skillgames/identity';
 import type { PanelController } from './controller';
 import { CombatView } from './CombatView';
 import { HeroDevelopmentView } from './HeroDevelopmentView';
-export function PanelApp({ controller, identity, Equipment, combat = false }: { controller: PanelController; identity: IdentityBootstrap; combat?: boolean; Equipment?: ComponentType<{ controller: PanelController; active?: boolean }> }) {
+export function PanelApp({ controller, identity, Equipment, combat = false, party = false }: { controller: PanelController; identity: IdentityBootstrap; combat?: boolean; party?: boolean; Equipment?: ComponentType<{ controller: PanelController; active?: boolean }> }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   const gate = useSyncExternalStore(identity.subscribe, identity.snapshot);
-  const [tab, setTab] = useState<'development' | 'equipment' | 'combat'>(() => {
+  const [tab, setTab] = useState<'development' | 'equipment' | 'combat' | 'dynasty'>(() => {
     if (!combat) return 'development';
-    try { const saved = localStorage.getItem('bnr_active_tab'); if (saved === 'hero') return 'development'; if (saved === 'inventory' && Equipment) return 'equipment'; } catch { /* Storage may be unavailable inside Twitch. */ }
+    try { const saved = localStorage.getItem('bnr_active_tab'); if (saved === 'dynasty' && party) return 'dynasty'; if (saved === 'hero') return 'development'; if (saved === 'inventory' && Equipment) return 'equipment'; } catch { /* Storage may be unavailable inside Twitch. */ }
     return 'combat';
   });
   const balanceTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const currentTab = useRef(tab); currentTab.current = tab;
-  useLayoutEffect(() => { if (combat) controller.enableCombat(); void controller.start({ equipmentFirst: combat && !!Equipment && currentTab.current === 'equipment' }); return () => controller.stop(); }, [controller, combat]);
+  useLayoutEffect(() => { controller.setPartyActive(party && currentTab.current === 'dynasty'); if (combat) controller.enableCombat(); void controller.start({ equipmentFirst: combat && !!Equipment && currentTab.current === 'equipment' }); return () => controller.stop(); }, [controller, combat, party]);
   useEffect(() => {
     if (!state.canAct) return;
     const snapshotTimer = setInterval(() => { if (!document.hidden) { void controller.refreshHero(); void controller.refreshClasses(); void controller.refreshBuild(); if (currentTab.current === 'equipment') void controller.refreshEquipment(); } }, 8000);
@@ -34,11 +36,11 @@ export function PanelApp({ controller, identity, Equipment, combat = false }: { 
   }, [controller, combat, state.canAct]);
   useEffect(() => () => { clearInterval(balanceTimer.current); balanceTimer.current = undefined; }, [controller, combat]);
   const changeTab = (next: typeof tab) => {
-    if (currentTab.current !== next) controller.trackSection(next === 'development' ? 'bannerlord:tab.hero' : next === 'combat' ? 'bannerlord:tab.combat' : 'bannerlord:tab.inventory');
+    if (currentTab.current !== next) controller.trackSection(next === 'development' ? 'bannerlord:tab.hero' : next === 'combat' ? 'bannerlord:tab.combat' : next === 'dynasty' ? 'bannerlord:tab.dynasty' : 'bannerlord:tab.inventory');
     else if (next === 'equipment' && tab === next && (!combat || state.hero !== null)) void controller.refreshEquipment();
     if (currentTab.current === 'equipment' && next !== 'equipment') controller.discardEquipmentPreload();
-    if (combat) { try { localStorage.setItem('bnr_active_tab', next === 'development' ? 'hero' : next === 'equipment' ? 'inventory' : 'combat'); } catch { /* Optional tab persistence. */ } }
-    currentTab.current = next; setTab(next);
+    if (combat) { try { localStorage.setItem('bnr_active_tab', next === 'development' ? 'hero' : next === 'equipment' ? 'inventory' : next === 'dynasty' ? 'dynasty' : 'combat'); } catch { /* Optional tab persistence. */ } }
+    currentTab.current = next; controller.setPartyActive(party && next === 'dynasty'); setTab(next);
   };
   return <main className="panel-layout"><header className="panel-brand"><span className="panel-brand-mark">S</span><div><strong>ShedLink</strong><span>Герой Bannerlord</span></div></header>
     {gate.status !== 'ready' && <section className="panel-card"><p className="panel-eyebrow">ВХОД ЧЕРЕЗ TWITCH</p><h1>Подключите свою личность</h1><p role="status">{gate.message}</p>
@@ -48,7 +50,8 @@ export function PanelApp({ controller, identity, Equipment, combat = false }: { 
     </section>}
     <div hidden={gate.status !== 'ready' || !state.canAct}>
       {state.refundNotices.map(notice => <p className="panel-notice" role="alert" key={notice.id}>{notice.message}</p>)}
-      {(Equipment || combat) && <nav className="panel-tabs" aria-label="Раздел героя"><button type="button" aria-pressed={tab === 'development'} onClick={() => changeTab('development')}>Развитие</button>{Equipment && <button type="button" aria-pressed={tab === 'equipment'} onClick={() => changeTab('equipment')}>Снаряжение</button>}{combat && <button type="button" aria-pressed={tab === 'combat'} onClick={() => changeTab('combat')}>Боевые действия</button>}</nav>}
+      {(Equipment || combat) && <nav className="panel-tabs" aria-label="Раздел героя"><button type="button" aria-pressed={tab === 'development'} onClick={() => changeTab('development')}>Развитие</button>{Equipment && <button type="button" aria-pressed={tab === 'equipment'} onClick={() => changeTab('equipment')}>Снаряжение</button>}{combat && <button type="button" aria-pressed={tab === 'combat'} onClick={() => changeTab('combat')}>Боевые действия</button>}{party && <button type="button" aria-pressed={tab === 'dynasty'} onClick={() => changeTab('dynasty')}>Клан, отряд и армия</button>}</nav>}
+      {party && <div hidden={tab !== 'dynasty'}><PartyView key={state.generation + ':' + partyOwner(state.hero)} controller={controller} active={tab === 'dynasty' && state.canAct} /></div>}
       {combat && <div hidden={tab !== 'combat'}><CombatView controller={controller} /></div>}
       <div hidden={tab !== 'development'}><HeroDevelopmentView controller={controller} /></div>
       {Equipment && <div hidden={tab !== 'equipment'}><Equipment key={state.generation} controller={controller} active={tab === 'equipment' && state.canAct && (!combat || state.hero !== null)} /></div>}

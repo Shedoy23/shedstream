@@ -72,6 +72,7 @@ app.include_router(rimworld_router)
 
 from routes.duel     import router as duel_router
 from routes.viewer   import router as viewer_router
+from routes.ui_usage import router as ui_usage_router
 from routes.admin    import router as admin_router
 # market_router удалён 2026-05-10 — Phase 1.C compliance rework (P2P trade items, §6.2.8)
 # craft_router удалён 2026-05-10 — Phase 1.B compliance rework (3/3 gambling: §6.2.4 + §5.3)
@@ -110,6 +111,7 @@ from routes.dev_login   import router as dev_login_router  # /dev test page (202
 # casino_router удалён 2026-05-10 — Phase 1.A compliance rework (см. COMPLIANCE_REWORK_PLAN.md)
 app.include_router(duel_router)
 app.include_router(viewer_router)
+app.include_router(ui_usage_router)
 app.include_router(admin_router)
 # market_router удалён 2026-05-10 (Phase 1.C compliance rework)
 # craft_router удалён 2026-05-10 (Phase 1.B compliance rework)
@@ -1593,6 +1595,9 @@ async def run_migrations():
 
         from migrations import m133_pet_legacy_common
         await m133_pet_legacy_common.apply(conn)
+
+        from migrations import m134_ui_usage
+        await m134_ui_usage.apply(conn)
 
         print("✅ Migrations complete")
 

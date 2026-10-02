@@ -31,7 +31,7 @@ function Battleship({ session, disabled, act }: { session: Session; disabled: bo
   const state = session.state; const fleet = cells(state.fleet_sizes); const own = ships(state.own_ships);
   const [draft, setDraft] = useState<number[][]>(own); const [selected, setSelected] = useState(0); const [vertical, setVertical] = useState(false);
   const [ownBoard, setOwnBoard] = useState(false); const [placementError, setPlacementError] = useState('');
-  useEffect(() => { setDraft(ships(session.state.own_ships)); setPlacementError(''); }, [session.id, session.version, session.state.own_ships]);
+  useEffect(() => { setDraft(ships(session.state.own_ships)); setPlacementError(''); }, [session.id, session.version]);
   const placement = state.phase === 'placement'; const locked = disabled || state.ready === true;
   const draftSaved = JSON.stringify(draft) === JSON.stringify(own); const complete = fleet.length > 0 && fleet.every((size, i) => draft[i]?.length === size);
   function place(cell: number) {
@@ -79,7 +79,7 @@ function Confirmation({ onCancel, onConfirm }: { onCancel: () => void; onConfirm
 export function SkillgameView({ state, onSubmit, onRefresh, onRetry, demo, localIntegration }: Props) {
   const [confirmQuit, setConfirmQuit] = useState(false); const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  const data = state.data; const session = data?.active_session; const config = data?.catalog.find(game => game.game_type === session?.game_type);
+  const data = state.data; const session = data?.active_session; const config = session?.rules || data?.catalog.find(game => game.game_type === session?.game_type);
   useEffect(() => setConfirmQuit(false), [session?.id]);
   const serverNow = (data?.server_time ?? state.receivedAt / 1000) + (now - state.receivedAt) / 1000;
   const remaining = session?.expires_at != null ? Math.max(0, Math.ceil(session.expires_at - serverNow)) : null;

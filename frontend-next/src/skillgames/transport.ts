@@ -52,7 +52,7 @@ export class HttpSkillgameTransport implements SkillgameTransport {
   }
   private async send(key: string, attempt: Attempt): Promise<MutationReply> {
     try {
-      const response = await this.fetcher(`${this.baseUrl}/api/skillgames/${attempt.endpoint}`, {
+      const response = await this.fetcher(`${this.baseUrl}/api/skillgames/${attempt.endpoint === 'cancel' ? 'queue/cancel' : attempt.endpoint}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': this.token() }, body: attempt.body,
       });
       const body: unknown = await response.json(); const rejected = refusal(body, response.status);

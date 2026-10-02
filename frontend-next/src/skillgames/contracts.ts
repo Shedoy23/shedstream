@@ -8,6 +8,7 @@ export interface GameCatalog {
   [key: string]: unknown;
 }
 export interface Session {
+  rules?: GameCatalog;
   id: string; game_type: string; mode: string; difficulty: string | null; status: string; version: number;
   created_at: number; started_at: number | null; expires_at: number | null;
   state: Record<string, unknown> & { rows: number; cols: number };
@@ -56,6 +57,27 @@ export function parseSession(value: unknown): Session {
     || !Object.entries(s.opened).every(([key, n]) => /^\d+$/.test(key) && validCell(Number(key)) && int(n) && n >= 0 && n <= 8))) {
     throw new Error('Неизвестный формат поля сапёра. Действия отключены.');
   }
+  if (value.game_type === 'battleship') {
+    const shotsValid = (v: unknown) => Array.isArray(v) && v.every(x => isRecord(x) && validCell(x.cell) && (x.result === 'hit' || x.result === 'miss'));
+    if (!Array.isArray(s.fleet_sizes) || !s.fleet_sizes.length || !s.fleet_sizes.every(x => int(x) && x > 0 && x <= Math.max(s.rows, s.cols))
+      || !Array.isArray(s.own_ships) || !s.own_ships.every(x => Array.isArray(x) && x.every(validCell))
+      || !shotsValid(s.shots) || !shotsValid(s.incoming) || typeof s.ready !== 'boolean' || typeof s.opponent_ready !== 'boolean'
+      || typeof s.opponent !== 'string' || typeof s.your_turn !== 'boolean' || !int(s.sunk_count) || !['placement', 'active', 'finished'].includes(String(s.phase))) {
+      throw new Error('Неизвестный формат морского боя. Действия отключены.');
+    }
+  }
+  if (value.rules !== undefined) {
+    const [rules] = parseCatalog([value.rules]);
+    if (rules.game_type !== value.game_type) throw new Error('Правила не соответствуют сохранённой партии');
+  }
+  if (isRecord(value.result)) {
+    const result = value.result;
+    if ((result.outcome !== undefined && typeof result.outcome !== 'string') || (result.reason !== undefined && typeof result.reason !== 'string')
+      || (result.rating != null && (!isRecord(result.rating) || !['before', 'after', 'delta'].every(key => finite((result.rating as Record<string, unknown>)[key]))))) {
+      throw new Error('Неизвестный формат результата партии');
+    }
+  }
+  if (knownGame(value.game_type) && !['awaiting_first_move', 'generating', 'active', 'finished', 'void'].includes(value.status)) throw new Error('Неизвестное состояние партии; обновите панель');
   return value as unknown as Session;
 }
 export function parseSnapshot(value: unknown): SkillgameSnapshot {

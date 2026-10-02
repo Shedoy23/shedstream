@@ -13,7 +13,7 @@ export class SkillgameController {
   private publish(patch: Partial<SkillgameViewState>) {
     if (!this.active) return;
     this.state = { ...this.state, ...patch, uncertain: this.transport.hasUncertain(), pending: this.pending };
-    this.state.canAct = !!this.auth.current() && !!this.state.data && !this.state.error && !this.pending && !this.state.uncertain;
+    this.state.canAct = !!this.auth.current() && !!this.state.data && !this.state.error && !this.state.loading && !this.pending && !this.state.uncertain;
     this.listeners.forEach(fn => fn());
   }
   start() {
@@ -45,6 +45,7 @@ export class SkillgameController {
   }
   async submit(endpoint: Endpoint, command: Command) {
     if (!this.active || !this.state.canAct || this.pending) return;
+    if (endpoint === 'queue' || endpoint === 'cancel') this.sessionId = undefined;
     await this.run(() => this.transport.mutate(endpoint, command));
   }
   async retry() { if (this.active && !this.pending && this.transport.hasUncertain()) await this.run(() => this.transport.retry()); }
@@ -63,7 +64,7 @@ export class SkillgameController {
     } catch (error) {
       if (identity === scope(this.auth)) this.publish({ notice: error instanceof Error ? error.message : 'Результат действия неизвестен' });
     } finally {
-      if (identity === scope(this.auth)) { this.pending = false; this.publish({}); await this.refresh(); }
+      if (identity === scope(this.auth)) { this.pending = false; this.publish({ loading: true }); await this.refresh(); }
     }
   }
 }

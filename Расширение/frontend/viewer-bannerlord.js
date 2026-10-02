@@ -18,6 +18,14 @@
 //   'rimworld'   → существующий pawn UI
 //   'bannerlord' → bannerlord hero UI + покупка actions
 //   null         → подсказка «Подключи модуль игры»
+let _bannerlordLifecycle = 0;
+let _bnrHeroRequestSeq = 0;
+let _bnrHeroResponseSeq = 0;
+let _bnrVassalRequestSeq = 0;
+let _bnrVassalResponseSeq = 0;
+let _bnrBuffRequestSeq = 0;
+let _bnrBuffAppliedSeq = 0;
+let _bnrCooldownRevision = 0;
 let _bannerlordPollId = null;
 let _bannerlordBuffPollId = null;   // 4.6 — periodic GET /api/bannerlord/my-buffs (2.5s)
 let _bannerlordBuffTickId = null;   // 4.6 — client-side decrement (1s) для smooth countdown
@@ -113,12 +121,17 @@ const _bannerlordDetailsOpen = new Set();
 function _bnrDetailsAttr(key) {
     return _bannerlordDetailsOpen.has(key) ? 'open' : '';
 }
-function _bnrBindDetailsPersistence() {
-    document.querySelectorAll('[data-bnr-details]').forEach(el => {
+function _bnrBindDetailsPersistence(root = document) {
+    root.querySelectorAll('[data-bnr-details]').forEach(el => {
         const key = el.getAttribute('data-bnr-details');
         if (!key || el.dataset.bnrBound === '1') return;
         el.dataset.bnrBound = '1';
+        let usageWasOpen = el.open;
         el.addEventListener('toggle', () => {
+            if (el.open && !usageWasOpen) {
+                try { ShedLink.usage?.trackSection('bannerlord:details.' + key); } catch (e) {}
+            }
+            usageWasOpen = el.open;
             if (el.open) _bannerlordDetailsOpen.add(key);
             else _bannerlordDetailsOpen.delete(key);
         });
@@ -228,6 +241,12 @@ const BNR_POWER_LABELS = {
 // rewrite'ился (gold/HP change), все sub-slot DIVs (workshops, caravans,
 // etc.) re-created → их per-element cache пропадал → cascading flicker.
 // Теперь keyed cache survives parent re-render.
+// Bind only the subtree just painted: async loaders create details after the
+// hero render has already finished. Existing bound-node guards remain idempotent.
+function _bnrBindRenderedDetails(root) {
+    _bnrBindDetailsPersistence(root);
+    _bnrBindSectionToggle(root);
+}
 const _smartHtmlCache = {};
 function _smartInnerHTML(el, html) {
     if (!el) return false;
@@ -238,6 +257,7 @@ function _smartInnerHTML(el, html) {
         return false;
     }
     el.innerHTML = html;
+    _bnrBindRenderedDetails(el);
     if (key) _smartHtmlCache[key] = html;
     return true;
 }
@@ -432,13 +452,19 @@ function _setBnrInnerTab(tab) {
     });
     try { localStorage.setItem('bnr_active_tab', tab); } catch (e) {}
     if (tab === 'inventory') loadBannerlordEquipmentShop();
+    if (tab === 'dynasty') _loadBannerlordDynasty();
 }
 
 function _bindBnrInnerTabs() {
     document.querySelectorAll('.bnr-tab-btn').forEach(btn => {
         if (btn.dataset.bnrBound) return;  // idempotent
         btn.dataset.bnrBound = '1';
-        btn.addEventListener('click', () => _setBnrInnerTab(btn.dataset.bnrTab));
+        btn.addEventListener('click', () => {
+            if (!btn.classList.contains('active')) {
+                try { ShedLink.usage?.trackSection('bannerlord:tab.' + btn.dataset.bnrTab); } catch (e) {}
+            }
+            _setBnrInnerTab(btn.dataset.bnrTab);
+        });
     });
     // Restore tab из last session. Sprint 5.32 (revised): default = combat.
     let saved = 'combat';
@@ -630,6 +656,13 @@ function _bnrShowSimpleModal({ title, body, bind }) {
 // loadBannerlordStatus. Зовётся из _startBannerlordPolling (рантайм).
 
 function _stopBannerlordPolling() {
+    // In-flight hero/vassal responses and rename callbacks belong to the old module run.
+    _bannerlordLifecycle++;
+    _bnrCfgFlight = null;
+    _bnrCfgState = 'idle';
+    _bnrRefreshEconomicUi();
+    _bannerlordLastHero = null;
+    document.getElementById('bnr-vassals-slot')?.replaceChildren();
     BnrBuilds.reset();
     BnrEquipmentShop.reset();
     document.getElementById('bnr-summon-slot')?.replaceChildren();
@@ -706,6 +739,7 @@ function _bnrCdRemaining(key) {
 // dispatcher'а сразу после ответа backend'а — кнопка реагирует мгновенно.
 function _bnrSetLocalCooldown(key, seconds) {
     if (!key || !(seconds > 0)) return;
+    _bnrCooldownRevision++;
     const expires_at_ms = Date.now() + seconds * 1000;
     const existing = _bannerlordCooldowns.find(c => c.power_key === key);
     if (existing) {
@@ -796,10 +830,14 @@ if (!window._bnrCdTickerStarted) {
 // после успеха. Причина переезда — docs/FRONTEND_MODULE_ARCH_PLAN.md §1:
 // каждая игра писала покупку заново и теряла часть защит.
 async function _bannerlordBuyAction(actionType, data) {
+    if (!_bnrRequireEconomicPrice(actionType)) return null;
+    const lifecycle = _bannerlordLifecycle, token = authToken;
+    const isCurrent = () => lifecycle === _bannerlordLifecycle && token === authToken;
     return await ShedLink.buyAction('bannerlord', actionType, data, {
         cooldownAttr: 'data-bnr-cd',
-        onCooldown: _bnrSetLocalCooldown,
+        onCooldown: (key, seconds) => { if (isCurrent()) _bnrSetLocalCooldown(key, seconds); },
         onSuccess: () => {
+            if (!isCurrent()) return;
             // Sprint 5.3d: ускоряем UI feedback — вместо ожидания 8s polling
             // цикла дёргаем reload через ~3.5s (после mod poll + apply).
             // Особенно важно для recruit_troops и upgrade_gear.
@@ -808,7 +846,12 @@ async function _bannerlordBuyAction(actionType, data) {
                 || actionType.startsWith('power.')
                 || actionType.startsWith('tournament.');
             if (isBannerlord && typeof loadBannerlordHero === 'function') {
+                // Accepted actions invalidate pre-action reads. Ordinary poll starts
+                // do not: a healthy response may take longer than the poll cadence.
+                _bnrHeroResponseSeq = ++_bnrHeroRequestSeq;
+                _bnrVassalResponseSeq = ++_bnrVassalRequestSeq;
                 setTimeout(() => {
+                    if (!isCurrent()) return;
                     loadBannerlordHero();
                     loadBannerlordBuild();
                     loadBannerlordEquipmentShop();
@@ -839,38 +882,61 @@ ShedLink.registerGame('bannerlord', {
     title:  '⚔️ Bannerlord',
     start:  function () { _startBannerlordPolling(); },
     stop:   function () { _stopBannerlordPolling(); },
+    visible: function () { _loadBannerlordDynasty(); },
 });
 
 // ===== Thin-front (2026-07-02): статические цены/кулдауны с бэка =====
 // Цены/пороги берём из /api/bannerlord/config, а НЕ из хардкодов ниже: фронт
 // замораживается на CDN Twitch, и после ребаланса на бэке хардкод показал бы
-// устаревшие числа. Хардкоды ниже оставлены как fallback-дефолты (совпадают с
-// текущим бэком) — работают, пока конфиг не подъехал или фетч упал. Бэк всё
-// равно сам enforce'ит цену при списании; это только для отображения.
+// устаревшие числа. Четыре дорогих действия ниже уже требуют загруженную цену;
+// остальные legacy-пути пока сохраняют fallback. Бэк повторно проверяет цену
+// при списании: загруженный конфиг не является атомарной фиксацией цены.
 let _bnrCfg = {};
+let _bnrCfgState = 'idle';
+let _bnrCfgFlight = null;
 async function _hydrateBnrConfig() {
-    try {
-        const r = await fetch(`${API_URL}/api/bannerlord/config`, {
-            headers: { 'X-Twitch-JWT': authToken || '' },
-            cache: 'no-store',
-        });
-        if (!r.ok) return;
-        const c = await r.json();
-        _bnrCfg = c || {};
-        if (typeof BnrUiConfig !== 'undefined') BnrUiConfig.update(c?.ui);
-        if (Array.isArray(c.focus_tier_costs))         BNR_FOCUS_TIER_COSTS = c.focus_tier_costs;
-        if (typeof c.attribute_cost === 'number')      BNR_ATTRIBUTE_COST   = c.attribute_cost;
-        if (Array.isArray(c.recruit_tier_costs))       RETINUE_TIER_DINARS  = c.recruit_tier_costs;
-        if (typeof c.recruit_elite_mult === 'number')  RETINUE_ELITE_MULT   = c.recruit_elite_mult;
-        if (Array.isArray(c.give_gold_presets))        GIVE_GOLD_OPTIONS    = c.give_gold_presets;
-        if (Array.isArray(c.add_skill_presets))        ADD_SKILL_OPTIONS    = c.add_skill_presets;
-        if (c.gear_upgrade_costs && typeof HERO_GOLD_TIER_COSTS !== 'undefined') {
-            HERO_GOLD_TIER_COSTS = c.gear_upgrade_costs;   // ключи-строки из JSON — доступ по числу коэрсится, ок
+    const lifecycle = _bannerlordLifecycle, token = authToken;
+    if (_bnrCfgFlight?.lifecycle === lifecycle && _bnrCfgFlight.token === token) return _bnrCfgFlight.promise;
+    const flight = { lifecycle, token };
+    _bnrCfgFlight = flight;
+    const isCurrent = () => _bnrCfgFlight === flight && lifecycle === _bannerlordLifecycle && token === authToken;
+    _bnrCfgState = 'loading';
+    _bnrRefreshEconomicUi();
+    flight.promise = (async () => {
+        try {
+            const r = await fetch(`${API_URL}/api/bannerlord/config`, {
+                headers: { 'X-Twitch-JWT': token || '' },
+                cache: 'no-store',
+            });
+            if (!r.ok) throw new Error('config_unavailable');
+            const c = await r.json();
+            if (!isCurrent()) return;
+            if (!c || typeof c !== 'object' || Array.isArray(c)) throw new Error('invalid_config');
+            _bnrCfg = c;
+            _bnrCfgState = 'ready';
+            if (typeof BnrUiConfig !== 'undefined') BnrUiConfig.update(c.ui);
+            if (Array.isArray(c.focus_tier_costs))         BNR_FOCUS_TIER_COSTS = c.focus_tier_costs;
+            if (typeof c.attribute_cost === 'number')      BNR_ATTRIBUTE_COST   = c.attribute_cost;
+            if (Array.isArray(c.recruit_tier_costs))       RETINUE_TIER_DINARS  = c.recruit_tier_costs;
+            if (typeof c.recruit_elite_mult === 'number')  RETINUE_ELITE_MULT   = c.recruit_elite_mult;
+            if (Array.isArray(c.give_gold_presets))        GIVE_GOLD_OPTIONS    = c.give_gold_presets;
+            if (Array.isArray(c.add_skill_presets))        ADD_SKILL_OPTIONS    = c.add_skill_presets;
+            if (c.gear_upgrade_costs && typeof HERO_GOLD_TIER_COSTS !== 'undefined') {
+                HERO_GOLD_TIER_COSTS = c.gear_upgrade_costs;
+            }
+            if (typeof c.tournament_prize_gold === 'number') TOURNAMENT_PRIZE_GOLD = c.tournament_prize_gold;
+            if (typeof c.tournament_round_gold === 'number') TOURNAMENT_ROUND_GOLD = c.tournament_round_gold;
+        } catch (e) {
+            if (isCurrent()) _bnrCfgState = 'error';
+        } finally {
+            if (_bnrCfgFlight === flight) {
+                if (!isCurrent()) _bnrCfgState = 'idle';
+                _bnrCfgFlight = null;
+                _bnrRefreshEconomicUi();
+            }
         }
-        if (typeof c.tournament_prize_gold === 'number') TOURNAMENT_PRIZE_GOLD = c.tournament_prize_gold;
-        if (typeof c.tournament_round_gold === 'number') TOURNAMENT_ROUND_GOLD = c.tournament_round_gold;
-        // workshop_price / caravan_price читаются из _bnrCfg прямо в местах отрисовки.
-    } catch (e) { /* fallback-дефолты остаются в силе */ }
+    })();
+    return flight.promise;
 }
 
 // ── Цены в динарах для подписей кнопок ───────────────────────────────────────
@@ -889,6 +955,7 @@ async function _hydrateBnrConfig() {
 // до следующего ревью.
 function _bnrPrice(actionType, fallback) {
     const raw = _bnrCfg.action_prices?.[actionType];
+    if (fallback === undefined) return _bnrConfigNumber(raw);
     if (raw == null || raw === '') return fallback;
     const v = Number(raw);
     return isFinite(v) ? v : fallback;
@@ -896,17 +963,82 @@ function _bnrPrice(actionType, fallback) {
 
 function _bnrGold(key, fallback) {
     const raw = _bnrCfg.hero_gold_costs?.[key];
+    if (fallback === undefined) return _bnrConfigNumber(raw);
     if (raw == null || raw === '') return fallback;
     const v = Number(raw);
     return (isFinite(v) && v >= 0) ? v : fallback;
 }
 function _fmtK(n) {
-    if (!isFinite(n)) return '?';
+    if (n == null || !isFinite(n)) return '?';
     if (n >= 1000000) return (n / 1000000).toFixed(n % 1000000 ? 1 : 0) + 'M';
     if (n >= 1000)    return (n / 1000).toFixed(n % 1000 ? 1 : 0) + 'K';
     return String(n);
 }
-function _bnrGoldLabel(key, fallback) { return _fmtK(_bnrGold(key, fallback)) + '💰'; }
+function _bnrGoldLabel(key, fallback) {
+    const value = _bnrGold(key, fallback);
+    return value == null ? 'цена не загружена' : _fmtK(value) + '💰';
+}
+
+// Bounded migration: only these four legacy purchases require a config quote.
+// Other actions keep their existing endpoint-specific quotes/legacy behaviour.
+const _bnrEconomicActions = {
+    'hero.create_clan': { gold: 'create_clan' },
+    'hero.create_kingdom': { gold: 'create_kingdom' },
+    'hero.create_vassal_clan': { gold: 'create_vassal_clan', crustics: true },
+    'hero.recruit_vassal_clan': { gold: 'recruit_vassal', crustics: true },
+};
+function _bnrConfigNumber(raw) {
+    return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : null;
+}
+function _bnrEconomicQuote(actionType) {
+    const entry = _bnrEconomicActions[actionType];
+    if (!entry || _bnrCfgState !== 'ready') return null;
+    const gold = _bnrGold(entry.gold);
+    // Clan/kingdom creation use their own gold-only backend pricing branch.
+    // Vassal actions additionally use ACTION_PRICES_DEFAULT, currently zero.
+    const crustics = entry.crustics ? _bnrPrice(actionType) : 0;
+    return gold == null || crustics == null ? null : { gold, crustics };
+}
+function _bnrEconomicLabel(actionType, full = false) {
+    const quote = _bnrEconomicQuote(actionType);
+    if (!quote) return 'цена не загружена';
+    const fmt = n => full ? n.toLocaleString('ru-RU') : _fmtK(n);
+    return (quote.crustics ? fmt(quote.crustics) + '💎 + ' : '') + fmt(quote.gold) + '💰';
+}
+function _bnrEconomicPriceHtml(actionType) {
+    return `<span data-bnr-economic-price="${actionType}">${_bnrEconomicLabel(actionType)}</span>`;
+}
+function _bnrEconomicReason() {
+    return _bnrCfgState === 'loading' ? 'Загружаем цены с сервера…'
+        : _bnrCfgState === 'error' ? 'Не удалось загрузить цены. Покупка недоступна.'
+        : 'Цена этого действия не загружена. Покупка недоступна.';
+}
+function _bnrEconomicStatusHtml(actionType) {
+    return `<div data-bnr-economic-status="${actionType}" ${_bnrEconomicQuote(actionType) ? 'hidden' : ''} role="status" style="font-size:11px;color:#fca5a5;margin-top:6px;">
+        <span data-bnr-economic-reason>${_bnrEconomicReason()}</span>
+        <button type="button" class="small-btn" data-bnr-economic-retry="${actionType}">Обновить цены</button></div>`;
+}
+function _bnrRefreshEconomicUi() {
+    document.querySelectorAll('[data-bnr-economic-price]').forEach(node => {
+        node.textContent = _bnrEconomicLabel(node.dataset.bnrEconomicPrice);
+    });
+    document.querySelectorAll('[data-bnr-economic-action]').forEach(button => {
+        button.disabled = !_bnrEconomicQuote(button.dataset.bnrEconomicAction);
+    });
+    document.querySelectorAll('[data-bnr-economic-status]').forEach(node => {
+        node.hidden = !!_bnrEconomicQuote(node.dataset.bnrEconomicStatus);
+        node.querySelector('[data-bnr-economic-reason]').textContent = _bnrEconomicReason();
+    });
+}
+function _bnrRequireEconomicPrice(actionType) {
+    if (!_bnrEconomicActions[actionType] || _bnrEconomicQuote(actionType)) return true;
+    _bnrRefreshEconomicUi();
+    showNotification(_bnrEconomicReason() + ' Нажмите «Обновить цены».', 'warning');
+    return false;
+}
+document.addEventListener('click', event => {
+    if (event.target?.closest?.('[data-bnr-economic-retry]')) _hydrateBnrConfig();
+});
 
 // 2026-07-29 (багрепорт #22): «щит T3★ отображается во втором оружии, а не в
 // щитах». В движке щит ФИЗИЧЕСКИ занимает один из weapon-слотов, поэтому по
@@ -1830,9 +1962,34 @@ async function loadBannerlordInheritance() {
 // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clan management.
 // Viewer-leader клана может выделить взрослого ребёнка (heir) в собственный
 // vassal-clan. Прогрессия sub-clan'ов = long-term retention для donator'ов.
+// UI lifetime follows viewer/channel identity, not JWT expiry/refresh. This key
+// never authorizes an action; the backend still verifies the submitted JWT.
+function _bnrVassalAuthIdentity() {
+    let claims = {};
+    try {
+        const payload = (authToken || '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        claims = JSON.parse(atob(payload)) || {};
+    } catch (e) {}
+    return JSON.stringify([claims.channel_id || '', claims.user_id
+        || (typeof _authUserId !== 'undefined' ? _authUserId : ''),
+    claims.opaque_user_id || (typeof userId !== 'undefined' ? userId : '')]);
+}
 async function loadBannerlordVassals() {
     const slot = document.getElementById('bnr-vassals-slot');
     if (!slot) return;
+    const identity = _bnrVassalAuthIdentity();
+    if (slot._bnrVassalIdentity !== identity) {
+        slot.replaceChildren();
+        delete _smartHtmlCache[slot.id];
+        slot._bnrVassalIdentity = identity;
+    }
+    const isEditing = () => slot.querySelector('[data-bnr-details="vas-create"]')?.open
+        || slot.querySelector('[data-bnr-vassal-rename-form]');
+    if (isEditing()) return;
+    const lifecycle = _bannerlordLifecycle, token = authToken;
+    const requestSeq = ++_bnrVassalRequestSeq;
+    const isCurrent = () => lifecycle === _bannerlordLifecycle && identity === _bnrVassalAuthIdentity()
+        && document.getElementById('bnr-vassals-slot') === slot;
     try {
         const [vassR, heirsR] = await Promise.all([
             fetch(`${API_URL}/api/bannerlord/vassals`, {
@@ -1842,6 +1999,11 @@ async function loadBannerlordVassals() {
                 headers: { 'X-Twitch-JWT': authToken || '' }
             }).then(r => r.json()).catch(() => ({success: false})),
         ]);
+        // A request started before editing/stop must not remove the new form,
+        // including when its result is an empty list. Failed reads keep the last UI.
+        if (!isCurrent() || token !== authToken || requestSeq < _bnrVassalResponseSeq || isEditing()) return;
+        _bnrVassalResponseSeq = requestSeq;
+        if (!vassR?.success || !heirsR?.success) return;
         const vassals = (vassR.success && Array.isArray(vassR.vassals))
             ? vassR.vassals : [];
         const eligible = (heirsR.success && Array.isArray(heirsR.heirs))
@@ -1882,11 +2044,11 @@ async function loadBannerlordVassals() {
             // + text-имя переживают 8s-poll (форма рендерится при раскрытии).
             html += `
                 <details data-bnr-details="vas-create" ${_bnrDetailsAttr('vas-create')}>
-                    <summary title="Выделить взрослого ребёнка в собственный sub-clan (${_bnrGoldLabel('create_vassal_clan', 250000)} у героя)"
+                    <summary title="Выделить взрослого ребёнка в собственный sub-clan"
                              style="list-style:none;cursor:pointer;width:100%;
                                     font-size:11px;padding:6px;background:#1e3a8a;box-sizing:border-box;
                                     color:#fff;font-weight:700;border-radius:3px;text-align:center;">
-                        🏰 Создать вассала (${_bnrGoldLabel('create_vassal_clan', 250000)}) — ${eligible.length} наследников доступно
+                        🏰 Создать вассала (${_bnrEconomicPriceHtml('hero.create_vassal_clan')}) — ${eligible.length} наследников доступно
                     </summary>
                     <div id="bnr-vas-create-slot" style="padding-top:6px;"></div>
                 </details>`;
@@ -1908,7 +2070,13 @@ async function loadBannerlordVassals() {
         slot.querySelectorAll('.bnr-vas-rename').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const parent = e.target.closest('[data-vassal-id]');
-                if (!parent) return;
+                if (!parent || !isCurrent()) return;
+                _bnrVassalResponseSeq = ++_bnrVassalRequestSeq;
+                // Keep the real nodes and their handlers: restoring an HTML copy
+                // would leave a cache hit with a dead rename button.
+                const originalNodes = Array.from(parent.childNodes);
+                const closeEditor = () => parent.replaceChildren(...originalNodes);
+                let pending = false;
                 const id = parseInt(parent.dataset.vassalId, 10);
                 const oldName = parent.dataset.vassalName || '';
                 parent.innerHTML = `<form data-bnr-vassal-rename-form style="width:100%;display:grid;gap:5px;">
@@ -1922,22 +2090,40 @@ async function loadBannerlordVassals() {
                 const form = parent.querySelector('[data-bnr-vassal-rename-form]');
                 const input = form.querySelector('input[name="name"]');
                 input.focus(); input.select();
-                form.querySelector('[data-bnr-vassal-rename-cancel]').addEventListener('click', loadBannerlordVassals);
+                const canEdit = () => isCurrent() && parent.contains(form);
+                form.querySelector('[data-bnr-vassal-rename-cancel]').addEventListener('click', () => {
+                    if (!pending && canEdit()) closeEditor();
+                });
                 form.addEventListener('submit', async event => {
                     event.preventDefault();
+                    if (pending || !canEdit()) return;
                     const newName = input.value.trim();
                     const error = form.querySelector('[data-bnr-vassal-rename-error]');
                     if (!newName || newName.length > 50) {
                         error.textContent = 'Имя должно содержать от 1 до 50 символов.'; error.style.display = 'block'; return;
                     }
-                    if (newName === oldName) { loadBannerlordVassals(); return; }
+                    if (newName === oldName) { closeEditor(); return; }
+                    pending = true;
+                    const mutationToken = authToken;
                     form.querySelectorAll('button,input').forEach(control => { control.disabled = true; });
                     try {
-                        await _bannerlordBuyAction('hero.rename_vassal', {vassal_id:id,new_name:newName});
-                        setTimeout(loadBannerlordVassals, 1500);
+                        const result = await _bannerlordBuyAction('hero.rename_vassal', {vassal_id:id,new_name:newName});
+                        if (!canEdit() || mutationToken !== authToken) return;
+                        if (!result?.success) throw new Error(result?.message || 'Не удалось отправить переименование.');
+                        closeEditor();
+                        setTimeout(() => { if (isCurrent()) loadBannerlordVassals(); }, 1500);
                     } catch (renameError) {
+                        if (!canEdit() || mutationToken !== authToken) return;
+                        pending = false;
                         form.querySelectorAll('button,input').forEach(control => { control.disabled = false; });
                         error.textContent = renameError?.message || 'Не удалось отправить переименование.'; error.style.display = 'block';
+                    } finally {
+                        // Do not apply an old-token result or leave the editor
+                        // disabled forever. Reconcile with a fresh authenticated read.
+                        if (canEdit() && mutationToken !== authToken) {
+                            closeEditor();
+                            loadBannerlordVassals();
+                        }
                     }
                 });
             });
@@ -1984,13 +2170,15 @@ function _renderCreateVassalInline(eligibleHeirs) {
                    style="width:100%;padding:6px;font-size:12px;background:#0f1730;
                           color:#dbeafe;border:1px solid #1e40af;margin-bottom:10px;
                           box-sizing:border-box;">
-            <button id="bnr-vas-confirm" class="extra-btn"
+            <button id="bnr-vas-confirm" class="extra-btn" data-bnr-economic-action="hero.create_vassal_clan" ${_bnrEconomicQuote('hero.create_vassal_clan') ? '' : 'disabled'}
                     style="width:100%;font-size:11px;padding:6px;
                            background:#1e40af;color:#fff;font-weight:700;">
-                🏰 Создать (${_bnrGoldLabel('create_vassal_clan', 250000)})
+                🏰 Создать (${_bnrEconomicPriceHtml('hero.create_vassal_clan')})
             </button>
+            ${_bnrEconomicStatusHtml('hero.create_vassal_clan')}
         </div>`;
     document.getElementById('bnr-vas-confirm')?.addEventListener('click', async () => {
+        if (!_bnrRequireEconomicPrice('hero.create_vassal_clan')) return;
         const heirId = document.getElementById('bnr-vas-heir-pick')?.value;
         const name = document.getElementById('bnr-vas-name-input')?.value?.trim();
         if (!heirId || !name || name.length < 2) {
@@ -2030,12 +2218,17 @@ function _bnrCard(key, titleHtml, bodyHtml) {
          + `</details>`;
 }
 // Биндит toggle-персистентность секций. Зовётся рядом с _bnrBindDetailsPersistence.
-function _bnrBindSectionToggle() {
-    document.querySelectorAll('[data-bnr-section]').forEach(el => {
+function _bnrBindSectionToggle(root = document) {
+    root.querySelectorAll('[data-bnr-section]').forEach(el => {
         if (el.dataset.bnrSecBound === '1') return;
         el.dataset.bnrSecBound = '1';
+        let usageWasOpen = el.open;
         el.addEventListener('toggle', () => {
             const k = el.getAttribute('data-bnr-section');
+            if (el.open && !usageWasOpen) {
+                try { ShedLink.usage?.trackSection('bannerlord:section.' + k); } catch (e) {}
+            }
+            usageWasOpen = el.open;
             if (el.open) _bnrSectionCollapsed.delete(k);
             else _bnrSectionCollapsed.add(k);
         });
@@ -2053,6 +2246,7 @@ function loadBannerlordArmy() {
     if (!inKingdom) {
         slot.innerHTML = _bnrCard('army', _title,
             `Собрать армию может только клан <b>в королевстве</b>. Сначала вступи в королевство (выше).`);
+        _bnrBindRenderedDetails(slot);
         return;
     }
 
@@ -2069,6 +2263,7 @@ function loadBannerlordArmy() {
                     title="Собрать армию королевства. После — отдавай приказы через «Приказы отряда».">🚩 Собрать армию (${_bnrPrice('hero.army_create', 1000)}💎)</button>`;
     }
     slot.innerHTML = _bnrCard('army', _title, body);
+    _bnrBindRenderedDetails(slot);
 
     slot.querySelector('[data-bnr-action="army_create"]')?.addEventListener('click', () => {
         _bannerlordBuyAction('hero.army_create', {});
@@ -2380,7 +2575,6 @@ const _BNR_POLICIES = [
       desc: 'Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.' },
 ];
 
-let _bnrDiploCd = {};  // 2026-06-14: локальные таймстемпы кулдауна войны/мира (UX-индикатор)
 async function loadBannerlordDiplomacy() {
     const slot = document.getElementById('bnr-diplo-slot');
     if (!slot) return;
@@ -2523,19 +2717,15 @@ async function loadBannerlordDiplomacy() {
                         Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.
                         Повторно жать не нужно: следи за статусом войн выше.
                     </div>`;
-            // 2026-06-14 — кулдаун на кнопках (5 мин/зритель, локальный UX-индикатор;
-            // сервер enforce'ит реально + рефанд при клике в КД). Date.now() — браузер.
-            const _DIPLO_CD = 300;
-            const _warLeft   = Math.max(0, _DIPLO_CD - Math.floor((Date.now() - (_bnrDiploCd.war   || 0)) / 1000));
-            const _peaceLeft = Math.max(0, _DIPLO_CD - Math.floor((Date.now() - (_bnrDiploCd.peace || 0)) / 1000));
-            const _cdTxt = (s) => '⏳ ' + (s >= 60 ? Math.ceil(s / 60) + ' мин' : s + ' с');
+            // The shared cooldown clock uses /action and /my-buffs durations.
+            // Keep the base labels enabled here so it can restore them on expiry.
             if (warTargets.length) {
                 body += `
                     <div style="display:flex;gap:4px;margin-bottom:5px;">
                         <select id="bnr-war-target" style="flex:1;padding:5px;font-size:11px;background:#0f0805;color:#fed7aa;border:1px solid #92400e;">
                             ${warTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-war-propose" class="extra-btn bnr-btn-danger" ${_warLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_warLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_warLeft > 0 ? _cdTxt(_warLeft) : `⚔ Предложить (${_bnrPrice('kingdom.propose_war', 2000)}💎)`}</button>
+                        <button id="bnr-war-propose" class="extra-btn bnr-btn-danger" data-bnr-cd="kingdom.propose_war" style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;">⚔ Предложить (${_bnrPrice('kingdom.propose_war', 2000)}💎)</button>
                     </div>`;
             }
             if (peaceTargets.length) {
@@ -2544,7 +2734,7 @@ async function loadBannerlordDiplomacy() {
                         <select id="bnr-peace-vote-target" style="flex:1;padding:5px;font-size:11px;background:#0a0f1a;color:#bfdbfe;border:1px solid #1e40af;">
                             ${peaceTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-peace-vote-propose" class="extra-btn bnr-btn-primary" ${_peaceLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_peaceLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_peaceLeft > 0 ? _cdTxt(_peaceLeft) : `🕊 Предложить (${_bnrPrice('kingdom.propose_peace', 3000)}💎)`}</button>
+                        <button id="bnr-peace-vote-propose" class="extra-btn bnr-btn-primary" data-bnr-cd="kingdom.propose_peace" style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;">🕊 Предложить (${_bnrPrice('kingdom.propose_peace', 3000)}💎)</button>
                     </div>`;
             } else {
                 body += `<div style="font-size:9px;color:var(--dim);">Сейчас ни с кем не воюем — мир предлагать некому.</div>`;
@@ -2557,7 +2747,9 @@ async function loadBannerlordDiplomacy() {
         // diplo-policy НЕ морозим — это click-list (style A), без in-progress state.
         if (slot.querySelector('[data-bnr-details="diplo-peace"]')?.open) return;
         // FLICKER-FIX: skip rebind при identical HTML.
-        if (!_smartInnerHTML(slot, html)) return;
+        const changed = _smartInnerHTML(slot, html);
+        _bnrActionCdTick();
+        if (!changed) return;
         _bnrBindSectionToggle();
 
         // 2026-06-07 — клик по строке политики = toggle enact/revoke сразу (style A).
@@ -2600,7 +2792,6 @@ async function loadBannerlordDiplomacy() {
             if (res && res.success) {
                 showNotification(`📜 Заявка на войну с «${_tname}» отправлена на голосование кланов. Войну объявят, только если кланы проголосуют ЗА — это не мгновенно.`, 'success', 7000);
             }
-            _bnrDiploCd.war = Date.now();   // запустить кулдаун (UI), сервер enforce'ит реально
             loadBannerlordDiplomacy();
         });
         slot.querySelector('#bnr-peace-vote-propose')?.addEventListener('click', async () => {
@@ -2617,7 +2808,6 @@ async function loadBannerlordDiplomacy() {
             if (res && res.success) {
                 showNotification(`📜 Заявка на мир с «${_tname}» отправлена на голосование кланов. Мир заключат, только если кланы проголосуют ЗА — это не мгновенно.`, 'success', 7000);
             }
-            _bnrDiploCd.peace = Date.now();   // запустить кулдаун (UI), сервер enforce'ит реально
             loadBannerlordDiplomacy();
         });
     } catch (e) {
@@ -3746,25 +3936,37 @@ function renderBannerlordSummonButton() {
 // Раньше client-side декремент drift'ил когда tab throttled — viewer видел
 // power как "unlocked" пока CD реально active, кликал → backend rejects.
 async function loadBannerlordBuffs() {
+    const request = ++_bnrBuffRequestSeq, lifecycle = _bannerlordLifecycle, token = authToken;
+    const cooldownRevision = _bnrCooldownRevision;
+    const isCurrent = () => request > _bnrBuffAppliedSeq && lifecycle === _bannerlordLifecycle && token === authToken;
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/my-buffs`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const data = await r.json();
+        if (!isCurrent()) return;
         if (data.success) {
+            // Apply in monotonic order, not only the latest issued request:
+            // a slow connection can keep a newer poll in flight indefinitely.
+            _bnrBuffAppliedSeq = request;
             const now = Date.now();
             _bannerlordBuffs = (data.buffs || []).map(b => ({
                 ...b,
                 expires_at_ms: now + (b.remaining_s || 0) * 1000,
             }));
-            _bannerlordCooldowns = (data.cooldowns || []).map(c => ({
-                ...c,
-                expires_at_ms: now + (c.remaining_s || 0) * 1000,
-            }));
+            // A GET started before /action replied cannot erase that newer CD.
+            // The next poll still replaces the snapshot, including an empty one.
+            if (cooldownRevision === _bnrCooldownRevision) {
+                _bannerlordCooldowns = (data.cooldowns || []).map(c => ({
+                    ...c,
+                    expires_at_ms: now + (c.remaining_s || 0) * 1000,
+                }));
+            }
             _renderBannerlordBuffs();
             renderBannerlordActivePowers();
         }
     } catch (e) {
+        if (!isCurrent()) return;
         // Sprint 5.29 audit fix #36: было silent — теперь warn (HUD-poll)
         console.warn('[BNR loadBannerlordBuffs]', e);
     }
@@ -4063,6 +4265,7 @@ function _renderRetinue(retinue) {
                 </button>
             </div>
         </details>`;
+    _bnrBindRenderedDetails(slot);
 
     document.getElementById('bnr-recruit-basic-btn')?.addEventListener('click', () => {
         if (basicDisabled) return;
@@ -4690,7 +4893,7 @@ function loadBannerlordDynastyLockedActions() {
                 <summary style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
                            font-size:12px;padding:9px;border-radius:3px;
                            background:#7c2d12;color:#fbbf24;font-weight:700;border:1px solid #b45309;">
-                    🏰 Создать клан (${_bnrGoldLabel('create_clan', 1000000)})
+                    🏰 Создать клан (${_bnrEconomicPriceHtml('hero.create_clan')})
                 </summary>
                 <div id="bnr-locked-create-slot" style="padding-top:6px;"></div>
            </details>
@@ -4816,10 +5019,10 @@ function loadBannerlordKingdomMgmt() {
                 🚪 Покинуть королевство
            </button>`
         : `<details data-bnr-details="kingdom-create" ${_bnrDetailsAttr('kingdom-create')} style="margin-bottom:4px;">
-                <summary title="Создать своё королевство (${_bnrGoldLabel('create_kingdom', 5000000)}). Клан становится правящим."
+                <summary title="Создать своё королевство. Клан становится правящим."
                          style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
                                 font-size:12px;padding:7px;border-radius:3px;background:#7c2d12;color:#fbbf24;font-weight:700;">
-                    👑 Создать королевство (${_bnrGoldLabel('create_kingdom', 5000000)})
+                    👑 Создать королевство (${_bnrEconomicPriceHtml('hero.create_kingdom')})
                 </summary>
                 <div id="bnr-kingdom-create-slot" style="padding-top:6px;"></div>
            </details>
@@ -4837,11 +5040,11 @@ function loadBannerlordKingdomMgmt() {
     // аудит 0.0.2 нашёл здесь ровно тот случай, который changelog объявлял
     // закрытым — «3 000 000💰» стояли текстом и в кнопке, и в подтверждении.
     const rulerActions = (hasKingdom && info && info.is_ruler)
-        ? `<button class="extra-btn bnr-recruit-vassal"
-                   title="Нанять свежий NPC-вассальный клан (tier-1) в своё королевство. Списывается ${_bnrGoldLabel('recruit_vassal', 3000000)} динаров. Лимита нет — цена и есть ограничитель."
+        ? `<button class="extra-btn bnr-recruit-vassal" data-bnr-economic-action="hero.recruit_vassal_clan" ${_bnrEconomicQuote('hero.recruit_vassal_clan') ? '' : 'disabled'}
+                   title="Нанять свежий NPC-вассальный клан (tier-1) в своё королевство. Лимита нет — цена и есть ограничитель."
                    style="width:100%;font-size:12px;padding:7px;margin-top:5px;background:#1e3a5f;color:#93c5fd;font-weight:700;">
-                🛡 Нанять вассальный клан (${_bnrGoldLabel('recruit_vassal', 3000000)})
-           </button>`
+                🛡 Нанять вассальный клан (${_bnrEconomicPriceHtml('hero.recruit_vassal_clan')})
+           </button>${_bnrEconomicStatusHtml('hero.recruit_vassal_clan')}`
         : '';
     const html = `
         <div style="font-size:12px;color:#93c5fd;font-weight:700;margin-bottom:4px;text-align:center;">
@@ -4866,8 +5069,18 @@ function loadBannerlordKingdomMgmt() {
             // Число берём в МОМЕНТ КЛИКА, а не при отрисовке: конфиг мог
             // обновиться. Развёрнутый формат (не «3M») здесь намеренно —
             // подтверждение должно показать сумму целиком.
-            const _rvCost = _bnrGold('recruit_vassal', 3000000).toLocaleString('ru-RU');
-            if (!await _bnrConfirmDanger(`Нанять вассальный клан за ${_rvCost}💰 динаров? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.`, 'Да, нанять')) return;
+            if (!_bnrRequireEconomicPrice('hero.recruit_vassal_clan')) return;
+            const quote = _bnrEconomicQuote('hero.recruit_vassal_clan');
+            const lifecycle = _bannerlordLifecycle, token = authToken;
+            const _rvCost = _bnrEconomicLabel('hero.recruit_vassal_clan', true);
+            if (!await _bnrConfirmDanger(`Нанять вассальный клан за ${_rvCost}? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.`, 'Да, нанять')) return;
+            if (lifecycle !== _bannerlordLifecycle || token !== authToken) return;
+            if (!_bnrRequireEconomicPrice('hero.recruit_vassal_clan')) return;
+            const current = _bnrEconomicQuote('hero.recruit_vassal_clan');
+            if (current.gold !== quote.gold || current.crustics !== quote.crustics) {
+                showNotification('Цена изменилась. Проверьте новую цену и подтвердите покупку ещё раз.', 'warning');
+                return;
+            }
             const res = await _bannerlordBuyAction('hero.recruit_vassal_clan', {});
             if (res && res.success) {
                 showNotification('🛡 Заявка принята. NPC-лорд и его клан появятся в твоём королевстве в течение пары секунд (после обработки в игре). Динары спишутся при создании.', 'success', 7000);
@@ -4905,7 +5118,7 @@ function _renderCreateKingdomInline() {
                     ? `Ты заберёшь владения своего клана, а подходящие сторонники перейдут вместе со своими феодами. Сторонники: <b style="color:${supporterCount >= supporterRequired ? '#86efac' : '#fca5a5'};">${supporterCount}/${supporterRequired}</b>.`
                     : 'Твой независимый клан станет правящим в новом королевстве. Феоды для основания не нужны.'}
                 Списывается
-                <b style="color:#fbbf24;">${_bnrGoldLabel('create_kingdom', 5000000)} динаров</b> + бонус: 2K влияния и
+                <b style="color:#fbbf24;">${_bnrEconomicPriceHtml('hero.create_kingdom')}</b> + бонус: 2K влияния и
                 2M kingdom wallet. Имя получит префикс <code>[BLink]</code>.
             </div>
             <input id="bnr-kingdom-name-input" type="text" maxlength="32"
@@ -4914,14 +5127,16 @@ function _renderCreateKingdomInline() {
                           border:1px solid #3d3d3f;border-radius:4px;
                           padding:6px 8px;font-size:12px;margin-bottom:12px;
                           box-sizing:border-box;">
-            <button id="bnr-k-confirm" class="extra-btn"
+            <button id="bnr-k-confirm" class="extra-btn" data-bnr-economic-action="hero.create_kingdom" ${_bnrEconomicQuote('hero.create_kingdom') ? '' : 'disabled'}
                     style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
                            color:#fbbf24;font-weight:700;">
-                ${isRebellion ? '⚔ Поднять восстание' : '👑 Создать'} (${_bnrGoldLabel('create_kingdom', 5000000)})
+                ${isRebellion ? '⚔ Поднять восстание' : '👑 Создать'} (${_bnrEconomicPriceHtml('hero.create_kingdom')})
             </button>
+            ${_bnrEconomicStatusHtml('hero.create_kingdom')}
         </div>`;
     const input = document.getElementById('bnr-kingdom-name-input');
     const confirm = () => {
+        if (!_bnrRequireEconomicPrice('hero.create_kingdom')) return;
         const kingdom_name = (input?.value || '').trim();
         // 2026-06-07 FLICKER — закрыть форму ДО действия (иначе freeze-guard
         // заблокирует следующий repaint секции) + мгновенный фидбек на клик.
@@ -4986,8 +5201,8 @@ function _renderCreateClanInline() {
         <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
                 Твой герой станет лидером нового клана и сможет создать отряд
-                (party) на карте. Списывается <b style="color:#fbbf24;">${_bnrGoldLabel('create_clan', 1000000)}
-                динаров</b> у героя в игре. Имя получит префикс <code>[BLink]</code>.
+                (party) на карте. Списывается <b style="color:#fbbf24;">${_bnrEconomicPriceHtml('hero.create_clan')}
+                </b> у героя в игре. Имя получит префикс <code>[BLink]</code>.
             </div>
             <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
                 Имя клана (опционально, до 32 символов):
@@ -4998,14 +5213,16 @@ function _renderCreateClanInline() {
                           border:1px solid #3d3d3f;border-radius:4px;
                           padding:6px 8px;font-size:12px;margin-bottom:12px;
                           box-sizing:border-box;">
-            <button id="bnr-clan-confirm" class="extra-btn"
+            <button id="bnr-clan-confirm" class="extra-btn" data-bnr-economic-action="hero.create_clan" ${_bnrEconomicQuote('hero.create_clan') ? '' : 'disabled'}
                     style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
                            color:#fbbf24;font-weight:700;">
-                🏰 Создать (${_bnrGoldLabel('create_clan', 1000000)})
+                🏰 Создать (${_bnrEconomicPriceHtml('hero.create_clan')})
             </button>
+            ${_bnrEconomicStatusHtml('hero.create_clan')}
         </div>`;
     const input = document.getElementById('bnr-clan-name-input');
     const confirm = () => {
+        if (!_bnrRequireEconomicPrice('hero.create_clan')) return;
         const clan_name = (input?.value || '').trim();
         // 2026-06-07 FLICKER — закрыть форму ДО действия (иначе freeze-guard
         // заблокирует следующий repaint секции) + мгновенный фидбек на клик.
@@ -5023,16 +5240,73 @@ function _renderCreateClanInline() {
 // Форвард CORE: _bnrConfirm/_bnrShowSimpleModal, _formatBigGold, _smartInnerHTML,
 // _bannerlordBuyAction (диспетчер), state-глобалы. BNR_SKILL_LABELS_RU теперь внутрифайл.
 // Callers рантайм (_startBannerlordPolling, dispatcher success, refresh-btn).
+// Render every dynasty summary on entry, even when its details are collapsed.
+// Hidden dynasty tabs do not start the 12 extra HTTP reads per hero poll.
+function _loadBannerlordDynasty() {
+    const integrationTab = document.getElementById('rimworld-tab');
+    if (integrationTab && !integrationTab.classList.contains('active')) return;
+    if (typeof _isViewerPanelVisible === 'function' && !_isViewerPanelVisible()) return;
+    if (document.hidden || !document.querySelector('[data-bnr-pane="dynasty"].active')) return;
+    const data = _bannerlordLastHero;
+    if (!data?.has_hero || !data.hero || data.hero.is_alive === false) return;
+    const isClanLeader = !!data.hero.clan_info?.is_leader;
+    if (isClanLeader) {
+        // 2026-06-07 — инлайн-секции клан/королевство (live-инфо + manage-кнопка).
+        loadBannerlordClanMgmt();
+        loadBannerlordKingdomMgmt();
+        // 2026-06-07 — Профиль/семья (брак/дети) — inline-секция в Династии.
+        loadBannerlordProfileFamily();
+        // Sprint 5.32 (BLT-parity FE-M2) — refill heir slot.
+        loadBannerlordHeirs();
+        // Sprint 5.33 (BLT-parity FAM) — Family section (children + proposals).
+        loadBannerlordFamily();
+        // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clans section.
+        loadBannerlordVassals();
+        // Sprint 5.33 (BLT-parity SIEGE) — Party orders section.
+        loadBannerlordPartyOrders();
+        // 2026-06-14 — «Армия» MVP (чуть ниже приказов отряда).
+        loadBannerlordArmy();
+        // Sprint 5.33 (BLT-parity DIPLO) — Kingdom politics + ransom pool.
+        loadBannerlordDiplomacy();
+        loadBannerlordRansomPool();
+        // Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
+        loadBannerlordWorkshops();
+        // Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income.
+        loadBannerlordFiefs();
+        // Sprint 5.33 (BLT-parity CARAVAN) — Mobile passive income trilogy closer.
+        loadBannerlordCaravans();
+        // Sprint 5.33 (BLT-parity HERITAGE) — Inheritance log.
+        loadBannerlordInheritance();
+    } else {
+        // 2026-06-07 — не-лидер: locked-state actions (clanless создать/вступить,
+        // участник — покинуть). Заменяет вход через Hero-row модалку.
+        loadBannerlordDynastyLockedActions();
+    }
+    _bnrBindSectionToggle();
+}
+
 async function loadBannerlordHero() {
     const body = document.getElementById('hero-body');
     if (!body) return;
+    const lifecycle = _bannerlordLifecycle, token = authToken;
+    const requestSeq = ++_bnrHeroRequestSeq;
+    const isCurrent = () => lifecycle === _bannerlordLifecycle && token === authToken
+        && requestSeq >= _bnrHeroResponseSeq && document.getElementById('hero-body') === body;
+    const showError = message => {
+        // Direct error DOM replacement must invalidate both render caches.
+        delete body._bnrLastStruct;
+        delete _smartHtmlCache[body.id];
+        body.innerHTML = `<div style="color:#f87171;padding:10px;">${escapeHtml(message)}</div>`;
+    };
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/my-hero`, {
             headers: { 'X-Twitch-JWT': authToken || '' },
         });
         const data = await r.json();
-        if (!data.success) {
-            body.innerHTML = `<div style="color:#f87171;padding:10px;">${escapeHtml(data.message || 'Ошибка')}</div>`;
+        if (!isCurrent()) return;
+        _bnrHeroResponseSeq = requestSeq;
+        if (!data?.success) {
+            showError(data?.message || 'Ошибка');
             return;
         }
         _bannerlordLastHero = data;   // 5.8: cache для progression modal
@@ -5113,6 +5387,7 @@ async function loadBannerlordHero() {
         };
 
         if (!data.has_hero) {
+            delete _smartHtmlCache[body.id];
             // 2026-06-15 — на смене сейва герой может ИСЧЕЗНУТЬ (его нет в новом
             // сейве). Header (#hero-body) ниже покажет промпт усыновления, НО
             // контент-вкладки (#bnr-pane-*-body) наполняются только в has-hero
@@ -5185,6 +5460,7 @@ async function loadBannerlordHero() {
         // Sprint 5.29 BLT-parity #7: dead hero → show heir succession UI
         // вместо stats. Click "Возрождение" → POST hero.create → new wanderer.
         if (h && h.is_alive === false) {
+            delete _smartHtmlCache[body.id];
             const iter = h.iteration || 1;
             const nextIter = iter + 1;
             body.innerHTML = `
@@ -5517,6 +5793,8 @@ async function loadBannerlordHero() {
             }
         }
 
+        if (paneDyn) _bnrBindRenderedDetails(paneDyn);
+
         // FLICKER-FIX v5: structural change wrapped в _preserveSlots — sub-slot
         // content NOT destroyed во время body rewrite.
         const _bnrChanged = _preserveSlots(() =>
@@ -5608,45 +5886,7 @@ async function loadBannerlordHero() {
         loadBannerlordProgression();
         // 2026-06-07 — Смена пола — inline-секция в Hero pane.
         loadBannerlordGender();
-        // 2026-06-02 (CLAN-GATE) — sub-loaders Династии грузим ТОЛЬКО у главы
-        // клана (тело вкладки иначе заперто, грузить нечего). loadBannerlordDaily
-        // выше — Hero-pane, НЕ гейтим.
-        if (isClanLeader) {
-            // 2026-06-07 — инлайн-секции клан/королевство (live-инфо + manage-кнопка).
-            loadBannerlordClanMgmt();
-            loadBannerlordKingdomMgmt();
-            // 2026-06-07 — Профиль/семья (брак/дети) — inline-секция в Династии.
-            loadBannerlordProfileFamily();
-            // Sprint 5.32 (BLT-parity FE-M2) — refill heir slot.
-            loadBannerlordHeirs();
-            // Sprint 5.33 (BLT-parity FAM) — Family section (children + proposals).
-            loadBannerlordFamily();
-            // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clans section.
-            loadBannerlordVassals();
-            // Sprint 5.33 (BLT-parity SIEGE) — Party orders section.
-            loadBannerlordPartyOrders();
-            // 2026-06-14 — «Армия» MVP (чуть ниже приказов отряда).
-            loadBannerlordArmy();
-            // Sprint 5.33 (BLT-parity DIPLO) — Kingdom politics + ransom pool.
-            loadBannerlordDiplomacy();
-            loadBannerlordRansomPool();
-            // Sprint 5.33 (BLT-parity SHOP) — Workshops passive income panel.
-            loadBannerlordWorkshops();
-            // Sprint 5.33 (BLT-parity FIEF) — Fief tribute passive income.
-            loadBannerlordFiefs();
-            // Sprint 5.33 (BLT-parity CARAVAN) — Mobile passive income trilogy closer.
-            loadBannerlordCaravans();
-            // Sprint 5.33 (BLT-parity HERITAGE) — Inheritance log.
-            loadBannerlordInheritance();
-        } else {
-            // 2026-06-07 — не-лидер: locked-state actions (clanless создать/вступить,
-            // участник — покинуть). Заменяет вход через Hero-row модалку.
-            loadBannerlordDynastyLockedActions();
-        }
-        // 2026-06-15 — toggle-персистентность сворачиваемых секций «Династии».
-        // ВНЕ if(_bnrChanged): секции re-render'ятся каждый poll, новые <details>
-        // должны получить listener (guard bnrSecBound защищает от дублей).
-        _bnrBindSectionToggle();
+        _loadBannerlordDynasty();
         // Sprint 5.5: immediately repaint battle banner из cache чтобы
         // не было 0-2s gap'a после hero re-render.
         if (_bannerlordBattle) _renderBannerlordBattleBanner(_bannerlordBattle);
@@ -5677,6 +5917,9 @@ async function loadBannerlordHero() {
         // ВЫШЕ за пределы if(_bnrChanged) — DOM пересоздаётся каждый poll.
       }  // ← end of `if (_bnrChanged)` for bindings
     } catch (e) {
-        body.innerHTML = `<div style="color:#f87171;padding:10px;">Ошибка сети</div>`;
+        if (isCurrent()) {
+            _bnrHeroResponseSeq = requestSeq;
+            showError('Ошибка сети');
+        }
     }
 }

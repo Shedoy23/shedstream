@@ -848,6 +848,34 @@ function renderFirstStep(step) {
     }
 }
 
+// Both legacy close paths move the panel offscreen: the class-based toggle
+// and hidePanel's inline right offset. Missing root is an isolated UI fragment.
+function _isViewerPanelVisible() {
+    if (document.hidden) return false;
+    const panel = document.getElementById('overlay-panel');
+    if (!panel) return true;
+    const inlineRight = Number.parseFloat(panel.style.right);
+    return Number.isFinite(inlineRight) ? inlineRight >= 0 : panel.classList.contains('open');
+}
+
+function _refreshVisibleGame() {
+    if (isAuthUser() && _isViewerPanelVisible() && document.querySelector('.tab[data-tab="rimworld"].active')) {
+        ShedLink.refreshVisibleGame?.();
+    }
+}
+
+// The collector deduplicates panel exposure per identity/day. Calling this after
+// auth/module refresh is safe: it is not an action attempt or a section-open.
+function _trackVisibleUsagePanel() {
+    if (!_isViewerPanelVisible() || !isAuthUser()) return;
+    try {
+        ShedLink.usage?.trackPanel('core');
+        if (document.querySelector('.tab[data-tab="rimworld"].active') && _activeIntegrationModule) {
+            ShedLink.usage?.trackPanel(_activeIntegrationModule);
+        }
+    } catch (e) {} // Statistics are optional; the UI and purchases must still work.
+}
+
 function setupTabs() {
     const tabs = document.querySelectorAll('.tab');
     if (!tabs.length) return;
@@ -867,6 +895,7 @@ function setupTabs() {
 }
 
 function switchTab(tab) {
+    const usageOpened = !tab.classList.contains('active');
     // Мгновенное переключение без задержек
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -875,6 +904,11 @@ function switchTab(tab) {
     const tabId = tab.dataset.tab;
     const content = document.getElementById(`${tabId}-tab`);
     if (content) content.classList.add('active');
+    if (usageOpened) {
+        try { ShedLink.usage?.trackSection('core:tab.' + (tabId === 'rimworld' ? 'integration' : tabId)); } catch (e) {}
+    }
+    _trackVisibleUsagePanel();
+    if (usageOpened) _refreshVisibleGame();
 
     // Загружаем данные при переходе на вкладку RimWorld
     if (tabId === 'rimworld') {
@@ -1262,6 +1296,7 @@ function renderInventoryCases(unopenedCounts) {
 // один раз в реестре, а не повторяется в каждой ветке.
 function switchIntegrationModule(activeModule) {
     _activeIntegrationModule = ShedLink.switchGame(activeModule);
+    _trackVisibleUsagePanel();
 }
 
 // Sprint 5.19 (2026-05-20): quests-list div переехал из bot-tab в модалку
@@ -1670,6 +1705,10 @@ function togglePanel() {
         const icon = btn.querySelector('span');
         if (icon) icon.textContent = isOpen ? '✕' : '🌌';
     }
+    if (isOpen) {
+        _trackVisibleUsagePanel();
+        _refreshVisibleGame();
+    }
 }
 
 function hidePanel() {
@@ -1698,6 +1737,8 @@ function restorePanel() {
     if (restoreBtn) restoreBtn.style.display = 'none';
     const hideTab = document.getElementById('panel-hide-tab');
     if (hideTab) hideTab.style.display = 'flex';
+    _trackVisibleUsagePanel();
+    _refreshVisibleGame();
 }
 
 // ===== БАГРЕПОРТ (бывш. реклама — убрана для §9.3, переделана в багрепорт) =====

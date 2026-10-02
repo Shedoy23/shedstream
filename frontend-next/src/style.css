@@ -1,0 +1,49 @@
+:root { color-scheme: dark; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #101117; color: #e9ebf2; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 280px; }
+button, select { font: inherit; }
+button { border: 1px solid #454654; background: #303140; color: #fff; border-radius: 8px; padding: 9px 13px; cursor: pointer; font-size: 13px; }
+button:hover:not(:disabled) { background: #414256; }
+button:focus-visible, select:focus-visible { outline: 3px solid #b6a0ff; outline-offset: 3px; }
+button:disabled { opacity: .48; cursor: default; }
+.layout { max-width: 620px; margin: 38px auto; padding: 0 20px 28px; }
+.brand { display: flex; gap: 11px; align-items: center; margin-bottom: 25px; }
+.brand-icon { display: grid; place-items: center; height: 38px; width: 38px; background: #8061dd; border-radius: 11px; font-weight: 800; font-size: 24px; }
+.brand strong { display: block; font-size: 19px; letter-spacing: -.4px; }
+.brand div > span { font-size: 11px; color: #a4a5b4; }
+.pilot-label { margin-left: auto; font-size: 10px; letter-spacing: .8px; color: #b4a1eb; }
+.preview-warning { border: 1px solid #534532; background: #27221b; color: #e9cf9e; border-radius: 10px; padding: 14px 16px; font-size: 13px; }
+.preview-warning p { margin: 5px 0 0; line-height: 1.5; }
+.scenario-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #b5b5c4; margin: 18px 0; }
+select { flex: 1; min-width: 160px; background: #20212c; border: 1px solid #444553; color: #edecf4; border-radius: 7px; padding: 9px; max-width: 100%; }
+.tournament-card { border: 1px solid #383947; border-radius: 16px; background: #1c1d27; padding: 24px; box-shadow: 0 18px 45px #0003; }
+.card-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 20px; }
+.eyebrow { color: #b89bff; letter-spacing: 1.7px; font-size: 10px; margin: 0 0 7px; font-weight: 700; }
+h1 { font-size: 24px; margin: 0; letter-spacing: -.65px; }
+h2 { font-size: 15px; margin: 22px 0 13px; }
+.status-chip { border: 1px solid #5b4d39; background: #362d22; color: #efd19b; white-space: nowrap; border-radius: 20px; padding: 7px 10px; font-size: 11px; }
+.muted, .last-winner { color: #aaaab9; font-size: 13px; line-height: 1.6; }
+.count { margin-left: 5px; font-size: 12px; color: #b5a0ef; }
+.players { margin: 0 0 20px; padding-left: 25px; }
+.players li { padding: 12px 5px; border-bottom: 1px solid #31323f; font-size: 14px; overflow-wrap: anywhere; }
+.players li::marker { color: #777889; }
+.players li > .muted { float: right; }
+.participants { padding: 0; list-style: none; }
+.participants li { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.primary { background: #8664df; border-color: #9879ec; font-weight: 600; }
+.primary:hover:not(:disabled) { background: #9473e8; }
+.tournament-card > .primary { width: 100%; padding: 13px; }
+.success, .notice { background: #25372f; color: #bcdec8; border: 1px solid #3b5a47; padding: 13px; border-radius: 8px; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.error { background: #402b31; color: #f4bbc6; border: 1px solid #704653; padding: 13px; border-radius: 8px; line-height: 1.5; font-size: 13px; }
+.empty { text-align: center; color: #9394a6; padding: 24px 0; font-size: 14px; }
+.last-winner { margin-top: 22px; font-size: 12px; }
+.last-winner strong { color: #d2c8e9; }
+footer { margin-top: 21px; padding-top: 18px; border-top: 1px solid #363644; }
+.secondary { background: transparent; font-size: 12px; }
+.scope-note { color: #8b8c9e; font-size: 11px; line-height: 1.6; margin: 18px 5px 0; }
+.dialog-backdrop { position: fixed; inset: 0; background: #000b; display: grid; place-items: center; padding: 20px; z-index: 2; }
+.dialog { width: 100%; max-width: 400px; padding: 24px; background: #22232d; border: 1px solid #605378; border-radius: 15px; overflow-wrap: anywhere; }
+.dialog h2 { margin: 0 0 15px; }
+.dialog p { color: #bdbdcb; font-size: 13px; line-height: 1.5; }
+.dialog-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+@media (max-width: 420px) { .layout { padding: 0 12px 24px; margin-top: 20px; } .tournament-card { padding: 18px; } h1 { font-size: 21px; } .pilot-label { font-size: 8px; } }

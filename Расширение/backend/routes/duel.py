@@ -150,6 +150,15 @@ async def check_season_end(channel_id: int = None, game_type: str = 'rps'):
     from dependencies import resolve_channel_id_or_default
     cid = channel_id if channel_id else resolve_channel_id_or_default()
     db = get_db()
+    # Skill-game prizes need independent owner calibration. Never inherit RPS
+    # PRIZES through this generic entry point; old game payouts stay unchanged.
+    if game_type in ('battleship', 'minesweeper'):
+        from skillgames.service import ensure_season
+        async with db._connect() as conn:
+            await conn.execute("BEGIN IMMEDIATE")
+            await ensure_season(conn, cid, game_type)
+            await conn.commit()
+        return
     async with db._connect() as conn:
         # Атомарность: призы + finish + reset + новый сезон — одна транзакция
         # (иначе краш между add_points и finish = двойная выдача при ретрае).

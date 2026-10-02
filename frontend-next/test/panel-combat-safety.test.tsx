@@ -15,16 +15,18 @@ const deferred=<T,>()=>{let resolve!:(value:T)=>void;const promise=new Promise<T
 const cleanupFns:(()=>void)[]=[];
 beforeEach(()=>{vi.useFakeTimers({toFake:['setTimeout','clearTimeout','setInterval','clearInterval','Date']});vi.setSystemTime(epoch);localStorage.clear();Object.defineProperty(document,'hidden',{configurable:true,value:false});});
 afterEach(()=>{cleanup();cleanupFns.splice(0).forEach(fn=>fn());vi.useRealTimers();});
-async function setup(overrides:Record<string,unknown>={}){
+async function setup(overrides:Record<string,unknown>={},savedTab?:string){
+  if(savedTab)localStorage.setItem('bnr_active_tab',savedTab);
   const trace:{path:string;method:string;body?:{action_type:string;data:Record<string,unknown>};token:string|null}[]=[];
   const routes:Record<string,unknown>={'/api/user/resolve-twitch-token':{login:'alice'},'/api/bannerlord/config':f.config,'/api/bannerlord/my-hero':f.hero,'/api/bannerlord/classes':c.classes_by_key.tank,'/api/bannerlord/build':c.build_combat_one_handed,'/api/bannerlord/my-buffs':c.buffs_empty,'/api/bannerlord/battle-status':c.battle_siege,'/api/viewer/stats/alice':f.stats,'/api/user/level/alice':f.level,'/api/viewer/stats/carol':{...f.stats,points:0},'/api/user/level/carol':f.level,'/api/duel/list':f.duels,'/api/bannerlord/equipment-shop':f.equipment_inventory,'/api/bannerlord/action':c.build_power_one_handed.response,...overrides};
   const fetcher:typeof fetch=async(input,init={})=>{const path=String(input);trace.push({path,method:init.method||'GET',body:init.body?JSON.parse(String(init.body)):undefined,token:new Headers(init.headers).get('X-Twitch-JWT')});if(!(path in routes))throw Error('UNMATCHED '+path);let value=routes[path];if(typeof value==='function')value=(value as ()=>unknown)();if(value instanceof Promise)value=await value;return value instanceof Response?value.clone():response(value);};
   const auth=new TwitchAuthStore();let authorize!:(v:typeof initial)=>void;const identity=new IdentityBootstrap(auth,'',fetcher),detach=identity.attach({onAuthorized:fn=>authorize=fn});cleanupFns.push(detach);
   const controller=new PanelController(new HttpPanelTransport('',auth,fetcher),auth,identity);let ui!:ReturnType<typeof render>;
   await act(async()=>{authorize(initial);await flush();ui=render(<PanelApp controller={controller} identity={identity} Equipment={EquipmentView} combat/>);await flush();});await act(flush);
+  const firstTab=ui.container.querySelector('.panel-tabs [aria-pressed=true]')?.textContent;
   await act(async()=>{ui.getByRole('button',{name:'Боевые действия'}).click();await flush();});
   const button=(q:string)=>{const node=ui.container.querySelector(q);expect(node,q).toBeTruthy();return node as HTMLButtonElement;};
-  return {ui,controller,auth,authorize,identity,trace,routes,button,posts:()=>trace.filter(r=>r.path==='/api/bannerlord/action'),async click(q:string){await act(async()=>{button(q).click();await flush();});},async advance(ms:number){await act(async()=>{await vi.advanceTimersByTimeAsync(ms);await flush();});},async load(key:'Build'|'Buffs'|'Battle'|'Config'|'Balance'|'Hero'){await act(async()=>{await controller[`refresh${key}`]();await flush();});}};
+  return {ui,firstTab,controller,auth,authorize,identity,trace,routes,button,posts:()=>trace.filter(r=>r.path==='/api/bannerlord/action'),async click(q:string){await act(async()=>{button(q).click();await flush();});},async advance(ms:number){await act(async()=>{await vi.advanceTimersByTimeAsync(ms);await flush();});},async load(key:'Build'|'Buffs'|'Battle'|'Config'|'Balance'|'Hero'){await act(async()=>{await controller[`refresh${key}`]();await flush();});}};
 }
 for(const price of [undefined,null,-1,'300',Infinity])for(const family of ['order','spawn','legacy','new'] as const)it(`${family} fails closed for malformed price ${String(price)}`,async()=>{
   let q:string,overrides:Record<string,unknown>={};
@@ -121,4 +123,8 @@ for(const battle of [c.battle_idle,c.battle_not_spawned,c.battle_dead])it(`new b
 });
 it('unknown legacy power keys cannot manufacture controls',async()=>{
   const s=await setup({'/api/bannerlord/build':c.build_no_session,'/api/bannerlord/classes':{...c.classes_by_key.tank,current_powers:[{power_key:'imaginary_power',price:10}]}});expect(s.ui.container.querySelector('[data-bnr-power]')).toBeNull();
+});
+for(const [saved,expected] of [['combat','Боевые действия'],['hero','Развитие'],['inventory','Снаряжение'],['dynasty','Боевые действия'],['invalid','Боевые действия']])it(`first open preserves supported saved tab ${saved}`,async()=>{const s=await setup({},saved);expect(s.firstTab).toBe(expected);});
+it('60-second balance phase survives same-viewer token resolution without leaking old authorization',async()=>{
+  const s=await setup({'/api/viewer/stats/alice':{...f.stats,points:299}});await s.advance(30000);await act(async()=>{s.authorize({...initial,token:'rotated'});await flush();});s.routes['/api/viewer/stats/alice']={...f.stats,points:300};const before=s.trace.filter(r=>r.path==='/api/viewer/stats/alice').length;await s.advance(30000);const reads=s.trace.filter(r=>r.path==='/api/viewer/stats/alice');expect(reads).toHaveLength(before+1);expect(reads.at(-1)?.token).toBe('rotated');expect(s.button('[data-bnr-build-activate="rage"]').disabled).toBe(false);
 });

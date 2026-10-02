@@ -278,6 +278,9 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     evaluate(`_bannerlordPollId = safeInterval(() => { if (!document.hidden) { ${reads} } }, 8000);`);
     if (options.combatHost) evaluate('safeInterval(() => { if (!document.hidden) loadBannerlordBattleStatus(); }, 2000);');
     if (options.panelLifecycle) evaluate('_bannerlordBuffPollId = safeInterval(() => { if (!document.hidden) loadBannerlordBuffs(); }, 2500);');
+    // Actual shared-shell affordability dependency; safeInterval itself does
+    // not suppress hidden reads. No unrelated active stats-tab host exists.
+    if (options.combatHost) evaluate('uiUpdateInterval = safeInterval(() => { loadUserData(); }, 60000);');
   }
   async function bootEquipment() {
     if (!document.getElementById('bnr-equipment-shop')) throw new Error('bootEquipment needs scope:equipment or equipmentHost:true');

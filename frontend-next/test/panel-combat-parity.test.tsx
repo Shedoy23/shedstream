@@ -149,3 +149,11 @@ for(const ui of [{version:2,combat_order:['summon']},{version:1,combat_order:['s
 it('real offline build disables weapon selection with server reason',async()=>{
   const p=await combatPair({build:c.build_offline});for(const option of c.build_choices.build.power_options)await p.click(`[data-bnr-build-select="${option.weapon_type}"]`);expect(posts(p)).toHaveLength(0);expect(p.ui.container.textContent).toContain(c.build_offline.message);p.check();
 });
+it('60-second actual balance interval refreshes passive affordability even while hidden',async()=>{
+  const p=await combatPair({build:c.build_combat_one_handed,stats:{...f.stats,points:299}});expect((p.ui.container.querySelector('[data-bnr-build-activate="rage"]') as HTMLButtonElement).disabled).toBe(true);
+  await p.advance(30000);p.fixtures.stats={...f.stats,points:300};await p.hide(true);await p.advance(29999);p.check();expect((p.ui.container.querySelector('[data-bnr-build-activate="rage"]') as HTMLButtonElement).disabled).toBe(true);
+  await p.advance(1);p.check();expect((p.ui.container.querySelector('[data-bnr-build-activate="rage"]') as HTMLButtonElement).disabled).toBe(false);expect(p.trace.filter(r=>r.path==='/api/viewer/stats/alice')).toHaveLength(2);await p.hide(false);await p.advance(60000);p.check();
+});
+for(const [q,buffs] of [['[data-det-act="hero.detach_hold"]',c.buffs_order],['#bnr-summon-enemy-btn',c.buffs_spawn_enemy]] as const)it(`legacy cooldown text and 1-second countdown for ${q}`,async()=>{
+  const p=await combatPair({buffs});await p.advance(1000);const text=(node:Element|null)=>node?.textContent?.replace(/\s+/g,' ').trim();expect(text(p.ui.container.querySelector(q))).toBe(text(p.old.document.querySelector(q)));p.check();
+});

@@ -194,12 +194,14 @@ export class PanelController {
       this.publish({ message: (result.required_role && !result.success ? '🔒 ' : '') + (result.success && options.successMessage || result.message || (result.success ? 'Заявка отправлена' : 'Действие не выполнено')) });
       if (result.success) {
         void this.balance(generation, login);
+        // BnrBuilds' own accepted-action continuation is viewer-owned, not
+        // wrapper-JWT-owned: token refresh cannot unlock a second build choice.
+        if (buildFamily) { this.buildRevision++; this.publish({ buildPending: true }); }
         // Legacy Bannerlord callbacks belong to the admitting JWT, even when
         // the refreshed token resolves to the same viewer. Generic balance reads remain current.
         if (options.tail === 'hero' && token === this.auth.current()?.token) {
           this.applied.hero = this.issued.hero = (this.issued.hero || 0) + 1;
-          this.buildRevision++;
-          if (buildFamily) this.publish({ buildPending: true });
+          if (!buildFamily) this.buildRevision++;
           const timer = setTimeout(() => { this.timers.delete(timer); if (generation !== this.generation || token !== this.auth.current()?.token || !this.ready()) return; void this.refreshHero(); void this.refreshBuild(); void this.equipmentRefresh?.(); }, 3500);
           this.timers.add(timer);
         }

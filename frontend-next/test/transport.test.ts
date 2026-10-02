@@ -52,9 +52,13 @@ describe('verified EBS boundary', () => {
     const pending = deferred<Response>();
     fetcher.mockReturnValue(pending.promise);
     const first = transport.act({ action_type: 'tournament.predict', data: { target: 'viewer_one' } });
-    await expect(transport.act({ action_type: 'tournament.predict', data: { target: 'someone_else' } })).rejects.toThrow('выполняется');
+    const duplicate = transport.act({ action_type: 'tournament.predict', data: { target: 'someone_else' } });
+    // Attach a handler now, but assert network count before awaiting either POST.
+    const duplicateOutcome = duplicate.catch(error => error);
     expect(fetcher).toHaveBeenCalledTimes(1);
     pending.resolve(response({ success: true }));
+    expect(await duplicateOutcome).toBeInstanceOf(Error);
+    expect((await duplicateOutcome).message).toContain('выполняется');
     await first;
   });
   it('preserves an unknown outcome and never automatically retries a POST', async () => {

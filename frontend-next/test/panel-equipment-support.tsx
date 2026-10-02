@@ -36,11 +36,12 @@ export function equipmentSetup(snapshot: unknown = f.equipment_inventory, action
   const register = controller.registerEquipmentRefresh.bind(controller);
   vi.spyOn(controller, 'registerEquipmentRefresh').mockImplementation(callback => { refresh = callback; return register(callback); });
   return { trace, routes, auth, identity, controller, authorize, detach,
-    async start() {
+    async start(active = true) {
       authorize({ token: 'alice-token', userId: 'opaque-alice', channelId: 'channel-a' }); await flush(); await controller.start(); await flush(); trace.length = 0;
-      let ui!: ReturnType<typeof render>; await act(async () => { ui = render(<EquipmentView controller={controller} />); await flush(); });
+      let ui!: ReturnType<typeof render>; await act(async () => { ui = render(<EquipmentView controller={controller} active={active} />); await flush(); });
       return ui;
     },
+    async setActive(ui: ReturnType<typeof render>, active: boolean) { await act(async () => { ui.rerender(<EquipmentView controller={controller} active={active} />); await flush(); }); },
     async refresh() { await act(async () => { await refresh(); await flush(); }); },
     async switchIdentity() { await act(async () => { routes['/api/user/resolve-twitch-token'] = { login: 'carol' }; authorize({ token: 'carol-token', userId: 'opaque-carol', channelId: 'channel-a' }); await flush(); }); },
   };

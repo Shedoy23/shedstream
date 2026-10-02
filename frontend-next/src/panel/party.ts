@@ -1,3 +1,4 @@
+import { kingdomConflicted } from './kingdom';
 import { heroContext, validPrice, type HeroReply, type PanelState } from './contracts';
 export interface Settlement { id:string; name?:string; type?:string; days?:number|null }
 export interface ClanInfo { name?:string; is_leader?:boolean; tier?:number; renown?:number; members_count?:number; parties_count?:number; fiefs_count?:number }
@@ -15,6 +16,9 @@ export function targetsFor(type:string,ki:KingdomInfo|null){const own=Array.isAr
 export const goldPrice=(s:PanelState,key:string)=>(s.config?.hero_gold_costs as Record<string,unknown>|undefined)?.[key];
 export function partyAllowed(s:PanelState,type:string){
   if(!s.canAct||s.mutationBlocked||!s.hero?.has_hero||!s.hero.hero?.is_alive)return false;
+  // Existing realm-sensitive commands must respect observations from the
+  // politics card; unrelated clan, cancel and retinue paths remain usable.
+  if(['hero.army_create','hero.army_disband','hero.party_order_set'].includes(type)&&kingdomConflicted(s))return false;
   const leader=!!clanInfo(s.hero)?.is_leader,hasClan=!!s.hero.hero.clan_name;
   switch(type){
     case 'hero.create_clan':return !hasClan&&validPrice(goldPrice(s,'create_clan'));

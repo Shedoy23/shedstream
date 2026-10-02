@@ -17,11 +17,11 @@ async def main():
     with tempfile.TemporaryDirectory(prefix='party-army-db-') as td:
         db=await _build_db(str(Path(td)/'fixture.db'))
         try:
-            from routes import bannerlord as r, bannerlord_party_orders as po, bannerlord_vassals as va
+            from routes import bannerlord as r, bannerlord_party_orders as po, bannerlord_vassals as va, bannerlord_diplomacy as dip
             from modules.bannerlord._adapter import _cooldowns
             import module_liveness
             request=_make_anon_request()
-            for route in [r,po,va]: route.require_jwt_user=lambda _:('alice',CHANNEL_ID)
+            for route in [r,po,va,dip]: route.require_jwt_user=lambda _:('alice',CHANNEL_ID)
             await module_liveness.touch(db,CHANNEL_ID,'bannerlord')
             async def sql(q,args=()):
                 async with db._connect() as conn:
@@ -55,6 +55,7 @@ async def main():
             await action('create_party','hero.create_party',success=True); await finish()
             await sql("UPDATE bannerlord_heroes SET party_info_json=?,clan_info_json=? WHERE channel_id=? AND username='alice'",(json.dumps(party),json.dumps({**clan,'parties_count':1}),CHANNEL_ID))
             bodies['hero_party']=decoded(await r.bannerlord_my_hero(request))
+            bodies['kingdom_party']=decoded(await dip.my_kingdom_state(request))
             await action('army_create','hero.army_create',success=True); await finish()
             for key,p in [('army_leader',{**party,'in_army':1,'has_army':1,'army_party_count':3,'cohesion':70}),('army_member',{**party,'in_army':1,'has_army':0})]:
                 await sql("UPDATE bannerlord_heroes SET party_info_json=? WHERE channel_id=? AND username='alice'",(json.dumps(p),CHANNEL_ID))
@@ -124,7 +125,7 @@ async def main():
             await sql("UPDATE bannerlord_heroes SET kingdom_name='Vlandia',kingdom_info_json=? WHERE channel_id=? AND username='alice'",(json.dumps({**kingdom,'is_clan_leader':False}),CHANNEL_ID))
             await action('army_not_clan_leader','hero.army_create',{},False)
             await action('clan_leave','hero.leave_clan',{},True); await finish()
-            (OUT/'party-responses.json').write_text(json.dumps({'provenance':{'repository':str(REPO),'database':'isolated full-migrations temporary SQLite','live_game':False,'handlers':['routes.bannerlord','routes.bannerlord_party_orders','routes.bannerlord_vassals'],'state_sources':['tests/test_bannerlord_buy_action.py','BannerlordLink/src/Util/HeroStateSync.cs'],'representative_ids':'fixture_* IDs are seeded local identities, no external game resolution performed'},'responses':bodies},ensure_ascii=False,indent=2)+'\n')
+            (OUT/'party-responses.json').write_text(json.dumps({'provenance':{'repository':str(REPO),'database':'isolated full-migrations temporary SQLite','live_game':False,'handlers':['routes.bannerlord','routes.bannerlord_party_orders','routes.bannerlord_vassals','routes.bannerlord_diplomacy.my_kingdom_state'],'state_sources':['tests/test_bannerlord_buy_action.py','BannerlordLink/src/Util/HeroStateSync.cs'],'representative_ids':'fixture_* IDs are seeded local identities, no external game resolution performed'},'responses':bodies},ensure_ascii=False,indent=2)+'\n')
             print('PARTY_PROBE_OK',len(bodies),'real handler bodies')
         finally: await db._pool.close()
 asyncio.run(main())

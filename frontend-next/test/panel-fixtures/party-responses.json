@@ -6,7 +6,8 @@
     "handlers": [
       "routes.bannerlord",
       "routes.bannerlord_party_orders",
-      "routes.bannerlord_vassals"
+      "routes.bannerlord_vassals",
+      "routes.bannerlord_diplomacy.my_kingdom_state"
     ],
     "state_sources": [
       "tests/test_bannerlord_buy_action.py",
@@ -218,8 +219,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Vlandia",
@@ -319,7 +320,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "8013744cfb3e499e8f45bf43d116ea7a",
+        "action_id": "e7a008f166a24bfab91e65f54a6209ff",
         "charged": 0,
         "message": "⚔️ Action hero.create_party в очереди (0💎 списано)",
         "perk": "viewer",
@@ -355,8 +356,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Vlandia",
@@ -447,6 +448,19 @@
       "retinue": [],
       "recent_refunds": []
     },
+    "kingdom_party": {
+      "success": true,
+      "has_hero": true,
+      "kingdom_id": "vlandia",
+      "kingdom_name": "Vlandia",
+      "is_clan_leader": true,
+      "is_king": false,
+      "captured": false,
+      "kingdom_tax_pct": 0,
+      "policies_pending": [],
+      "policies_enacted": [],
+      "peace_offers": []
+    },
     "army_create": {
       "request": {
         "action_type": "hero.army_create",
@@ -456,7 +470,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "fe273186e1a443438ddb05ceb590eb4e",
+        "action_id": "d398ef2d18d6493aaf14c167b7eca01b",
         "charged": 1000,
         "message": "⚔️ Action hero.army_create в очереди (1000💎 списано)",
         "perk": "viewer",
@@ -490,8 +504,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Vlandia",
@@ -594,8 +608,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Vlandia",
@@ -707,7 +721,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "4537cba4fdc04c369acd6bbc43cf5530",
+        "action_id": "ed23eb52483c482d86361f1850b59655",
         "charged": 0,
         "message": "⚔️ Action hero.army_disband в очереди (0💎 списано)",
         "perk": "viewer",
@@ -741,7 +755,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "0daca462e5cf4844984c93dfbdd31c84",
+        "action_id": "74ec5fafad5949b9a512ba3e4cc812fb",
         "charged": 500,
         "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
         "perk": "viewer",
@@ -769,8 +783,8 @@
         "order_type": "siege",
         "target_settlement_id": "fixture_enemy_town",
         "target_settlement_name": "Fixture Target (город, ~2 дн)",
-        "issued_at": "2026-10-02 21:00:26",
-        "expires_at": "2026-10-02 21:30:26"
+        "issued_at": "2026-10-02 22:37:43",
+        "expires_at": "2026-10-02 23:07:43"
       }
     },
     "buffs_order": {
@@ -811,7 +825,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "45e60e8098de4e428100cb47fd9e0efd",
+        "action_id": "292a506fdd0b42148d4544c963df3281",
         "charged": 500,
         "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
         "perk": "viewer",
@@ -839,8 +853,8 @@
         "order_type": "defend",
         "target_settlement_id": "fixture_own_town",
         "target_settlement_name": "Fixture Target (город, ~2 дн)",
-        "issued_at": "2026-10-02 21:00:26",
-        "expires_at": "2026-10-02 21:30:26"
+        "issued_at": "2026-10-02 22:37:43",
+        "expires_at": "2026-10-02 23:07:43"
       }
     },
     "order_raid": {
@@ -855,7 +869,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "8fa9d147947943e99d23f802dbde9e42",
+        "action_id": "4bfd914465934f7ebc7a691019f9db4e",
         "charged": 500,
         "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
         "perk": "viewer",
@@ -883,8 +897,8 @@
         "order_type": "raid",
         "target_settlement_id": "fixture_enemy_village",
         "target_settlement_name": "Fixture Target (город, ~2 дн)",
-        "issued_at": "2026-10-02 21:00:26",
-        "expires_at": "2026-10-02 21:30:26"
+        "issued_at": "2026-10-02 22:37:43",
+        "expires_at": "2026-10-02 23:07:43"
       }
     },
     "order_garrison": {
@@ -899,7 +913,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "a7d5d08bb2d048edb9a6bed1d9a358ab",
+        "action_id": "7d1e3f44a2934f1a9eb7bcf1b37d5df1",
         "charged": 500,
         "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
         "perk": "viewer",
@@ -927,8 +941,8 @@
         "order_type": "garrison",
         "target_settlement_id": "fixture_own_town",
         "target_settlement_name": "Fixture Target (город, ~2 дн)",
-        "issued_at": "2026-10-02 21:00:26",
-        "expires_at": "2026-10-02 21:30:26"
+        "issued_at": "2026-10-02 22:37:43",
+        "expires_at": "2026-10-02 23:07:43"
       }
     },
     "order_patrol": {
@@ -943,7 +957,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "aa068ce164e64925943b2289f8c39025",
+        "action_id": "53a04b542ce349098735f62a58b69ecd",
         "charged": 500,
         "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
         "perk": "viewer",
@@ -971,8 +985,8 @@
         "order_type": "patrol",
         "target_settlement_id": "fixture_own_town",
         "target_settlement_name": "Fixture Target (город, ~2 дн)",
-        "issued_at": "2026-10-02 21:00:26",
-        "expires_at": "2026-10-02 21:30:26"
+        "issued_at": "2026-10-02 22:37:43",
+        "expires_at": "2026-10-02 23:07:43"
       }
     },
     "order_recruit": {
@@ -987,7 +1001,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "cb88da156c464b9ca306c281965aa35c",
+        "action_id": "5aeeeba7c359486e81d36f33f4237bc9",
         "charged": 500,
         "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
         "perk": "viewer",
@@ -1015,8 +1029,8 @@
         "order_type": "recruit",
         "target_settlement_id": "",
         "target_settlement_name": "",
-        "issued_at": "2026-10-02 21:00:26",
-        "expires_at": "2026-10-02 21:30:26"
+        "issued_at": "2026-10-02 22:37:43",
+        "expires_at": "2026-10-02 23:07:43"
       }
     },
     "order_release": {
@@ -1028,7 +1042,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "8cfd6359977c48918aa56278908cfea5",
+        "action_id": "cee54025313a421e8525e193991b6115",
         "charged": 0,
         "message": "⚔️ Action hero.party_order_release в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1087,7 +1101,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "34b12416ecd74c669f742b47d54f33f5",
+        "action_id": "a61d83ee5ffb4a918ba84bfd71e475f7",
         "charged": 500,
         "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
         "perk": "viewer",
@@ -1124,8 +1138,8 @@
         "is_prisoner": false,
         "gold": 0,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Vlandia",
@@ -1253,8 +1267,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Vlandia",
@@ -1355,7 +1369,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "1f7d3fc4b0c144f6ae7a97c352bb26c1",
+        "action_id": "936a7a1a1f3045a488d580f5ab0c01ab",
         "charged": 0,
         "message": "⚔️ Action hero.recruit_troops в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1400,7 +1414,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "c08fe68c83f54aeabd984d6000e1ab7c",
+        "action_id": "6c6df9333f7a45119efa5cdf0f3b07e0",
         "charged": 0,
         "message": "⚔️ Action hero.recruit_troops в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1444,7 +1458,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "6c0156dca75143ba8dd4d41e00c9a58e",
+        "action_id": "c7f3849edb234b8b83a814d42d07141c",
         "charged": 0,
         "message": "⚔️ Action hero.train_troops в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1489,8 +1503,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Vlandia",
@@ -1632,7 +1646,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "34ae67307b3041a994d9ec4ac05a6b80",
+        "action_id": "c7a6ce99d2d74fd8ba9405204f15ccd6",
         "charged": 0,
         "message": "⚔️ Action hero.recruit_troops в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1703,7 +1717,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "04e5e67ea42a4cb88d3f6a464bac1c16",
+        "action_id": "5f91412352bc4457a8af0b48df23fd89",
         "charged": 0,
         "message": "⚔️ Action hero.recruit_troops в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1773,7 +1787,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "c7eb81108fa941a883804f44d8e42ccb",
+        "action_id": "d127084291434dbebcf01a196d41a682",
         "charged": 0,
         "message": "⚔️ Action hero.train_troops в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1857,8 +1871,8 @@
         "is_prisoner": false,
         "gold": 0,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Vlandia",
@@ -2002,8 +2016,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "[BLink] Fixture Clan",
         "kingdom_name": "Vlandia",
@@ -2155,7 +2169,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "d45fdea97f4f4ef098d429caebba1ebb",
+        "action_id": "dc3a34e0f91f4506a41e05af90c9f789",
         "charged": 0,
         "message": "⚔️ Action hero.create_vassal_clan в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2172,7 +2186,7 @@
             "heir_hero_id": "fixture_heir",
             "heir_name": "Fixture Heir",
             "vassal_name": "New Vassal",
-            "placeholder_clan_id": "pending_cdc6444c56e84aaf",
+            "placeholder_clan_id": "pending_901b6c6aae0a4478",
             "price": 0
           }
         }
@@ -2196,7 +2210,7 @@
           "vassal_name": "New Vassal",
           "income_share_pct": 25.0,
           "banner_code": null,
-          "created_at": "2026-10-02 21:00:26"
+          "created_at": "2026-10-02 22:37:43"
         }
       ]
     },
@@ -2211,7 +2225,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "f73689e1dfea4b79a5da5af07e1f57d4",
+        "action_id": "5f85e6d25cb94836aa7d23a56e860b13",
         "charged": 100,
         "message": "⚔️ Action hero.rename_vassal в очереди (100💎 списано)",
         "perk": "viewer",
@@ -2242,7 +2256,7 @@
           "vassal_name": "Renamed Vassal",
           "income_share_pct": 25.0,
           "banner_code": null,
-          "created_at": "2026-10-02 21:00:26"
+          "created_at": "2026-10-02 22:37:43"
         }
       ]
     },
@@ -2258,8 +2272,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": null,
         "kingdom_name": null,
@@ -2357,7 +2371,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "b0cfe64a567848fe9e252b41f556311a",
+        "action_id": "4e7b559f343142b1abbcac4db1ea94b0",
         "charged": 0,
         "message": "⚔️ Action hero.create_clan в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2391,7 +2405,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "5925eb3727e24fa1bd5959cf2904aa6f",
+        "action_id": "3cfaa59485ac4a46ba713b438f1116dd",
         "charged": 0,
         "message": "⚔️ Action hero.join_clan в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2427,8 +2441,8 @@
         "is_prisoner": false,
         "gold": 2000000,
         "location": null,
-        "adopted_at": "2026-10-02 21:00:26",
-        "last_sync": "2026-10-02 21:00:26",
+        "adopted_at": "2026-10-02 22:37:43",
+        "last_sync": "2026-10-02 22:37:43",
         "level": 1,
         "clan_name": "Native Clan",
         "kingdom_name": null,
@@ -2528,7 +2542,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "01b5e2f477344127a46484af52a6e966",
+        "action_id": "d9521b05dfc147b989d7a62ea8492fd2",
         "charged": 0,
         "message": "⚔️ Action hero.leave_clan в очереди (0💎 списано)",
         "perk": "viewer",

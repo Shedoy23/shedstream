@@ -67,6 +67,16 @@
     "usage_unauthorized": {
       "status": "unauthenticated"
     },
+    "usage_ok": {
+      "status": "ok",
+      "duplicate": false
+    },
+    "role_refusal": {
+      "success": false,
+      "message": "Это действие доступно только для модераторов.",
+      "required_role": "moderator",
+      "your_role": "viewer"
+    },
     "config": {
       "ui": {
         "version": 1,
@@ -270,8 +280,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": "Pravend",
-        "adopted_at": "2026-10-02 19:13:29",
-        "last_sync": "2026-10-02 19:13:29",
+        "adopted_at": "2026-10-02 19:41:09",
+        "last_sync": "2026-10-02 19:41:09",
         "level": 35,
         "clan_name": null,
         "kingdom_name": null,
@@ -607,7 +617,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "de8365acecd44d889a22b9705687d188",
+        "action_id": "532d2917682446f3800d1e7ec826baf2",
         "charged": 0,
         "message": "⚔️ Action hero.add_focus в очереди (0💎 списано)",
         "perk": "viewer",
@@ -651,7 +661,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "e97607a9fa564723a150945c69f0fbf6",
+        "action_id": "d06c3f2223e44735b6579d2a1a193c9d",
         "charged": 0,
         "message": "⚔️ Action hero.add_attribute в очереди (0💎 списано)",
         "perk": "viewer",
@@ -670,7 +680,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "aac6626f3bae46f3b8288fb043844865",
+        "action_id": "09c00fa12b5d4eb1bda758888e0ee9a3",
         "charged": 0,
         "message": "⚔️ Action hero.set_class в очереди (0💎 списано)",
         "perk": "viewer",
@@ -829,8 +839,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": "Pravend",
-        "adopted_at": "2026-10-02 19:13:29",
-        "last_sync": "2026-10-02 19:13:29",
+        "adopted_at": "2026-10-02 19:41:09",
+        "last_sync": "2026-10-02 19:41:09",
         "level": 35,
         "clan_name": null,
         "kingdom_name": null,
@@ -997,7 +1007,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "c982df327be042f783cad762c8639df1",
+        "action_id": "59ce2af2c61a4593a9d3c4e776bb8344",
         "charged": 0,
         "message": "⚔️ Action hero.set_specialization в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1126,7 +1136,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "1f1e42ce6c8e465f958db593b7652601",
+        "action_id": "df0dbc345ea149b6ab7046f27eee6dee",
         "charged": 0,
         "message": "⚔️ Action hero.claim_starter в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1528,7 +1538,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "2ca4236b6b074a439131f1de0383a393",
+        "action_id": "78331b37333e4e2987e772890d25fed5",
         "charged": 0,
         "message": "⚔️ Action hero.buy_equipment в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1547,7 +1557,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "7736258ea42941a5b4ebb59f23bab894",
+        "action_id": "a061e8bbd04f44e6b79caee18bbe0695",
         "charged": 0,
         "message": "⚔️ Action hero.equip_owned в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1565,7 +1575,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "754b0c935e004eb3bb9d358194c201a7",
+        "action_id": "012d45e3f1374e4d924708844e76679a",
         "charged": 0,
         "message": "⚔️ Action hero.unequip_owned в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1583,7 +1593,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "fa7d3884d3f14b27bda6e8877e3e13af",
+        "action_id": "de84cc8fe51a4d50aa5be9a57b73fb8c",
         "charged": 0,
         "message": "⚔️ Action hero.discard_owned в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1785,7 +1795,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "4c4a3b64765742a7a80a7ee5ff326461",
+        "action_id": "2082567e02e443bb8ae750b8f0c78c40",
         "charged": 0,
         "message": "⚔️ Action hero.buy_equipment в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1930,8 +1940,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": "Pravend",
-        "adopted_at": "2026-10-02 19:13:29",
-        "last_sync": "2026-10-02 19:13:29",
+        "adopted_at": "2026-10-02 19:41:09",
+        "last_sync": "2026-10-02 19:41:09",
         "level": 35,
         "clan_name": null,
         "kingdom_name": null,

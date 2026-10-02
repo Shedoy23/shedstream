@@ -52,6 +52,22 @@ async def main():
             bodies['level']=decoded(await viewer.get_user_level('alice',request))
             bodies['duels']=decoded(await duel.list_duels(request))
             bodies['usage_unauthorized']=decoded(await ui_usage.record_ui_usage(request))
+            from starlette.requests import Request
+            usage_bytes=json.dumps({'batch_id':'11111111-1111-4111-8111-111111111111','surface':'desktop','events':[{'kind':'panel_view','feature':'core:panel','count':1}]}).encode()
+            async def receive_usage():
+                return {'type':'http.request','body':usage_bytes,'more_body':False}
+            saved_channel, saved_claims=ui_usage.require_jwt_channel,ui_usage.verify_twitch_jwt
+            try:
+                ui_usage.require_jwt_channel=lambda _:CHANNEL_ID
+                ui_usage.verify_twitch_jwt=lambda _:{'user_id':'123'}
+                bodies['usage_ok']=decoded(await ui_usage.record_ui_usage(Request(dict(request.scope),receive_usage)))
+                assert bodies['usage_ok']=={'status':'ok','duplicate':False},bodies['usage_ok']
+            finally:
+                ui_usage.require_jwt_channel,ui_usage.verify_twitch_jwt=saved_channel,saved_claims
+            # Actual role refusal schema, used as a future server-refusal edge
+            # in development UI tests; today's development actions are not gated.
+            bodies['role_refusal']=r._resolve_perks(request,'world.trigger_event',0,'alice',CHANNEL_ID,{})
+
             for name,fn in [('config',r.bannerlord_config),('hero',lambda:r.bannerlord_my_hero(request)),('classes',lambda:r.bannerlord_classes(request)),('build_no_session',lambda:r.bannerlord_build(request)),('buffs',lambda:r.bannerlord_my_buffs(request)),('daily',lambda:r.bannerlord_daily_status(request)),('tournament',lambda:r.bannerlord_tournament(request))]:
                 bodies[name]=decoded(await fn())
             r.require_jwt_user=lambda _:('carol',CHANNEL_ID)

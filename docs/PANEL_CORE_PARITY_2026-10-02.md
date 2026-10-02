@@ -9,16 +9,16 @@
 
 `frontend-next/test/panel-fixtures/generate-responses.py` создаёт отдельную
 временную SQLite с полной схемой/миграциями и вызывает настоящие handlers.
-На 02.10 генератор сохранил 38 ответов: Bannerlord config/hero/classes/build/
+На 02.10 генератор сохранил 40 ответов: Bannerlord config/hero/classes/build/
 buffs/actions/equipment, а также настоящие `viewer_stats`, `get_user_level`,
-`list_duels` и отказ неавторизованной UI telemetry. Последние три ответа
+`list_duels`, успешный/неавторизованный UI telemetry handler и настоящую форму role refusal. Последние три ответа
 success-tail больше не заменены сокращёнными выдуманными объектами.
 
 Входное состояние репрезентативное из существующих backend-тестов и полей
-сериализатора мода, не выгрузка живой игры. Изменённые цены, неизвестный отказ,
-роль, caps и отдельные отказные/гонковые состояния в UI-тестах — явно заданные
+сериализатора мода, не выгрузка живой игры. Изменённые цены, неизвестный отказ, caps и отдельные отказные/гонковые состояния в UI-тестах — явно заданные
 изменения fixture для проверки клиента, не заявление о такой текущей экономике
-или конкретном ответе сервера в production.
+или конкретном ответе сервера в production. Настоящая форма role refusal используется
+как forward-compatibility edge: текущие development actions не role-gated.
 
 Повтор генератора из корня (локальный путь нужен импортируемому RimWorld config):
 
@@ -49,7 +49,8 @@ JWT, Content-Type, cache. Нормализован только случайны
   погибший герой; caps, законный ноль, изменённые цены, отказы/кулдауны
 - Реальный PanelApp вместе с EquipmentView: switch на inventory загружает сразу;
   8s polling inventory идёт только на активной вкладке; phase 8s/2.5s не
-  сбрасывается при смене вкладки посреди периода
+  сбрасывается при смене вкладки посреди периода; hidden document останавливает
+  reads, show сохраняет следующий штатный tick без лишних немедленных GET
 - Для обоих смонтированных экранов explicit Hero Refresh вызывает
   hero → equipment → build, даже когда equipment скрыт; success delayed tail
   вызывает hero → build → equipment. Это отличается от periodic visibility gate
@@ -83,7 +84,10 @@ JWT, Content-Type, cache. Нормализован только случайны
 4. Missing/malformed цены намеренно fail-closed вместо старых fallback prices.
    Повторный Refresh восстанавливает config/classes; failed build read убирает
    устаревшие choices, не подсовывая legacy picker.
-5. Revision barriers не дают GET, начатому до action acknowledgement, стереть
+5. Action ID сохраняет legacy fallback Date/random при отсутствии randomUUID.
+   Локальная ошибка генерации ID/JSON до fetch не считается принятой заявкой
+   и не блокирует дальнейшие действия; оба случая показаны red→green.
+6. Revision barriers не дают GET, начатому до action acknowledgement, стереть
    новый local pending/cooldown. Backend остаётся экономическим авторитетом.
 
 ## Red/green evidence
@@ -108,3 +112,28 @@ exit 1 с named assertion; каждый исходник восстановле�
 Браузерный visual/318 px, настоящее Twitch Hosted Test, реальные телефоны и
 эффект заявки внутри игры здесь не доказаны. Облачный browser loopback был
 запрещён; повторной попытки обходным браузером не было.
+
+## Счётчики намерений в настоящем host
+
+Отдельный `PanelUsage` подключён через lifecycle controller и entrypoint.
+Используется прежний collector contract: 30 секунд, keepalive, до двух повторов
+одного batch через 60 секунд, 5s timeout, token/identity clear, та же allowlist и
+лимиты событий. Это не 15s collector мини-игр. В событиях нет action data,
+цен, item/owned ID, имён и координат.
+
+Настоящий PanelApp считает только видимое authenticated core/bannerlord
+exposure, реальные смены hero/inventory и попытки в общем dispatcher. Exact-choice
+повтор, остановленный shared lock, считается попыткой, как раньше; build-family
+блокируется выше этого dispatcher и не создаёт второго события. Poll/render
+не считаются кликами. Telemetry errors/hung request не задерживают покупку.
+
+Все 23 неизменённых старых скрипта, реальные tab/buttons и новый host сравниваются
+полным trace вплоть до 30s/90s batch, hidden flush и последующих pollers. Случайный
+batch_id, как и action ID, нормализуется; содержимое, количество и порядок событий
+сохраняются. Отдельно проверяется настоящий backend `validate_batch`.
+
+Найден и исправлен дефект самого контролируемого старого clock: interval при
+повторном планировании должен получать новый порядок timer task. Постоянная
+сортировка по исходному handle неверно ставила его перед давно запланированным
+one-shot timeout с тем же deadline. Теперь оба clock используют порядок
+повторного планирования; сами deadlines 30s/2.5s и traces не подменены.

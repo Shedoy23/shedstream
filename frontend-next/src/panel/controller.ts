@@ -1,4 +1,5 @@
 import { TwitchAuthStore } from '../auth';
+import type { PanelUsage } from './usage';
 import type { IdentityBootstrap } from '../skillgames/identity';
 import { actionKey, hasProgressionPrices, UnknownActionOutcomeError, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
@@ -8,7 +9,7 @@ export class PanelController {
   private unsubscribe: (() => void)[] = []; private issued: Record<string, number> = {}; private applied: Record<string, number> = {};
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
-  constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now) { this.state = this.empty(); }
+  constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now, private readonly usage?: Pick<PanelUsage, 'start' | 'stop' | 'trackPanel' | 'trackSection' | 'trackAction'>) { this.state = this.empty(); }
   private empty(): PanelState { return { hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
   snapshot = () => this.state;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
@@ -26,10 +27,16 @@ export class PanelController {
   async start() {
     if (this.active) return;
     this.active = true; this.owner = owner(this.auth);
+    try { this.usage?.start(); } catch { /* Observability cannot block the panel. */ }
     this.unsubscribe = [this.auth.subscribe(this.syncIdentity), this.identity.subscribe(this.syncIdentity)];
     this.publish({ canAct: this.ready(), ...this.mutationGate() }); if (this.ready()) await this.refresh();
   }
-  stop() { this.active = false; this.unsubscribe.forEach(fn => fn()); this.unsubscribe = []; this.invalidate(); this.publish({ canAct: false }); }
+  stop() { try { this.usage?.stop(); } catch { /* Best effort only. */ } this.active = false; this.unsubscribe.forEach(fn => fn()); this.unsubscribe = []; this.invalidate(); this.publish({ canAct: false }); }
+  trackVisiblePanels = () => {
+    if (!this.ready() || document.hidden) return;
+    try { this.usage?.trackPanel('core'); this.usage?.trackPanel('bannerlord'); } catch { /* Best effort only. */ }
+  };
+  trackSection = (feature: string) => { if (this.ready()) { try { this.usage?.trackSection(feature); } catch { /* Best effort only. */ } } };
   registerEquipmentRefresh(callback: () => void | Promise<unknown>) { this.equipmentRefresh = callback; return () => { if (this.equipmentRefresh === callback) this.equipmentRefresh = undefined; }; }
   refreshEquipment = () => this.equipmentRefresh?.();
   async read<T>(path: string, signal?: AbortSignal) { if (!this.ready()) throw new Error('Личность Twitch пока не подтверждена'); return this.transport.read<T>(path, signal); }
@@ -95,6 +102,9 @@ export class PanelController {
       if (!build?.ready || !build.can_manage || build.pending || this.state.buildPending || build.build?.in_battle ||
         this.state.busy.some(value => value.startsWith('hero.set_specialization:') || value.startsWith('hero.claim_starter:'))) return null;
     }
+    // Count dispatcher attempts, including a duplicate intent stopped by its
+    // per-choice lock, but not choices blocked by the component/family guard.
+    try { this.usage?.trackAction('bannerlord:' + type); } catch { /* Never affect an action. */ }
     // Match legacy per-choice single flight. Different skill/attribute choices
     // remain separate; economic authority stays on the backend.
     if (this.state.busy.includes(key)) { this.publish({ message: '⏳ Предыдущее действие ещё выполняется — секунду' }); if (options.immediateHero) void this.refreshHero(); return null; }

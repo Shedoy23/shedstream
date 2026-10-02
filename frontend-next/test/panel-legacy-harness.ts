@@ -57,6 +57,7 @@ export interface LegacyRequest {
   token: string;
   contentType: string;
   cache: string | null;
+  keepalive?: boolean;
 }
 export interface LegacyHttpReply { legacyHttpReply: true; status: number; json: LegacyJson }
 export const legacyHttpReply = (json: LegacyJson, status = 200): LegacyHttpReply => ({ legacyHttpReply: true, status, json });
@@ -129,10 +130,10 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
   const trace: LegacyRequest[] = [];
   const failures: Error[] = [];
   let now = options.now ?? Date.UTC(2026, 9, 2, 12);
-  let nextTimer = 0;
+  let nextTimer = 0, nextTimerOrder = 0;
   let disposed = false;
   let booted = false;
-  const timers = new Map<number, { at: number; repeat: number; run: () => void }>();
+  const timers = new Map<number, { at: number; order: number; repeat: number; run: () => void }>();
   const evaluate = <T = unknown>(source: string): T => vm.runInContext(source, context) as T;
   function recordFailure(error: unknown) {
     const failure = error instanceof Error ? error : new Error(String(error));
@@ -145,7 +146,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
   const registerTimer = (handler: TimerHandler, ms: number | undefined, args: unknown[], interval: boolean) => {
     const id = ++nextTimer;
     const delay = Math.max(interval ? 1 : 0, Number(ms) || 0);
-    timers.set(id, { at: now + delay, repeat: interval ? delay : 0, run: () => {
+    timers.set(id, { at: now + delay, order: ++nextTimerOrder, repeat: interval ? delay : 0, run: () => {
       if (typeof handler === 'string') evaluate(handler);
       else handler(...args);
     } });
@@ -193,7 +194,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     }
     const request: LegacyRequest = { method: (init.method ?? 'GET').toUpperCase(), path: url.pathname,
       query: url.search, body, rawBody, token: new Headers(init.headers).get('X-Twitch-JWT') ?? '',
-      contentType: new Headers(init.headers).get('Content-Type') ?? '', cache: init.cache ?? null };
+      contentType: new Headers(init.headers).get('Content-Type') ?? '', cache: init.cache ?? null, ...(init.keepalive !== undefined ? { keepalive: init.keepalive } : {}) };
     trace.push(request);
     const key = routeKeys.get(`${request.method} ${request.path}`);
     if (!key || request.query !== '' || (request.method === 'GET' && rawBody !== null)) {
@@ -244,12 +245,15 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     let count = 0;
     while (!disposed) {
       const due = [...timers].filter(([, timer]) => timer.at <= until)
-        .sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0];
+        .sort((a, b) => a[1].at - b[1].at || a[1].order - b[1].order)[0];
       if (!due) break;
       if (++count > 100000) throw new Error('Legacy timer runaway');
       const [id, timer] = due;
       now = timer.at;
-      if (timer.repeat) timer.at += timer.repeat;
+      // A repeating timer schedules its next task after its current task,
+      // just like the browser/Vitest timer queue. Its original handle does not
+      // give it priority over an earlier scheduled equal-deadline timeout.
+      if (timer.repeat) { timer.at += timer.repeat; timer.order = ++nextTimerOrder; }
       else timers.delete(id);
       try { timer.run(); } catch (error) { recordFailure(error); }
       await settle();

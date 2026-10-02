@@ -95,7 +95,7 @@ for (const [name, build] of Object.entries({ pending: f.build_pending, battle: f
   expect(newButtons.map(button => (button as HTMLButtonElement).disabled)).toEqual(oldButtons.map(button => (button as HTMLButtonElement).disabled));
   for (const button of newButtons) (button as HTMLButtonElement).click(); await p.finish(); expect(p.trace).toEqual([]);
 });
-for (const [name, reply] of Object.entries({ money: f.attribute_insufficient.response, role: { success: false, message: 'Доступ только ведущему', required_role: 'broadcaster', your_role: 'viewer' }, unknown: { success: false, message: 'Новый отказ, которого клиент не знает' }, cooldown: f.focus_cooldown.response })) it(`preserves ${name} server refusal and exact full request tail`, async () => {
+for (const [name, reply] of Object.entries({ money: f.attribute_insufficient.response, role: f.role_refusal, unknown: { success: false, message: 'Новый отказ, которого клиент не знает' }, cooldown: f.focus_cooldown.response })) it(`preserves ${name} server refusal and exact full request tail`, async () => {
   const p = await pair({ action: reply }); await p.click(oldSelect.attribute('Vigor'), '[data-attr="Vigor"]'); await p.finish();
   expect(p.controller.snapshot().message).toContain(reply.message);
   // Old cooldown rejection suppresses its toast when a cooldown button exists;

@@ -6,8 +6,9 @@ const orders = ['hero.detach_hold','hero.detach_charge','hero.detach_skirmish','
 const selector = (attribute: string, value: string) => `[${attribute}="${value}"]`;
 const posts = (p: Awaited<ReturnType<typeof combatPair>>) => p.trace.filter(r => r.path.endsWith('/action'));
 it('actual host has combat startup balance reads and one active-transition buffs read', async () => {
-  const p = await combatPair(); await p.tab('combat'); p.check();
+  const p = await combatPair(); p.check();
   expect(p.old.sourceFiles).toHaveLength(23);
+  expect(p.ui.getByRole('button',{name:'Боевые действия'}).getAttribute('aria-pressed')).toBe('true');
   expect(p.trace.map(r => r.path)).toEqual(['/api/bannerlord/config','/api/bannerlord/my-hero','/api/bannerlord/classes','/api/bannerlord/build','/api/bannerlord/my-buffs','/api/viewer/stats/alice','/api/user/level/alice','/api/duel/list','/api/bannerlord/battle-status','/api/bannerlord/my-buffs']);
   expect(p.ui.queryByText('Турнир зрителей')).toBeNull();
 });

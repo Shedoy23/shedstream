@@ -11,7 +11,7 @@ import { createLegacyHarness, legacyResponses as f, combatResponses as c, type L
 
 export const now = Date.UTC(2026, 9, 2, 12), drains: (() => void)[] = [];
 export const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
-beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] }); vi.setSystemTime(now); Object.defineProperty(document, 'hidden', { configurable: true, value: false }); });
+beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] }); vi.setSystemTime(now); localStorage.clear(); Object.defineProperty(document, 'hidden', { configurable: true, value: false }); });
 afterEach(() => { cleanup(); drains.splice(0).forEach(fn => fn()); vi.restoreAllMocks(); vi.useRealTimers(); Object.defineProperty(document, 'hidden', { configurable: true, value: false }); });
 export function normalized(trace: LegacyRequest[]) {
   return trace.map(({ rawBody: _rawBody, ...request }) => {

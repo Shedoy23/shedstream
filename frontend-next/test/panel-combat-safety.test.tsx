@@ -24,7 +24,7 @@ async function setup(overrides:Record<string,unknown>={}){
   await act(async()=>{authorize(initial);await flush();ui=render(<PanelApp controller={controller} identity={identity} Equipment={EquipmentView} combat/>);await flush();});await act(flush);
   await act(async()=>{ui.getByRole('button',{name:'Боевые действия'}).click();await flush();});
   const button=(q:string)=>{const node=ui.container.querySelector(q);expect(node,q).toBeTruthy();return node as HTMLButtonElement;};
-  return {ui,controller,auth,authorize,identity,trace,routes,button,posts:()=>trace.filter(r=>r.method==='POST'),async click(q:string){await act(async()=>{button(q).click();await flush();});},async advance(ms:number){await act(async()=>{await vi.advanceTimersByTimeAsync(ms);await flush();});},async load(key:'Build'|'Buffs'|'Battle'|'Config'|'Balance'|'Hero'){await act(async()=>{await controller[`refresh${key}`]();await flush();});}};
+  return {ui,controller,auth,authorize,identity,trace,routes,button,posts:()=>trace.filter(r=>r.path==='/api/bannerlord/action'),async click(q:string){await act(async()=>{button(q).click();await flush();});},async advance(ms:number){await act(async()=>{await vi.advanceTimersByTimeAsync(ms);await flush();});},async load(key:'Build'|'Buffs'|'Battle'|'Config'|'Balance'|'Hero'){await act(async()=>{await controller[`refresh${key}`]();await flush();});}};
 }
 for(const price of [undefined,null,-1,'300',Infinity])for(const family of ['order','spawn','legacy','new'] as const)it(`${family} fails closed for malformed price ${String(price)}`,async()=>{
   let q:string,overrides:Record<string,unknown>={};

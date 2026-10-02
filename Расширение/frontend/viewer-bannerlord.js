@@ -116,8 +116,8 @@ const _bannerlordDetailsOpen = new Set();
 function _bnrDetailsAttr(key) {
     return _bannerlordDetailsOpen.has(key) ? 'open' : '';
 }
-function _bnrBindDetailsPersistence() {
-    document.querySelectorAll('[data-bnr-details]').forEach(el => {
+function _bnrBindDetailsPersistence(root = document) {
+    root.querySelectorAll('[data-bnr-details]').forEach(el => {
         const key = el.getAttribute('data-bnr-details');
         if (!key || el.dataset.bnrBound === '1') return;
         el.dataset.bnrBound = '1';
@@ -236,6 +236,12 @@ const BNR_POWER_LABELS = {
 // rewrite'ился (gold/HP change), все sub-slot DIVs (workshops, caravans,
 // etc.) re-created → их per-element cache пропадал → cascading flicker.
 // Теперь keyed cache survives parent re-render.
+// Bind only the subtree just painted: async loaders create details after the
+// hero render has already finished. Existing bound-node guards remain idempotent.
+function _bnrBindRenderedDetails(root) {
+    _bnrBindDetailsPersistence(root);
+    _bnrBindSectionToggle(root);
+}
 const _smartHtmlCache = {};
 function _smartInnerHTML(el, html) {
     if (!el) return false;
@@ -246,6 +252,7 @@ function _smartInnerHTML(el, html) {
         return false;
     }
     el.innerHTML = html;
+    _bnrBindRenderedDetails(el);
     if (key) _smartHtmlCache[key] = html;
     return true;
 }
@@ -861,6 +868,7 @@ ShedLink.registerGame('bannerlord', {
     title:  '⚔️ Bannerlord',
     start:  function () { _startBannerlordPolling(); },
     stop:   function () { _stopBannerlordPolling(); },
+    visible: function () { _loadBannerlordDynasty(); },
 });
 
 // ===== Thin-front (2026-07-02): статические цены/кулдауны с бэка =====
@@ -2105,8 +2113,8 @@ function _bnrCard(key, titleHtml, bodyHtml) {
          + `</details>`;
 }
 // Биндит toggle-персистентность секций. Зовётся рядом с _bnrBindDetailsPersistence.
-function _bnrBindSectionToggle() {
-    document.querySelectorAll('[data-bnr-section]').forEach(el => {
+function _bnrBindSectionToggle(root = document) {
+    root.querySelectorAll('[data-bnr-section]').forEach(el => {
         if (el.dataset.bnrSecBound === '1') return;
         el.dataset.bnrSecBound = '1';
         let usageWasOpen = el.open;
@@ -2133,6 +2141,7 @@ function loadBannerlordArmy() {
     if (!inKingdom) {
         slot.innerHTML = _bnrCard('army', _title,
             `Собрать армию может только клан <b>в королевстве</b>. Сначала вступи в королевство (выше).`);
+        _bnrBindRenderedDetails(slot);
         return;
     }
 
@@ -2149,6 +2158,7 @@ function loadBannerlordArmy() {
                     title="Собрать армию королевства. После — отдавай приказы через «Приказы отряда».">🚩 Собрать армию (${_bnrPrice('hero.army_create', 1000)}💎)</button>`;
     }
     slot.innerHTML = _bnrCard('army', _title, body);
+    _bnrBindRenderedDetails(slot);
 
     slot.querySelector('[data-bnr-action="army_create"]')?.addEventListener('click', () => {
         _bannerlordBuyAction('hero.army_create', {});
@@ -4143,6 +4153,7 @@ function _renderRetinue(retinue) {
                 </button>
             </div>
         </details>`;
+    _bnrBindRenderedDetails(slot);
 
     document.getElementById('bnr-recruit-basic-btn')?.addEventListener('click', () => {
         if (basicDisabled) return;
@@ -5106,6 +5117,9 @@ function _renderCreateClanInline() {
 // Render every dynasty summary on entry, even when its details are collapsed.
 // Hidden dynasty tabs do not start the 12 extra HTTP reads per hero poll.
 function _loadBannerlordDynasty() {
+    const integrationTab = document.getElementById('rimworld-tab');
+    if (integrationTab && !integrationTab.classList.contains('active')) return;
+    if (typeof _isViewerPanelVisible === 'function' && !_isViewerPanelVisible()) return;
     if (document.hidden || !document.querySelector('[data-bnr-pane="dynasty"].active')) return;
     const data = _bannerlordLastHero;
     if (!data?.has_hero || !data.hero || data.hero.is_alive === false) return;
@@ -5651,6 +5665,8 @@ async function loadBannerlordHero() {
                 }
             }
         }
+
+        if (paneDyn) _bnrBindRenderedDetails(paneDyn);
 
         // FLICKER-FIX v5: structural change wrapped в _preserveSlots — sub-slot
         // content NOT destroyed во время body rewrite.

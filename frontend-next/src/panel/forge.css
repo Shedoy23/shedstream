@@ -1,0 +1,9 @@
+.panel-forge { margin-top: 12px; min-width: 0; }
+.panel-forge > summary { color: #fb923c; cursor: pointer; font-weight: 700; }
+.panel-forge-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #2d2d2f; min-width: 0; }
+.panel-forge-item { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.panel-forge-tier { color: #fbbf24; margin-left: 4px; }
+.panel-forge-quality { font-size: 10px; margin-left: 5px; font-weight: 700; }
+.panel-forge-row > button, .panel-forge-row > strong { flex: 0 0 auto; font-size: 11px; white-space: nowrap; }
+.panel-forge-row > button { padding: 5px 8px; background: #2a1a0a; }
+@media (max-width: 340px) { .panel-forge-row { flex-wrap: wrap; } .panel-forge-item { flex-basis: 100%; white-space: normal; overflow-wrap: anywhere; } .panel-forge-row > button { margin-left: auto; } }

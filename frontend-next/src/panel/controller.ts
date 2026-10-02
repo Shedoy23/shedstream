@@ -7,6 +7,7 @@ import type { IdentityBootstrap } from '../skillgames/identity';
 import { actionKey, hasProgressionPrices, heroContext, UnknownActionOutcomeError, type BattleReply, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
 import { refundText } from './refunds';
 import { combatAllowed, semanticCooldown } from './combat';
+import { forgeAllowed } from './forge';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
 export class PanelController {
   private state: PanelState;
@@ -17,6 +18,7 @@ export class PanelController {
   private equipmentPreload: { generation: number; hero?: string; promise: Promise<unknown>; abort: AbortController } | null = null;
   private partyActive = false; private messageRevision = 0;
   private combatEnabled = false; private stanceRevision = 0;
+  private forgeActive = false;
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
   constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now, private readonly usage?: Pick<PanelUsage, 'start' | 'stop' | 'trackPanel' | 'trackSection' | 'trackAction'>) { this.state = this.empty(); }
@@ -35,6 +37,20 @@ export class PanelController {
     if (canAct && (changed || !previouslyReady)) void this.refresh();
   };
   enableCombat() { this.combatEnabled = true; }
+  setForgeActive(active: boolean) { this.forgeActive = active; }
+  forgeAuthenticated() { const login = this.identity.snapshot().login; return !!login && login !== 'testuser' && !login.startsWith('U'); }
+  async forgeAction(slot: string, context: string) {
+    if (!this.forgeActive || !this.forgeAuthenticated() || !this.ready() || !forgeAllowed(this.state, slot, context)) return null;
+    const owns = this.captureRequestOwner();
+    const result = await this.action('hero.reforge_quality', { slot }, { tail: 'hero' });
+    // Preserve the old local refresh, including a definite server refusal.
+    // A duplicate/unknown outcome has no new continuation; old owners never read.
+    if (result && owns()) {
+      const timer = setTimeout(() => { this.timers.delete(timer); if (owns()) void this.refreshHero(); }, 3500);
+      this.timers.add(timer);
+    }
+    return result;
+  }
   async start(options: { equipmentFirst?: boolean } = {}) {
     if (this.active) return;
     this.initialEquipment = !!options.equipmentFirst;

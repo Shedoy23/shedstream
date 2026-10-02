@@ -92,7 +92,7 @@ const detail = cases.unregistered.response.body.detail;
 const rate = cases.rate_limited.response.body.detail;
 const invalid: { name: string; status: number; body: unknown }[] = [
   ...[200, 201, 301, 401, 404, 409, 422, 429, 500, 503].map(status => ({ name: `registration with HTTP ${status}`, status, body: { detail } })),
-  ...[200, 403, 404, 500, 503].map(status => ({ name: `rate limit with HTTP ${status}`, status, body: { detail: rate } })),
+  ...[200, 403, 404, 500, 503].map(status => ({ name: `rate limit with HTTP ${status}`, status, body: { detail: { ...rate, channel_id: 33 } } })),
   ...[0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, '33', null, undefined, true, {}, 22].map(channel_id => ({ name: `invalid/mismatched channel ${JSON.stringify(channel_id)}`, status: 403, body: { detail: { ...detail, channel_id } } })),
   ...['', ' \n\t ', null, undefined, 22, {}, []].map(message => ({ name: `invalid message ${JSON.stringify(message)}`, status: 403, body: { detail: { ...detail, message } } })),
   ...['different_policy', '', null, 403].map(status => ({ name: `unknown policy ${JSON.stringify(status)}`, status: 403, body: { detail: { ...detail, status } } })),
@@ -217,10 +217,10 @@ for (const name of policies) it(`${name}: native action button displays exact se
     expect(controller.snapshot().message).toBe(message); expect(controller.snapshot().mutationBlocked).toBe(false);
     expect(ui.container.textContent).toContain(message); expect(ui.container.querySelector('b')).toBeNull();
     expect(button.disabled).toBe(false); expect(controller.cooldown('hero.add_attribute')).toBe(0);
-    expect(fetcher).toHaveBeenCalledTimes(1); expect(fetcher.mock.calls[0][1]?.method).toBe('POST');
+    expect(fetcher.mock.calls.map(([url, init]) => [String(url), init?.method || 'GET'])).toEqual([['/api/bannerlord/action', 'POST'], ['/api/bannerlord/my-hero', 'GET']]);
     await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
-    expect(fetcher).toHaveBeenCalledTimes(1); // No success-only tail or balance reads.
+    expect(fetcher).toHaveBeenCalledTimes(2); // Only the existing immediateHero read; no success-only tail or balance reads.
     await act(async () => { button.click(); await flush(); });
-    expect(fetcher).toHaveBeenCalledTimes(2); // A second human click is still allowed.
+    expect(fetcher).toHaveBeenCalledTimes(4); expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(2); // Explicit second click + its immediateHero read.
   } finally { controller.stop(); detach(); }
 });

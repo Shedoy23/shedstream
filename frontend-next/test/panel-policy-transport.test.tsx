@@ -99,6 +99,7 @@ const invalid: { name: string; status: number; body: unknown }[] = [
   ...[null, [], 'Forbidden', { message: 'Forbidden' }, { detail: [] }, { detail: null }, { success: 'false' }].map((body, n) => ({ name: `unknown/malformed JSON ${n}`, status: 403, body })),
   ...[{ success: true }, { success: false }, { success: 'false' }, { action_id: 'accepted' }, { charged: 5 }, { message: 'contradictory top level' }].map(extra => ({ name: `mixed policy/action ${JSON.stringify(extra)}`, status: 403, body: { detail, ...extra } })),
   ...[{ success: true, action_id: 'accepted' }, { success: false, message: 'No' }].map(body => ({ name: `5xx with action envelope ${body.success}`, status: 500, body })),
+  { name: 'unknown rate policy code', status: 429, body: { detail: { ...rate, channel_id: 33, status: 'unknown_limiter' } } },
   { name: 'rate quota wrong scope', status: 429, body: { detail: { ...rate, channel_id: 33, scope: 'viewer_poll' } } },
   { name: 'rate quota blank tier', status: 429, body: { detail: { ...rate, channel_id: 33, tier: '' } } },
   { name: 'rate quota invalid limit', status: 429, body: { detail: { ...rate, channel_id: 33, limit_per_min: -1 } } },

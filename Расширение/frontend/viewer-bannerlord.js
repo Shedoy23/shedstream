@@ -2470,7 +2470,6 @@ const _BNR_POLICIES = [
       desc: 'Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.' },
 ];
 
-let _bnrDiploCd = {};  // 2026-06-14: локальные таймстемпы кулдауна войны/мира (UX-индикатор)
 async function loadBannerlordDiplomacy() {
     const slot = document.getElementById('bnr-diplo-slot');
     if (!slot) return;
@@ -2613,19 +2612,15 @@ async function loadBannerlordDiplomacy() {
                         Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.
                         Повторно жать не нужно: следи за статусом войн выше.
                     </div>`;
-            // 2026-06-14 — кулдаун на кнопках (5 мин/зритель, локальный UX-индикатор;
-            // сервер enforce'ит реально + рефанд при клике в КД). Date.now() — браузер.
-            const _DIPLO_CD = 300;
-            const _warLeft   = Math.max(0, _DIPLO_CD - Math.floor((Date.now() - (_bnrDiploCd.war   || 0)) / 1000));
-            const _peaceLeft = Math.max(0, _DIPLO_CD - Math.floor((Date.now() - (_bnrDiploCd.peace || 0)) / 1000));
-            const _cdTxt = (s) => '⏳ ' + (s >= 60 ? Math.ceil(s / 60) + ' мин' : s + ' с');
+            // The shared cooldown clock uses /action and /my-buffs durations.
+            // Keep the base labels enabled here so it can restore them on expiry.
             if (warTargets.length) {
                 body += `
                     <div style="display:flex;gap:4px;margin-bottom:5px;">
                         <select id="bnr-war-target" style="flex:1;padding:5px;font-size:11px;background:#0f0805;color:#fed7aa;border:1px solid #92400e;">
                             ${warTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-war-propose" class="extra-btn bnr-btn-danger" ${_warLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_warLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_warLeft > 0 ? _cdTxt(_warLeft) : `⚔ Предложить (${_bnrPrice('kingdom.propose_war', 2000)}💎)`}</button>
+                        <button id="bnr-war-propose" class="extra-btn bnr-btn-danger" data-bnr-cd="kingdom.propose_war" style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;">⚔ Предложить (${_bnrPrice('kingdom.propose_war', 2000)}💎)</button>
                     </div>`;
             }
             if (peaceTargets.length) {
@@ -2634,7 +2629,7 @@ async function loadBannerlordDiplomacy() {
                         <select id="bnr-peace-vote-target" style="flex:1;padding:5px;font-size:11px;background:#0a0f1a;color:#bfdbfe;border:1px solid #1e40af;">
                             ${peaceTargets.map(k => `<option value="${escapeHtml(k.id)}">${escapeHtml(k.name || k.id)}</option>`).join('')}
                         </select>
-                        <button id="bnr-peace-vote-propose" class="extra-btn bnr-btn-primary" ${_peaceLeft > 0 ? 'disabled' : ''} style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;${_peaceLeft > 0 ? 'opacity:0.5;cursor:not-allowed;' : ''}">${_peaceLeft > 0 ? _cdTxt(_peaceLeft) : `🕊 Предложить (${_bnrPrice('kingdom.propose_peace', 3000)}💎)`}</button>
+                        <button id="bnr-peace-vote-propose" class="extra-btn bnr-btn-primary" data-bnr-cd="kingdom.propose_peace" style="flex:0 0 auto;width:auto;margin-top:0;padding:5px 8px;font-size:11px;white-space:nowrap;">🕊 Предложить (${_bnrPrice('kingdom.propose_peace', 3000)}💎)</button>
                     </div>`;
             } else {
                 body += `<div style="font-size:9px;color:var(--dim);">Сейчас ни с кем не воюем — мир предлагать некому.</div>`;
@@ -2647,7 +2642,9 @@ async function loadBannerlordDiplomacy() {
         // diplo-policy НЕ морозим — это click-list (style A), без in-progress state.
         if (slot.querySelector('[data-bnr-details="diplo-peace"]')?.open) return;
         // FLICKER-FIX: skip rebind при identical HTML.
-        if (!_smartInnerHTML(slot, html)) return;
+        const changed = _smartInnerHTML(slot, html);
+        _bnrActionCdTick();
+        if (!changed) return;
         _bnrBindSectionToggle();
 
         // 2026-06-07 — клик по строке политики = toggle enact/revoke сразу (style A).
@@ -2690,7 +2687,6 @@ async function loadBannerlordDiplomacy() {
             if (res && res.success) {
                 showNotification(`📜 Заявка на войну с «${_tname}» отправлена на голосование кланов. Войну объявят, только если кланы проголосуют ЗА — это не мгновенно.`, 'success', 7000);
             }
-            _bnrDiploCd.war = Date.now();   // запустить кулдаун (UI), сервер enforce'ит реально
             loadBannerlordDiplomacy();
         });
         slot.querySelector('#bnr-peace-vote-propose')?.addEventListener('click', async () => {
@@ -2707,7 +2703,6 @@ async function loadBannerlordDiplomacy() {
             if (res && res.success) {
                 showNotification(`📜 Заявка на мир с «${_tname}» отправлена на голосование кланов. Мир заключат, только если кланы проголосуют ЗА — это не мгновенно.`, 'success', 7000);
             }
-            _bnrDiploCd.peace = Date.now();   // запустить кулдаун (UI), сервер enforce'ит реально
             loadBannerlordDiplomacy();
         });
     } catch (e) {

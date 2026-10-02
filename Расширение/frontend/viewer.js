@@ -848,10 +848,26 @@ function renderFirstStep(step) {
     }
 }
 
+// Both legacy close paths move the panel offscreen: the class-based toggle
+// and hidePanel's inline right offset. Missing root is an isolated UI fragment.
+function _isViewerPanelVisible() {
+    if (document.hidden) return false;
+    const panel = document.getElementById('overlay-panel');
+    if (!panel) return true;
+    const inlineRight = Number.parseFloat(panel.style.right);
+    return Number.isFinite(inlineRight) ? inlineRight >= 0 : panel.classList.contains('open');
+}
+
+function _refreshVisibleGame() {
+    if (isAuthUser() && _isViewerPanelVisible() && document.querySelector('.tab[data-tab="rimworld"].active')) {
+        ShedLink.refreshVisibleGame?.();
+    }
+}
+
 // The collector deduplicates panel exposure per identity/day. Calling this after
 // auth/module refresh is safe: it is not an action attempt or a section-open.
 function _trackVisibleUsagePanel() {
-    if (document.hidden || !isAuthUser()) return;
+    if (!_isViewerPanelVisible() || !isAuthUser()) return;
     try {
         ShedLink.usage?.trackPanel('core');
         if (document.querySelector('.tab[data-tab="rimworld"].active') && _activeIntegrationModule) {
@@ -892,6 +908,7 @@ function switchTab(tab) {
         try { ShedLink.usage?.trackSection('core:tab.' + (tabId === 'rimworld' ? 'integration' : tabId)); } catch (e) {}
     }
     _trackVisibleUsagePanel();
+    if (usageOpened) _refreshVisibleGame();
 
     // Загружаем данные при переходе на вкладку RimWorld
     if (tabId === 'rimworld') {
@@ -1688,6 +1705,10 @@ function togglePanel() {
         const icon = btn.querySelector('span');
         if (icon) icon.textContent = isOpen ? '✕' : '🌌';
     }
+    if (isOpen) {
+        _trackVisibleUsagePanel();
+        _refreshVisibleGame();
+    }
 }
 
 function hidePanel() {
@@ -1716,6 +1737,8 @@ function restorePanel() {
     if (restoreBtn) restoreBtn.style.display = 'none';
     const hideTab = document.getElementById('panel-hide-tab');
     if (hideTab) hideTab.style.display = 'flex';
+    _trackVisibleUsagePanel();
+    _refreshVisibleGame();
 }
 
 // ===== БАГРЕПОРТ (бывш. реклама — убрана для §9.3, переделана в багрепорт) =====

@@ -36,6 +36,7 @@
      *   title  — подпись под названием расширения («⚔️ Bannerlord»);
      *   start  — включить опрос/рендер (зовётся, когда игра стала активной);
      *   stop   — выключить опрос (зовётся, когда игра перестала быть активной).
+     *   visible — optional: refresh lazy content after its host becomes visible.
      *
      * start/stop оборачивать в функцию, а не передавать ссылку напрямую, если
      * сама функция объявлена в другом файле: ссылка возьмётся в момент вызова,
@@ -49,6 +50,7 @@
             title: spec.title || '',
             start: typeof spec.start === 'function' ? spec.start : function () {},
             stop: typeof spec.stop === 'function' ? spec.stop : function () {},
+            visible: typeof spec.visible === 'function' ? spec.visible : function () {},
         };
     };
 
@@ -61,6 +63,9 @@
     };
 
     ShedLink.activeGame = function () { return _active; };
+    ShedLink.refreshVisibleGame = function () {
+        if (_active && _games[_active]) _safe('visible', _games[_active].visible, _active);
+    };
 
     function _hide(el, hidden) {
         if (el) { el.style.display = hidden ? 'none' : ''; }

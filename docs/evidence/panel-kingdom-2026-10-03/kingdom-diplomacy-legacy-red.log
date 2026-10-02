@@ -1,0 +1,42 @@
+KINGDOM_DIPLOMACY_LEGACY_PROBE_OK 23 unchanged scripts; 32 scenarios
+controls_independent {}
+controls_ruler {}
+controls_vassal {}
+controls_member {}
+create_click {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"hero.create_kingdom","data":{"kingdom_name":"My Kingdom","client_action_id":"77a1f977-e19e-41de-a7e3-915ddfadb39b"}}},"detailsClosed":true}
+create_enter {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"hero.create_kingdom","data":{"kingdom_name":"My Kingdom","client_action_id":"36a18b70-1662-478a-89e9-69b3ca164101"}}},"detailsClosed":true}
+join_click {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"hero.join_kingdom","data":{"kingdom_name":"Existing Kingdom","client_action_id":"947b4c5b-5006-4456-ac7a-dd1ed930de35"}}},"detailsClosed":true}
+join_enter {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"hero.join_kingdom","data":{"kingdom_name":"Existing Kingdom","client_action_id":"1ccb0890-8d77-4631-8dad-ede414d501aa"}}},"detailsClosed":true}
+create_quote_retry {"blockedMalformed":true,"draft":"Keep Draft","enabledAfterRetry":true}
+leave_confirm_identity_change {"confirmation":"⚠️ Подтверди\n            Покинуть королевство? Обратно примут только новым вступлением, и только если согласятся принять.\n            \n                ✅ Да\n                ❌ Нет","sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"bobby-token","contentType":"application/json","cache":null,"body":{"action_type":"hero.leave_kingdom","data":{"client_action_id":"6604898e-ad92-40ac-8d9f-079dcc9c1ca4"}}},"bugReproduced":true}
+recruit_confirm_token {"confirmation":"⚠️ Подтверди\n            Нанять вассальный клан за 3 000 000💰? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.\n            \n                ✅ Да\n                ❌ Нет","sent":null,"bugReproduced":false}
+recruit_confirm_price {"confirmation":"⚠️ Подтверди\n            Нанять вассальный клан за 3 000 000💰? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.\n            \n                ✅ Да\n                ❌ Нет","sent":null,"bugReproduced":false}
+recruit_confirm_kingdom {"confirmation":"⚠️ Подтверди\n            Нанять вассальный клан за 3 000 000💰? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.\n            \n                ✅ Да\n                ❌ Нет","sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"hero.recruit_vassal_clan","data":{"client_action_id":"f9847fc2-10e6-433d-bde3-fb54357c1d6d"}}},"bugReproduced":true}
+policy_all12 {"ids":["policy_forgiveness_of_debts","policy_land_grands_for_veteran","policy_precarial_land_tenure","policy_royal_guard","policy_sacred_majesty","policy_trial_by_jury","policy_imperial_towns","policy_noble_retinues","policy_lords_privy_council","policy_council_of_the_commons","policy_serfdom","policy_citizenship"]}
+policy_pending {"blocked":true}
+direct_peace {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"hero.make_peace","data":{"target_kingdom_id":"Fixture Enemy","target_kingdom_name":"Fixture Enemy","offered_tribute":-200,"client_action_id":"6f41db11-9e7d-410d-b74a-46541c052b36"}}}}
+war {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"kingdom.propose_war","data":{"target_kingdom_id":"fixture_neutral","target_kingdom_name":"Fixture Neutral","client_action_id":"6a0af901-371a-48ec-97d3-4c4d5b3b36d6"}}}}
+peace_vote {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"kingdom.propose_peace","data":{"target_kingdom_id":"fixture_enemy","target_kingdom_name":"Fixture Enemy","client_action_id":"c5e5f1cb-9e99-40a8-b933-b22e58fd9fc8"}}}}
+tax_0 {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"kingdom.set_tax_rate","data":{"tax_rate_pct":0,"client_action_id":"7b5c26b3-cf55-4d5a-9843-9b61adc51bed"}}}}
+tax_10 {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"kingdom.set_tax_rate","data":{"tax_rate_pct":10,"client_action_id":"900eb5a0-4bea-408d-8cf8-2d5a845b182a"}}}}
+tax_25 {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"kingdom.set_tax_rate","data":{"tax_rate_pct":25,"client_action_id":"b2603208-276c-459b-853f-29d44832e84c"}}}}
+tax_50 {"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"kingdom.set_tax_rate","data":{"tax_rate_pct":50,"client_action_id":"d4070485-baea-41bb-b81e-2c73790e331e"}}}}
+war_server_cooldown {"disabled":true,"label":"⏳ 5:00"}
+diplomacy_read_reorder {"newer":true,"older":true,"bugReproduced":true}
+diplomacy_read_after_stop {"stale":true,"bugReproduced":true}
+policy_local_tail_after_stop {"late":{"method":"GET","path":"/api/bannerlord/kingdom-state","query":"","token":"bobby-token","contentType":null,"cache":null,"body":null},"bugReproduced":true}
+tax_local_tail_after_stop {"late":{"method":"GET","path":"/api/bannerlord/kingdom-state","query":"","token":"bobby-token","contentType":null,"cache":null,"body":null},"bugReproduced":true}
+peace_draft_old_kingdom {"oldControls":true,"oldTitle":true,"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"hero.make_peace","data":{"target_kingdom_id":"Draft Enemy","target_kingdom_name":"Draft Enemy","offered_tribute":123,"client_action_id":"98edf239-23f2-4a88-8fe2-6d9040862c6c"}}},"bugReproduced":true}
+transient_keep_absent_clear {"kept":true,"absentCleared":true}
+peace_draft_hero_pipeline {"acceptedNewKingdom":true,"oldTitle":true,"staleControl":true,"bugReproduced":true}
+recruit_confirm_hero_pipeline {"acceptedNewKingdom":true,"sent":{"method":"POST","path":"/api/bannerlord/action","query":"","token":"alice-token","contentType":"application/json","cache":null,"body":{"action_type":"hero.recruit_vassal_clan","data":{"client_action_id":"c625756c-c45d-4b0d-bbe1-715bafa6c134"}}},"bugReproduced":true}
+dynasty_visibility_gate {"hiddenCount":0,"visibleCount":1,"memberCount":1}
+RED corrected behavior missing: leave_confirm_identity_change
+RED corrected behavior missing: recruit_confirm_kingdom
+RED corrected behavior missing: diplomacy_read_reorder
+RED corrected behavior missing: diplomacy_read_after_stop
+RED corrected behavior missing: policy_local_tail_after_stop
+RED corrected behavior missing: tax_local_tail_after_stop
+RED corrected behavior missing: peace_draft_old_kingdom
+RED corrected behavior missing: peace_draft_hero_pipeline
+RED corrected behavior missing: recruit_confirm_hero_pipeline

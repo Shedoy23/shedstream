@@ -1,0 +1,186 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --no-file-parallelism test/panel-kingdom-parity.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-kingdom-parity.test.tsx > complete kingdom card is in saved production Dynasty between clan and orders
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > create button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > create button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > join button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > join button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > rebellion button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > rebellion button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > leave ruler false has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > leave ruler true has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > leave vassal false has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > leave vassal true has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation false and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation true and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > blank create permitted, empty join silent, names preserved across ordinary polling
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > real refusal Недопустимые символы в имени remains exact
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > real refusal Нужно 100,000💰 динаров (у тебя 0💰). remains exact
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > rebellion 1/2 stays actionable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > rebellion 2/2 stays actionable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > outer collapsed kingdom retains details state/exposure while polls continue
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > same viewer idle token refresh leaves create draft and new current-token action usable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-kingdom-parity.test.tsx (20 tests | 20 failed) 2487ms
+   × complete kingdom card is in saved production Dynasty between clan and orders 462ms
+   × create button/Enter false full wire/30s tail/usage parity 163ms
+   × create button/Enter true full wire/30s tail/usage parity 126ms
+   × join button/Enter false full wire/30s tail/usage parity 109ms
+   × join button/Enter true full wire/30s tail/usage parity 100ms
+   × rebellion button/Enter false full wire/30s tail/usage parity 95ms
+   × rebellion button/Enter true full wire/30s tail/usage parity 102ms
+   × leave ruler false has explicit safety warning and exact action 147ms
+   × leave ruler true has explicit safety warning and exact action 124ms
+   × leave vassal false has explicit safety warning and exact action 115ms
+   × leave vassal true has explicit safety warning and exact action 98ms
+   × NPC hire quote confirmation false and 7s queue feedback 120ms
+   × NPC hire quote confirmation true and 7s queue feedback 87ms
+   × blank create permitted, empty join silent, names preserved across ordinary polling 88ms
+   × real refusal Недопустимые символы в имени remains exact 98ms
+   × real refusal Нужно 100,000💰 динаров (у тебя 0💰). remains exact 91ms
+   × rebellion 1/2 stays actionable 91ms
+   × rebellion 2/2 stays actionable 89ms
+   × outer collapsed kingdom retains details state/exposure while polls continue 95ms
+   × same viewer idle token refresh leaves create draft and new current-token action usable 85ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 20 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > complete kingdom card is in saved production Dynasty between clan and orders
+AssertionError: expected null not to be null
+ ❯ test/panel-kingdom-parity.test.tsx:5:198
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/20]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > create button/Enter false full wire/30s tail/usage parity
+ FAIL  test/panel-kingdom-parity.test.tsx > create button/Enter true full wire/30s tail/usage parity
+ FAIL  test/panel-kingdom-parity.test.tsx > join button/Enter false full wire/30s tail/usage parity
+ FAIL  test/panel-kingdom-parity.test.tsx > join button/Enter true full wire/30s tail/usage parity
+ FAIL  test/panel-kingdom-parity.test.tsx > rebellion button/Enter false full wire/30s tail/usage parity
+ FAIL  test/panel-kingdom-parity.test.tsx > rebellion button/Enter true full wire/30s tail/usage parity
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-kingdom-parity.test.tsx:6:466
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/20]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > leave ruler false has explicit safety warning and exact action
+ FAIL  test/panel-kingdom-parity.test.tsx > leave ruler true has explicit safety warning and exact action
+ FAIL  test/panel-kingdom-parity.test.tsx > leave vassal false has explicit safety warning and exact action
+ FAIL  test/panel-kingdom-parity.test.tsx > leave vassal true has explicit safety warning and exact action
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-kingdom-parity.test.tsx:7:237
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/20]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation false and 7s queue feedback
+ FAIL  test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation true and 7s queue feedback
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-kingdom-parity.test.tsx:8:131
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/20]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > blank create permitted, empty join silent, names preserved across ordinary polling
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-kingdom-parity.test.tsx:9:158
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/20]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > real refusal Недопустимые символы в имени remains exact
+ FAIL  test/panel-kingdom-parity.test.tsx > real refusal Нужно 100,000💰 динаров (у тебя 0💰). remains exact
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-kingdom-parity.test.tsx:10:366
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/20]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > rebellion 1/2 stays actionable
+ FAIL  test/panel-kingdom-parity.test.tsx > rebellion 2/2 stays actionable
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ test/panel-kingdom-parity.test.tsx:11:310
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/20]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > outer collapsed kingdom retains details state/exposure while polls continue
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-kingdom-parity.test.tsx:12:126
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/20]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > same viewer idle token refresh leaves create draft and new current-token action usable
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-kingdom-parity.test.tsx:13:162
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/20]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  20 failed (20)
+   Start at  17:57:34
+   Duration  3.55s (tests 73%, environment 15%, transform 8%, import 4%)
+

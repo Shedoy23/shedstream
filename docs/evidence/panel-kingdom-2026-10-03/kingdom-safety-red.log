@@ -1,0 +1,300 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --no-file-parallelism test/panel-kingdom-safety.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-kingdom-safety.test.tsx > malformed creation quote undefined disables click and Enter
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > malformed creation quote null disables click and Enter
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > malformed creation quote -1 disables click and Enter
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > malformed creation quote 5000000 disables click and Enter
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > valid creation quote 0 is server-owned and never in POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > valid creation quote 1234567 is server-owned and never in POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > retry recovers exact quote without erasing draft and never adds config to body
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > NPC quote missing gold does not open confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > NPC quote missing crustics does not open confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > NPC full quote 0/0 rechecked
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > NPC full quote 1234567/456 rechecked
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale price affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale price affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale role affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale role affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale kingdom affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale kingdom affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale hero affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale hero affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale prisoner affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale prisoner affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale channel affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale channel affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale identity affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale identity affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale stop affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale stop affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale navigation affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale navigation affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale token affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale token affirmative sends no POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > real legacy leave bleeds changed JWT after stop; new confirmation is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > real legacy hire remains after accepted nested realm change; new saved yes cannot send
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > known same-shape ordinary poll retains name but changed kingdom role clears editor
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > prisoner inherits current controls; game retains authoritative eligibility
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > safe Escape/backdrop dismissal, reopen, focus restores and no request
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > NPC feedback is visible for seven seconds without claiming execution
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-kingdom-safety.test.tsx (39 tests | 37 failed) 3566ms
+   × malformed creation quote undefined disables click and Enter 399ms
+   × malformed creation quote null disables click and Enter 137ms
+   × malformed creation quote -1 disables click and Enter 110ms
+   × malformed creation quote 5000000 disables click and Enter 104ms
+   × valid creation quote 0 is server-owned and never in POST 101ms
+   × valid creation quote 1234567 is server-owned and never in POST 100ms
+   × retry recovers exact quote without erasing draft and never adds config to body 101ms
+   × NPC quote missing gold does not open confirm 96ms
+   × NPC quote missing crustics does not open confirm 99ms
+   × NPC full quote 0/0 rechecked 87ms
+   × NPC full quote 1234567/456 rechecked 95ms
+   × .bnr-kingdom-leave stale price affirmative sends no POST 106ms
+   × .bnr-recruit-vassal stale price affirmative sends no POST 80ms
+   × .bnr-kingdom-leave stale role affirmative sends no POST 78ms
+   × .bnr-recruit-vassal stale role affirmative sends no POST 72ms
+   × .bnr-kingdom-leave stale kingdom affirmative sends no POST 80ms
+   × .bnr-recruit-vassal stale kingdom affirmative sends no POST 82ms
+   × .bnr-kingdom-leave stale hero affirmative sends no POST 78ms
+   × .bnr-recruit-vassal stale hero affirmative sends no POST 72ms
+   × .bnr-kingdom-leave stale prisoner affirmative sends no POST 79ms
+   × .bnr-recruit-vassal stale prisoner affirmative sends no POST 77ms
+   × .bnr-kingdom-leave stale channel affirmative sends no POST 75ms
+   × .bnr-recruit-vassal stale channel affirmative sends no POST 71ms
+   × .bnr-kingdom-leave stale identity affirmative sends no POST 78ms
+   × .bnr-recruit-vassal stale identity affirmative sends no POST 75ms
+   × .bnr-kingdom-leave stale stop affirmative sends no POST 76ms
+   × .bnr-recruit-vassal stale stop affirmative sends no POST 69ms
+   × .bnr-kingdom-leave stale navigation affirmative sends no POST 75ms
+   × .bnr-recruit-vassal stale navigation affirmative sends no POST 84ms
+   × .bnr-kingdom-leave stale token affirmative sends no POST 82ms
+   × .bnr-recruit-vassal stale token affirmative sends no POST 71ms
+   × real legacy leave bleeds changed JWT after stop; new confirmation is owned 78ms
+   × real legacy hire remains after accepted nested realm change; new saved yes cannot send 80ms
+   × known same-shape ordinary poll retains name but changed kingdom role clears editor 77ms
+   × prisoner inherits current controls; game retains authoritative eligibility 76ms
+   × safe Escape/backdrop dismissal, reopen, focus restores and no request 69ms
+   × NPC feedback is visible for seven seconds without claiming execution 79ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 37 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > malformed creation quote undefined disables click and Enter
+ FAIL  test/panel-kingdom-safety.test.tsx > malformed creation quote null disables click and Enter
+ FAIL  test/panel-kingdom-safety.test.tsx > malformed creation quote -1 disables click and Enter
+ FAIL  test/panel-kingdom-safety.test.tsx > malformed creation quote 5000000 disables click and Enter
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-kingdom-safety.test.tsx:7:284
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > valid creation quote 0 is server-owned and never in POST
+ FAIL  test/panel-kingdom-safety.test.tsx > valid creation quote 1234567 is server-owned and never in POST
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-kingdom-safety.test.tsx:8:258
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > retry recovers exact quote without erasing draft and never adds config to body
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-kingdom-safety.test.tsx:9:241
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > NPC quote missing gold does not open confirm
+ FAIL  test/panel-kingdom-safety.test.tsx > NPC quote missing crustics does not open confirm
+TypeError: Cannot read properties of null (reading 'disabled')
+ ❯ test/panel-kingdom-safety.test.tsx:10:401
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > NPC full quote 0/0 rechecked
+ FAIL  test/panel-kingdom-safety.test.tsx > NPC full quote 1234567/456 rechecked
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-kingdom-safety.test.tsx:11:306
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale price affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale price affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale role affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale role affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale kingdom affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale kingdom affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale hero affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale hero affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale prisoner affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale prisoner affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale channel affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale channel affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale identity affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale identity affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale stop affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale stop affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale navigation affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale navigation affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-kingdom-leave stale token affirmative sends no POST
+ FAIL  test/panel-kingdom-safety.test.tsx > .bnr-recruit-vassal stale token affirmative sends no POST
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-kingdom-safety.test.tsx:6:111
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ click test/panel-kingdom-safety.test.tsx:6:86
+ ❯ test/panel-kingdom-safety.test.tsx:12:267
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > real legacy leave bleeds changed JWT after stop; new confirmation is owned
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-kingdom-safety.test.tsx:13:119
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > real legacy hire remains after accepted nested realm change; new saved yes cannot send
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-kingdom-safety.test.tsx:14:131
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > known same-shape ordinary poll retains name but changed kingdom role clears editor
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-kingdom-safety.test.tsx:15:153
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > prisoner inherits current controls; game retains authoritative eligibility
+TypeError: Cannot read properties of null (reading 'disabled')
+ ❯ test/panel-kingdom-safety.test.tsx:17:226
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > safe Escape/backdrop dismissal, reopen, focus restores and no request
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-kingdom-safety.test.tsx:6:111
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ click test/panel-kingdom-safety.test.tsx:6:86
+ ❯ test/panel-kingdom-safety.test.tsx:18:120
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/37]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > NPC feedback is visible for seven seconds without claiming execution
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-kingdom-safety.test.tsx:6:111
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ click test/panel-kingdom-safety.test.tsx:6:86
+ ❯ test/panel-kingdom-safety.test.tsx:19:119
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/37]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  37 failed | 2 passed (39)
+   Start at  17:58:14
+   Duration  4.60s (tests 80%, environment 11%, transform 6%, import 3%)
+

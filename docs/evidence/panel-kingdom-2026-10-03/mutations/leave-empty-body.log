@@ -1,0 +1,50 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-kingdom-parity.test.tsx -t leave ruler true
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-kingdom-parity.test.tsx > leave ruler true has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-kingdom-parity.test.tsx (20 tests | 1 failed | 19 skipped) 777ms
+   × leave ruler true has explicit safety warning and exact action 776ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > leave ruler true has explicit safety warning and exact action
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(58) ] to deeply equal [ { method: 'GET', …(6) }, …(58) ]
+
+- Expected
++ Received
+
+@@ -101,10 +101,11 @@
+    {
+      "body": {
+        "action_type": "hero.leave_kingdom",
+        "data": {
+          "client_action_id": "<generated-action-id>",
++         "price": 0,
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:7:501
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 skipped (20)
+   Start at  18:00:40
+   Duration  1.85s (tests 45%, environment 30%, transform 16%, import 9%)
+

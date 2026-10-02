@@ -19,12 +19,15 @@ async def main():
         db=await _build_db(str(Path(tmp)/'test.db'))
         try:
             from routes import bannerlord as r
+            from routes import viewer, duel, ui_usage
             from modules.bannerlord.equipment_shop import store_catalog,store_inventory
             from modules._base import ModuleEnvelope
             from modules.bannerlord._adapter import _cooldowns
             import module_liveness
             request=_make_anon_request()
             r.require_jwt_user=lambda _:('alice',CHANNEL_ID)
+            viewer.require_jwt_user=lambda _:('alice',CHANNEL_ID)
+            duel.require_jwt_user=lambda _:('alice',CHANNEL_ID)
             await module_liveness.touch(db,CHANNEL_ID,'bannerlord')
             async def sql(query,args=()):
                 async with db._connect() as conn:
@@ -44,6 +47,11 @@ async def main():
                 await sql('INSERT INTO bannerlord_attributes(channel_id,username,attribute,value) VALUES(?,?,?,?)',(CHANNEL_ID,'alice',key,2+i))
             await sql("UPDATE bannerlord_heroes SET level=35,culture='vlandia',location='Pravend' WHERE channel_id=? AND username='alice'",(CHANNEL_ID,))
             await sql("INSERT INTO bannerlord_hero_class(channel_id,username,class_key,class_level) VALUES(?,'alice','tank',1)",(CHANNEL_ID,))
+            await sql("UPDATE channels SET active_module='bannerlord' WHERE channel_id=?", (CHANNEL_ID,))
+            bodies['stats']=decoded(await viewer.viewer_stats('alice',request))
+            bodies['level']=decoded(await viewer.get_user_level('alice',request))
+            bodies['duels']=decoded(await duel.list_duels(request))
+            bodies['usage_unauthorized']=decoded(await ui_usage.record_ui_usage(request))
             for name,fn in [('config',r.bannerlord_config),('hero',lambda:r.bannerlord_my_hero(request)),('classes',lambda:r.bannerlord_classes(request)),('build_no_session',lambda:r.bannerlord_build(request)),('buffs',lambda:r.bannerlord_my_buffs(request)),('daily',lambda:r.bannerlord_daily_status(request)),('tournament',lambda:r.bannerlord_tournament(request))]:
                 bodies[name]=decoded(await fn())
             r.require_jwt_user=lambda _:('carol',CHANNEL_ID)
@@ -111,7 +119,7 @@ async def main():
             await sql("UPDATE bannerlord_heroes SET is_alive=0 WHERE channel_id=? AND username='alice'",(CHANNEL_ID,))
             bodies['hero_dead']=decoded(await r.bannerlord_my_hero(request))
             bodies['equipment_dead']=decoded(await r.bannerlord_equipment_shop(request))
-            (OUT/'real-responses.json').write_text(json.dumps({'provenance':{'repository':str(REPO),'handlers':'routes.bannerlord','database':'isolated full-migrations temporary SQLite','live_game':False,'representative_state_sources':['tests/test_bannerlord_buy_action.py','tests/test_bannerlord_build.py','tests/test_bannerlord_equipment_shop.py','BannerlordLink/src/Util/HeroBuildRuntime.cs']},'responses':bodies},ensure_ascii=False,indent=2)+'\n')
+            (OUT/'real-responses.json').write_text(json.dumps({'provenance':{'repository':str(REPO),'handlers':['routes.bannerlord','routes.viewer.viewer_stats','routes.viewer.get_user_level','routes.duel.list_duels','routes.ui_usage.record_ui_usage'],'database':'isolated full-migrations temporary SQLite','live_game':False,'representative_state_sources':['tests/test_bannerlord_buy_action.py','tests/test_bannerlord_build.py','tests/test_bannerlord_equipment_shop.py','BannerlordLink/src/Util/HeroBuildRuntime.cs']},'responses':bodies},ensure_ascii=False,indent=2)+'\n')
             print('PROBE_OK',len(bodies),'bodies; real attributes:',bodies['hero']['attributes'],'classes:',len(bodies['classes']['classes']))
             failures=[key for key,value in bodies.items() if key.endswith('_success') and not value['response'].get('success')]
             assert not failures, failures

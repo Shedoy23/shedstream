@@ -18,7 +18,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     '/api/bannerlord/config': f.config, '/api/bannerlord/my-hero': f.hero,
     '/api/bannerlord/classes': f.classes, '/api/bannerlord/build': f.build_ready,
     '/api/bannerlord/my-buffs': f.buffs, '/api/bannerlord/action': f.focus_success.response,
-    '/api/viewer/stats/alice': { points: 100 }, '/api/user/level/alice': {}, '/api/duel/list': { duels: [] }, ...overrides,
+    '/api/viewer/stats/alice': f.stats, '/api/user/level/alice': f.level, '/api/duel/list': f.duels, ...overrides,
   };
   const fetcher = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     const path = String(url); const method = init?.method || 'GET';
@@ -135,4 +135,69 @@ for (const costs of [[], [3], { 0: 3 }, null]) it(`manual refresh recovers malfo
   const ui = render(<HeroDevelopmentView controller={s.controller} />); s.routes['/api/bannerlord/config'] = f.config;
   await act(async () => { fireEvent.click(ui.getByRole('button', { name: 'Обновить' })); await flush(); });
   expect(s.controller.snapshot().config?.focus_tier_costs).toEqual(f.config.focus_tier_costs); s.controller.stop();
+});
+it('synchronously serializes different specialization and kit buttons within one render frame', async () => {
+  const s = setup(); await s.start(); const pending = deferred<Response>(); s.routes['/api/bannerlord/action'] = pending.promise;
+  const ui = render(<HeroDevelopmentView controller={s.controller} />);
+  const spec = ui.container.querySelector('[data-bnr-build-spec="assault"]') as HTMLButtonElement;
+  const kit = ui.container.querySelector('[data-bnr-build-starter="infantry"]') as HTMLButtonElement;
+  await act(async () => { spec.click(); kit.click(); await flush(); });
+  expect(s.trace.filter(r => r.method === 'POST')).toHaveLength(1);
+  pending.resolve(response(f.specialization_success.response)); await flush(); s.controller.stop();
+});
+it('a build GET started before acknowledgement cannot release local pending', async () => {
+  const s = setup(); await s.start(); const pending = deferred<Response>();
+  s.routes['/api/bannerlord/build'] = pending.promise; const poll = s.controller.refreshBuild();
+  await s.controller.action('hero.set_specialization', { specialization: 'assault' }, { tail: 'hero' });
+  expect(s.controller.snapshot().buildPending).toBe(true);
+  pending.resolve(response(f.build_ready)); await poll; expect(s.controller.snapshot().buildPending).toBe(true);
+  s.routes['/api/bannerlord/build'] = f.build_ready; await s.controller.refreshBuild(); expect(s.controller.snapshot().buildPending).toBe(false); s.controller.stop();
+});
+it('a 20-second unknown action outcome blocks duplicate and different purchases while reads remain possible', async () => {
+  vi.useFakeTimers(); const s = setup(); await s.start();
+  s.routes['/api/bannerlord/action'] = deferred<Response>().promise;
+  const action = s.controller.action('hero.buy_equipment', { item_id: 'sword' }, { tail: 'balance' });
+  await vi.advanceTimersByTimeAsync(20001); await action;
+  const second = s.controller.action('hero.buy_equipment', { item_id: 'sword' }, { tail: 'balance' });
+  await vi.advanceTimersByTimeAsync(20001); await second;
+  const third = s.controller.action('hero.buy_equipment', { item_id: 'tier5' }, { tail: 'balance' });
+  await vi.advanceTimersByTimeAsync(20001); await third;
+  expect(s.trace.filter(r => r.method === 'POST')).toHaveLength(1);
+  expect(s.controller.snapshot().message).toContain('Исход предыдущей заявки неизвестен');
+  await s.controller.refreshHero(); expect(s.trace.at(-1)?.path).toBe('/api/bannerlord/my-hero'); s.controller.stop();
+});
+it('ignores a genuinely reverse-ordered older hero response', async () => {
+  const s = setup(); await s.start(); const a = deferred<Response>(), b = deferred<Response>();
+  s.routes['/api/bannerlord/my-hero'] = a.promise; const first = s.controller.refreshHero();
+  s.routes['/api/bannerlord/my-hero'] = b.promise; const second = s.controller.refreshHero();
+  b.resolve(response({ ...f.hero, hero: { ...f.hero.hero, gold: 654 } })); await second;
+  a.resolve(response({ ...f.hero, hero: { ...f.hero.hero, gold: 321 } })); await first;
+  expect(s.controller.snapshot().hero?.hero?.gold).toBe(654); s.controller.stop();
+});
+it('accepted action with lost response blocks that identity across token rotation but not another viewer', async () => {
+  const auth = new TwitchAuthStore(); auth.authorize(authValue); const accepted: unknown[] = [];
+  const fetcher = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    accepted.push(JSON.parse(String(init?.body)));
+    if (accepted.length === 1) return { json: async () => { throw Error('response lost after accept'); } } as unknown as Response;
+    return response(f.equipment_buy.response);
+  }) as typeof fetch;
+  const transport = new HttpPanelTransport('', auth, fetcher);
+  await expect(transport.action('hero.buy_equipment', { item_id: 'sword' })).rejects.toThrow();
+  auth.authorize({ ...authValue, token: 'rotated' });
+  await expect(transport.action('hero.buy_equipment', { item_id: 'sword' })).rejects.toThrow('Исход предыдущей заявки неизвестен');
+  await expect(transport.action('hero.buy_equipment', { item_id: 'tier5' })).rejects.toThrow('Исход предыдущей заявки неизвестен');
+  expect(accepted).toHaveLength(1);
+  auth.authorize({ ...authValue, token: 'carol-token', userId: 'opaque-carol' });
+  expect((await transport.action('hero.buy_equipment', { item_id: 'sword' }))?.success).toBe(true);
+  auth.authorize(authValue);
+  await expect(transport.action('hero.buy_equipment', { item_id: 'sword' })).rejects.toThrow('Исход предыдущей заявки неизвестен');
+  expect(accepted).toHaveLength(2);
+});
+it('a definite server refusal is retryable and does not create unknown-outcome blocking', async () => {
+  const s = setup({ '/api/bannerlord/action': f.attribute_insufficient.response }); await s.start();
+  const intent = { attribute_key: 'Vigor', amount: 1 };
+  expect((await s.transport.action('hero.add_attribute', intent))?.success).toBe(false);
+  s.routes['/api/bannerlord/action'] = f.attribute_success.response;
+  expect((await s.transport.action('hero.add_attribute', intent))?.success).toBe(true);
+  expect(s.trace.filter(r => r.method === 'POST')).toHaveLength(2); s.controller.stop();
 });

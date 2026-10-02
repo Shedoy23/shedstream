@@ -68,7 +68,7 @@ describe('actual emitted catalogs vs new Preact request parity', () => {
     const current = option.class_key === f.classes.current.class_key ? { ...f.classes.current, class_key: f.classes.classes[0].class_key } : f.classes.current;
     const p = await pair({ build: f.build_no_session, classes: { ...f.classes, current } });
     await p.old.change(oldSelect.class, option.class_key);
-    await act(async () => { fireEvent.change(p.ui.container.querySelector('#panel-class-select')!, { target: { value: option.class_key } }); await flush(); });
+    await act(async () => { const select = p.ui.container.querySelector('#panel-class-select') as HTMLSelectElement; select.value = option.class_key; select.dispatchEvent(new Event('change', { bubbles: true })); await flush(); });
     await p.finish(); expect(p.trace[0].body).toMatchObject({ action_type: 'hero.set_class', data: { class_key: option.class_key, price: 0 } });
   });
   for (const option of f.build_ready.build.specializations) it(`specialization ${option.id}`, async () => {

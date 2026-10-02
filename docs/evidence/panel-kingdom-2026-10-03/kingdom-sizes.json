@@ -62,17 +62,17 @@
     "raw": 278808,
     "gzip9": 75394
   },
-  "page": "mobile.html",
+  "page": "panel-mobile.html",
   "initial_files": [
     "assets/jsxRuntime-BJoMBIby.js",
-    "assets/main-BcDcf8_c.css",
-    "assets/main-DGkQxGxN.js",
+    "assets/main-3p-rB8va.js",
+    "assets/main-DjqnwqDB.css",
     "assets/origin-6oRUfO6P.js",
-    "mobile.html"
+    "panel-mobile.html"
   ],
   "initial_total": {
-    "raw": 91662,
-    "gzip9": 28088
+    "raw": 197836,
+    "gzip9": 52899
   },
   "excludes": [
     "Twitch-hosted Helper script (external and unchanged)",

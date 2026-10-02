@@ -1,0 +1,305 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --no-file-parallelism test/panel-diplomacy-parity.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_royal_guard exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_sacred_majesty exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_trial_by_jury exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_imperial_towns exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_noble_retinues exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_lords_privy_council exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_serfdom exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_citizenship exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > real policy state pending1/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted1
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute -200
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 20000
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 100.9
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace has no Enter binding, requires two trimmed characters and keeps polling draft
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-peace-confirm preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-tax-pct="25"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-war-propose preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > outer collapsed card and inner details preserve telemetry, reads and user state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > no kingdom is informational and genuine nohero clears Politics
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > vassal sees policies/votes but no direct peace or tax
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > unknown active law retains server badge without adding selectable invented policy
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-diplomacy-parity.test.tsx (36 tests | 36 failed) 4011ms
+   × complete Politics card follows army in actual saved Dynasty with one read per active hero cadence 443ms
+   × policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails 181ms
+   × policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails 151ms
+   × policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails 123ms
+   × policy policy_royal_guard exact existing ID/name and complete local/generic tails 114ms
+   × policy policy_sacred_majesty exact existing ID/name and complete local/generic tails 110ms
+   × policy policy_trial_by_jury exact existing ID/name and complete local/generic tails 104ms
+   × policy policy_imperial_towns exact existing ID/name and complete local/generic tails 102ms
+   × policy policy_noble_retinues exact existing ID/name and complete local/generic tails 103ms
+   × policy policy_lords_privy_council exact existing ID/name and complete local/generic tails 102ms
+   × policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails 96ms
+   × policy policy_serfdom exact existing ID/name and complete local/generic tails 95ms
+   × policy policy_citizenship exact existing ID/name and complete local/generic tails 95ms
+   × real policy state pending1/enacted0 100ms
+   × real policy state pending0/enacted1 99ms
+   × real policy state pending0/enacted0 93ms
+   × direct peace keeps text target twice and parseInt tribute -200 100ms
+   × direct peace keeps text target twice and parseInt tribute 0 111ms
+   × direct peace keeps text target twice and parseInt tribute 20000 113ms
+   × direct peace keeps text target twice and parseInt tribute 100.9 91ms
+   × direct peace keeps text target twice and parseInt tribute  94ms
+   × direct peace has no Enter binding, requires two trimmed characters and keeps polling draft 91ms
+   × tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh 98ms
+   × tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh 98ms
+   × tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh 97ms
+   × tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh 93ms
+   × #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback 97ms
+   × #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback 92ms
+   × real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail 90ms
+   × real refusal #bnr-peace-confirm preserves exact message and legacy tail 95ms
+   × real refusal [data-tax-pct="25"] preserves exact message and legacy tail 102ms
+   × real refusal #bnr-war-propose preserves exact message and legacy tail 90ms
+   × outer collapsed card and inner details preserve telemetry, reads and user state 87ms
+   × no kingdom is informational and genuine nohero clears Politics 77ms
+   × vassal sees policies/votes but no direct peace or tax 91ms
+   × unknown active law retains server badge without adding selectable invented policy 88ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 36 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ test/panel-diplomacy-parity.test.tsx:7:226
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_royal_guard exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_sacred_majesty exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_trial_by_jury exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_imperial_towns exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_noble_retinues exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_lords_privy_council exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_serfdom exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_citizenship exact existing ID/name and complete local/generic tails
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-diplomacy-parity.test.tsx:8:147
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > real policy state pending1/enacted0
+ FAIL  test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted1
+ FAIL  test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted0
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-diplomacy-parity.test.tsx:9:325
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute -200
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 0
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 20000
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 100.9
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-diplomacy-parity.test.tsx:10:172
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace has no Enter binding, requires two trimmed characters and keeps polling draft
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-diplomacy-parity.test.tsx:11:141
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-diplomacy-parity.test.tsx:12:178
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback
+ FAIL  test/panel-diplomacy-parity.test.tsx > #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-diplomacy-parity.test.tsx:13:262
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal #bnr-peace-confirm preserves exact message and legacy tail
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-diplomacy-parity.test.tsx:14:393
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal [data-tax-pct="25"] preserves exact message and legacy tail
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal #bnr-war-propose preserves exact message and legacy tail
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-diplomacy-parity.test.tsx:14:487
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > outer collapsed card and inner details preserve telemetry, reads and user state
+TypeError: Cannot set properties of null (setting 'open')
+ ❯ test/panel-diplomacy-parity.test.tsx:15:260
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > no kingdom is informational and genuine nohero clears Politics
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ test/panel-diplomacy-parity.test.tsx:16:236
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > vassal sees policies/votes but no direct peace or tax
+AssertionError: expected  to have a length of 12 but got +0
+
+- Expected
++ Received
+
+- 12
++ 0
+
+ ❯ test/panel-diplomacy-parity.test.tsx:17:213
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/36]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > unknown active law retains server badge without adding selectable invented policy
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ test/panel-diplomacy-parity.test.tsx:18:373
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/36]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  36 failed (36)
+   Start at  18:03:41
+   Duration  5.07s (tests 81%, environment 10%, transform 6%, import 3%)
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

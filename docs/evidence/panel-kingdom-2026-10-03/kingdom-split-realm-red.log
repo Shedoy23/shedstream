@@ -1,0 +1,93 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --no-file-parallelism test/panel-kingdom-safety.test.tsx test/panel-diplomacy-safety.test.tsx -t independent review:|fresh observed
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-kingdom-safety.test.tsx > fresh observed fixture_other_kingdom/false contradiction cancels .bnr-recruit-vassal consent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > fresh observed fixture_other_kingdom/false contradiction cancels .bnr-kingdom-leave consent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > fresh observed fixture_kingdom/false contradiction cancels .bnr-recruit-vassal consent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > fresh observed fixture_kingdom/false contradiction cancels .bnr-kingdom-leave consent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-kingdom-safety.test.tsx (53 tests | 4 failed | 49 skipped) 954ms
+   × fresh observed fixture_other_kingdom/false contradiction cancels .bnr-recruit-vassal consent 520ms
+   × fresh observed fixture_other_kingdom/false contradiction cancels .bnr-kingdom-leave consent 173ms
+   × fresh observed fixture_kingdom/false contradiction cancels .bnr-recruit-vassal consent 131ms
+   × fresh observed fixture_kingdom/false contradiction cancels .bnr-kingdom-leave consent 129ms
+stdout | test/panel-diplomacy-safety.test.tsx > independent review: fresh different-realm response quarantines old ruler actions until hero agrees
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > fresh observed state remains quarantined while replacement hero waits for agreeing state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-diplomacy-safety.test.tsx (48 tests | 2 failed | 46 skipped) 811ms
+   × independent review: fresh different-realm response quarantines old ruler actions until hero agrees 642ms
+   × fresh observed state remains quarantined while replacement hero waits for agreeing state 168ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > independent review: fresh different-realm response quarantines old ruler actions until hero agrees
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-diplomacy-safety.test.tsx:36:455
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > fresh observed state remains quarantined while replacement hero waits for agreeing state
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ test/panel-diplomacy-safety.test.tsx:37:518
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > fresh observed fixture_other_kingdom/false contradiction cancels .bnr-recruit-vassal consent
+ FAIL  test/panel-kingdom-safety.test.tsx > fresh observed fixture_other_kingdom/false contradiction cancels .bnr-kingdom-leave consent
+ FAIL  test/panel-kingdom-safety.test.tsx > fresh observed fixture_kingdom/false contradiction cancels .bnr-recruit-vassal consent
+ FAIL  test/panel-kingdom-safety.test.tsx > fresh observed fixture_kingdom/false contradiction cancels .bnr-kingdom-leave consent
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-kingdom-safety.test.tsx:28:435
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  6 failed | 95 skipped (101)
+   Start at  18:21:24
+   Duration  3.79s (tests 50%, environment 30%, transform 11%, import 9%)
+
+    Isolate  2 workers spawned · ~642ms startup each (spawn + environment, per file)
+             at least ~642ms faster with isolate: false — reuses workers across files instead of one per file

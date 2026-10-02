@@ -1,0 +1,456 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --no-file-parallelism test/panel-diplomacy-safety.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-diplomacy-safety.test.tsx > old actual reverse completion rolls tax backward, new state stays latest applied
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > slow steady reads make progress before newest outstanding read resolves
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > old pending reader repaints after stop while new stopped host stays empty
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > old [data-policy-id="policy_royal_guard"] local tail uses new JWT after stop, new timer is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > old #bnr-peace-confirm local tail uses new JWT after stop, new timer is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > old [data-tax-pct="25"] local tail uses new JWT after stop, new timer is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > actual legacy open peace survives accepted role and nested ID change, new draft is invalidated
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross identity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross channel
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross hero
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross role
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross kingdom
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross navigation
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross stop
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > same-viewer idle token refresh preserves peace editor and current-token submit
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > pending local tail cannot migrate to refreshed JWT
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > scheduled local tail cannot migrate to refreshed JWT
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > accepted mutation prevents pre-action state from resurrecting old tax
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: auth required
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: Fixture temporarily unavailable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > read network failure preserves current snapshot; subsequent good read recovers
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > read of old token cannot replace newly resolved same-viewer state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback null
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback []
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","at_war":false},{"id":"fixture_b","name":"Fixture B","at_war":false}]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","name":"Fixture A","at_war":true}]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [null,{"id":"fixture_b","name":"Fixture B","at_war":false},{"id":"fixture_a","at_war":false}]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > hidden or unselected Dynasty performs no background kingdom-state reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration undefined comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0.5 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 2.2 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 61 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > ordinary proposal refusal without cooldown does not invent one
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > old buff response cannot erase accepted proposal cooldown, fresh allowed clear restores price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > same-frame duplicate target sends one POST and other target stays distinct
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stderr | test/panel-diplomacy-safety.test.tsx > same-frame duplicate target sends one POST and other target stays distinct
+[buyAction] duplicate-click guarded bannerlord:kingdom.propose_war:target_kingdom_id=fixture_neutral&target_kingdom_name=Fixture Neutral
+
+stdout | test/panel-diplomacy-safety.test.tsx > unknown-outcome blocks policy, tax, direct peace and both proposals
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-diplomacy-safety.test.tsx (37 tests | 37 failed) 4684ms
+   × old actual reverse completion rolls tax backward, new state stays latest applied 511ms
+   × slow steady reads make progress before newest outstanding read resolves 178ms
+   × old pending reader repaints after stop while new stopped host stays empty 132ms
+   × old [data-policy-id="policy_royal_guard"] local tail uses new JWT after stop, new timer is owned 128ms
+   × old #bnr-peace-confirm local tail uses new JWT after stop, new timer is owned 132ms
+   × old [data-tax-pct="25"] local tail uses new JWT after stop, new timer is owned 120ms
+   × actual legacy open peace survives accepted role and nested ID change, new draft is invalidated 123ms
+   × direct peace old saved click cannot cross identity 130ms
+   × direct peace old saved click cannot cross channel 139ms
+   × direct peace old saved click cannot cross hero 126ms
+   × direct peace old saved click cannot cross role 106ms
+   × direct peace old saved click cannot cross kingdom 112ms
+   × direct peace old saved click cannot cross navigation 97ms
+   × direct peace old saved click cannot cross stop 103ms
+   × same-viewer idle token refresh preserves peace editor and current-token submit 105ms
+   × pending local tail cannot migrate to refreshed JWT 100ms
+   × scheduled local tail cannot migrate to refreshed JWT 100ms
+   × accepted mutation prevents pre-action state from resurrecting old tax 100ms
+   × read refusal keeps last good diplomacy: auth required 105ms
+   × read refusal keeps last good diplomacy: Fixture temporarily unavailable 99ms
+   × read network failure preserves current snapshot; subsequent good read recovers 94ms
+   × read of old token cannot replace newly resolved same-viewer state 94ms
+   × dynamic target list keeps server order/name fallback null 94ms
+   × dynamic target list keeps server order/name fallback [] 97ms
+   × dynamic target list keeps server order/name fallback [{"id":"fixture_a","at_war":false},{"id":"fixture_b","name":"Fixture B","at_war":false}] 103ms
+   × dynamic target list keeps server order/name fallback [{"id":"fixture_a","name":"Fixture A","at_war":true}] 103ms
+   × dynamic target list keeps server order/name fallback [null,{"id":"fixture_b","name":"Fixture B","at_war":false},{"id":"fixture_a","at_war":false}] 97ms
+   × hidden or unselected Dynasty performs no background kingdom-state reads 320ms
+   × proposal cooldown duration undefined comes from server and restores actual priced label 114ms
+   × proposal cooldown duration 0 comes from server and restores actual priced label 100ms
+   × proposal cooldown duration 0.5 comes from server and restores actual priced label 105ms
+   × proposal cooldown duration 2.2 comes from server and restores actual priced label 114ms
+   × proposal cooldown duration 61 comes from server and restores actual priced label 101ms
+   × ordinary proposal refusal without cooldown does not invent one 100ms
+   × old buff response cannot erase accepted proposal cooldown, fresh allowed clear restores price 101ms
+   × same-frame duplicate target sends one POST and other target stays distinct 101ms
+   × unknown-outcome blocks policy, tax, direct peace and both proposals 98ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 37 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > old actual reverse completion rolls tax backward, new state stays latest applied
+TypeError: p.controller.refreshDiplomacy is not a function
+ ❯ test/panel-diplomacy-safety.test.tsx:10:288
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > slow steady reads make progress before newest outstanding read resolves
+TypeError: p.controller.refreshDiplomacy is not a function
+ ❯ test/panel-diplomacy-safety.test.tsx:11:229
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > old pending reader repaints after stop while new stopped host stays empty
+TypeError: p.controller.refreshDiplomacy is not a function
+ ❯ test/panel-diplomacy-safety.test.tsx:12:247
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > old [data-policy-id="policy_royal_guard"] local tail uses new JWT after stop, new timer is owned
+ FAIL  test/panel-diplomacy-safety.test.tsx > old #bnr-peace-confirm local tail uses new JWT after stop, new timer is owned
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-diplomacy-safety.test.tsx:13:265
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > old [data-tax-pct="25"] local tail uses new JWT after stop, new timer is owned
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-diplomacy-safety.test.tsx:13:359
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > actual legacy open peace survives accepted role and nested ID change, new draft is invalidated
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-diplomacy-safety.test.tsx:14:145
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross identity
+ FAIL  test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross channel
+ FAIL  test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross hero
+ FAIL  test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross role
+ FAIL  test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross kingdom
+ FAIL  test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross navigation
+ FAIL  test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross stop
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-diplomacy-safety.test.tsx:15:189
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > same-viewer idle token refresh preserves peace editor and current-token submit
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-diplomacy-safety.test.tsx:16:129
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > pending local tail cannot migrate to refreshed JWT
+ FAIL  test/panel-diplomacy-safety.test.tsx > scheduled local tail cannot migrate to refreshed JWT
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-diplomacy-safety.test.tsx:8:104
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ click test/panel-diplomacy-safety.test.tsx:8:79
+ ❯ test/panel-diplomacy-safety.test.tsx:17:232
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > accepted mutation prevents pre-action state from resurrecting old tax
+TypeError: p.controller.refreshDiplomacy is not a function
+ ❯ test/panel-diplomacy-safety.test.tsx:18:213
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: auth required
+ FAIL  test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: Fixture temporarily unavailable
+TypeError: p.controller.refreshDiplomacy is not a function
+ ❯ test/panel-diplomacy-safety.test.tsx:19:334
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ test/panel-diplomacy-safety.test.tsx:19:301
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > read network failure preserves current snapshot; subsequent good read recovers
+TypeError: p.controller.refreshDiplomacy is not a function
+ ❯ test/panel-diplomacy-safety.test.tsx:20:255
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ test/panel-diplomacy-safety.test.tsx:20:222
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > read of old token cannot replace newly resolved same-viewer state
+TypeError: p.controller.refreshDiplomacy is not a function
+ ❯ test/panel-diplomacy-safety.test.tsx:21:209
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback null
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback []
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(10) ] to deeply equal [ { method: 'GET', …(6) }, …(11) ]
+
+- Expected
++ Received
+
+@@ -53,19 +53,10 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/kingdom-state",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-diplomacy-safety.test.tsx:22:645
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","at_war":false},{"id":"fixture_b","name":"Fixture B","at_war":false}]
+AssertionError: expected undefined to be '\n                            fixture…' // Object.is equality
+
+- Expected:
+"
+                            fixture_aFixture B
+                        "
+
++ Received:
+undefined
+
+ ❯ test/panel-diplomacy-safety.test.tsx:22:592
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","name":"Fixture A","at_war":true}]
+AssertionError: expected undefined to be '\n                            Fixture…' // Object.is equality
+
+- Expected:
+"
+                            Fixture A
+                        "
+
++ Received:
+undefined
+
+ ❯ test/panel-diplomacy-safety.test.tsx:22:592
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [null,{"id":"fixture_b","name":"Fixture B","at_war":false},{"id":"fixture_a","at_war":false}]
+AssertionError: expected undefined to be '\n                            Fixture…' // Object.is equality
+
+- Expected:
+"
+                            Fixture Bfixture_a
+                        "
+
++ Received:
+undefined
+
+ ❯ test/panel-diplomacy-safety.test.tsx:22:592
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > hidden or unselected Dynasty performs no background kingdom-state reads
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(30) ] to deeply equal [ { method: 'GET', …(6) }, …(31) ]
+
+- Expected
++ Received
+
+@@ -276,15 +276,6 @@
+      "method": "GET",
+      "path": "/api/bannerlord/party-orders",
+      "query": "",
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/kingdom-state",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+  ]
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-diplomacy-safety.test.tsx:23:254
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration undefined comes from server and restores actual priced label
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0 comes from server and restores actual priced label
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0.5 comes from server and restores actual priced label
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 2.2 comes from server and restores actual priced label
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 61 comes from server and restores actual priced label
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-diplomacy-safety.test.tsx:24:324
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > ordinary proposal refusal without cooldown does not invent one
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-diplomacy-safety.test.tsx:25:174
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > old buff response cannot erase accepted proposal cooldown, fresh allowed clear restores price
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-diplomacy-safety.test.tsx:8:104
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ click test/panel-diplomacy-safety.test.tsx:8:79
+ ❯ test/panel-diplomacy-safety.test.tsx:26:251
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > same-frame duplicate target sends one POST and other target stays distinct
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-combat-support.tsx:72:103
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-combat-support.tsx:72:13
+ ❯ test/panel-diplomacy-safety.test.tsx:27:188
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/37]⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > unknown-outcome blocks policy, tax, direct peace and both proposals
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-diplomacy-safety.test.tsx:8:104
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ click test/panel-diplomacy-safety.test.tsx:8:79
+ ❯ test/panel-diplomacy-safety.test.tsx:28:131
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/37]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  37 failed (37)
+   Start at  18:04:50
+   Duration  5.69s (tests 84%, environment 8%, transform 5%, import 2%)
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

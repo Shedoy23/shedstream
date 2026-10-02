@@ -1,0 +1,46 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --no-file-parallelism test/panel-kingdom-parity.test.tsx test/panel-kingdom-safety.test.tsx test/panel-diplomacy-parity.test.tsx test/panel-diplomacy-safety.test.tsx test/panel-diplomacy-quotes.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-diplomacy-parity.test.tsx > no kingdom is informational and genuine nohero clears Politics
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-diplomacy-parity.test.tsx (36 tests | 1 failed) 8785ms
+   × no kingdom is informational and genuine nohero clears Politics 86ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > no kingdom is informational and genuine nohero clears Politics
+AssertionError: expected 'Данные королевства ещё не согласованы…' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ Данные королевства ещё не согласованы. Действия недоступны до обновления героя и политики.
+
+ ❯ test/panel-diplomacy-parity.test.tsx:15:480
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  1 failed | 177 passed (178)
+   Start at  18:22:09
+   Duration  32.73s (tests 89%, environment 7%, import 2%, transform 1%)
+
+    Isolate  5 workers spawned · ~581ms startup each (spawn + environment, per file)
+             at least ~2.32s faster with isolate: false — reuses workers across files instead of one per file
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

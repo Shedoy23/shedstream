@@ -1,0 +1,58 @@
+{
+  "source_test_commit": "85ad2cd9aa6a03d6a031efc77be2e802c74eda31",
+  "runtime_fix_commit": "38beb21",
+  "supersedes_rejected": "9b0056fc3a76b3f120bb1b726158943f627c6a26",
+  "unit_dom": 763,
+  "opt_in_http": 2,
+  "legacy_gate_files": 17,
+  "typecheck_build_checkbuild_exit": 0,
+  "legacy_lint_globals_exit": 0,
+  "focused_k1": 74,
+  "focused_k2": 105,
+  "panel_mobile_initial": {
+    "raw": 218909,
+    "gzip9": 57729
+  },
+  "mutation_k1": {
+    "killed": 4,
+    "own_exact_restores": 4,
+    "restored_green": 4
+  },
+  "mutation_k2": {
+    "killed": 13,
+    "redundant_survivor": 1,
+    "own_exact_restores": 14,
+    "restored_green": 14
+  },
+  "final_logs": [
+    "kingdom-quarantine-final-tests.log",
+    "kingdom-quarantine-final-build.log",
+    "kingdom-quarantine-final-legacy.log",
+    "kingdom-quarantine-live-http.log"
+  ],
+  "scope": "Local only. No browser/318px/phone/Hosted Test/game evidence. No GitHub writes, merge or deploy.",
+  "app_sha256": {
+    "equipment.css": "897a6589c0be2fb7366260bc3b1f19fbb86312dbcdce3fb4a18f8ecd913c88b4",
+    "main.tsx": "39da8ab8a0d08ca3f902409b149da17c0b55e35038745b2ed4aa3c77ac6e9768",
+    "CombatView.tsx": "ebb7427824feb51d1049f055c1700e6011cffa6cd5f3f7539cc44370e74ce9d1",
+    "HeroDevelopmentView.tsx": "39ec7b70561f86418ab7c517c0761652e84fee2d70be898cc809ada53c76fdd2",
+    "PartyView.tsx": "ba9acec76c2c4e6384f4044e8ca8f036bf7a0b67ee642e499cc6c7b1e0c688b1",
+    "RetinueView.tsx": "7c516eaaa1399f5441da61d3b84899639d297e0b025ac05e0c730300b72361d4",
+    "combat.css": "0c9e90571f7b2aea314708e84518ddba439e330661f810c55bd83c30cd096aa8",
+    "KingdomView.tsx": "42c838c17f41e448f67ec297d881470205e4b49daa726f3eed129296a4b60c3e",
+    "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8",
+    "usage.ts": "239c8579633a5c09d02970b3c531d5c5f2593276d93d9fc91227fc55d975d1d6",
+    "kingdom.ts": "8408f42398123e792cf303e6f2ed3027d965f74c12321b8580746d05d8784916",
+    "combat.ts": "cea7c32056d1c8636a5f91b3765d485705e5dc7f2bb5df0a98af66d557a01742",
+    "diplomacy.ts": "e5dc37d277722a35638ff37808dcc9c83a4601b445fbfbb38a6dfc865d246c21",
+    "PanelApp.tsx": "9a41f2d99e4a6340636205fc56b3818b771cfbd74ee42794600ac5473a5236f7",
+    "style.css": "82fd2a6f7ba0a075bff7cafa429af14f0ac99d1faceb970a7091fd7260891a84",
+    "contracts.ts": "d89d188ad6c9438f90d216ba7b215ff60bb95a7c1a2977fc77c88670d6260e95",
+    "equipment.ts": "aa9618194b463368f3cbb4d53483a25372f3dadb862851bb7a9e0e08be096bb1",
+    "party.ts": "412579b4eec82b37a027a45cf03edf58e3b35d915200908ebaa3b35e0e300893",
+    "transport.ts": "9b75fe04c30f0081d33e70891b499c4f6a36c8cdee645517fa057ffda300c1be",
+    "EquipmentView.tsx": "77eb9031456c93a4747edab9c375f7aa1d3038b05a4a4299dc258467cae3f37b",
+    "refunds.ts": "703811cc248e264ad60cc57c22bd1178edbbe057b1ad63c580a48700361af72d",
+    "DiplomacyView.tsx": "1bc18a8aa67eb3d804224a5b592b0bdb19994291ac6e2b319e2da796ffaddb2d"
+  }
+}

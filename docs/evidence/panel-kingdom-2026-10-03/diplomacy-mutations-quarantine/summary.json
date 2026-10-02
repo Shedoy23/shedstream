@@ -1,0 +1,142 @@
+[
+  {
+    "mutation": "policy-name",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "direct-tribute",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "tax-rate",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "war-target-name",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "peace-vote-target-name",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "read-reversal",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "scheduled-token-tail",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "pending-token-tail",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "preaction-read-barrier",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "new-kingdom-identity",
+    "mutation_exit": 0,
+    "classification": "redundant guard survivor: independent state/hero realm agreement still blocks stale send",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "kingdom.ts": "8408f42398123e792cf303e6f2ed3027d965f74c12321b8580746d05d8784916"
+    }
+  },
+  {
+    "mutation": "missing-price-gate",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "diplomacy.ts": "e5dc37d277722a35638ff37808dcc9c83a4601b445fbfbb38a6dfc865d246c21"
+    }
+  },
+  {
+    "mutation": "discard-observed-conflict",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "forget-observed-conflict",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "571fa7a9b98d53e1180b7e61f8348934f40bbaa9f5f0496f58cb4e15e82f6ed8"
+    }
+  },
+  {
+    "mutation": "ignore-kingdom-quarantine",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "kingdom.ts": "8408f42398123e792cf303e6f2ed3027d965f74c12321b8580746d05d8784916"
+    }
+  }
+]

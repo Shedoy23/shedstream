@@ -1,0 +1,30 @@
+[
+  {
+    "mutation": "create-name",
+    "red_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "sha256": "42c838c17f41e448f67ec297d881470205e4b49daa726f3eed129296a4b60c3e"
+  },
+  {
+    "mutation": "join-name",
+    "red_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "sha256": "42c838c17f41e448f67ec297d881470205e4b49daa726f3eed129296a4b60c3e"
+  },
+  {
+    "mutation": "leave-empty-body",
+    "red_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "sha256": "42c838c17f41e448f67ec297d881470205e4b49daa726f3eed129296a4b60c3e"
+  },
+  {
+    "mutation": "hire-empty-body",
+    "red_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "sha256": "42c838c17f41e448f67ec297d881470205e4b49daa726f3eed129296a4b60c3e"
+  }
+]

@@ -1,0 +1,14 @@
+policy-name RED 1 RESTORED 0
+direct-tribute RED 1 RESTORED 0
+tax-rate RED 1 RESTORED 0
+war-target-name RED 1 RESTORED 0
+peace-vote-target-name RED 1 RESTORED 0
+read-reversal RED 1 RESTORED 0
+scheduled-token-tail RED 1 RESTORED 0
+pending-token-tail RED 1 RESTORED 0
+preaction-read-barrier RED 1 RESTORED 0
+Traceback (most recent call last):
+  File "/workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next/scripts/check-diplomacy-mutations.py", line 28, in <module>
+    assert red.returncode==1,(name,red.returncode)
+           ^^^^^^^^^^^^^^^^^
+AssertionError: ('new-kingdom-identity', 0)

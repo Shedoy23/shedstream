@@ -1,0 +1,11 @@
+policy-name MUTATION 1 RESTORED 0
+direct-tribute MUTATION 1 RESTORED 0
+tax-rate MUTATION 1 RESTORED 0
+war-target-name MUTATION 1 RESTORED 0
+peace-vote-target-name MUTATION 1 RESTORED 0
+read-reversal MUTATION 1 RESTORED 0
+scheduled-token-tail MUTATION 1 RESTORED 0
+pending-token-tail MUTATION 1 RESTORED 0
+preaction-read-barrier MUTATION 1 RESTORED 0
+new-kingdom-identity MUTATION 0 RESTORED 0
+missing-price-gate MUTATION 1 RESTORED 0

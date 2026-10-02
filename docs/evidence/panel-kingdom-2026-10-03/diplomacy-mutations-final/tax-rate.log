@@ -1,0 +1,38 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-diplomacy-parity.test.tsx -t tax 25 exact data
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-diplomacy-parity.test.tsx (36 tests | 1 failed | 35 skipped) 494ms
+   × tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh 493ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+AssertionError: expected { tax_rate_pct: 26, …(1) } to have property "tax_rate_pct" with value 25
+
+- Expected
++ Received
+
+- 25
++ 26
+
+ ❯ test/panel-diplomacy-parity.test.tsx:11:268
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 35 skipped (36)
+   Start at  18:15:04
+   Duration  1.59s (tests 34%, environment 34%, transform 23%, import 10%)

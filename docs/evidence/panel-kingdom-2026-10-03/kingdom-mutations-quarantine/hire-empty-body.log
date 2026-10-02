@@ -1,0 +1,49 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-kingdom-parity.test.tsx -t NPC hire quote confirmation true
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation true and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-kingdom-parity.test.tsx (20 tests | 1 failed | 19 skipped) 725ms
+   × NPC hire quote confirmation true and 7s queue feedback 723ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation true and 7s queue feedback
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(63) ] to deeply equal [ { method: 'GET', …(6) }, …(63) ]
+
+- Expected
++ Received
+
+@@ -110,10 +110,11 @@
+    {
+      "body": {
+        "action_type": "hero.recruit_vassal_clan",
+        "data": {
+          "client_action_id": "<generated-action-id>",
++         "price": 0,
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:8:463
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 19 skipped (20)
+   Start at  18:25:39
+   Duration  1.75s (tests 44%, environment 31%, transform 16%, import 8%)

@@ -1,0 +1,43 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-kingdom-safety.test.tsx -t fresh observed fixture_kingdom/false contradiction
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-kingdom-safety.test.tsx > fresh observed fixture_kingdom/false contradiction cancels .bnr-recruit-vassal consent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > fresh observed fixture_kingdom/false contradiction cancels .bnr-kingdom-leave consent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-kingdom-safety.test.tsx (54 tests | 2 failed | 52 skipped) 619ms
+   × fresh observed fixture_kingdom/false contradiction cancels .bnr-recruit-vassal consent 471ms
+   × fresh observed fixture_kingdom/false contradiction cancels .bnr-kingdom-leave consent 147ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > fresh observed fixture_kingdom/false contradiction cancels .bnr-recruit-vassal consent
+ FAIL  test/panel-kingdom-safety.test.tsx > fresh observed fixture_kingdom/false contradiction cancels .bnr-kingdom-leave consent
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-kingdom-safety.test.tsx:28:435
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 52 skipped (54)
+   Start at  18:25:20
+   Duration  1.62s (tests 41%, environment 31%, transform 19%, import 9%)

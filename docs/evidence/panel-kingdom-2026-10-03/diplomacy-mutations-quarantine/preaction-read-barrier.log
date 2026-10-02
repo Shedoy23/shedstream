@@ -1,0 +1,38 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-diplomacy-safety.test.tsx -t accepted mutation prevents pre-action
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-diplomacy-safety.test.tsx > accepted mutation prevents pre-action state from resurrecting old tax
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-diplomacy-safety.test.tsx (48 tests | 1 failed | 47 skipped) 485ms
+   × accepted mutation prevents pre-action state from resurrecting old tax 484ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > accepted mutation prevents pre-action state from resurrecting old tax
+AssertionError: expected 50 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 50
+
+ ❯ test/panel-diplomacy-safety.test.tsx:18:396
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 47 skipped (48)
+   Start at  18:25:01
+   Duration  1.49s (environment 36%, tests 35%, transform 20%, import 10%)

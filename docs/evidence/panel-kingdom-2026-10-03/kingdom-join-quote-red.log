@@ -1,0 +1,67 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-kingdom-safety.test.tsx -t join unverified|join retry
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-kingdom-safety.test.tsx > join unverified price undefined is an intentional fail-closed divergence from old fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > join unverified price null is an intentional fail-closed divergence from old fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > join unverified price 100000 is an intentional fail-closed divergence from old fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > join unverified price -1 is an intentional fail-closed divergence from old fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-safety.test.tsx > join retry keeps draft and accepts a real zero quote without sending price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-kingdom-safety.test.tsx (45 tests | 5 failed | 40 skipped) 1046ms
+   × join unverified price undefined is an intentional fail-closed divergence from old fallback 490ms
+   × join unverified price null is an intentional fail-closed divergence from old fallback 174ms
+   × join unverified price 100000 is an intentional fail-closed divergence from old fallback 127ms
+   × join unverified price -1 is an intentional fail-closed divergence from old fallback 126ms
+   × join retry keeps draft and accepts a real zero quote without sending price 128ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > join unverified price undefined is an intentional fail-closed divergence from old fallback
+ FAIL  test/panel-kingdom-safety.test.tsx > join unverified price null is an intentional fail-closed divergence from old fallback
+ FAIL  test/panel-kingdom-safety.test.tsx > join unverified price 100000 is an intentional fail-closed divergence from old fallback
+ FAIL  test/panel-kingdom-safety.test.tsx > join unverified price -1 is an intentional fail-closed divergence from old fallback
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ test/panel-kingdom-safety.test.tsx:22:368
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  test/panel-kingdom-safety.test.tsx > join retry keeps draft and accepts a real zero quote without sending price
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-kingdom-safety.test.tsx:6:111
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ click test/panel-kingdom-safety.test.tsx:6:86
+ ❯ test/panel-kingdom-safety.test.tsx:23:410
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 40 skipped (45)
+   Start at  18:09:15
+   Duration  2.10s (tests 53%, environment 26%, transform 14%, import 7%)

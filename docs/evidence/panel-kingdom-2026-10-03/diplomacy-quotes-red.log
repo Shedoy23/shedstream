@@ -1,0 +1,126 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-diplomacy-quotes.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-diplomacy-quotes.test.tsx > hero.enact_policy unverified undefined quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > hero.enact_policy unverified null quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > hero.enact_policy unverified 2000 quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > hero.enact_policy unverified -1 quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > hero.make_peace unverified undefined quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > hero.make_peace unverified null quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > hero.make_peace unverified 2000 quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > hero.make_peace unverified -1 quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > kingdom.propose_war unverified undefined quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > kingdom.propose_war unverified null quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > kingdom.propose_war unverified 2000 quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > kingdom.propose_war unverified -1 quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > kingdom.propose_peace unverified undefined quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > kingdom.propose_peace unverified null quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > kingdom.propose_peace unverified 2000 quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > kingdom.propose_peace unverified -1 quote blocks real old action affordance safely
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-quotes.test.tsx > politics quote retry preserves direct-peace target/tribute and restores button
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-diplomacy-quotes.test.tsx (21 tests | 17 failed) 2949ms
+   × hero.enact_policy unverified undefined quote blocks real old action affordance safely 478ms
+   × hero.enact_policy unverified null quote blocks real old action affordance safely 149ms
+   × hero.enact_policy unverified 2000 quote blocks real old action affordance safely 138ms
+   × hero.enact_policy unverified -1 quote blocks real old action affordance safely 129ms
+   × hero.make_peace unverified undefined quote blocks real old action affordance safely 138ms
+   × hero.make_peace unverified null quote blocks real old action affordance safely 126ms
+   × hero.make_peace unverified 2000 quote blocks real old action affordance safely 116ms
+   × hero.make_peace unverified -1 quote blocks real old action affordance safely 121ms
+   × kingdom.propose_war unverified undefined quote blocks real old action affordance safely 109ms
+   × kingdom.propose_war unverified null quote blocks real old action affordance safely 106ms
+   × kingdom.propose_war unverified 2000 quote blocks real old action affordance safely 102ms
+   × kingdom.propose_war unverified -1 quote blocks real old action affordance safely 102ms
+   × kingdom.propose_peace unverified undefined quote blocks real old action affordance safely 96ms
+   × kingdom.propose_peace unverified null quote blocks real old action affordance safely 99ms
+   × kingdom.propose_peace unverified 2000 quote blocks real old action affordance safely 100ms
+   × kingdom.propose_peace unverified -1 quote blocks real old action affordance safely 95ms
+   × politics quote retry preserves direct-peace target/tribute and restores button 132ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 17 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-diplomacy-quotes.test.tsx > hero.enact_policy unverified undefined quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > hero.enact_policy unverified null quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > hero.enact_policy unverified 2000 quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > hero.enact_policy unverified -1 quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > hero.make_peace unverified undefined quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > hero.make_peace unverified null quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > hero.make_peace unverified 2000 quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > hero.make_peace unverified -1 quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > kingdom.propose_war unverified undefined quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > kingdom.propose_war unverified null quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > kingdom.propose_war unverified 2000 quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > kingdom.propose_war unverified -1 quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > kingdom.propose_peace unverified undefined quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > kingdom.propose_peace unverified null quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > kingdom.propose_peace unverified 2000 quote blocks real old action affordance safely
+ FAIL  test/panel-diplomacy-quotes.test.tsx > kingdom.propose_peace unverified -1 quote blocks real old action affordance safely
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ test/panel-diplomacy-quotes.test.tsx:6:462
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯
+
+ FAIL  test/panel-diplomacy-quotes.test.tsx > politics quote retry preserves direct-peace target/tribute and restores button
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-diplomacy-quotes.test.tsx:8:440
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ test/panel-diplomacy-quotes.test.tsx:8:367
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  17 failed | 4 passed (21)
+   Start at  18:10:33
+   Duration  4.00s (tests 76%, environment 13%, transform 8%, import 4%)

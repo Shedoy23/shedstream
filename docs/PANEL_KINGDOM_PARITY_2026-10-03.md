@@ -1,10 +1,12 @@
-# Королевство и политика: локальный Preact checkpoint
+# Королевство и политика: завершённые локальные карточки Preact
+
+Последний проверенный app/test SHA **85ad2cd9aa6a03d6a031efc77be2e802c74eda31** (runtime correction38beb21): **763 unit/DOM +2 real HTTP**,17legacy gates; canonical panel-mobile **218909 raw /57729 gzip-9**. Кандидат9b0056f отозван после независимого замечания и заменён исправлением ниже.
 
 Работа идёт только в `frontend-next`; публикация GitHub, merge, deploy и Twitch submission заблокированы. Legacy frontend, backend, моды, OBS и frozen ZIP не меняются. Браузер/318 px/телефон/Hosted Test и игровые эффекты не проверены.
 
 ## K1: полная карточка «Королевство»
 
-Исходник `5234be7`; red `6eef9c4` (20 отсутствующих экранных/паритетных сценариев) и `7c33215` (37 safety red, 2 уже зелёных absence gates). После исправления ошибочного сравнения whitespace целой модалки каждый её смысловой узел сравнивается отдельно; финальный focused набор **58/58 exit 0**, typecheck exit 0. После точного восстановления каждой из четырёх request-family mutations общий прогон **642 passed + 2 opt-in HTTP skipped**, build/typecheck/check-build exit 0. K2 ещё в работе.
+Исходник `5234be7`; red `6eef9c4` (20 отсутствующих экранных/паритетных сценариев) и `7c33215` (37 safety red, 2 уже зелёных absence gates). После исправления ошибочного сравнения whitespace целой модалки каждый её смысловой узел сравнивается отдельно; финальный focused набор **58/58 exit 0**, typecheck exit 0. После точного восстановления каждой из четырёх request-family mutations общий прогон **642 passed + 2 opt-in HTTP skipped**, build/typecheck/check-build exit 0. На этом первом историческом checkpoint K2 ещё не был перенесён; итог обеих карточек ниже.
 
 K1 mutations: create-name, join-name, leave empty-body, hire empty-body — каждый exit 1, побайтовое восстановление своего backup и затем соответствующий focused exit 0. Полные логи и SHA в `docs/evidence/panel-kingdom-2026-10-03/mutations/summary.json`.
 
@@ -32,7 +34,7 @@ K1 mutations: create-name, join-name, leave empty-body, hire empty-body — ка
 
 ## K2: полная карточка «Политика»
 
-Source checkpoint `dbc125c`, уточнения prices/feedback `b969dd0` + `ace9e2b`, дополнительные safety checks `07741be`. Red `39d7ba9`:36/36, `c10f56a`:37/37. Первичный K2 focused73/73; далее общий focused K1+K2 вырос до172 сценариев (69 K1 +103 K2). Финальные aggregate/build/HTTP ниже добавляются после восстановления mutations.
+Source checkpoint `dbc125c`, уточнения prices/feedback `b969dd0` + `ace9e2b`, дополнительные safety checks `07741be`. Red `39d7ba9`:36/36, `c10f56a`:37/37. Первичный K2 focused73/73; далее общий focused K1+K2 вырос до172 сценариев (69 K1 +103 K2). Финальные aggregate/build/HTTP после восстановления mutations приведены ниже.
 
 - Все12 существующих policy IDs/names/descriptions, включая настоящий spelling `policy_land_grands_for_veteran`. Active/pending/removed badge state приходит с сервера; неизвестная active law отображается, но не выдумывает selectable option. Pending не отправляет POST
 - Direct peace сохраняет отдельную форму: trim ≥2, тот же введённый текст в обоих target fields, `parseInt(value)||0`, отрицательная дань, отсутствие Enter binding, close-before-submit. Даже20000 остаётся wire20000, server clamp не присваивается клиенту
@@ -56,3 +58,45 @@ Source checkpoint `dbc125c`, уточнения prices/feedback `b969dd0` + `ace
 ### Финальные controlled mutations
 
 После последних price/feedback corrections повторены4 K1 request mutations: каждый mutation exit1, own byte-exact restore, соответствующий restored focused exit0. Для K2 выполнены5 request families (law name, direct tribute, tax rate, war name, peace-vote name) и6 guard mutations. **10 killed exit1 /1 redundant survivor exit0**, все11 restored focused exit0. Survivor — удаление только nested kingdom ID из kingdomOwner: независимая проверка совпадения diplomacy-state/hero realm ID продолжает блокировать действие. Это явно не убитая мутация, не повод убирать независимую защиту. Более ранний strict mutation runner остановился на этом survivor, source был восстановлен finally; затем ожидаемый исход зафиксирован и весь набор повторён.
+
+
+## Исторический прогон 9b0056f: отозван как финальный
+
+Проверки ниже были зелёными на **9b0056fc3a76b3f120bb1b726158943f627c6a26**, но независимый review нашёл наблюдаемый split-realm blocker; этот SHA **не финальный и не принят**. Исправление и повторный итог ниже.
+
+| Проверка | Итог |
+|---|---|
+| Полный frontend-next unit/DOM aggregate | **756 passed**,2 HTTP opt-in skipped в этом запуске |
+| K1 и K2 внутри aggregate | **69 +103 =172** сценария |
+| Свежие реальные HTTP мини-игр | **2 passed**; новый disposable SQLite, server+tests в одной exec-сессии |
+| Legacy frontend gates | **17/17**,exit0 |
+| Typecheck/build/check-build | exit0 |
+| Legacy ESLint + globals self-test | exit0 |
+| Mobile initial import closure | **217852 raw /57551 gzip-9 bytes** |
+| Защищённые frontend/backend/mod/OBS/ZIP и root STATUS/DEFERRED | не изменены этим исполнителем |
+
+Сравнение canonical panel-mobile: предыдущие clan/army184297/50336 → K1 197836/52899 → полный K1+K2 **217852/57551**. Команда `node frontend-next/scripts/measure-build.mjs frontend-next/dist panel-mobile.html`; файл и импортируемые локальные runtime JS/CSS входят, внешний Twitch Helper/API/maps исключены. Прежний черновой sizes-файл случайно использовал default `mobile.html` мини-игр; до финального checkpoint он заменён правильным panel-mobile измерением. Это не mobile load-time тест. `node_modules` — собственный обычный каталог checkout, не внешний symlink. Читаемый unminified build и original source maps сохранены.
+
+Полные логи и machine-readable итог — `docs/evidence/panel-kingdom-2026-10-03/final-verification.json` и соседние файлы. Новые quotes0/null/string/missing, реальные отказы, stale ownership, saved Dynasty startup, collapse/details telemetry, pending read/action/rebind и cooldown barriers покрыты. Direct-handler fixtures НЕ проверяют внешний JWT wrapper; отдельный мини-игровой HTTP smoke не превращает их в проверку Bannerlord HTTP auth или игровых эффектов.
+
+Облачный browser loopback ранее denied, компьютер владельца offline. Не обходили эти ограничения. Визуальный318px/телефон, Hosted Test Twitch, использование с настоящим game/mod, атомарность согласия между UI и server/engine ещё не подтверждены. Ни публикации GitHub, ни merge, deploy, загрузки ZIP/Twitch не было. Полностью готовы только перечисленные карточки; оставшаяся Dynasty и остальные области панели отдельно.
+
+
+## Независимо найденное расхождение realm/role
+
+Независимый probe на07741be показал: свежий kingdom-state другого королевства отбрасывался `return {}`, оставляя старую actionable ruler state. Это наблюдаемое расхождение двух API, не «невидимая session смена». Свежий non-ruler ответ того же realm также не отменял K1 NPC/leave consent. Дополнительный hero update мог стирать quarantine раньше согласования.
+
+Red **e09d3b5** воспроизвёл6/6 таких отправок/незащищённых состояний. Fix **38beb21** хранит последнюю принятую diplomacy observation даже при расхождении, карантинит K1 и K2 mutations и очищает опасный consent/draft. Сравниваются realm presence, nested ID и наблюдаемые ruler/clan-leader роли. Quarantine не теряется при следующем hero update и снимается только когда оба источника согласованы. Пока diplomacy read ещё вовсе не было, K1 не блокируется; это отдельно проверено. Genuine nohero по-прежнему очищает Politics slot, а K1 остаётся закрыт при известном противоречии.
+
+Тестовая поддержка теперь по умолчанию выбирает согласованные настоящие hero/kingdom handler fixtures для independent/vassal/ruler/other. Противоречие задаётся явно в специальных тестах, а не наследуется случайно от дефолтного ruler. Ни одно ожидаемое нормальное request поле или tail для этого не нормализовано. Полный focused после correction **179/179 exit0**, typecheck0. Дополнительные3 mutations возвращают discard observation, premature clear и K1 admission bypass. Все3 новые mutations убиты exit1 и побайтно восстановлены; полный набор и aggregate повторены, итог ниже.
+
+
+## Окончательный восстановленный итог
+
+Проверенный source/test **85ad2cd9aa6a03d6a031efc77be2e802c74eda31**, runtime fix **38beb21**. Полный aggregate после последнего byte-exact restore: **763 passed**,2 opt-in skipped. Затем новый отдельный disposable HTTP server на loopback4295 запущен и оба mini-game HTTP tests исполнены в той же exec-сессии: **2 passed**; сервер остановлен. **17/17** legacy gates, typecheck/build/check-build, ESLint/globals и diff check — exit0. K1 **74**, K2 **105** (вместе179) included unit/DOM scenarios. Старые756/217852/57551 относятся исключительно к отозванному9b и не являются последним результатом.
+
+Все4 K1 и5 K2 request-family mutations после correction снова дали exit1, own byte-exact restore и green0. С учётом guard mutations: **17 killed +1 redundant survivor;18 verified restores и18 соответствующих green runs**. Новые3 guards отдельно доказывают, что свежую противоречивую observation нельзя отбросить, преждевременно стереть при hero update или обойти в K1 admission. `diplomacy-mutations-quarantine/summary.json` + `kingdom-mutations-quarantine/summary.json` — окончательные summaries.
+
+Canonical `panel-mobile.html` import closure **218909 raw /57729 gzip-9 bytes**, отдельный Helper/API/maps не входят. Команда и полный список файлов — `kingdom-quarantine-final-sizes.json`. Source/tests после последнего прогонa не менялись; завершающий commit сохраняет только этот report и доказательства. Final machine-readable record — `final-verification.json`; более ранний record переименован `superseded-9b0056-verification.json` и относится к кандидату, отклонённому независимым обзором.
+
+Независимое замечание не замолчано: исходный механизм, committed red, исправление, дополнительная защита K1 и повторный полный прогон сохранены. Browser318px/телефон/Hosted/game и atomic consent остаются честными ограничениями. GitHub publication/merge/deploy/Twitch submission не выполнялись.

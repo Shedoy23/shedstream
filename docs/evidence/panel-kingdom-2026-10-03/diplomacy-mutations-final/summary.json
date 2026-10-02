@@ -1,0 +1,112 @@
+[
+  {
+    "mutation": "policy-name",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "a6915bb5cfca3679505bbb014fb6d75baae0e285c16963bb8f1f3135cf16bc42"
+    }
+  },
+  {
+    "mutation": "direct-tribute",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "a6915bb5cfca3679505bbb014fb6d75baae0e285c16963bb8f1f3135cf16bc42"
+    }
+  },
+  {
+    "mutation": "tax-rate",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "a6915bb5cfca3679505bbb014fb6d75baae0e285c16963bb8f1f3135cf16bc42"
+    }
+  },
+  {
+    "mutation": "war-target-name",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "a6915bb5cfca3679505bbb014fb6d75baae0e285c16963bb8f1f3135cf16bc42"
+    }
+  },
+  {
+    "mutation": "peace-vote-target-name",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "a6915bb5cfca3679505bbb014fb6d75baae0e285c16963bb8f1f3135cf16bc42"
+    }
+  },
+  {
+    "mutation": "read-reversal",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "a6915bb5cfca3679505bbb014fb6d75baae0e285c16963bb8f1f3135cf16bc42"
+    }
+  },
+  {
+    "mutation": "scheduled-token-tail",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "a6915bb5cfca3679505bbb014fb6d75baae0e285c16963bb8f1f3135cf16bc42"
+    }
+  },
+  {
+    "mutation": "pending-token-tail",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "a6915bb5cfca3679505bbb014fb6d75baae0e285c16963bb8f1f3135cf16bc42"
+    }
+  },
+  {
+    "mutation": "preaction-read-barrier",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "controller.ts": "a6915bb5cfca3679505bbb014fb6d75baae0e285c16963bb8f1f3135cf16bc42"
+    }
+  },
+  {
+    "mutation": "new-kingdom-identity",
+    "mutation_exit": 0,
+    "classification": "redundant guard survivor: independent state/hero realm agreement still blocks stale send",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "kingdom.ts": "370e94401bc5afb51965608a0f65a2b8e830d57ac0db3ed399491e544e57957f"
+    }
+  },
+  {
+    "mutation": "missing-price-gate",
+    "mutation_exit": 1,
+    "classification": "killed",
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": {
+      "diplomacy.ts": "e1d06c8864179b1fad1b4a96b61dcca01c893029b696ae56d07382126717b7aa"
+    }
+  }
+]

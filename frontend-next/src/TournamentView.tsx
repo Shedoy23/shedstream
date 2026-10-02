@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { TournamentAction } from './contracts';
 import type { TournamentViewState } from './controller';
 interface Props { state: TournamentViewState; onAction(action: TournamentAction): void; onRefresh(): void }
@@ -6,13 +6,20 @@ export function TournamentView({ state, onAction, onRefresh }: Props) {
   const [target, setTarget] = useState<string | null>(null);
   const data = state.data;
   const contextKey = JSON.stringify([data?.my_username, data?.state.status, data?.state.current_round, data?.state.started_at, data?.state.participants, data?.my_prediction]);
-  useEffect(() => { setTarget(null); }, [contextKey, state.canAct]);
+  useLayoutEffect(() => { setTarget(null); }, [contextKey, state.canAct]);
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setTarget(null); };
     document.addEventListener('keydown', close);
     return () => document.removeEventListener('keydown', close);
   }, []);
   const eligibleTarget = target && data?.state.status === 'running' && data.state.participants.includes(target) && !data.my_prediction && state.canAct;
+  const confirmation = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (!eligibleTarget) return;
+    const previous = document.activeElement as HTMLElement | null;
+    confirmation.current?.focus();
+    return () => { previous?.focus(); };
+  }, [eligibleTarget]);
   return <section className="tournament-card" aria-labelledby="tournament-heading" aria-busy={state.loading}>
     <header className="card-heading"><div><p className="eyebrow">BANNERLORD</p><h1 id="tournament-heading">Турнир зрителей</h1></div><span className="status-chip">{data?.state.status === 'running' ? `Раунд ${data.state.current_round + 1}` : data?.state.status === 'idle' ? 'Очередь' : 'Ожидание'}</span></header>
     {state.error && <p className="error" role="alert">{state.error}{data && ' · Показан последний полученный снимок; действия недоступны.'}</p>}
@@ -39,7 +46,7 @@ export function TournamentView({ state, onAction, onRefresh }: Props) {
     {eligibleTarget && <div className="dialog-backdrop" onClick={event => { if (event.target === event.currentTarget) setTarget(null); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="prediction-title" className="dialog">
         <h2 id="prediction-title">Победит {target}?</h2><p>Бесплатный прогноз. Решение проверяет сервер.</p>
-        <div className="dialog-actions"><button autoFocus className="primary" onClick={() => { if (eligibleTarget) onAction({ action_type: 'tournament.predict', data: { target: target! } }); setTarget(null); }}>Подтвердить прогноз</button><button onClick={() => setTarget(null)}>Отмена</button></div>
+        <div className="dialog-actions"><button ref={confirmation} className="primary" onClick={() => { if (eligibleTarget) onAction({ action_type: 'tournament.predict', data: { target: target! } }); setTarget(null); }}>Подтвердить прогноз</button><button onClick={() => setTarget(null)}>Отмена</button></div>
       </section>
     </div>}
   </section>;

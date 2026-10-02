@@ -105,3 +105,7 @@ it('forge unavailable quote has an explicit recovery control that preserves disc
   expect((p.ui.container.querySelector('[data-bnr-details="inv-forge"]') as HTMLDetailsElement).open).toBe(true);
   expect((p.ui.container.querySelector(head) as HTMLButtonElement)?.title).toContain('24680'); await click(p); expect(posts(p)).toHaveLength(1);
 });
+it('forge same-task navigation fences a saved inventory callback before Preact disables it', async () => {
+  const p = await forgePair(); await toggle(p, 'inv-forge'); const button = p.ui.container.querySelector(head) as HTMLButtonElement;
+  await act(async () => { p.ui.getByRole('button', { name: 'Развитие' }).click(); button.click(); await flush(); }); expect(posts(p)).toHaveLength(0);
+});

@@ -1,16 +1,18 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType } from 'react';
 import type { IdentityBootstrap } from '../skillgames/identity';
 import type { PanelController } from './controller';
+import { CombatView } from './CombatView';
 import { HeroDevelopmentView } from './HeroDevelopmentView';
-export function PanelApp({ controller, identity, Equipment }: { controller: PanelController; identity: IdentityBootstrap; Equipment?: ComponentType<{ controller: PanelController; active?: boolean }> }) {
+export function PanelApp({ controller, identity, Equipment, combat = false }: { controller: PanelController; identity: IdentityBootstrap; combat?: boolean; Equipment?: ComponentType<{ controller: PanelController; active?: boolean }> }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   const gate = useSyncExternalStore(identity.subscribe, identity.snapshot);
-  const [tab, setTab] = useState<'development' | 'equipment'>('development');
+  const [tab, setTab] = useState<'development' | 'equipment' | 'combat'>('development');
   const currentTab = useRef(tab); currentTab.current = tab;
-  useLayoutEffect(() => { void controller.start(); return () => controller.stop(); }, [controller]);
+  useLayoutEffect(() => { if (combat) controller.enableCombat(); void controller.start(); return () => controller.stop(); }, [controller, combat]);
   useEffect(() => {
     if (!state.canAct) return;
     const snapshotTimer = setInterval(() => { if (!document.hidden) { void controller.refreshHero(); void controller.refreshClasses(); void controller.refreshBuild(); if (currentTab.current === 'equipment') void controller.refreshEquipment(); } }, 8000);
+    const battleTimer = combat ? setInterval(() => { if (!document.hidden) void controller.refreshBattle(); }, 2000) : undefined;
     const cooldownTimer = setInterval(() => { if (!document.hidden) void controller.refreshBuffs(); }, 2500);
     const ticker = setInterval(controller.tick, 1000);
     // Register selected-host pollers before recording its initial exposure,
@@ -18,10 +20,10 @@ export function PanelApp({ controller, identity, Equipment }: { controller: Pane
     controller.trackVisiblePanels();
     const visible = controller.trackVisiblePanels;
     document.addEventListener('visibilitychange', visible);
-    return () => { clearInterval(snapshotTimer); clearInterval(cooldownTimer); clearInterval(ticker); document.removeEventListener('visibilitychange', visible); };
-  }, [controller, state.canAct]);
+    return () => { clearInterval(snapshotTimer); clearInterval(battleTimer); clearInterval(cooldownTimer); clearInterval(ticker); document.removeEventListener('visibilitychange', visible); };
+  }, [controller, state.canAct, combat]);
   const changeTab = (next: typeof tab) => {
-    if (currentTab.current !== next) controller.trackSection(next === 'development' ? 'bannerlord:tab.hero' : 'bannerlord:tab.inventory');
+    if (currentTab.current !== next) controller.trackSection(next === 'development' ? 'bannerlord:tab.hero' : next === 'combat' ? 'bannerlord:tab.combat' : 'bannerlord:tab.inventory');
     else if (next === 'equipment' && tab === next) void controller.refreshEquipment();
     currentTab.current = next; setTab(next);
   };
@@ -32,7 +34,8 @@ export function PanelApp({ controller, identity, Equipment }: { controller: Pane
       {!gate.canShare && <p className="panel-muted">Откройте расширение на странице Twitch и проверьте вход в аккаунт.</p>}
     </section>}
     <div hidden={gate.status !== 'ready' || !state.canAct}>
-      {Equipment && <nav className="panel-tabs" aria-label="Раздел героя"><button type="button" aria-pressed={tab === 'development'} onClick={() => changeTab('development')}>Развитие</button><button type="button" aria-pressed={tab === 'equipment'} onClick={() => changeTab('equipment')}>Снаряжение</button></nav>}
+      {(Equipment || combat) && <nav className="panel-tabs" aria-label="Раздел героя"><button type="button" aria-pressed={tab === 'development'} onClick={() => changeTab('development')}>Развитие</button><button type="button" aria-pressed={tab === 'equipment'} onClick={() => changeTab('equipment')}>Снаряжение</button>{combat && <button type="button" aria-pressed={tab === 'combat'} onClick={() => changeTab('combat')}>Боевые действия</button>}</nav>}
+      {combat && <div hidden={tab !== 'combat'}><CombatView controller={controller} /></div>}
       <div hidden={tab !== 'development'}><HeroDevelopmentView controller={controller} /></div>
       {Equipment && <div hidden={tab !== 'equipment'}><Equipment key={state.generation} controller={controller} active={tab === 'equipment' && state.canAct} /></div>}
     </div>

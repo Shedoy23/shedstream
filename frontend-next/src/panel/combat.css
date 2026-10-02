@@ -1,0 +1,16 @@
+.panel-combat {display:grid;gap:12px;min-width:0}
+.panel-combat .panel-card:empty {display:none}
+.panel-combat-actions,.panel-battle-stats {display:flex;flex-wrap:wrap;gap:8px}
+.panel-combat-actions button {flex:1 1 auto}
+.panel-orders {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.panel-orders button {padding:8px 5px;font-size:12px;overflow-wrap:anywhere}
+.panel-orders button span {display:block}
+.panel-summons {display:grid;gap:8px}
+.panel-summons button {display:flex;justify-content:space-between;gap:8px;text-align:left}
+.panel-combat [aria-pressed=true] {border-color:#bda057;background:#3a3220;color:#ffe5a3}
+.panel-battle-banner {border-color:#966233;background:linear-gradient(125deg,#212b36,#442e20)}
+.panel-battle-stats {font-size:12px;justify-content:space-between}
+.panel-hp {height:8px;background:#161b23;border-radius:5px;overflow:hidden;margin:12px 0}
+.panel-hp span {display:block;height:100%;background:linear-gradient(90deg,#d35045,#69b889)}
+.panel-buff {display:inline-block;border-radius:20px;padding:5px 9px;margin:3px;background:#59438b;font-size:12px}
+@media(max-width:340px){.panel-orders {grid-template-columns:repeat(2,minmax(0,1fr))}}

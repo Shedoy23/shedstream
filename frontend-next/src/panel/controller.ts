@@ -1,16 +1,18 @@
 import { TwitchAuthStore } from '../auth';
 import type { PanelUsage } from './usage';
 import type { IdentityBootstrap } from '../skillgames/identity';
-import { actionKey, hasProgressionPrices, UnknownActionOutcomeError, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
+import { actionKey, hasProgressionPrices, UnknownActionOutcomeError, type BattleReply, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
+import { combatAllowed, semanticCooldown } from './combat';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
 export class PanelController {
   private state: PanelState;
   private listeners = new Set<() => void>(); private active = false; private generation = 0; private owner = '';
   private unsubscribe: (() => void)[] = []; private issued: Record<string, number> = {}; private applied: Record<string, number> = {};
+  private combatEnabled = false;
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
   constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now, private readonly usage?: Pick<PanelUsage, 'start' | 'stop' | 'trackPanel' | 'trackSection' | 'trackAction'>) { this.state = this.empty(); }
-  private empty(): PanelState { return { hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
+  private empty(): PanelState { return { battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
   snapshot = () => this.state;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   private publish(patch: Partial<PanelState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()); }
@@ -24,6 +26,7 @@ export class PanelController {
     const previouslyReady = this.state.canAct; const canAct = this.ready(); this.publish({ canAct, ...this.mutationGate() });
     if (canAct && (changed || !previouslyReady)) void this.refresh();
   };
+  enableCombat() { this.combatEnabled = true; }
   async start() {
     if (this.active) return;
     this.active = true; this.owner = owner(this.auth);
@@ -56,18 +59,23 @@ export class PanelController {
       this.applied[key] = request;
       const errors = { ...this.state.errors, [key]: error instanceof Error ? error.message : 'Ошибка сети' };
       // A failed config cannot leave stale prices actionable.
-      this.publish({ ...(key === 'config' ? { config: null } : {}),
+      this.publish({ ...(key === 'config' ? { config: null } : {}), ...(key === 'battle' ? { battle: null } : {}), ...(key === 'buffs' ? { buffsReady: false } : {}),
         ...(key === 'build' && this.state.build ? { build: { ...this.state.build, ready: false, can_manage: false, build: undefined, enabled: !!this.state.build.enabled || this.state.build.build?.version === 1, message: errors[key] } } : {}), errors, error: Object.values(errors)[0] || '' });
     } finally { this.aborts.delete(abort); }
   }
-  refreshHero = () => this.load<HeroReply>('hero', '/api/bannerlord/my-hero', hero => ({ hero }));
+  refreshHero = () => this.load<HeroReply>('hero', '/api/bannerlord/my-hero', hero => ({ hero, optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance ? null : this.state.optimisticStance }));
   refreshConfig = () => this.load<PanelConfig>('config', '/api/bannerlord/config', config => ({ config }));
   refreshClasses = () => this.load<ClassesReply>('classes', '/api/bannerlord/classes', classes => ({ classes }));
-  refreshBuild = () => { const revision = this.buildRevision; return this.load<BuildReply>('build', '/api/bannerlord/build', build => ({ build, buildPending: !!build.pending }), () => revision === this.buildRevision); };
+  refreshBuild = () => { const revision = this.buildRevision; return this.load<BuildReply>('build', '/api/bannerlord/build', build => ({ build, buildPending: !!build.pending, newBuild: this.state.newBuild || !!build.enabled || build.build?.version === 1, buildCooldownUntil: Math.max(this.clock() + (Number.isFinite(build.cooldown_remaining_s) ? Math.max(0, build.cooldown_remaining_s!) : 0) * 1000, Number.isFinite(build.build?.weapon_power_cooldown_until) ? build.build!.weapon_power_cooldown_until! * 1000 : 0) }), () => revision === this.buildRevision); };
   refreshBuffs = () => {
     const revision = this.cooldownRevision;
-    return this.load<BuffsReply>('buffs', '/api/bannerlord/my-buffs', data => ({ cooldowns: revision === this.cooldownRevision ? Object.fromEntries((data.cooldowns || []).map(c => [c.power_key, this.clock() + Math.max(0, c.remaining_s) * 1000])) : this.state.cooldowns }));
+    return this.load<BuffsReply>('buffs', '/api/bannerlord/my-buffs', data => ({ buffsReady: true, buffs: this.expiries(data.buffs), cooldowns: revision === this.cooldownRevision ? this.expiries(data.cooldowns) : this.state.cooldowns }));
   };
+  private expiries(values: BuffsReply['buffs']) { return Object.fromEntries((values || []).filter(c => typeof c.power_key === 'string' && Number.isFinite(c.remaining_s)).map(c => [c.power_key, this.clock() + Math.max(0, c.remaining_s) * 1000])); }
+  refreshBattle = () => this.load<BattleReply>('battle', '/api/bannerlord/battle-status', battle => {
+    if (battle.in_battle && !this.state.battle?.in_battle) void this.refreshBuffs();
+    return { battle };
+  });
   async refreshDevelopment() {
     // The old explicit refresh orders mounted equipment before build; the
     // delayed successful-action tail below deliberately uses the reverse order.
@@ -79,28 +87,47 @@ export class PanelController {
     if (!this.ready()) return;
     const generation = this.generation; this.publish({ loading: true });
     await Promise.all([this.refreshConfig(), this.refreshHero(), this.refreshClasses(), this.refreshBuild(), this.refreshBuffs()]);
+    if (generation === this.generation && this.combatEnabled) { await this.refreshBalance(); if (generation === this.generation) await this.refreshBattle(); }
     if (generation === this.generation) this.publish({ loading: false });
   }
   tick = () => this.publish({ now: this.clock() });
   cooldown(type: string) { return Math.max(0, ((this.state.cooldowns[type] || 0) - this.clock()) / 1000); }
+  refreshBalance = () => this.balance(this.generation, this.identity.snapshot().login || '');
   private async balance(generation: number, login: string) {
+    const request = this.issued.balance = (this.issued.balance || 0) + 1;
+    const current = () => generation === this.generation && this.ready() && request > (this.applied.balance || 0);
     try {
       if (generation !== this.generation || !this.ready()) return;
       const data = await this.transport.read<Record<string, unknown>>('/api/viewer/stats/' + encodeURIComponent(login));
-      if (generation !== this.generation || !this.ready()) return;
-      if (data.status === 'unauthorized' || !('points' in data)) { this.publish({ error: 'Сервер не подтвердил личность для обновления баланса' }); return; }
+      if (!current()) return;
+      this.applied.balance = request;
+      if (data.status === 'unauthorized' || typeof data.points !== 'number' || !Number.isFinite(data.points)) { this.publish({ points: null, error: 'Сервер не подтвердил личность для обновления баланса' }); return; }
+      this.publish({ points: data.points });
+      // The old balance loader coalesces dependent shell reads when two action
+      // successes request stats together. Still apply completed points
+      // monotonically, so a slower newer request cannot starve the balance.
+      if (request !== this.issued.balance) return;
       await Promise.all([this.transport.read('/api/user/level/' + encodeURIComponent(login)), this.transport.read('/api/duel/list')]);
-    } catch (error) { if (generation === this.generation) this.publish({ error: error instanceof Error ? error.message : 'Не удалось обновить баланс' }); }
+    } catch (error) { if (current()) { this.applied.balance = request; this.publish({ points: null, error: error instanceof Error ? error.message : 'Не удалось обновить баланс' }); } }
+  }
+  async combatAction(type: string, data: Record<string, unknown>, buildFamily = false) {
+    if (!combatAllowed(this.state, type, data, buildFamily, this.clock())) return null;
+    const generation = this.generation;
+    if (type === 'hero.set_combat_stance') this.publish({ optimisticStance: String(data.stance) });
+    const result = await this.action(type, data, { tail: 'hero', buildFamily, cooldownKey: semanticCooldown(type, data, buildFamily) });
+    if (generation === this.generation && type === 'hero.set_combat_stance' && !result?.success) this.publish({ optimisticStance: null });
+    return result;
   }
   async action(type: string, data: Record<string, unknown>, options: ActionOptions): Promise<ActionReply | null> {
     if (!this.ready() || this.state.mutationBlocked) return null;
     const generation = this.generation, login = this.identity.snapshot().login!, key = actionKey(type, data);
     // BnrBuilds has one synchronous family lock. Rendered disabled state alone
     // is too late for two different choices clicked before Preact commits.
-    if (type === 'hero.set_specialization' || type === 'hero.claim_starter') {
+    const buildFamily = !!options.buildFamily || type === 'hero.set_specialization' || type === 'hero.claim_starter' || type === 'hero.select_weapon_power';
+    if (buildFamily) {
       const build = this.state.build;
-      if (!build?.ready || !build.can_manage || build.pending || this.state.buildPending || build.build?.in_battle ||
-        this.state.busy.some(value => value.startsWith('hero.set_specialization:') || value.startsWith('hero.claim_starter:'))) return null;
+      if (!build?.ready || build.pending || this.state.buildPending || this.state.buildBusy ||
+        (type !== 'power.activate' && (!build.can_manage || build.build?.in_battle))) return null;
     }
     // Count dispatcher attempts, including a duplicate intent stopped by its
     // per-choice lock, but not choices blocked by the component/family guard.
@@ -108,7 +135,7 @@ export class PanelController {
     // Match legacy per-choice single flight. Different skill/attribute choices
     // remain separate; economic authority stays on the backend.
     if (this.state.busy.includes(key)) { this.publish({ message: '⏳ Предыдущее действие ещё выполняется — секунду' }); if (options.immediateHero) void this.refreshHero(); return null; }
-    this.publish({ busy: [...this.state.busy, key], message: '', error: '' });
+    this.publish({ busy: [...this.state.busy, key], ...(buildFamily ? { buildBusy: true } : {}), message: '', error: '' });
     try {
       const pending = this.transport.action(type, data);
       if (options.immediateHero) void this.refreshHero();
@@ -116,7 +143,7 @@ export class PanelController {
       if (generation !== this.generation || !this.active || !result) return null;
       const seconds = result.success ? result.cooldown_applied_s : result.cooldown_remaining_s;
       if (typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0) {
-        this.cooldownRevision++; this.publish({ cooldowns: { ...this.state.cooldowns, [type]: this.clock() + seconds * 1000 } });
+        this.cooldownRevision++; this.publish({ cooldowns: { ...this.state.cooldowns, [options.cooldownKey || type]: this.clock() + seconds * 1000 } });
       }
       this.publish({ message: (result.required_role && !result.success ? '🔒 ' : '') + (result.success && options.successMessage || result.message || (result.success ? 'Заявка отправлена' : 'Действие не выполнено')) });
       if (result.success) {
@@ -124,7 +151,7 @@ export class PanelController {
         if (options.tail === 'hero') {
           this.applied.hero = this.issued.hero = (this.issued.hero || 0) + 1;
           this.buildRevision++;
-          if (type === 'hero.set_specialization' || type === 'hero.claim_starter') this.publish({ buildPending: true });
+          if (buildFamily) this.publish({ buildPending: true });
           const timer = setTimeout(() => { this.timers.delete(timer); if (generation !== this.generation || !this.ready()) return; void this.refreshHero(); void this.refreshBuild(); void this.equipmentRefresh?.(); }, 3500);
           this.timers.add(timer);
         }
@@ -133,6 +160,6 @@ export class PanelController {
     } catch (error) {
       if (generation === this.generation) this.publish({ mutationBlocked: error instanceof UnknownActionOutcomeError || this.state.mutationBlocked, message: error instanceof UnknownActionOutcomeError ? error.message : 'Ошибка сети: ' + (error instanceof Error ? error.message : String(error)) });
       return null;
-    } finally { if (generation === this.generation) this.publish({ busy: this.state.busy.filter(value => value !== key) }); }
+    } finally { if (generation === this.generation) this.publish({ busy: this.state.busy.filter(value => value !== key), ...(buildFamily ? { buildBusy: false } : {}) }); }
   }
 }

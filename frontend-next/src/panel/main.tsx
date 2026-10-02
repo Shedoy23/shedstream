@@ -16,4 +16,4 @@ const controller = new PanelController(new HttpPanelTransport(configuredApiOrigi
 if (window.Twitch?.ext) identity.attach(window.Twitch.ext);
 const root = document.getElementById('panel-root');
 if (!root) throw new Error('Panel root is missing');
-createRoot(root).render(<PanelApp controller={controller} identity={identity} Equipment={EquipmentView} />);
+createRoot(root).render(<PanelApp controller={controller} identity={identity} Equipment={EquipmentView} combat />);

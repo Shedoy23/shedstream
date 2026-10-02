@@ -1,5 +1,5 @@
 import { act, cleanup, render } from '@testing-library/preact';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, vi } from 'vitest';
 import { TwitchAuthStore } from '../src/auth';
 import { IdentityBootstrap } from '../src/skillgames/identity';
 import { PanelApp } from '../src/panel/PanelApp';

@@ -16,8 +16,8 @@ export function HeroDevelopmentView({ controller }: { controller: PanelControlle
   const canRead = state.canAct && controller.ready();
   const canAct = canRead && !state.mutationBlocked;
   const build = state.build?.build;
-  const newBuild = !!state.build?.enabled || build?.version === 1;
-  const buildBusy = state.busy.some(key => key.startsWith('hero.set_specialization:') || key.startsWith('hero.claim_starter:'));
+  const newBuild = state.newBuild;
+  const buildBusy = state.buildBusy;
   const manage = canAct && !!state.build?.ready && !!state.build.can_manage && !state.buildPending && !state.build.pending && !build?.in_battle && !buildBusy;
   const attributePrice = state.config?.attribute_cost;
   const hasPriceError = !hasProgressionPrices(state.config);

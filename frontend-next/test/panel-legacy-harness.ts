@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import vm from 'node:vm';
 import savedResponses from './panel-fixtures/real-responses.json';
+import combatSaved from './panel-fixtures/combat-responses.json';
 
 const require = createRequire(import.meta.url);
 type LegacyWindow = Window & {
@@ -47,6 +48,7 @@ const sourceFiles = [...shell.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/g)]
 const sources = sourceFiles.map(file => ({ file, source: readFileSync(`${legacyRoot}${file}`, 'utf8') }));
 
 export const legacyResponses = savedResponses.responses;
+export const combatResponses = combatSaved.responses;
 export type LegacyJson = null | boolean | number | string | LegacyJson[] | { [key: string]: LegacyJson | undefined };
 export interface LegacyRequest {
   method: string;
@@ -75,6 +77,7 @@ export interface LegacyFixtures {
   duels: LegacyFixture;
   usage: LegacyFixture;
   equipment: LegacyFixture;
+  battle: LegacyFixture;
 }
 export const legacySelectors = {
   focus: (key: string) => `.bnr-prog-focus-btn[data-skill=${JSON.stringify(key)}]`,
@@ -86,7 +89,7 @@ export const legacySelectors = {
 };
 
 export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, options: {
-  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean;
+  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean; combatHost?: boolean;
 } = {}) {
   let login = options.login ?? 'alice';
   let token = options.token ?? 'alice-token';
@@ -121,6 +124,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     duels: legacyResponses.duels,
     usage: legacyHttpReply(legacyResponses.usage_unauthorized, 401),
     equipment: legacyResponses.equipment_inventory,
+    battle: combatResponses.battle_idle,
     ...overrides,
   };
   const dom = new JSDOM(shell, { url: 'https://extension-files.twitch.tv/extension.html', runScripts: 'outside-only', pretendToBeVisual: true });
@@ -180,6 +184,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     ['GET /api/bannerlord/classes', 'classes'], ['GET /api/bannerlord/build', 'build'],
     ['GET /api/bannerlord/my-buffs', 'buffs'], ['POST /api/bannerlord/action', 'action'],
     ['GET /api/bannerlord/equipment-shop', 'equipment'],
+    ['GET /api/bannerlord/battle-status', 'battle'],
     [`GET /api/viewer/stats/${login}`, 'stats'], [`GET /api/user/level/${login}`, 'level'],
     ['GET /api/duel/list', 'duels'], ['POST /api/viewer/ui-usage', 'usage'],
   ]);
@@ -220,7 +225,9 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
   document.body.innerHTML = equipmentOnly
     ? '<main id="bannerlord-content"><div id="bnr-equipment-shop"></div></main>'
     : `<main id="bannerlord-content">
+    ${options.combatHost ? '<button class="bnr-tab-btn" data-bnr-tab="combat">Боевые действия</button>' : ''}
     ${options.panelLifecycle ? '<button class="bnr-tab-btn" data-bnr-tab="hero">Развитие</button><button class="bnr-tab-btn" data-bnr-tab="inventory">Снаряжение</button>' : ''}
+    ${options.combatHost ? '<section class="bnr-tab-pane" data-bnr-pane="combat"><div id="bnr-battle-banner-slot"></div><div id="bnr-combat-stance-slot"></div><div id="bnr-buff-hud"></div><div id="bnr-detachment-slot"></div><div id="bnr-summon-slot" data-bnr-ui-section="summon"></div><div id="bnr-active-powers-slot" data-bnr-ui-section="active_powers"></div><div id="bnr-build-choice-slot" data-bnr-ui-section="weapon_choice"></div></section>' : ''}
     <div id="hero-body"></div>
     <section id="bnr-pane-hero-body" class="bnr-tab-pane active" data-bnr-pane="hero">
       <div id="bnr-pane-hero-stats"></div>
@@ -269,6 +276,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     const reads = equipmentOnly ? 'loadBannerlordEquipmentShop();'
       : 'loadBannerlordHero(); loadBannerlordClasses(); loadBannerlordBuild();' + (options.panelLifecycle ? `if (document.querySelector('[data-bnr-pane="inventory"].active')) loadBannerlordEquipmentShop();` : '');
     evaluate(`_bannerlordPollId = safeInterval(() => { if (!document.hidden) { ${reads} } }, 8000);`);
+    if (options.combatHost) evaluate('safeInterval(() => { if (!document.hidden) loadBannerlordBattleStatus(); }, 2000);');
     if (options.panelLifecycle) evaluate('_bannerlordBuffPollId = safeInterval(() => { if (!document.hidden) loadBannerlordBuffs(); }, 2500);');
   }
   async function bootEquipment() {
@@ -298,6 +306,10 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
       await evaluate<Promise<void>>(`${loader}()`);
       await settle();
     }
+  }
+  async function bootCombat() {
+    if (!options.combatHost) throw new Error('bootCombat requires combatHost:true');
+    await bootHero(); await refresh('loadUserData'); await refresh('loadBannerlordBattleStatus');
   }
   function element(selector: string) {
     const node = document.querySelector<HTMLElement>(selector);
@@ -330,9 +342,10 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
   }
   function dispose() { disposed = true; timers.clear(); window.close(); }
   assertHealthy();
-  return { bootHero, bootEquipment, resetEquipment, setIdentity, exposeUsagePanels, setHidden, trace, document, window, fixtures, sourceFiles: [...sourceFiles], settle, advance, click, change,
+  return { bootHero, bootCombat, bootEquipment, resetEquipment, setIdentity, exposeUsagePanels, setHidden, trace, document, window, fixtures, sourceFiles: [...sourceFiles], settle, advance, click, change,
     refreshConfig: () => refresh('_hydrateBnrConfig'),
     refreshHero: () => refresh('loadBannerlordHero'), refreshBuild: () => refresh('loadBannerlordBuild'),
     refreshBuffs: () => refresh('loadBannerlordBuffs'),
+    refreshBattle: () => refresh('loadBannerlordBattleStatus'),
     refreshEquipment: () => refresh('loadBannerlordEquipmentShop'), assertHealthy, dispose };
 }

@@ -149,3 +149,6 @@ async def main():
         finally:
             await db._pool.close()
 asyncio.run(main())
+# Combat uses a separate temporary DB, preserving the first two scopes verbatim.
+import subprocess
+subprocess.run([sys.executable, str(OUT/'generate-combat-responses.py'), str(REPO)], check=True)

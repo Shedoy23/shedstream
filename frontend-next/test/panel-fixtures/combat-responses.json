@@ -1,0 +1,5209 @@
+{
+  "provenance": {
+    "kind": "direct real route handlers on isolated full-migration DB; not HTTP or live game",
+    "weapon_options_source": "BannerlordLink/src/Util/HeroBuildPolicy.cs parsed definitions",
+    "battle_participant_source": "BannerlordLink/src/Behaviors/KillRewardBehavior.cs PushStatsSnapshot, representative values",
+    "all_weapon_options_available": "branch coverage snapshot, not a claimed real loadout"
+  },
+  "responses": {
+    "config": {
+      "ui": {
+        "version": 1,
+        "combat_order": [
+          "summon",
+          "active_powers",
+          "tournament",
+          "weapon_choice"
+        ],
+        "combat_visible": {
+          "summon": true,
+          "active_powers": true,
+          "tournament": true,
+          "weapon_choice": true
+        },
+        "labels": {
+          "active_powers": "Активки",
+          "tournament": "🏆 Турнир зрителей",
+          "weapon_choice": "Оружейная способность",
+          "summon_ally": "📯 Призвать за стримера",
+          "summon_enemy": "⚔️ Призвать против стримера",
+          "discard": "🗑 Выкинуть вещь"
+        },
+        "tier_colors": {
+          "1": {
+            "text": "#c0c3ca",
+            "border": "#5b5e66",
+            "background": "#2b2d31"
+          },
+          "2": {
+            "text": "#89dba1",
+            "border": "#467457",
+            "background": "#203127"
+          },
+          "3": {
+            "text": "#87c6fa",
+            "border": "#426c91",
+            "background": "#202d3a"
+          },
+          "4": {
+            "text": "#c7a0f5",
+            "border": "#785398",
+            "background": "#30253b"
+          },
+          "5": {
+            "text": "#f2b17f",
+            "border": "#966139",
+            "background": "#3b2b20"
+          },
+          "6": {
+            "text": "#f5d174",
+            "border": "#aa8436",
+            "background": "#39311e"
+          }
+        }
+      },
+      "give_gold_presets": [
+        {
+          "crusticov": 1000,
+          "dinars": 5000
+        },
+        {
+          "crusticov": 5000,
+          "dinars": 25000
+        },
+        {
+          "crusticov": 20000,
+          "dinars": 100000
+        }
+      ],
+      "add_skill_presets": [
+        {
+          "crusticov": 500,
+          "xp": 50
+        },
+        {
+          "crusticov": 1000,
+          "xp": 100
+        },
+        {
+          "crusticov": 5000,
+          "xp": 500
+        }
+      ],
+      "focus_tier_costs": [
+        30000,
+        40000,
+        50000,
+        60000,
+        75000
+      ],
+      "attribute_cost": 50000,
+      "recruit_tier_costs": [
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        80000
+      ],
+      "recruit_elite_mult": 3,
+      "gear_upgrade_costs": {
+        "1": 50000,
+        "2": 100000,
+        "3": 200000,
+        "4": 400000,
+        "5": 800000,
+        "6": 1500000
+      },
+      "reforge_price": 20000,
+      "spawn_prices": {
+        "player": 50,
+        "enemy": 100
+      },
+      "gender_swap_cost": 50000,
+      "baby_cost": 100000,
+      "workshop_price": 2500,
+      "caravan_price": 4000,
+      "tournament_prize_gold": 50000,
+      "tournament_round_gold": 10000,
+      "action_prices": {
+        "hero.set_specialization": 0,
+        "hero.select_weapon_power": 0,
+        "hero.claim_starter": 0,
+        "hero.buy_equipment": 0,
+        "hero.equip_owned": 0,
+        "hero.unequip_owned": 0,
+        "hero.discard_owned": 0,
+        "hero.create": 0,
+        "player.modify_attribute": 50,
+        "world.trigger_event": 1000,
+        "hero.reforge_quality": 20000,
+        "hero.set_combat_stance": 0,
+        "hero.discard_item": 0,
+        "hero.detach": 10,
+        "hero.attach": 10,
+        "hero.detach_hold": 30,
+        "hero.detach_charge": 30,
+        "hero.detach_skirmish": 30,
+        "hero.detach_raid": 30,
+        "hero.detach_walls": 30,
+        "hero.detach_gate": 30,
+        "hero.propose_marriage": 100,
+        "hero.respond_marriage_proposal": 0,
+        "hero.cancel_proposal": 0,
+        "hero.rename_child": 50,
+        "hero.change_child_looks": 200,
+        "hero.respec_child_skills": 500,
+        "hero.create_vassal_clan": 0,
+        "hero.recruit_vassal_clan": 0,
+        "hero.rename_vassal": 100,
+        "hero.party_order_set": 500,
+        "hero.party_order_release": 0,
+        "hero.army_create": 1000,
+        "hero.army_disband": 0,
+        "hero.enact_policy": 1500,
+        "hero.make_peace": 2000,
+        "kingdom.propose_war": 2000,
+        "kingdom.propose_peace": 3000,
+        "hero.pay_ransom": 500,
+        "kingdom.set_tax_rate": 0,
+        "hero.buy_workshop": 2500,
+        "hero.sell_workshop": 0,
+        "hero.buy_caravan": 4000,
+        "hero.sell_caravan": 0
+      },
+      "power_prices": {
+        "heal_burst": 100,
+        "shield_break_burst": 200,
+        "rage": 300,
+        "retribution_toggle": 300,
+        "poison_dot": 350,
+        "disarm_burst": 250,
+        "berserker_charge": 200,
+        "lifesteal_burst": 300,
+        "ironskin_toggle": 300,
+        "explosive_arrows": 350,
+        "cleave": 350
+      },
+      "hero_gold_costs": {
+        "marry": 50000,
+        "create_clan": 1000000,
+        "join_clan": 50000,
+        "create_kingdom": 5000000,
+        "join_kingdom": 100000,
+        "create_party": 200000,
+        "recruit_vassal": 3000000,
+        "make_baby": 100000,
+        "create_vassal_clan": 250000
+      }
+    },
+    "hero": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 20:07:24",
+        "last_sync": "2026-10-02 20:07:24",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "build_no_session": {
+      "success": true,
+      "enabled": false,
+      "build": {
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": false,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "inventory_not_ready",
+      "message": "Игра ещё не передала инвентарь этого героя"
+    },
+    "buffs_empty": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": []
+    },
+    "classes_by_key": {
+      "archer": {
+        "success": true,
+        "classes": [
+          {
+            "class_key": "archer",
+            "name": "Лучник",
+            "formation": "Ranged",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "Arrows",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Лук + два колчана + кинжал. Держит дистанцию и жжёт взрывными стрелами. Стиль: Баттания (лесной капюшон)."
+          },
+          {
+            "class_key": "assassin",
+            "name": "Убийца",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Thrown"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Кинжал и метательные ножи, разбойничий капюшон. Бьёт слабо и умирает быстро — живёт скрытностью: активка прячет его, и враги теряют цель на 45 секунд (удар ненадолго выдаёт). Кнопка пока подписана «Стойкость» — переименуем в ближайшем обновлении расширения."
+          },
+          {
+            "class_key": "berserk",
+            "name": "Берсерк",
+            "formation": "Infantry",
+            "slots": [
+              "TwoHandedWeapon",
+              "TwoHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Северянин с двумя двуручными топорами. Косит толпу и лечится с урона, но ловит больше — стеклянная пушка. Стиль: Стургия (меха)."
+          },
+          {
+            "class_key": "crossbow",
+            "name": "Арбалетчик",
+            "formation": "Ranged",
+            "slots": [
+              "Crossbow",
+              "Bolts",
+              "Bolts",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Арбалет: медленный, но пробивает броню и разбивает щиты. Крепче лучника. Стиль: Асераи (пустынный стрелок)."
+          },
+          {
+            "class_key": "horse_archer",
+            "name": "Конный Лучник",
+            "formation": "HorseArcher",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "OneHandedWeapon",
+              "Arrows"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Лук верхом: кайт, набег, отравленные стрелы. Самый мобильный. Стиль: Кузаиты (степь)."
+          },
+          {
+            "class_key": "knight",
+            "name": "Кавалерист",
+            "formation": "Cavalry",
+            "slots": [
+              "Polearm",
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Конное копьё + меч + большой щит, латы. Таранный наскок и живучесть в седле. Стиль: Вландия (рыцарь)."
+          },
+          {
+            "class_key": "tank",
+            "name": "Латник",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Булава + большой щит, тяжёлые латы. Несокрушимая стена: держит удар, сбить с ног почти нельзя. Стиль: Империя (ламелляр)."
+          }
+        ],
+        "current": {
+          "class_key": "archer",
+          "class_level": 1,
+          "primary_skill": "Bow",
+          "primary_skill_level": 0,
+          "next_threshold": 50
+        },
+        "current_powers": [
+          {
+            "power_key": "rage",
+            "value": 1.89,
+            "price": 300
+          },
+          {
+            "power_key": "explosive_arrows",
+            "value": 52.5,
+            "price": 350
+          },
+          {
+            "power_key": "heal_burst",
+            "value": 50.0,
+            "price": 100
+          }
+        ]
+      },
+      "assassin": {
+        "success": true,
+        "classes": [
+          {
+            "class_key": "archer",
+            "name": "Лучник",
+            "formation": "Ranged",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "Arrows",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Лук + два колчана + кинжал. Держит дистанцию и жжёт взрывными стрелами. Стиль: Баттания (лесной капюшон)."
+          },
+          {
+            "class_key": "assassin",
+            "name": "Убийца",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Thrown"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Кинжал и метательные ножи, разбойничий капюшон. Бьёт слабо и умирает быстро — живёт скрытностью: активка прячет его, и враги теряют цель на 45 секунд (удар ненадолго выдаёт). Кнопка пока подписана «Стойкость» — переименуем в ближайшем обновлении расширения."
+          },
+          {
+            "class_key": "berserk",
+            "name": "Берсерк",
+            "formation": "Infantry",
+            "slots": [
+              "TwoHandedWeapon",
+              "TwoHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Северянин с двумя двуручными топорами. Косит толпу и лечится с урона, но ловит больше — стеклянная пушка. Стиль: Стургия (меха)."
+          },
+          {
+            "class_key": "crossbow",
+            "name": "Арбалетчик",
+            "formation": "Ranged",
+            "slots": [
+              "Crossbow",
+              "Bolts",
+              "Bolts",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Арбалет: медленный, но пробивает броню и разбивает щиты. Крепче лучника. Стиль: Асераи (пустынный стрелок)."
+          },
+          {
+            "class_key": "horse_archer",
+            "name": "Конный Лучник",
+            "formation": "HorseArcher",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "OneHandedWeapon",
+              "Arrows"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Лук верхом: кайт, набег, отравленные стрелы. Самый мобильный. Стиль: Кузаиты (степь)."
+          },
+          {
+            "class_key": "knight",
+            "name": "Кавалерист",
+            "formation": "Cavalry",
+            "slots": [
+              "Polearm",
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Конное копьё + меч + большой щит, латы. Таранный наскок и живучесть в седле. Стиль: Вландия (рыцарь)."
+          },
+          {
+            "class_key": "tank",
+            "name": "Латник",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Булава + большой щит, тяжёлые латы. Несокрушимая стена: держит удар, сбить с ног почти нельзя. Стиль: Империя (ламелляр)."
+          }
+        ],
+        "current": {
+          "class_key": "assassin",
+          "class_level": 1,
+          "primary_skill": "OneHanded",
+          "primary_skill_level": 0,
+          "next_threshold": 50
+        },
+        "current_powers": [
+          {
+            "power_key": "rage",
+            "value": 1.85,
+            "price": 300
+          },
+          {
+            "power_key": "retribution_toggle",
+            "value": 4.0,
+            "price": 300
+          },
+          {
+            "power_key": "heal_burst",
+            "value": 50.0,
+            "price": 100
+          }
+        ]
+      },
+      "berserk": {
+        "success": true,
+        "classes": [
+          {
+            "class_key": "archer",
+            "name": "Лучник",
+            "formation": "Ranged",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "Arrows",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Лук + два колчана + кинжал. Держит дистанцию и жжёт взрывными стрелами. Стиль: Баттания (лесной капюшон)."
+          },
+          {
+            "class_key": "assassin",
+            "name": "Убийца",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Thrown"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Кинжал и метательные ножи, разбойничий капюшон. Бьёт слабо и умирает быстро — живёт скрытностью: активка прячет его, и враги теряют цель на 45 секунд (удар ненадолго выдаёт). Кнопка пока подписана «Стойкость» — переименуем в ближайшем обновлении расширения."
+          },
+          {
+            "class_key": "berserk",
+            "name": "Берсерк",
+            "formation": "Infantry",
+            "slots": [
+              "TwoHandedWeapon",
+              "TwoHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Северянин с двумя двуручными топорами. Косит толпу и лечится с урона, но ловит больше — стеклянная пушка. Стиль: Стургия (меха)."
+          },
+          {
+            "class_key": "crossbow",
+            "name": "Арбалетчик",
+            "formation": "Ranged",
+            "slots": [
+              "Crossbow",
+              "Bolts",
+              "Bolts",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Арбалет: медленный, но пробивает броню и разбивает щиты. Крепче лучника. Стиль: Асераи (пустынный стрелок)."
+          },
+          {
+            "class_key": "horse_archer",
+            "name": "Конный Лучник",
+            "formation": "HorseArcher",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "OneHandedWeapon",
+              "Arrows"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Лук верхом: кайт, набег, отравленные стрелы. Самый мобильный. Стиль: Кузаиты (степь)."
+          },
+          {
+            "class_key": "knight",
+            "name": "Кавалерист",
+            "formation": "Cavalry",
+            "slots": [
+              "Polearm",
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Конное копьё + меч + большой щит, латы. Таранный наскок и живучесть в седле. Стиль: Вландия (рыцарь)."
+          },
+          {
+            "class_key": "tank",
+            "name": "Латник",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Булава + большой щит, тяжёлые латы. Несокрушимая стена: держит удар, сбить с ног почти нельзя. Стиль: Империя (ламелляр)."
+          }
+        ],
+        "current": {
+          "class_key": "berserk",
+          "class_level": 1,
+          "primary_skill": "TwoHanded",
+          "primary_skill_level": 0,
+          "next_threshold": 50
+        },
+        "current_powers": [
+          {
+            "power_key": "rage",
+            "value": 1.76,
+            "price": 300
+          },
+          {
+            "power_key": "cleave",
+            "value": 0.4,
+            "price": 350
+          },
+          {
+            "power_key": "heal_burst",
+            "value": 50.0,
+            "price": 100
+          }
+        ]
+      },
+      "crossbow": {
+        "success": true,
+        "classes": [
+          {
+            "class_key": "archer",
+            "name": "Лучник",
+            "formation": "Ranged",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "Arrows",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Лук + два колчана + кинжал. Держит дистанцию и жжёт взрывными стрелами. Стиль: Баттания (лесной капюшон)."
+          },
+          {
+            "class_key": "assassin",
+            "name": "Убийца",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Thrown"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Кинжал и метательные ножи, разбойничий капюшон. Бьёт слабо и умирает быстро — живёт скрытностью: активка прячет его, и враги теряют цель на 45 секунд (удар ненадолго выдаёт). Кнопка пока подписана «Стойкость» — переименуем в ближайшем обновлении расширения."
+          },
+          {
+            "class_key": "berserk",
+            "name": "Берсерк",
+            "formation": "Infantry",
+            "slots": [
+              "TwoHandedWeapon",
+              "TwoHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Северянин с двумя двуручными топорами. Косит толпу и лечится с урона, но ловит больше — стеклянная пушка. Стиль: Стургия (меха)."
+          },
+          {
+            "class_key": "crossbow",
+            "name": "Арбалетчик",
+            "formation": "Ranged",
+            "slots": [
+              "Crossbow",
+              "Bolts",
+              "Bolts",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Арбалет: медленный, но пробивает броню и разбивает щиты. Крепче лучника. Стиль: Асераи (пустынный стрелок)."
+          },
+          {
+            "class_key": "horse_archer",
+            "name": "Конный Лучник",
+            "formation": "HorseArcher",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "OneHandedWeapon",
+              "Arrows"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Лук верхом: кайт, набег, отравленные стрелы. Самый мобильный. Стиль: Кузаиты (степь)."
+          },
+          {
+            "class_key": "knight",
+            "name": "Кавалерист",
+            "formation": "Cavalry",
+            "slots": [
+              "Polearm",
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Конное копьё + меч + большой щит, латы. Таранный наскок и живучесть в седле. Стиль: Вландия (рыцарь)."
+          },
+          {
+            "class_key": "tank",
+            "name": "Латник",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Булава + большой щит, тяжёлые латы. Несокрушимая стена: держит удар, сбить с ног почти нельзя. Стиль: Империя (ламелляр)."
+          }
+        ],
+        "current": {
+          "class_key": "crossbow",
+          "class_level": 1,
+          "primary_skill": "Crossbow",
+          "primary_skill_level": 0,
+          "next_threshold": 50
+        },
+        "current_powers": [
+          {
+            "power_key": "rage",
+            "value": 1.89,
+            "price": 300
+          },
+          {
+            "power_key": "shield_break_burst",
+            "value": 8.0,
+            "price": 200
+          },
+          {
+            "power_key": "heal_burst",
+            "value": 50.0,
+            "price": 100
+          }
+        ]
+      },
+      "horse_archer": {
+        "success": true,
+        "classes": [
+          {
+            "class_key": "archer",
+            "name": "Лучник",
+            "formation": "Ranged",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "Arrows",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Лук + два колчана + кинжал. Держит дистанцию и жжёт взрывными стрелами. Стиль: Баттания (лесной капюшон)."
+          },
+          {
+            "class_key": "assassin",
+            "name": "Убийца",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Thrown"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Кинжал и метательные ножи, разбойничий капюшон. Бьёт слабо и умирает быстро — живёт скрытностью: активка прячет его, и враги теряют цель на 45 секунд (удар ненадолго выдаёт). Кнопка пока подписана «Стойкость» — переименуем в ближайшем обновлении расширения."
+          },
+          {
+            "class_key": "berserk",
+            "name": "Берсерк",
+            "formation": "Infantry",
+            "slots": [
+              "TwoHandedWeapon",
+              "TwoHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Северянин с двумя двуручными топорами. Косит толпу и лечится с урона, но ловит больше — стеклянная пушка. Стиль: Стургия (меха)."
+          },
+          {
+            "class_key": "crossbow",
+            "name": "Арбалетчик",
+            "formation": "Ranged",
+            "slots": [
+              "Crossbow",
+              "Bolts",
+              "Bolts",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Арбалет: медленный, но пробивает броню и разбивает щиты. Крепче лучника. Стиль: Асераи (пустынный стрелок)."
+          },
+          {
+            "class_key": "horse_archer",
+            "name": "Конный Лучник",
+            "formation": "HorseArcher",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "OneHandedWeapon",
+              "Arrows"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Лук верхом: кайт, набег, отравленные стрелы. Самый мобильный. Стиль: Кузаиты (степь)."
+          },
+          {
+            "class_key": "knight",
+            "name": "Кавалерист",
+            "formation": "Cavalry",
+            "slots": [
+              "Polearm",
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Конное копьё + меч + большой щит, латы. Таранный наскок и живучесть в седле. Стиль: Вландия (рыцарь)."
+          },
+          {
+            "class_key": "tank",
+            "name": "Латник",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Булава + большой щит, тяжёлые латы. Несокрушимая стена: держит удар, сбить с ног почти нельзя. Стиль: Империя (ламелляр)."
+          }
+        ],
+        "current": {
+          "class_key": "horse_archer",
+          "class_level": 1,
+          "primary_skill": "Bow",
+          "primary_skill_level": 0,
+          "next_threshold": 50
+        },
+        "current_powers": [
+          {
+            "power_key": "rage",
+            "value": 1.89,
+            "price": 300
+          },
+          {
+            "power_key": "poison_dot",
+            "value": 8.0,
+            "price": 350
+          },
+          {
+            "power_key": "heal_burst",
+            "value": 50.0,
+            "price": 100
+          }
+        ]
+      },
+      "knight": {
+        "success": true,
+        "classes": [
+          {
+            "class_key": "archer",
+            "name": "Лучник",
+            "formation": "Ranged",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "Arrows",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Лук + два колчана + кинжал. Держит дистанцию и жжёт взрывными стрелами. Стиль: Баттания (лесной капюшон)."
+          },
+          {
+            "class_key": "assassin",
+            "name": "Убийца",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Thrown"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Кинжал и метательные ножи, разбойничий капюшон. Бьёт слабо и умирает быстро — живёт скрытностью: активка прячет его, и враги теряют цель на 45 секунд (удар ненадолго выдаёт). Кнопка пока подписана «Стойкость» — переименуем в ближайшем обновлении расширения."
+          },
+          {
+            "class_key": "berserk",
+            "name": "Берсерк",
+            "formation": "Infantry",
+            "slots": [
+              "TwoHandedWeapon",
+              "TwoHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Северянин с двумя двуручными топорами. Косит толпу и лечится с урона, но ловит больше — стеклянная пушка. Стиль: Стургия (меха)."
+          },
+          {
+            "class_key": "crossbow",
+            "name": "Арбалетчик",
+            "formation": "Ranged",
+            "slots": [
+              "Crossbow",
+              "Bolts",
+              "Bolts",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Арбалет: медленный, но пробивает броню и разбивает щиты. Крепче лучника. Стиль: Асераи (пустынный стрелок)."
+          },
+          {
+            "class_key": "horse_archer",
+            "name": "Конный Лучник",
+            "formation": "HorseArcher",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "OneHandedWeapon",
+              "Arrows"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Лук верхом: кайт, набег, отравленные стрелы. Самый мобильный. Стиль: Кузаиты (степь)."
+          },
+          {
+            "class_key": "knight",
+            "name": "Кавалерист",
+            "formation": "Cavalry",
+            "slots": [
+              "Polearm",
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Конное копьё + меч + большой щит, латы. Таранный наскок и живучесть в седле. Стиль: Вландия (рыцарь)."
+          },
+          {
+            "class_key": "tank",
+            "name": "Латник",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Булава + большой щит, тяжёлые латы. Несокрушимая стена: держит удар, сбить с ног почти нельзя. Стиль: Империя (ламелляр)."
+          }
+        ],
+        "current": {
+          "class_key": "knight",
+          "class_level": 1,
+          "primary_skill": "Riding",
+          "primary_skill_level": 0,
+          "next_threshold": 50
+        },
+        "current_powers": [
+          {
+            "power_key": "rage",
+            "value": 1.8,
+            "price": 300
+          },
+          {
+            "power_key": "berserker_charge",
+            "value": 50.0,
+            "price": 200
+          },
+          {
+            "power_key": "heal_burst",
+            "value": 50.0,
+            "price": 100
+          }
+        ]
+      },
+      "tank": {
+        "success": true,
+        "classes": [
+          {
+            "class_key": "archer",
+            "name": "Лучник",
+            "formation": "Ranged",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "Arrows",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Лук + два колчана + кинжал. Держит дистанцию и жжёт взрывными стрелами. Стиль: Баттания (лесной капюшон)."
+          },
+          {
+            "class_key": "assassin",
+            "name": "Убийца",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Thrown"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Кинжал и метательные ножи, разбойничий капюшон. Бьёт слабо и умирает быстро — живёт скрытностью: активка прячет его, и враги теряют цель на 45 секунд (удар ненадолго выдаёт). Кнопка пока подписана «Стойкость» — переименуем в ближайшем обновлении расширения."
+          },
+          {
+            "class_key": "berserk",
+            "name": "Берсерк",
+            "formation": "Infantry",
+            "slots": [
+              "TwoHandedWeapon",
+              "TwoHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Северянин с двумя двуручными топорами. Косит толпу и лечится с урона, но ловит больше — стеклянная пушка. Стиль: Стургия (меха)."
+          },
+          {
+            "class_key": "crossbow",
+            "name": "Арбалетчик",
+            "formation": "Ranged",
+            "slots": [
+              "Crossbow",
+              "Bolts",
+              "Bolts",
+              "OneHandedWeapon"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Арбалет: медленный, но пробивает броню и разбивает щиты. Крепче лучника. Стиль: Асераи (пустынный стрелок)."
+          },
+          {
+            "class_key": "horse_archer",
+            "name": "Конный Лучник",
+            "formation": "HorseArcher",
+            "slots": [
+              "Bow",
+              "Arrows",
+              "OneHandedWeapon",
+              "Arrows"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Лук верхом: кайт, набег, отравленные стрелы. Самый мобильный. Стиль: Кузаиты (степь)."
+          },
+          {
+            "class_key": "knight",
+            "name": "Кавалерист",
+            "formation": "Cavalry",
+            "slots": [
+              "Polearm",
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": true,
+            "use_camel": false,
+            "description": "Конное копьё + меч + большой щит, латы. Таранный наскок и живучесть в седле. Стиль: Вландия (рыцарь)."
+          },
+          {
+            "class_key": "tank",
+            "name": "Латник",
+            "formation": "Infantry",
+            "slots": [
+              "OneHandedWeapon",
+              "Shield"
+            ],
+            "use_horse": false,
+            "use_camel": false,
+            "description": "Булава + большой щит, тяжёлые латы. Несокрушимая стена: держит удар, сбить с ног почти нельзя. Стиль: Империя (ламелляр)."
+          }
+        ],
+        "current": {
+          "class_key": "tank",
+          "class_level": 1,
+          "primary_skill": "OneHanded",
+          "primary_skill_level": 0,
+          "next_threshold": 50
+        },
+        "current_powers": [
+          {
+            "power_key": "ironskin_toggle",
+            "value": 37.5,
+            "price": 300
+          },
+          {
+            "power_key": "rage",
+            "value": 1.6,
+            "price": 300
+          },
+          {
+            "power_key": "heal_burst",
+            "value": 50.0,
+            "price": 100
+          }
+        ]
+      }
+    },
+    "battle_idle": {
+      "success": true,
+      "in_battle": false,
+      "is_siege": false,
+      "participant_count": 0,
+      "my_stats": null,
+      "last_payout": null
+    },
+    "battle_field": {
+      "success": true,
+      "in_battle": true,
+      "is_siege": false,
+      "participant_count": 1,
+      "my_stats": {
+        "username": "Alice",
+        "hp": 87,
+        "hp_max": 115,
+        "alive": true,
+        "state": "active",
+        "order_status": "formation",
+        "is_player_side": true,
+        "kills": 0,
+        "retinue_kills": 0,
+        "gold_earned": 0,
+        "payout_version": 2,
+        "payout_id": "representative-test-battle",
+        "payout_settled": false,
+        "payout_status": "pending",
+        "payout_estimate_min": 100,
+        "payout_estimate_max": 120,
+        "payout_participation": 0,
+        "payout_personal": 0,
+        "payout_retinue": 0,
+        "payout_personal_points": 0,
+        "payout_retinue_points": 0,
+        "xp_earned": 0
+      },
+      "last_payout": null
+    },
+    "battle_siege": {
+      "success": true,
+      "in_battle": true,
+      "is_siege": true,
+      "participant_count": 1,
+      "my_stats": {
+        "username": "Alice",
+        "hp": 87,
+        "hp_max": 115,
+        "alive": true,
+        "state": "active",
+        "order_status": "formation",
+        "is_player_side": true,
+        "kills": 0,
+        "retinue_kills": 0,
+        "gold_earned": 0,
+        "payout_version": 2,
+        "payout_id": "representative-test-battle",
+        "payout_settled": false,
+        "payout_status": "pending",
+        "payout_estimate_min": 100,
+        "payout_estimate_max": 120,
+        "payout_participation": 0,
+        "payout_personal": 0,
+        "payout_retinue": 0,
+        "payout_personal_points": 0,
+        "payout_retinue_points": 0,
+        "xp_earned": 0
+      },
+      "last_payout": null
+    },
+    "battle_not_spawned": {
+      "success": true,
+      "in_battle": true,
+      "is_siege": false,
+      "participant_count": 1,
+      "my_stats": null,
+      "last_payout": null
+    },
+    "battle_dead": {
+      "success": true,
+      "in_battle": true,
+      "is_siege": false,
+      "participant_count": 1,
+      "my_stats": {
+        "username": "Alice",
+        "hp": 0,
+        "hp_max": 115,
+        "alive": false,
+        "state": "unconscious",
+        "order_status": "formation",
+        "is_player_side": true,
+        "kills": 0,
+        "retinue_kills": 0,
+        "gold_earned": 0,
+        "payout_version": 2,
+        "payout_id": "representative-test-battle",
+        "payout_settled": false,
+        "payout_status": "pending",
+        "payout_estimate_min": 100,
+        "payout_estimate_max": 120,
+        "payout_participation": 0,
+        "payout_personal": 0,
+        "payout_retinue": 0,
+        "payout_personal_points": 0,
+        "payout_retinue_points": 0,
+        "xp_earned": 0
+      },
+      "last_payout": null
+    },
+    "battle_routed": {
+      "success": true,
+      "in_battle": true,
+      "is_siege": false,
+      "participant_count": 1,
+      "my_stats": {
+        "username": "Alice",
+        "hp": 87,
+        "hp_max": 115,
+        "alive": true,
+        "state": "routed",
+        "order_status": "blocked",
+        "is_player_side": true,
+        "kills": 0,
+        "retinue_kills": 0,
+        "gold_earned": 0,
+        "payout_version": 2,
+        "payout_id": "representative-test-battle",
+        "payout_settled": false,
+        "payout_status": "pending",
+        "payout_estimate_min": 100,
+        "payout_estimate_max": 120,
+        "payout_participation": 0,
+        "payout_personal": 0,
+        "payout_retinue": 0,
+        "payout_personal_points": 0,
+        "payout_retinue_points": 0,
+        "xp_earned": 0
+      },
+      "last_payout": null
+    },
+    "battle_killed": {
+      "success": true,
+      "in_battle": true,
+      "is_siege": false,
+      "participant_count": 1,
+      "my_stats": {
+        "username": "Alice",
+        "hp": 0,
+        "hp_max": 115,
+        "alive": false,
+        "state": "killed",
+        "order_status": "formation",
+        "is_player_side": true,
+        "kills": 0,
+        "retinue_kills": 0,
+        "gold_earned": 0,
+        "payout_version": 2,
+        "payout_id": "representative-test-battle",
+        "payout_settled": false,
+        "payout_status": "pending",
+        "payout_estimate_min": 100,
+        "payout_estimate_max": 120,
+        "payout_participation": 0,
+        "payout_personal": 0,
+        "payout_retinue": 0,
+        "payout_personal_points": 0,
+        "payout_retinue_points": 0,
+        "xp_earned": 0
+      },
+      "last_payout": null
+    },
+    "battle_legacy_payout": {
+      "success": true,
+      "in_battle": true,
+      "is_siege": false,
+      "participant_count": 1,
+      "my_stats": {
+        "username": "Alice",
+        "hp": 87,
+        "hp_max": 115,
+        "alive": true,
+        "state": "active",
+        "order_status": "formation",
+        "is_player_side": true,
+        "kills": 2,
+        "retinue_kills": 0,
+        "gold_earned": 50,
+        "payout_version": 1,
+        "payout_id": "representative-test-battle",
+        "payout_settled": false,
+        "payout_status": "pending",
+        "payout_estimate_min": 100,
+        "payout_estimate_max": 120,
+        "payout_participation": 0,
+        "payout_personal": 0,
+        "payout_retinue": 0,
+        "payout_personal_points": 0,
+        "payout_retinue_points": 0,
+        "xp_earned": 17
+      },
+      "last_payout": null
+    },
+    "battle_final_paid": {
+      "success": true,
+      "in_battle": false,
+      "is_siege": false,
+      "participant_count": 0,
+      "my_stats": null,
+      "last_payout": {
+        "username": "Alice",
+        "hp": 87,
+        "hp_max": 115,
+        "alive": true,
+        "state": "active",
+        "order_status": "formation",
+        "is_player_side": true,
+        "kills": 0,
+        "retinue_kills": 0,
+        "gold_earned": 154800,
+        "payout_version": 2,
+        "payout_id": "representative-test-battle",
+        "payout_settled": true,
+        "payout_status": "paid",
+        "payout_estimate_min": 100,
+        "payout_estimate_max": 120,
+        "payout_participation": 60000,
+        "payout_personal": 60000,
+        "payout_retinue": 34800,
+        "payout_personal_points": 0,
+        "payout_retinue_points": 0,
+        "xp_earned": 0
+      }
+    },
+    "battle_final_failed": {
+      "success": true,
+      "in_battle": false,
+      "is_siege": false,
+      "participant_count": 0,
+      "my_stats": null,
+      "last_payout": {
+        "username": "Alice",
+        "hp": 87,
+        "hp_max": 115,
+        "alive": true,
+        "state": "active",
+        "order_status": "formation",
+        "is_player_side": true,
+        "kills": 0,
+        "retinue_kills": 0,
+        "gold_earned": 0,
+        "payout_version": 2,
+        "payout_id": "representative-test-battle",
+        "payout_settled": true,
+        "payout_status": "failed",
+        "payout_estimate_min": 100,
+        "payout_estimate_max": 120,
+        "payout_participation": 0,
+        "payout_personal": 0,
+        "payout_retinue": 0,
+        "payout_personal_points": 0,
+        "payout_retinue_points": 0,
+        "xp_earned": 0
+      }
+    },
+    "battle_final_unavailable": {
+      "success": true,
+      "in_battle": false,
+      "is_siege": false,
+      "participant_count": 0,
+      "my_stats": null,
+      "last_payout": {
+        "username": "Alice",
+        "hp": 87,
+        "hp_max": 115,
+        "alive": true,
+        "state": "active",
+        "order_status": "formation",
+        "is_player_side": true,
+        "kills": 0,
+        "retinue_kills": 0,
+        "gold_earned": 0,
+        "payout_version": 2,
+        "payout_id": "representative-test-battle",
+        "payout_settled": false,
+        "payout_status": "unavailable",
+        "payout_estimate_min": 100,
+        "payout_estimate_max": 120,
+        "payout_participation": 0,
+        "payout_personal": 0,
+        "payout_retinue": 0,
+        "payout_personal_points": 0,
+        "payout_retinue_points": 0,
+        "xp_earned": 0
+      }
+    },
+    "battle_expired": {
+      "success": true,
+      "in_battle": false,
+      "is_siege": false,
+      "participant_count": 0,
+      "my_stats": null,
+      "last_payout": null
+    },
+    "hero.detach_hold": {
+      "request": {
+        "action_type": "hero.detach_hold",
+        "data": {
+          "price": 30,
+          "client_action_id": "battle-probe-hero.detach_hold"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "b015052996a445778d58b0d71d02b76e",
+        "charged": 30,
+        "message": "⚔️ Action hero.detach_hold в очереди (30💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 2
+      },
+      "queued_payload": {
+        "price": 30,
+        "client_action_id": "battle-probe-hero.detach_hold",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "hero.detach_charge": {
+      "request": {
+        "action_type": "hero.detach_charge",
+        "data": {
+          "price": 30,
+          "client_action_id": "battle-probe-hero.detach_charge"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "b23d108c83ac4ae39fa468064b0b2600",
+        "charged": 30,
+        "message": "⚔️ Action hero.detach_charge в очереди (30💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 2
+      },
+      "queued_payload": {
+        "price": 30,
+        "client_action_id": "battle-probe-hero.detach_charge",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "hero.attach": {
+      "request": {
+        "action_type": "hero.attach",
+        "data": {
+          "price": 10,
+          "client_action_id": "battle-probe-hero.attach"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "c96ccc94368c4388b885314c8904db89",
+        "charged": 10,
+        "message": "⚔️ Action hero.attach в очереди (10💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 2
+      },
+      "queued_payload": {
+        "price": 10,
+        "client_action_id": "battle-probe-hero.attach",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "hero.detach_walls": {
+      "request": {
+        "action_type": "hero.detach_walls",
+        "data": {
+          "price": 30,
+          "client_action_id": "battle-probe-hero.detach_walls"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "578f8794bc9d4ebb81e6efa65fd40c13",
+        "charged": 30,
+        "message": "⚔️ Action hero.detach_walls в очереди (30💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 3
+      },
+      "queued_payload": {
+        "price": 30,
+        "client_action_id": "battle-probe-hero.detach_walls",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "hero.detach_gate": {
+      "request": {
+        "action_type": "hero.detach_gate",
+        "data": {
+          "price": 30,
+          "client_action_id": "battle-probe-hero.detach_gate"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "3f60b064605a422b9500e2f364a36fe4",
+        "charged": 30,
+        "message": "⚔️ Action hero.detach_gate в очереди (30💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 3
+      },
+      "queued_payload": {
+        "price": 30,
+        "client_action_id": "battle-probe-hero.detach_gate",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "hero.detach": {
+      "request": {
+        "action_type": "hero.detach",
+        "data": {
+          "price": 10,
+          "client_action_id": "battle-probe-hero.detach"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "d2724347eace49c7a9377428c77e4b57",
+        "charged": 10,
+        "message": "⚔️ Action hero.detach в очереди (10💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 2
+      },
+      "queued_payload": {
+        "price": 10,
+        "client_action_id": "battle-probe-hero.detach",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "hero.detach_skirmish": {
+      "request": {
+        "action_type": "hero.detach_skirmish",
+        "data": {
+          "price": 30,
+          "client_action_id": "battle-probe-hero.detach_skirmish"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "6993d6a97d9c4863b8b1badb5f75a069",
+        "charged": 30,
+        "message": "⚔️ Action hero.detach_skirmish в очереди (30💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 2
+      },
+      "queued_payload": {
+        "price": 30,
+        "client_action_id": "battle-probe-hero.detach_skirmish",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "hero.detach_raid": {
+      "request": {
+        "action_type": "hero.detach_raid",
+        "data": {
+          "price": 30,
+          "client_action_id": "battle-probe-hero.detach_raid"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "7b42018305b0465e86ca0fca7f94f765",
+        "charged": 30,
+        "message": "⚔️ Action hero.detach_raid в очереди (30💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 2
+      },
+      "queued_payload": {
+        "price": 30,
+        "client_action_id": "battle-probe-hero.detach_raid",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "stance_defensive": {
+      "request": {
+        "action_type": "hero.set_combat_stance",
+        "data": {
+          "stance": "defensive",
+          "client_action_id": "battle-probe-stance_defensive"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "be5046ca478748819682e447f580b9b3",
+        "charged": 0,
+        "message": "⚔️ Action hero.set_combat_stance в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "stance": "defensive",
+        "client_action_id": "battle-probe-stance_defensive",
+        "_user_role": "viewer",
+        "price": 0,
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "stance_balanced": {
+      "request": {
+        "action_type": "hero.set_combat_stance",
+        "data": {
+          "stance": "balanced",
+          "client_action_id": "battle-probe-stance_balanced"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "91479efc7e6940e8a93e7099dfb167cd",
+        "charged": 0,
+        "message": "⚔️ Action hero.set_combat_stance в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "stance": "balanced",
+        "client_action_id": "battle-probe-stance_balanced",
+        "_user_role": "viewer",
+        "price": 0,
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "stance_aggressive": {
+      "request": {
+        "action_type": "hero.set_combat_stance",
+        "data": {
+          "stance": "aggressive",
+          "client_action_id": "battle-probe-stance_aggressive"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "09c4ca20608849968b42366d1eed3c45",
+        "charged": 0,
+        "message": "⚔️ Action hero.set_combat_stance в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "stance": "aggressive",
+        "client_action_id": "battle-probe-stance_aggressive",
+        "_user_role": "viewer",
+        "price": 0,
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "spawn_player": {
+      "request": {
+        "action_type": "player.spawn",
+        "data": {
+          "price": 50,
+          "side": "player",
+          "client_action_id": "battle-probe-spawn_player"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "3f50377adaeb407bbd3b7bb8a4424105",
+        "charged": 50,
+        "message": "⚔️ Action player.spawn в очереди (50💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      },
+      "queued_payload": {
+        "price": 50,
+        "side": "player",
+        "client_action_id": "battle-probe-spawn_player",
+        "_user_role": "viewer",
+        "retinue": [],
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "buffs_spawn_player": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "player.spawn:player",
+          "remaining_s": 30.0
+        }
+      ]
+    },
+    "spawn_player_cooldown": {
+      "request": {
+        "action_type": "player.spawn",
+        "data": {
+          "price": 50,
+          "side": "player",
+          "client_action_id": "battle-probe-spawn_player_cooldown"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (29с)",
+        "cooldown_remaining_s": 30.0
+      }
+    },
+    "spawn_enemy": {
+      "request": {
+        "action_type": "player.spawn",
+        "data": {
+          "price": 100,
+          "side": "enemy",
+          "client_action_id": "battle-probe-spawn_enemy"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "ff084e8d70864af58292e0c30f0b8cc8",
+        "charged": 100,
+        "message": "⚔️ Action player.spawn в очереди (100💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 45
+      },
+      "queued_payload": {
+        "price": 100,
+        "side": "enemy",
+        "client_action_id": "battle-probe-spawn_enemy",
+        "_user_role": "viewer",
+        "retinue": [],
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "buffs_spawn_enemy": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "player.spawn:enemy",
+          "remaining_s": 45.0
+        }
+      ]
+    },
+    "spawn_enemy_cooldown": {
+      "request": {
+        "action_type": "player.spawn",
+        "data": {
+          "price": 100,
+          "side": "enemy",
+          "client_action_id": "battle-probe-spawn_enemy_cooldown"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (44с)",
+        "cooldown_remaining_s": 45.0
+      }
+    },
+    "legacy_power_rage": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "price": 300,
+          "power_key": "rage",
+          "client_action_id": "battle-probe-legacy_power_rage"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "6ff0f2d4eefe4dd2a31e56b6513a5add",
+        "charged": 300,
+        "message": "⚔️ Action power.activate в очереди (300💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "price": 300,
+        "power_key": "rage",
+        "client_action_id": "battle-probe-legacy_power_rage",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "legacy_power_explosive_arrows": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "price": 350,
+          "power_key": "explosive_arrows",
+          "client_action_id": "battle-probe-legacy_power_explosive_arrows"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "6a8dfa6bb3fe46d695d6833d92627a6b",
+        "charged": 350,
+        "message": "⚔️ Action power.activate в очереди (350💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "price": 350,
+        "power_key": "explosive_arrows",
+        "client_action_id": "battle-probe-legacy_power_explosive_arrows",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "legacy_power_heal_burst": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "price": 100,
+          "power_key": "heal_burst",
+          "client_action_id": "battle-probe-legacy_power_heal_burst"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "9e7e322b3c6c4617bcc8dddea57a991f",
+        "charged": 100,
+        "message": "⚔️ Action power.activate в очереди (100💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "price": 100,
+        "power_key": "heal_burst",
+        "client_action_id": "battle-probe-legacy_power_heal_burst",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "legacy_power_retribution_toggle": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "price": 300,
+          "power_key": "retribution_toggle",
+          "client_action_id": "battle-probe-legacy_power_retribution_toggle"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "09e50c4637854df3a4774f0f53a6a352",
+        "charged": 300,
+        "message": "⚔️ Action power.activate в очереди (300💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "price": 300,
+        "power_key": "retribution_toggle",
+        "client_action_id": "battle-probe-legacy_power_retribution_toggle",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "legacy_power_cleave": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "price": 350,
+          "power_key": "cleave",
+          "client_action_id": "battle-probe-legacy_power_cleave"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "8d0ec0c00282452ba7f0f75d3f62e2db",
+        "charged": 350,
+        "message": "⚔️ Action power.activate в очереди (350💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "price": 350,
+        "power_key": "cleave",
+        "client_action_id": "battle-probe-legacy_power_cleave",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "legacy_power_shield_break_burst": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "price": 200,
+          "power_key": "shield_break_burst",
+          "client_action_id": "battle-probe-legacy_power_shield_break_burst"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "d0a72ce35eba46dfa44c195146853d7e",
+        "charged": 200,
+        "message": "⚔️ Action power.activate в очереди (200💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "price": 200,
+        "power_key": "shield_break_burst",
+        "client_action_id": "battle-probe-legacy_power_shield_break_burst",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "legacy_power_poison_dot": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "price": 350,
+          "power_key": "poison_dot",
+          "client_action_id": "battle-probe-legacy_power_poison_dot"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "c5146c40b6cd433f81688812903ac8bd",
+        "charged": 350,
+        "message": "⚔️ Action power.activate в очереди (350💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "price": 350,
+        "power_key": "poison_dot",
+        "client_action_id": "battle-probe-legacy_power_poison_dot",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "legacy_power_berserker_charge": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "price": 200,
+          "power_key": "berserker_charge",
+          "client_action_id": "battle-probe-legacy_power_berserker_charge"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "242c5b0f08624d98a011f00824d41a01",
+        "charged": 200,
+        "message": "⚔️ Action power.activate в очереди (200💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "price": 200,
+        "power_key": "berserker_charge",
+        "client_action_id": "battle-probe-legacy_power_berserker_charge",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "legacy_power_ironskin_toggle": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "price": 300,
+          "power_key": "ironskin_toggle",
+          "client_action_id": "battle-probe-legacy_power_ironskin_toggle"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "d01e2d274a3048099a4a1220edd2cee8",
+        "charged": 300,
+        "message": "⚔️ Action power.activate в очереди (300💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "price": 300,
+        "power_key": "ironskin_toggle",
+        "client_action_id": "battle-probe-legacy_power_ironskin_toggle",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "order_cooldown_start": {
+      "request": {
+        "action_type": "hero.detach_hold",
+        "data": {
+          "price": 30,
+          "client_action_id": "battle-probe-order_cooldown_start"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "e54edf463e7d42f689e5b90caf0a10c3",
+        "charged": 30,
+        "message": "⚔️ Action hero.detach_hold в очереди (30💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 2
+      },
+      "queued_payload": {
+        "price": 30,
+        "client_action_id": "battle-probe-order_cooldown_start",
+        "_user_role": "viewer",
+        "reward_boost": 1.0,
+        "_perk_label": "viewer",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "buffs_order": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "hero.detach_hold",
+          "remaining_s": 2.0
+        }
+      ]
+    },
+    "order_cooldown_refuse": {
+      "request": {
+        "action_type": "hero.detach_hold",
+        "data": {
+          "price": 30,
+          "client_action_id": "battle-probe-order_cooldown_refuse"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (1с)",
+        "cooldown_remaining_s": 2.0
+      }
+    },
+    "buffs_active": {
+      "success": true,
+      "buffs": [
+        {
+          "power_key": "rage",
+          "remaining_s": 45.0
+        }
+      ],
+      "cooldowns": []
+    },
+    "build_choices": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": true,
+        "in_battle": false,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": true,
+      "cooldown_remaining_s": 0,
+      "reason": null,
+      "message": ""
+    },
+    "select_one_handed": {
+      "request": {
+        "action_type": "hero.select_weapon_power",
+        "data": {
+          "weapon_type": "one_handed",
+          "client_action_id": "battle-probe-select_one_handed"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "b8b62d61c3d14580ae3b4e2a748c851f",
+        "charged": 0,
+        "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "price": 0,
+        "weapon_type": "one_handed",
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-select_one_handed",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "select_two_handed": {
+      "request": {
+        "action_type": "hero.select_weapon_power",
+        "data": {
+          "weapon_type": "two_handed",
+          "client_action_id": "battle-probe-select_two_handed"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "02680dd52a96463cb835533f4bc25824",
+        "charged": 0,
+        "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "price": 0,
+        "weapon_type": "two_handed",
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-select_two_handed",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "select_polearm": {
+      "request": {
+        "action_type": "hero.select_weapon_power",
+        "data": {
+          "weapon_type": "polearm",
+          "client_action_id": "battle-probe-select_polearm"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "ba806d74c19d4f30aded5b853f4f5249",
+        "charged": 0,
+        "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "price": 0,
+        "weapon_type": "polearm",
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-select_polearm",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "select_bow": {
+      "request": {
+        "action_type": "hero.select_weapon_power",
+        "data": {
+          "weapon_type": "bow",
+          "client_action_id": "battle-probe-select_bow"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "6442fbed69ad4f51a515367134027af5",
+        "charged": 0,
+        "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "price": 0,
+        "weapon_type": "bow",
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-select_bow",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "select_crossbow": {
+      "request": {
+        "action_type": "hero.select_weapon_power",
+        "data": {
+          "weapon_type": "crossbow",
+          "client_action_id": "battle-probe-select_crossbow"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "45127b3519924ad894a84705c81c59df",
+        "charged": 0,
+        "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "price": 0,
+        "weapon_type": "crossbow",
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-select_crossbow",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "select_thrown": {
+      "request": {
+        "action_type": "hero.select_weapon_power",
+        "data": {
+          "weapon_type": "thrown",
+          "client_action_id": "battle-probe-select_thrown"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "55bbb6aca90146bdb4ac1525f9e2d61e",
+        "charged": 0,
+        "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "price": 0,
+        "weapon_type": "thrown",
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-select_thrown",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "select_shield": {
+      "request": {
+        "action_type": "hero.select_weapon_power",
+        "data": {
+          "weapon_type": "shield",
+          "client_action_id": "battle-probe-select_shield"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "889c82ce509b4e5a9a0af5a17825502d",
+        "charged": 0,
+        "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued_payload": {
+        "price": 0,
+        "weapon_type": "shield",
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-select_shield",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "build_combat_one_handed": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_power_one_handed": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "rage",
+          "client_action_id": "battle-probe-build_power_one_handed"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "68e66a74754443eebacff562d8ac0e1e",
+        "charged": 300,
+        "message": "⚔️ Action power.activate в очереди (300💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "power_key": "rage",
+        "price": 300,
+        "weapon_type": "one_handed",
+        "_weapon_build": true,
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-build_power_one_handed",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "build_pending_one_handed": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": true,
+      "can_manage": false,
+      "cooldown_remaining_s": 90.0,
+      "reason": "pending",
+      "message": "Предыдущее действие с экипировкой ещё выполняется"
+    },
+    "buffs_build_one_handed": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "weapon_power",
+          "remaining_s": 90.0
+        }
+      ]
+    },
+    "build_combat_two_handed": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "two_handed",
+        "selected_power": "cleave",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_power_two_handed": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "cleave",
+          "client_action_id": "battle-probe-build_power_two_handed"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "eb1de162d53d491a907412c5d947a968",
+        "charged": 350,
+        "message": "⚔️ Action power.activate в очереди (350💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "power_key": "cleave",
+        "price": 350,
+        "weapon_type": "two_handed",
+        "_weapon_build": true,
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-build_power_two_handed",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "build_pending_two_handed": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "two_handed",
+        "selected_power": "cleave",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": true,
+      "can_manage": false,
+      "cooldown_remaining_s": 90.0,
+      "reason": "pending",
+      "message": "Предыдущее действие с экипировкой ещё выполняется"
+    },
+    "buffs_build_two_handed": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "weapon_power",
+          "remaining_s": 90.0
+        }
+      ]
+    },
+    "build_combat_polearm": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "polearm",
+        "selected_power": "shield_break_burst",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_power_polearm": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "shield_break_burst",
+          "client_action_id": "battle-probe-build_power_polearm"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "8d69ba1ef1034acd8760e8aaeaf6c590",
+        "charged": 200,
+        "message": "⚔️ Action power.activate в очереди (200💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "power_key": "shield_break_burst",
+        "price": 200,
+        "weapon_type": "polearm",
+        "_weapon_build": true,
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-build_power_polearm",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "build_pending_polearm": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "polearm",
+        "selected_power": "shield_break_burst",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": true,
+      "can_manage": false,
+      "cooldown_remaining_s": 90.0,
+      "reason": "pending",
+      "message": "Предыдущее действие с экипировкой ещё выполняется"
+    },
+    "buffs_build_polearm": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "weapon_power",
+          "remaining_s": 90.0
+        }
+      ]
+    },
+    "build_combat_bow": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "bow",
+        "selected_power": "explosive_arrows",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_power_bow": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "explosive_arrows",
+          "client_action_id": "battle-probe-build_power_bow"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "235280c2ffdd4a2e94eaee14a23b4b03",
+        "charged": 350,
+        "message": "⚔️ Action power.activate в очереди (350💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "power_key": "explosive_arrows",
+        "price": 350,
+        "weapon_type": "bow",
+        "_weapon_build": true,
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-build_power_bow",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "build_pending_bow": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "bow",
+        "selected_power": "explosive_arrows",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": true,
+      "can_manage": false,
+      "cooldown_remaining_s": 90.0,
+      "reason": "pending",
+      "message": "Предыдущее действие с экипировкой ещё выполняется"
+    },
+    "buffs_build_bow": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "weapon_power",
+          "remaining_s": 90.0
+        }
+      ]
+    },
+    "build_combat_crossbow": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "crossbow",
+        "selected_power": "explosive_arrows",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_power_crossbow": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "explosive_arrows",
+          "client_action_id": "battle-probe-build_power_crossbow"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "d40e5c2c50bc439296313c154f210a96",
+        "charged": 350,
+        "message": "⚔️ Action power.activate в очереди (350💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "power_key": "explosive_arrows",
+        "price": 350,
+        "weapon_type": "crossbow",
+        "_weapon_build": true,
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-build_power_crossbow",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "build_pending_crossbow": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "crossbow",
+        "selected_power": "explosive_arrows",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": true,
+      "can_manage": false,
+      "cooldown_remaining_s": 90.0,
+      "reason": "pending",
+      "message": "Предыдущее действие с экипировкой ещё выполняется"
+    },
+    "buffs_build_crossbow": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "weapon_power",
+          "remaining_s": 90.0
+        }
+      ]
+    },
+    "build_combat_thrown": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "thrown",
+        "selected_power": "poison_dot",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_power_thrown": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "poison_dot",
+          "client_action_id": "battle-probe-build_power_thrown"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "4ad94c0d10cc49a2a30d019e1809bddc",
+        "charged": 350,
+        "message": "⚔️ Action power.activate в очереди (350💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "power_key": "poison_dot",
+        "price": 350,
+        "weapon_type": "thrown",
+        "_weapon_build": true,
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-build_power_thrown",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "build_pending_thrown": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "thrown",
+        "selected_power": "poison_dot",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": true,
+      "can_manage": false,
+      "cooldown_remaining_s": 90.0,
+      "reason": "pending",
+      "message": "Предыдущее действие с экипировкой ещё выполняется"
+    },
+    "buffs_build_thrown": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "weapon_power",
+          "remaining_s": 90.0
+        }
+      ]
+    },
+    "build_combat_shield": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "shield",
+        "selected_power": "ironskin_toggle",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_power_shield": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "ironskin_toggle",
+          "client_action_id": "battle-probe-build_power_shield"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "2ceae5ec0bbb4a6989ca6d45ffa9b0fd",
+        "charged": 300,
+        "message": "⚔️ Action power.activate в очереди (300💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "power_key": "ironskin_toggle",
+        "price": 300,
+        "weapon_type": "shield",
+        "_weapon_build": true,
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-build_power_shield",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "build_pending_shield": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "shield",
+        "selected_power": "ironskin_toggle",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": true,
+      "can_manage": false,
+      "cooldown_remaining_s": 90.0,
+      "reason": "pending",
+      "message": "Предыдущее действие с экипировкой ещё выполняется"
+    },
+    "buffs_build_shield": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "weapon_power",
+          "remaining_s": 90.0
+        }
+      ]
+    },
+    "build_heal": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "heal_burst",
+          "client_action_id": "battle-probe-build_heal"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "0d34826530ee4c7485f9b64d411ef67a",
+        "charged": 100,
+        "message": "⚔️ Action power.activate в очереди (100💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 90
+      },
+      "queued_payload": {
+        "power_key": "heal_burst",
+        "price": 100,
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice",
+        "client_action_id": "battle-probe-build_heal",
+        "initiated_by": "alice",
+        "target": "alice"
+      }
+    },
+    "build_saved_cooldown": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 1790971734,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 89.7,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_saved_cooldown_refuse": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "rage",
+          "client_action_id": "battle-probe-build_saved_cooldown_refuse"
+        }
+      },
+      "response": {
+        "success": false,
+        "reason": "cooldown",
+        "message": "Оружейная способность на перезарядке",
+        "cooldown_remaining_s": 89.7
+      }
+    },
+    "build_not_battle_refuse": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "rage",
+          "client_action_id": "battle-probe-build_not_battle_refuse"
+        }
+      },
+      "response": {
+        "success": false,
+        "reason": "not_in_battle",
+        "message": "Способности доступны только в бою"
+      }
+    },
+    "build_wrong_power_refuse": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "cleave",
+          "client_action_id": "battle-probe-build_wrong_power_refuse"
+        }
+      },
+      "response": {
+        "success": false,
+        "reason": "power_not_selected",
+        "message": "Выбери эту оружейную способность перед боем"
+      }
+    },
+    "build_unavailable": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": true,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 300,
+            "reason_code": "required_weapon_not_equipped"
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 350,
+            "reason_code": "required_weapon_not_equipped"
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 200,
+            "reason_code": "required_weapon_not_equipped"
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 350,
+            "reason_code": "required_weapon_not_equipped"
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 350,
+            "reason_code": "required_weapon_not_equipped"
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 350,
+            "reason_code": "required_weapon_not_equipped"
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 300,
+            "reason_code": "required_weapon_not_equipped"
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_weapon_refuse": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "rage",
+          "client_action_id": "battle-probe-build_weapon_refuse"
+        }
+      },
+      "response": {
+        "success": false,
+        "reason": "weapon_unavailable",
+        "message": "Нужное оружие отсутствует в надетом комплекте"
+      }
+    },
+    "build_prisoner": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": true,
+        "is_mounted": true,
+        "can_manage": false,
+        "in_battle": false,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "hero_prisoner",
+      "message": "Герой в плену — изменить сборку можно после освобождения"
+    },
+    "build_syncing": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": false,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "build_not_ready",
+      "message": "Настройки героя ещё синхронизируются с игрой"
+    },
+    "build_legacy_session": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": false,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "legacy_build",
+      "message": "Этот герой создан в старой системе. Специализации и стартовые наборы доступны новым героям; прогресс этого героя сохранён."
+    },
+    "build_not_ready_refuse": {
+      "request": {
+        "action_type": "power.activate",
+        "data": {
+          "power_key": "rage",
+          "client_action_id": "battle-probe-build_not_ready_refuse"
+        }
+      },
+      "response": {
+        "success": false,
+        "reason": "build_not_ready",
+        "message": "Настройки героя ещё синхронизируются с игрой"
+      }
+    },
+    "order_poor_refuse": {
+      "request": {
+        "action_type": "hero.detach_charge",
+        "data": {
+          "price": 30,
+          "client_action_id": "battle-probe-order_poor_refuse"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Недостаточно крустиков: 0 < 30"
+      }
+    }
+  }
+}

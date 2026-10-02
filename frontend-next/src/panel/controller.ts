@@ -166,7 +166,7 @@ export class PanelController {
   }
   async action(type: string, data: Record<string, unknown>, options: ActionOptions): Promise<ActionReply | null> {
     if (!this.ready() || this.state.mutationBlocked) return null;
-    const generation = this.generation, login = this.identity.snapshot().login!, key = actionKey(type, data);
+    const generation = this.generation, login = this.identity.snapshot().login!, token = this.auth.current()?.token, key = actionKey(type, data);
     // BnrBuilds has one synchronous family lock. Rendered disabled state alone
     // is too late for two different choices clicked before Preact commits.
     const buildFamily = !!options.buildFamily || type === 'hero.set_specialization' || type === 'hero.claim_starter' || type === 'hero.select_weapon_power';
@@ -188,17 +188,19 @@ export class PanelController {
       const result = await pending;
       if (generation !== this.generation || !this.active || !result) return null;
       const seconds = result.success ? result.cooldown_applied_s : result.cooldown_remaining_s;
-      if (typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0) {
+      if (token === this.auth.current()?.token && typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0) {
         this.cooldownRevision++; this.publish({ cooldowns: { ...this.state.cooldowns, [options.cooldownKey || type]: this.clock() + seconds * 1000 } });
       }
       this.publish({ message: (result.required_role && !result.success ? '🔒 ' : '') + (result.success && options.successMessage || result.message || (result.success ? 'Заявка отправлена' : 'Действие не выполнено')) });
       if (result.success) {
         void this.balance(generation, login);
-        if (options.tail === 'hero') {
+        // Legacy Bannerlord callbacks belong to the admitting JWT, even when
+        // the refreshed token resolves to the same viewer. Generic balance reads remain current.
+        if (options.tail === 'hero' && token === this.auth.current()?.token) {
           this.applied.hero = this.issued.hero = (this.issued.hero || 0) + 1;
           this.buildRevision++;
           if (buildFamily) this.publish({ buildPending: true });
-          const timer = setTimeout(() => { this.timers.delete(timer); if (generation !== this.generation || !this.ready()) return; void this.refreshHero(); void this.refreshBuild(); void this.equipmentRefresh?.(); }, 3500);
+          const timer = setTimeout(() => { this.timers.delete(timer); if (generation !== this.generation || token !== this.auth.current()?.token || !this.ready()) return; void this.refreshHero(); void this.refreshBuild(); void this.equipmentRefresh?.(); }, 3500);
           this.timers.add(timer);
         }
       }

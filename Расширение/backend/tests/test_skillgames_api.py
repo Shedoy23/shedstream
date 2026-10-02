@@ -346,4 +346,23 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotEqual(result['result']['winner'],loser)
 
 
+    async def test_expiry_waits_for_positive_uptime_evidence(self):
+        session = await self.action(await self.start(),'open',cell=0)
+        now = time.time()
+        # Original process disappeared just before expiry. Its lease is still
+        # within grace, but no heartbeat proves the server reached the deadline.
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('UPDATE skillgame_sessions SET expires_at=? WHERE channel_id=11 AND id=?',(now-.1,session['id']))
+            conn.execute('UPDATE skillgame_runtimes SET last_seen=? WHERE runtime_id=?',(now-1,self.service.runtime_id))
+        observed = (await self.call('GET','/state'))['active_session']
+        self.assertEqual(observed['status'],'active','A fresh-looking old lease is not evidence that service survived the deadline')
+        self.assertFalse(self.rows('SELECT * FROM duel_stats'))
+        with sqlite3.connect(self.path) as conn:
+            conn.execute('UPDATE skillgame_runtimes SET last_seen=? WHERE runtime_id=?',(now-20,self.service.runtime_id))
+        observed = (await self.call('GET','/state'))['active_session']
+        self.assertEqual(observed['status'],'void')
+        self.assertEqual(observed['result']['reason'],'service_unavailable')
+        self.assertFalse(self.rows('SELECT * FROM duel_stats'))
+
+
 if __name__ == '__main__': unittest.main(verbosity=2)

@@ -129,9 +129,32 @@ class SkillgameService:
             await asyncio.sleep(config.HEARTBEAT_SECONDS)
             try:
                 await self._heartbeat()
+                await self._sweep_owned_deadlines()
             except Exception:
                 logger.exception('Skillgame health lease unavailable')
                 # Do not refresh success time. Next successful heartbeat retires it.
+
+    async def _sweep_owned_deadlines(self):
+        # Only routing keys cross this system-level scan; every session read and
+        # mutation below still requires its exact channel. A worker does not
+        # penalize another worker's sessions and never depends on viewer polls.
+        async with self.db._connect() as conn:
+            rows = await (await conn.execute(  # tenant-ok: dispatch only; session access is scoped below.
+                "SELECT channel_id,id FROM skillgame_sessions WHERE runtime_id=? "
+                "AND status IN ('active','generating') AND expires_at<=? ORDER BY expires_at LIMIT 50",
+                (self.runtime_id,time.time()))).fetchall()
+        for cid,sid in rows:
+            try:
+                async with self._tx() as conn:
+                    row = await self._load(conn,cid,sid)
+                    await self._expire(conn,row)
+            except Exception:
+                logger.exception('Skillgame deadline processing failed')
+                try:
+                    await self.void_for_service_failure(cid,None,sid)
+                except Exception:
+                    self.retire_runtime()
+                    break
 
     @asynccontextmanager
     async def _tx(self):

@@ -26,4 +26,26 @@ class LocalHarnessTests(unittest.TestCase):
         self.assertNotIn('--db',help_result.stdout)
         self.assertIn('--port',help_result.stdout)
 
+class LiveLocalHarnessTests(unittest.IsolatedAsyncioTestCase):
+    async def test_real_signed_http_startup_and_safety(self):
+        import httpx
+        spec = importlib.util.spec_from_file_location('skillgames_local_runner', RUNNER)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        app = module.create_local_app()
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app,client=('127.0.0.1',5000)),base_url='http://127.0.0.1:4180') as client:
+                identity = await client.get('/local-identity?player=alice')
+                self.assertEqual(identity.status_code,200,identity.text)
+                headers = {'X-Twitch-JWT':identity.json()['token']}
+                state = await client.get('/api/skillgames/state',headers=headers)
+                self.assertEqual(state.status_code,200,state.text)
+                self.assertEqual(len(state.json()['catalog']),2)
+                denied = await client.get('/local-identity',headers={'Origin':'https://evil.example'})
+                self.assertEqual(denied.status_code,403)
+                rebind = await client.get('/local-identity',headers={'Host':'evil.example'})
+                self.assertEqual(rebind.status_code,403)
+                missing = await client.get('/api/skillgames/state')
+                self.assertEqual(missing.status_code,401)
+
 if __name__ == '__main__': unittest.main()

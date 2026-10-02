@@ -310,9 +310,23 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     await settle();
   }
   async function refresh(loader: string) { await evaluate<Promise<void>>(`${loader}()`); await settle(); }
+  async function exposeUsagePanels() {
+    if (!booted) throw new Error('Usage exposure requires the selected host to be booted');
+    if (!document.querySelector('.tab[data-tab="rimworld"]')) {
+      const tab = document.createElement('button'); tab.className = 'tab active'; tab.dataset.tab = 'rimworld'; document.body.prepend(tab);
+    }
+    // The actual integration switch populates module context and calls the
+    // actual visibility/exposure function; the existing poll owner avoids
+    // unrelated whole-shell startup, just as after a real stats refresh.
+    evaluate("switchIntegrationModule('bannerlord');"); await settle();
+  }
+  async function setHidden(hidden: boolean) {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: hidden });
+    document.dispatchEvent(new window.Event('visibilitychange')); await settle();
+  }
   function dispose() { disposed = true; timers.clear(); window.close(); }
   assertHealthy();
-  return { bootHero, bootEquipment, resetEquipment, setIdentity, trace, document, window, fixtures, sourceFiles: [...sourceFiles], settle, advance, click, change,
+  return { bootHero, bootEquipment, resetEquipment, setIdentity, exposeUsagePanels, setHidden, trace, document, window, fixtures, sourceFiles: [...sourceFiles], settle, advance, click, change,
     refreshConfig: () => refresh('_hydrateBnrConfig'),
     refreshHero: () => refresh('loadBannerlordHero'), refreshBuild: () => refresh('loadBannerlordBuild'),
     refreshBuffs: () => refresh('loadBannerlordBuffs'),

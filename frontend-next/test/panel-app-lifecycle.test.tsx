@@ -9,7 +9,7 @@ import { PanelController } from '../src/panel/controller';
 import { HttpPanelTransport } from '../src/panel/transport';
 import { createLegacyHarness, legacyResponses as f, type LegacyRequest } from './panel-legacy-harness';
 const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); Object.defineProperty(document, 'hidden', { configurable: true, value: false }); vi.useRealTimers(); });
 async function setup(realEquipment = false) {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] }); const trace: string[] = []; const requests: LegacyRequest[] = [];
   const routes: Record<string, unknown> = { '/api/user/resolve-twitch-token': { login: 'alice' }, '/api/bannerlord/config': f.config,
@@ -107,5 +107,17 @@ for (const action of ['purchase', 'refresh'] as const) it(`both mounted screens 
     expect(normalize(s.requests), 'all requests with hidden but mounted equipment host').toEqual(normalize(old.trace));
     expect(s.requests.filter(row => row.path.endsWith('equipment-shop'))).toHaveLength(1);
     expect(s.ui.getByRole('button', { name: 'Развитие' }).getAttribute('aria-pressed')).toBe('true');
+  } finally { old.dispose(); s.detach(); }
+});
+
+it('hidden document suspends selected-host reads and visibility resumes the existing polling phase', async () => {
+  const s = await setup(true), old = createLegacyHarness({}, { panelLifecycle: true });
+  const visible = async (hidden: boolean) => { await old.setHidden(hidden); await act(async () => { Object.defineProperty(document, 'hidden', { configurable: true, value: hidden }); document.dispatchEvent(new Event('visibilitychange')); await flush(); }); };
+  try {
+    await old.bootHero(); expect(s.requests).toEqual(old.trace);
+    await visible(true); await old.advance(8000); await act(async () => { await vi.advanceTimersByTimeAsync(8000); await flush(); });
+    expect(s.requests).toEqual(old.trace);
+    await visible(false); expect(s.requests).toEqual(old.trace);
+    await old.advance(8000); await act(async () => { await vi.advanceTimersByTimeAsync(8000); await flush(); }); expect(s.requests).toEqual(old.trace);
   } finally { old.dispose(); s.detach(); }
 });

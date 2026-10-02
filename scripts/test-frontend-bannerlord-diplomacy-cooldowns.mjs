@@ -12,6 +12,8 @@ function harness(reply = { success: true, cooldown_applied_s: 17.5 }) {
     window._bnrCdTickerStarted = true;
     const namespace = window.ShedLink = { registerGame() {} };
     let now = 1_800_000_000_000, cooldowns = [];
+    let holdNextPoll = false;
+    const held = [];
     const posts = [], errors = [], notices = [];
     const kingdom = { success: true, has_hero: true, kingdom_id: 'ours', kingdom_name: 'Our kingdom',
         is_king: true, is_clan_leader: true };
@@ -29,7 +31,14 @@ function harness(reply = { success: true, cooldown_applied_s: 17.5 }) {
                 if (reply instanceof Error) throw reply;
                 return { ok: true, json: async () => structuredClone(reply) };
             }
-            if (url.endsWith('/my-buffs')) return { ok: true, json: async () => ({ success: true, buffs: [], cooldowns }) };
+            if (url.endsWith('/my-buffs')) {
+                const snapshot = structuredClone(cooldowns);
+                if (holdNextPoll) {
+                    holdNextPoll = false;
+                    await new Promise(resolve => held.push(resolve));
+                }
+                return { ok: true, json: async () => ({ success: true, buffs: [], cooldowns: snapshot }) };
+            }
             assert(url.endsWith('/kingdom-state'), 'unexpected request: ' + url);
             return { ok: true, json: async () => structuredClone(kingdom) };
         } });
@@ -50,7 +59,8 @@ function harness(reply = { success: true, cooldown_applied_s: 17.5 }) {
     };
     const poll = async entries => { cooldowns = entries; await invoke('loadBannerlordBuffs()'); invoke('_bnrActionCdTick()'); };
     const advance = seconds => { now += seconds * 1000; invoke('_bnrActionCdTick()'); };
-    return { invoke, button, render, click, poll, advance, posts, notices, kingdom };
+    return { invoke, button, render, click, poll, advance, posts, notices, kingdom,
+        holdNext: () => { holdNextPoll = true; }, releaseHeld: (index = 0) => held[index]() };
 }
 let total = 0, failed = 0;
 async function test(name, fn) {
@@ -96,6 +106,31 @@ await test('server poll replaces local deadline and can clear it', async () => {
     assert.equal(h.button('peace').textContent, '⏳ 4с');
     await h.poll([]); assert.equal(h.button('peace').disabled, false);
     assert(h.button('peace').textContent.includes('3000'));
+});
+for (const [name, reply] of [
+    ['accepted action', { success: true, cooldown_applied_s: 17.5 }],
+    ['cooldown refusal', { success: false, cooldown_remaining_s: 17.5 }],
+]) await test('pre-action poll cannot clear newer ' + name + ' cooldown', async () => {
+    const h = harness(reply); await h.render(); h.holdNext(); const old = h.poll([]);
+    await h.click('war'); assert.equal(h.button('war').disabled, true);
+    h.releaseHeld(); await old;
+    assert.equal(h.button('war').disabled, true, 'older read must not replace a newer action reply');
+    assert.equal(h.button('war').textContent, '⏳ 18с');
+    await h.poll([]); assert.equal(h.button('war').disabled, false, 'a genuinely later poll remains authoritative');
+});
+await test('newest buff request wins reversed responses', async () => {
+    const h = harness(); await h.render(); h.holdNext();
+    const old = h.poll([{ power_key: 'kingdom.propose_war', remaining_s: 80 }]);
+    await h.poll([{ power_key: 'kingdom.propose_war', remaining_s: 4 }]);
+    h.releaseHeld(); await old; assert.equal(h.button('war').textContent, '⏳ 4с');
+});
+for (const boundary of ['stop', 'token']) await test('buff response is ignored after ' + boundary, async () => {
+    const h = harness(); await h.render(); h.holdNext();
+    const old = h.poll([{ power_key: 'kingdom.propose_war', remaining_s: 80 }]);
+    h.invoke(boundary === 'stop' ? '_stopBannerlordPolling()' : 'authToken = "renewed"');
+    h.releaseHeld(); await old;
+    assert.equal(h.invoke('_bannerlordCooldowns.length'), 0, 'old identity/lifecycle must not repopulate state');
+    assert.equal(h.button('war').disabled, false);
 });
 console.log(`${total - failed}/${total} passed`);
 if (failed) process.exitCode = 1;

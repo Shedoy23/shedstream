@@ -4,6 +4,10 @@ import { requestJson } from '../skillgames/http';
 import { actionKey, type ActionReply, type PanelTransport } from './contracts';
 export class HttpPanelTransport implements PanelTransport {
   private inflight = new Set<string>();
+  // No automatic retry after an unknown result: the server may already have
+  // accepted it. Keep this identity blocked for this transport's lifetime.
+  private uncertain = new Set<string>();
+  private unknownOutcome() { return new Error('Исход предыдущей заявки неизвестен: она могла дойти до сервера. Новые действия этой личности заблокированы до проверки результата. Обновление данных доступно; не повторяйте покупку вслепую.'); }
   constructor(private readonly baseUrl: string, private readonly auth: TwitchAuthStore, private readonly fetcher: typeof fetch = fetch, private readonly newId: () => string = () => crypto.randomUUID()) {}
   private authorization() { const value = this.auth.current(); if (!value?.token) throw new Error('Нужна авторизация Twitch'); return { ...value }; }
   async read<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -18,7 +22,9 @@ export class HttpPanelTransport implements PanelTransport {
   async action(type: string, data: Record<string, unknown>): Promise<ActionReply | null> {
     // Snapshot once. A token rotation must not change an already admitted request.
     const authorization = this.authorization();
-    const key = JSON.stringify([authorization.channelId, authorization.userId]) + ':' + actionKey(type, data);
+    const identity = JSON.stringify([authorization.channelId, authorization.userId]);
+    if (this.uncertain.has(identity)) throw this.unknownOutcome();
+    const key = identity + ':' + actionKey(type, data);
     if (this.inflight.has(key)) return null;
     this.inflight.add(key);
     try {
@@ -28,6 +34,9 @@ export class HttpPanelTransport implements PanelTransport {
       });
       if (!isRecord(body) || typeof body.success !== 'boolean') throw new Error(`Ошибка ответа сервера (${response.status})`);
       return body as ActionReply;
+    } catch {
+      this.uncertain.add(identity);
+      throw this.unknownOutcome();
     } finally { this.inflight.delete(key); }
   }
 }

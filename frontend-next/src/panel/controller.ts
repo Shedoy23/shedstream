@@ -85,6 +85,13 @@ export class PanelController {
   async action(type: string, data: Record<string, unknown>, options: ActionOptions): Promise<ActionReply | null> {
     if (!this.ready()) return null;
     const generation = this.generation, login = this.identity.snapshot().login!, key = actionKey(type, data);
+    // BnrBuilds has one synchronous family lock. Rendered disabled state alone
+    // is too late for two different choices clicked before Preact commits.
+    if (type === 'hero.set_specialization' || type === 'hero.claim_starter') {
+      const build = this.state.build;
+      if (!build?.ready || !build.can_manage || build.pending || this.state.buildPending || build.build?.in_battle ||
+        this.state.busy.some(value => value.startsWith('hero.set_specialization:') || value.startsWith('hero.claim_starter:'))) return null;
+    }
     // Match legacy per-choice single flight. Different skill/attribute choices
     // remain separate; economic authority stays on the backend.
     if (this.state.busy.includes(key)) { this.publish({ message: '⏳ Предыдущее действие ещё выполняется — секунду' }); if (options.immediateHero) void this.refreshHero(); return null; }

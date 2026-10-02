@@ -18,6 +18,7 @@ import secrets
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -45,9 +46,29 @@ def create_local_app():
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import HTMLResponse, JSONResponse, Response
     from fastapi.staticfiles import StaticFiles
-    from migrations import m134_ui_usage, m135_skillgames
-    from routes import skillgames, ui_usage
+    from migrations import m122_twitch_login_map, m134_ui_usage, m135_skillgames
+    from routes import misc, skillgames, ui_usage
     from skillgames.service import SkillgameService
+
+    # Exercise the actual resolver while replacing only its external Helix
+    # boundary. The harness must never send its synthetic JWT to Twitch.
+    class LocalHelixResponse:
+        status = 200
+        def __init__(self, url): self.url = url
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return False
+        async def json(self):
+            names = {'https://api.twitch.tv/helix/users?id=101':'alice',
+                     'https://api.twitch.tv/helix/users?id=102':'bobby'}
+            if self.url not in names: raise RuntimeError('Unknown disposable Helix identity')
+            return {'data':[{'login':names[self.url]}]}
+    class LocalHelixSession:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return False
+        def get(self, url, **kwargs): return LocalHelixResponse(url)
+    async def local_app_token(): return 'local-unused-helix-token'
+    misc.aiohttp = SimpleNamespace(ClientSession=LocalHelixSession)
+    misc.get_twitch_app_token = local_app_token
 
     @asynccontextmanager
     async def lifespan(app):
@@ -78,6 +99,7 @@ def create_local_app():
                   INSERT INTO channels VALUES(11,'bannerlord'),(22,'rimworld');
                   INSERT INTO viewers VALUES(11,'alice',0),(11,'bobby',0),(22,'alice',0),(22,'bobby',0);
                 ''')
+                await m122_twitch_login_map.apply(connection)
                 await m134_ui_usage.apply(connection)
                 await m135_skillgames.apply(connection)
             dependencies.set_db(db)
@@ -114,26 +136,34 @@ def create_local_app():
 
     app.include_router(skillgames.router)
     app.include_router(ui_usage.router)
+    app.include_router(misc.router)
 
     @app.get('/local-identity')
-    async def local_identity(player: str = 'alice', channel: int = 11):
+    async def local_identity(player: str = 'alice', channel: int = 11, linked: int = 1):
         if player not in ('alice','bobby') or channel not in (11,22):
             raise HTTPException(400,'Unknown disposable identity')
         user_id = '101' if player == 'alice' else '102'
-        token = jwt.encode({'sub':player,'user_id':user_id,'channel_id':str(channel),
-                            'role':'viewer','exp':int(time.time())+3600},secret,algorithm='HS256')
-        return {'token':token,'userId':user_id,'channelId':str(channel)}
+        opaque = 'UlocalTestOpaque0000' + user_id
+        claims = {'opaque_user_id':opaque,'channel_id':str(channel),'role':'viewer','exp':int(time.time())+3600}
+        if linked: claims['user_id'] = user_id
+        token = jwt.encode(claims,secret,algorithm='HS256')
+        return {'token':token,'userId':opaque,'channelId':str(channel)}
 
     @app.get('/local-twitch-helper.js')
     async def local_helper():
         return Response('''"use strict";
-window.Twitch = {ext: {environment: "local-integration", onAuthorized(callback) {
-  const params = new URLSearchParams(location.search);
-  const query = new URLSearchParams({player:params.get("player") || "alice",channel:params.get("channel") || "11"});
+const params = new URLSearchParams(location.search);
+let linked = params.get("linked") !== "0";
+let listener;
+function authorize() {
+  const query = new URLSearchParams({player:params.get("player") || "alice",channel:params.get("channel") || "11",linked:linked ? "1" : "0"});
   fetch("/local-identity?"+query, {cache:"no-store"}).then(r => {
     if (!r.ok) throw new Error("Unknown local test identity"); return r.json();
-  }).then(callback);
-}}};
+  }).then(value => { if (listener) listener(value); });
+}
+window.Twitch = {ext: {environment: "local-integration", onAuthorized(callback) { listener = callback; authorize(); },
+  actions: {requestIdShare() { linked = true; authorize(); }}
+}};
 ''', media_type='application/javascript')
 
     @app.get('/')

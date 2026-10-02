@@ -107,3 +107,18 @@ it('only strict boolean siege permits wall and gate; unknown order/buff are safe
   expect(s.button('[data-det-act="hero.detach_walls"]').disabled).toBe(true);expect(s.ui.container.textContent).toContain('Статус приказа неизвестен');expect(s.ui.container.querySelector('#bnr-buff-hud')?.textContent).toContain('<b>unknown</b> 2с');expect(s.ui.container.querySelector('#bnr-buff-hud b')).toBeNull();
   s.routes['/api/bannerlord/my-buffs']=c.buffs_empty;await s.advance(2000);expect(s.ui.container.querySelector('#bnr-buff-hud')?.textContent).toBe('');
 });
+it('queued stance followed by its own later mod refusal restores confirmed stance',async()=>{
+  const s=await setup({'/api/bannerlord/action':c.stance_aggressive.response});await s.click('[data-stance="aggressive"]');expect(s.button('[data-stance="aggressive"]').getAttribute('aria-pressed')).toBe('true');s.routes['/api/bannerlord/my-hero']=c.hero_refund_stance_aggressive;await s.load('Hero');expect(s.button('[data-stance="balanced"]').getAttribute('aria-pressed')).toBe('true');expect(s.ui.getAllByText('❌ Сейчас недоступно')).toHaveLength(1);
+});
+it('older refunded stance does not clear a newer accepted optimistic stance',async()=>{
+  const s=await setup({'/api/bannerlord/action':c.stance_aggressive.response});await s.click('[data-stance="aggressive"]');s.routes['/api/bannerlord/action']=c.stance_defensive.response;await s.click('[data-stance="defensive"]');s.routes['/api/bannerlord/my-hero']=c.hero_refund_stance_aggressive;await s.load('Hero');expect(s.button('[data-stance="defensive"]').getAttribute('aria-pressed')).toBe('true');
+});
+it('unknown asynchronous refusal does not expose raw diagnostics, clears across identity change',async()=>{
+  const s=await setup({'/api/bannerlord/my-hero':{...f.hero,recent_refunds:[{action_id:'test-future',type:'power.activate',reason:'exception:private-debug-path',refunded:true}]}});expect(s.ui.getAllByText('❌ Действие не удалось — крустики возвращены')).toHaveLength(1);expect(s.ui.container.textContent).not.toContain('private-debug-path');s.routes['/api/user/resolve-twitch-token']={login:'carol'};s.routes['/api/bannerlord/my-hero']=f.hero;await act(async()=>{s.authorize({...initial,userId:'opaque-carol',token:'carol-token'});await flush();});expect(s.ui.queryByText('❌ Действие не удалось — крустики возвращены')).toBeNull();
+});
+for(const battle of [c.battle_idle,c.battle_not_spawned,c.battle_dead])it(`new build participant gate in_battle=${battle.in_battle} alive=${battle.my_stats?.alive}`,async()=>{
+  const s=await setup({'/api/bannerlord/battle-status':battle});for(const q of ['[data-bnr-build-activate="rage"]','[data-bnr-build-activate="heal_burst"]']){expect(s.button(q).disabled).toBe(true);await s.click(q);}expect(s.posts()).toHaveLength(0);
+});
+it('unknown legacy power keys cannot manufacture controls',async()=>{
+  const s=await setup({'/api/bannerlord/build':c.build_no_session,'/api/bannerlord/classes':{...c.classes_by_key.tank,current_powers:[{power_key:'imaginary_power',price:10}]}});expect(s.ui.container.querySelector('[data-bnr-power]')).toBeNull();
+});

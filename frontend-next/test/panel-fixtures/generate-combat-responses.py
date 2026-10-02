@@ -116,6 +116,15 @@ async def main():
             await snapshot(None);bodies['build_legacy_session']=decoded(await r.bannerlord_build(req))
             await action('build_not_ready_refuse','power.activate',{'power_key':'rage'})
             await sql("UPDATE viewers SET points=0 WHERE channel_id=? AND username='alice'",(CHANNEL_ID,));await action('order_poor_refuse','hero.detach_charge',{'price':30})
+            await snapshot(build)
+            await module_liveness.clear(db,CHANNEL_ID,'bannerlord')
+            bodies['build_offline']=decoded(await r.bannerlord_build(req))
+            await module_liveness.touch(db,CHANNEL_ID,'bannerlord')
+            for label,reason in [('legacy_power_rage','hero_not_spawned'),('stance_aggressive','unspecified')]:
+                await adapter._on_action_failed(CHANNEL_ID,ModuleEnvelope(id='probe-refund-'+label,kind='event',type='action.failed',ts=int(time.time()),data={'action_id':bodies[label]['response']['action_id'],'reason':reason}))
+                bodies['hero_refund_'+label]=decoded(await r.bannerlord_my_hero(req))
+            assert bodies['hero_refund_legacy_power_rage']['recent_refunds'][0]['refunded'] is True
+            assert len(bodies['hero_refund_stance_aggressive']['recent_refunds']) == 2
             assert sum(bool(v.get('response',{}).get('success')) for v in bodies.values() if isinstance(v,dict)) == 38
             # No final snapshot tasks with kills were scheduled; this probe never contacts a mod/game.
             path=OUT/'combat-responses.json'

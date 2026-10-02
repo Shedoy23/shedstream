@@ -131,3 +131,21 @@ it('server UI permutation, visibility, labels apply only to known combat section
   expect((p.ui.container.querySelector('[data-bnr-ui-section="summon"]') as HTMLElement).hidden).toBe(true);
   expect(p.ui.container.textContent).toContain('<b>Активные</b>');expect(p.ui.container.querySelector('#bnr-active-powers-slot b')).toBeNull();p.check();
 });
+it('real asynchronous mod refusal is shown once globally for six seconds, with exact old text',async()=>{
+  const p=await combatPair();p.fixtures.hero=c.hero_refund_legacy_power_rage;
+  await p.old.refreshHero();await act(async()=>{await p.controller.refreshHero();await flush();});
+  const message='❌ Твой герой ещё не вышел на поле боя — крустики возвращены';
+  expect(p.old.document.querySelector('.notification')?.textContent).toContain(message);
+  expect(p.ui.getAllByText(message)).toHaveLength(1);await p.tab('hero');expect(p.ui.getAllByText(message)).toHaveLength(1);
+  await p.old.refreshHero();await act(async()=>{await p.controller.refreshHero();await flush();});expect(p.ui.getAllByText(message)).toHaveLength(1);p.check();
+  await p.advance(6300);expect(p.ui.queryByText(message)).toBeNull();p.check();
+});
+for(const [q,type,build] of [['[data-det-act="hero.detach_hold"]','hero.detach_hold',c.build_combat_bow],['#bnr-summon-enemy-btn','player.spawn',c.build_no_session],['[data-bnr-power="rage"]','power.activate',c.build_no_session],['[data-bnr-build-select="thrown"]','hero.select_weapon_power',c.build_choices],['[data-bnr-build-activate="rage"]','power.activate',c.build_combat_one_handed]] as const)it(`actual collector counts combat family ${type} through rendered ${q}`,async()=>{
+  const p=await combatPair({build});await p.click(q);await p.advance(30000);p.check();expect(usageEvents(p.trace)).toContainEqual({kind:'action_attempt',feature:'bannerlord:'+type,count:1});
+});
+for(const ui of [{version:2,combat_order:['summon']},{version:1,combat_order:['summon','summon','active_powers','weapon_choice'],labels:{active_powers:'bad\nlabel'}},{version:1,combat_order:['unknown','summon','active_powers','weapon_choice'],labels:{weapon_choice:'x'.repeat(65)}},null])it(`malformed presentation keeps known defaults: ${JSON.stringify(ui)}`,async()=>{
+  const p=await combatPair({config:{...f.config,ui},build:c.build_choices});expect([...p.ui.container.querySelectorAll('[data-bnr-ui-section]')].map(e=>e.getAttribute('data-bnr-ui-section'))).toEqual(['summon','active_powers','weapon_choice']);expect(p.ui.container.textContent).toContain('Активки');p.check();
+});
+it('real offline build disables weapon selection with server reason',async()=>{
+  const p=await combatPair({build:c.build_offline});for(const option of c.build_choices.build.power_options)await p.click(`[data-bnr-build-select="${option.weapon_type}"]`);expect(posts(p)).toHaveLength(0);expect(p.ui.container.textContent).toContain(c.build_offline.message);p.check();
+});

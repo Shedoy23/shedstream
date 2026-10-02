@@ -209,8 +209,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 20:07:24",
-        "last_sync": "2026-10-02 20:07:24",
+        "adopted_at": "2026-10-02 20:27:41",
+        "last_sync": "2026-10-02 20:27:41",
         "level": 1,
         "clan_name": null,
         "kingdom_name": null,
@@ -1421,7 +1421,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "b015052996a445778d58b0d71d02b76e",
+        "action_id": "e38f8f8d690e476b8ffeee991aac2f29",
         "charged": 30,
         "message": "⚔️ Action hero.detach_hold в очереди (30💎 списано)",
         "perk": "viewer",
@@ -1448,7 +1448,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "b23d108c83ac4ae39fa468064b0b2600",
+        "action_id": "1ade7fb2c38d485ea8d21b77ff5f4fe1",
         "charged": 30,
         "message": "⚔️ Action hero.detach_charge в очереди (30💎 списано)",
         "perk": "viewer",
@@ -1475,7 +1475,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "c96ccc94368c4388b885314c8904db89",
+        "action_id": "2e74788a1ef2482695d9a55f73a8aa71",
         "charged": 10,
         "message": "⚔️ Action hero.attach в очереди (10💎 списано)",
         "perk": "viewer",
@@ -1502,7 +1502,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "578f8794bc9d4ebb81e6efa65fd40c13",
+        "action_id": "4f21313182dc4c1194550ba128e1e63d",
         "charged": 30,
         "message": "⚔️ Action hero.detach_walls в очереди (30💎 списано)",
         "perk": "viewer",
@@ -1529,7 +1529,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "3f60b064605a422b9500e2f364a36fe4",
+        "action_id": "72b269e51e9c4794ba5d24f14834f324",
         "charged": 30,
         "message": "⚔️ Action hero.detach_gate в очереди (30💎 списано)",
         "perk": "viewer",
@@ -1556,7 +1556,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "d2724347eace49c7a9377428c77e4b57",
+        "action_id": "8a873636799e45f6b236367a992d3efb",
         "charged": 10,
         "message": "⚔️ Action hero.detach в очереди (10💎 списано)",
         "perk": "viewer",
@@ -1583,7 +1583,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "6993d6a97d9c4863b8b1badb5f75a069",
+        "action_id": "dcf29eb8e93c48e6a48c9106d20b05b1",
         "charged": 30,
         "message": "⚔️ Action hero.detach_skirmish в очереди (30💎 списано)",
         "perk": "viewer",
@@ -1610,7 +1610,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "7b42018305b0465e86ca0fca7f94f765",
+        "action_id": "4c3e7ed00a70424784d0c4e1067e09b8",
         "charged": 30,
         "message": "⚔️ Action hero.detach_raid в очереди (30💎 списано)",
         "perk": "viewer",
@@ -1637,7 +1637,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "be5046ca478748819682e447f580b9b3",
+        "action_id": "0cacc63e1ec049639a70f9c83ab0d22a",
         "charged": 0,
         "message": "⚔️ Action hero.set_combat_stance в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1665,7 +1665,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "91479efc7e6940e8a93e7099dfb167cd",
+        "action_id": "65b0a3f9df6f4209bd7247fb566cfdd9",
         "charged": 0,
         "message": "⚔️ Action hero.set_combat_stance в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1693,7 +1693,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "09c4ca20608849968b42366d1eed3c45",
+        "action_id": "41e36e6c4d424170b39bb892f382d7a8",
         "charged": 0,
         "message": "⚔️ Action hero.set_combat_stance в очереди (0💎 списано)",
         "perk": "viewer",
@@ -1722,7 +1722,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "3f50377adaeb407bbd3b7bb8a4424105",
+        "action_id": "3b01d3393a9b4b9abd2e30ba817c4560",
         "charged": 50,
         "message": "⚔️ Action player.spawn в очереди (50💎 списано)",
         "perk": "viewer",
@@ -1777,7 +1777,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "ff084e8d70864af58292e0c30f0b8cc8",
+        "action_id": "778c4075f3e04ae48fd71205469037e0",
         "charged": 100,
         "message": "⚔️ Action player.spawn в очереди (100💎 списано)",
         "perk": "viewer",
@@ -1832,7 +1832,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "6ff0f2d4eefe4dd2a31e56b6513a5add",
+        "action_id": "cc979c6d61454a50ac473f3f3f40f147",
         "charged": 300,
         "message": "⚔️ Action power.activate в очереди (300💎 списано)",
         "perk": "viewer",
@@ -1861,7 +1861,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "6a8dfa6bb3fe46d695d6833d92627a6b",
+        "action_id": "0b211da7434148de83e76a3350fcd4d2",
         "charged": 350,
         "message": "⚔️ Action power.activate в очереди (350💎 списано)",
         "perk": "viewer",
@@ -1890,7 +1890,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "9e7e322b3c6c4617bcc8dddea57a991f",
+        "action_id": "78ec39b3e3da4f5d96ccec87669bb47d",
         "charged": 100,
         "message": "⚔️ Action power.activate в очереди (100💎 списано)",
         "perk": "viewer",
@@ -1919,7 +1919,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "09e50c4637854df3a4774f0f53a6a352",
+        "action_id": "ca0c5c12b2574cbdaa0a0645ea2c6625",
         "charged": 300,
         "message": "⚔️ Action power.activate в очереди (300💎 списано)",
         "perk": "viewer",
@@ -1948,7 +1948,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "8d0ec0c00282452ba7f0f75d3f62e2db",
+        "action_id": "c5df89a18a2048a6973fca7e9a6ff1c3",
         "charged": 350,
         "message": "⚔️ Action power.activate в очереди (350💎 списано)",
         "perk": "viewer",
@@ -1977,7 +1977,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "d0a72ce35eba46dfa44c195146853d7e",
+        "action_id": "2b43cbdc5d204d6b9d686136b7700c4a",
         "charged": 200,
         "message": "⚔️ Action power.activate в очереди (200💎 списано)",
         "perk": "viewer",
@@ -2006,7 +2006,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "c5146c40b6cd433f81688812903ac8bd",
+        "action_id": "963bee7222e347f98dd0743eda4552c9",
         "charged": 350,
         "message": "⚔️ Action power.activate в очереди (350💎 списано)",
         "perk": "viewer",
@@ -2035,7 +2035,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "242c5b0f08624d98a011f00824d41a01",
+        "action_id": "a2700d922f8f4586ae2306ce3c469167",
         "charged": 200,
         "message": "⚔️ Action power.activate в очереди (200💎 списано)",
         "perk": "viewer",
@@ -2064,7 +2064,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "d01e2d274a3048099a4a1220edd2cee8",
+        "action_id": "b9765824033e4ad4b93e127806d369c6",
         "charged": 300,
         "message": "⚔️ Action power.activate в очереди (300💎 списано)",
         "perk": "viewer",
@@ -2092,7 +2092,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "e54edf463e7d42f689e5b90caf0a10c3",
+        "action_id": "6405a5d0966c4a0ca1699be5e6f11f15",
         "charged": 30,
         "message": "⚔️ Action hero.detach_hold в очереди (30💎 списано)",
         "perk": "viewer",
@@ -2288,7 +2288,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "b8b62d61c3d14580ae3b4e2a748c851f",
+        "action_id": "e69f068cf6924b00b5e119baa894a9f9",
         "charged": 0,
         "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2316,7 +2316,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "02680dd52a96463cb835533f4bc25824",
+        "action_id": "1a202893f0b6494bbaaa9b820efb617a",
         "charged": 0,
         "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2344,7 +2344,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "ba806d74c19d4f30aded5b853f4f5249",
+        "action_id": "865c53a0e1e24b17b99cd97421addaaf",
         "charged": 0,
         "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2372,7 +2372,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "6442fbed69ad4f51a515367134027af5",
+        "action_id": "b51f7718d5fa4e0ab1ebf9243cf6094f",
         "charged": 0,
         "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2400,7 +2400,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "45127b3519924ad894a84705c81c59df",
+        "action_id": "baf263a7d0154966b9ba5b089772f057",
         "charged": 0,
         "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2428,7 +2428,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "55bbb6aca90146bdb4ac1525f9e2d61e",
+        "action_id": "c5ca40ae7aaa43ce84a905c15da71c9e",
         "charged": 0,
         "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2456,7 +2456,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "889c82ce509b4e5a9a0af5a17825502d",
+        "action_id": "e12a5a03bd6a4e2fa7adc001bbcbca47",
         "charged": 0,
         "message": "⚔️ Action hero.select_weapon_power в очереди (0💎 списано)",
         "perk": "viewer",
@@ -2619,7 +2619,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "68e66a74754443eebacff562d8ac0e1e",
+        "action_id": "85037171804b4bb3b204374c43ce021a",
         "charged": 300,
         "message": "⚔️ Action power.activate в очереди (300💎 списано)",
         "perk": "viewer",
@@ -2929,7 +2929,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "eb1de162d53d491a907412c5d947a968",
+        "action_id": "d22f05ba2a4544338c2dc233bb37d11d",
         "charged": 350,
         "message": "⚔️ Action power.activate в очереди (350💎 списано)",
         "perk": "viewer",
@@ -3239,7 +3239,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "8d69ba1ef1034acd8760e8aaeaf6c590",
+        "action_id": "15fd0cf542c846209e1be682eb57d40f",
         "charged": 200,
         "message": "⚔️ Action power.activate в очереди (200💎 списано)",
         "perk": "viewer",
@@ -3549,7 +3549,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "235280c2ffdd4a2e94eaee14a23b4b03",
+        "action_id": "8e9ea24173f34537b3ddb0b1c1fe6d07",
         "charged": 350,
         "message": "⚔️ Action power.activate в очереди (350💎 списано)",
         "perk": "viewer",
@@ -3859,7 +3859,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "d40e5c2c50bc439296313c154f210a96",
+        "action_id": "04769458f21a433e948a9f3fbf812ef2",
         "charged": 350,
         "message": "⚔️ Action power.activate в очереди (350💎 списано)",
         "perk": "viewer",
@@ -4169,7 +4169,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "4ad94c0d10cc49a2a30d019e1809bddc",
+        "action_id": "980cd508b0654f92872fa7bc2f90c3b8",
         "charged": 350,
         "message": "⚔️ Action power.activate в очереди (350💎 списано)",
         "perk": "viewer",
@@ -4479,7 +4479,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "2ceae5ec0bbb4a6989ca6d45ffa9b0fd",
+        "action_id": "c6e2b22803bc416ca668f41d36337c51",
         "charged": 300,
         "message": "⚔️ Action power.activate в очереди (300💎 списано)",
         "perk": "viewer",
@@ -4654,7 +4654,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "0d34826530ee4c7485f9b64d411ef67a",
+        "action_id": "1569dba735944150852542a678e29dcd",
         "charged": 100,
         "message": "⚔️ Action power.activate в очереди (100💎 списано)",
         "perk": "viewer",
@@ -4682,7 +4682,7 @@
         "selected_power": "rage",
         "starter_kit": "infantry",
         "starter_claimed": true,
-        "weapon_power_cooldown_until": 1790971734,
+        "weapon_power_cooldown_until": 1790972951,
         "is_prisoner": false,
         "is_mounted": true,
         "can_manage": false,
@@ -5204,6 +5204,245 @@
         "success": false,
         "message": "Недостаточно крустиков: 0 < 30"
       }
+    },
+    "build_offline": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": true,
+        "can_manage": true,
+        "in_battle": false,
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 0.35,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "polearm",
+            "power_key": "shield_break_burst",
+            "label": "Разрушитель щитов",
+            "description": "Удары древковым оружием могут разбить щит на 45 секунд; шанс растёт с навыком.",
+            "skill": "Polearm",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 50.0,
+            "available": true,
+            "reason": null,
+            "price": 200,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "bow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные стрелы",
+            "description": "Попадания из лука наносят урон соседним врагам на 45 секунд.",
+            "skill": "Bow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "crossbow",
+            "power_key": "explosive_arrows",
+            "label": "Взрывные болты",
+            "description": "Попадания из арбалета наносят урон соседним врагам на 45 секунд.",
+            "skill": "Crossbow",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 20.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "thrown",
+            "power_key": "poison_dot",
+            "label": "Отравленные снаряды",
+            "description": "Попадания метательным оружием отравляют врага на 45 секунд.",
+            "skill": "Throwing",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 4.0,
+            "available": true,
+            "reason": null,
+            "price": 350,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "shield",
+            "power_key": "ironskin_toggle",
+            "label": "Стойкая защита",
+            "description": "Снижает входящий урон, пока щит в руке, на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 25.0,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          }
+        ],
+        "starter_kits": [],
+        "specializations": [],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "offline",
+      "message": "Игра сейчас не на связи"
+    },
+    "hero_refund_legacy_power_rage": {
+      "equipment_shop_ready": true,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 20:27:41",
+        "last_sync": "2026-10-02 20:27:41",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": [
+        {
+          "action_id": "cc979c6d61454a50ac473f3f3f40f147",
+          "type": "power.activate",
+          "reason": "hero_not_spawned",
+          "refunded": true
+        }
+      ]
+    },
+    "hero_refund_stance_aggressive": {
+      "equipment_shop_ready": true,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 20:27:41",
+        "last_sync": "2026-10-02 20:27:41",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": [
+        {
+          "action_id": "cc979c6d61454a50ac473f3f3f40f147",
+          "type": "power.activate",
+          "reason": "hero_not_spawned",
+          "refunded": true
+        },
+        {
+          "action_id": "41e36e6c4d424170b39bb892f382d7a8",
+          "type": "hero.set_combat_stance",
+          "reason": "unspecified",
+          "refunded": false
+        }
+      ]
     }
   }
 }

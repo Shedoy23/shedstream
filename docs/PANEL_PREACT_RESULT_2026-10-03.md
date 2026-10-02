@@ -1,11 +1,55 @@
 # Панель Preact: результат ночной работы 03.10.2026
 
+## Последний локальный checkpoint: свита, клан, отряд и армия
+
+Frozen source/report `9075a2cc5273c4c9051ffefa5312f1d951b9b545`, runtime `41d3477`,
+финальные tests `b5108ab`. Теперь закончены следующие отдельные области:
+
+| Область | Перенесена / request parity | Что не входит |
+|---|---|---|
+| Развитие героя, снаряжение, боевые действия | Да, предыдущие checkpoints ниже | Не весь Hero tab; турнир отдельно |
+| Свита | Да: basic/elite найм или upgrade, массовая тренировка, серверные cap/цены/CD, состояние и telemetry | Это не новая система bodyguards |
+| Клановый вход | Да: создать/вступить/покинуть клан, создать отряд, реальные подтверждения | Семья, наследование, вассальные кланы и upgrades отдельно |
+| Собственный отряд и армия | Да: все6 стратегических приказов, target editor/release, create/disband army | Это не вся Династия; роль/исход окончательно проверяет сервер/мод |
+
+**584 unit/DOM passed +2 explicit live skips**, types/build/check-build exit0.
+Отдельно **2/2 HTTP мини-игр** на свежем временном сервере, **17/17 legacy frontend
+checks**, git diff/check и lockfiles чистые. Паритет для A/B сравнивает настоящие
+23 старых scripts с реальными controls/confirmations, всем admitted-host trace,
+включая сохранённую Dynasty, visibility, polling, явные action tails и UI counters.
+Независимый review runtime `41d3477` проверил566tests и дополнительные probes;
+поздние18test cases дают финальные584, не приписываются раннему review.
+
+A:3 mutations red/restored. B:8 request families +4 behavior mutations red/restored;
+один избыточный post-await JWT guard survivor записан честно, обе снятые JWT fences
+обнаруживаются. Общий suite повторён после byte-exact восстановления.
+
+Initial `panel-mobile.html` + статический import graph: **184297 raw /50336 gzip-9
+bytes**. [Файлы и суммы](evidence/panel-party-2026-10-03/party-sizes.json).
+Не входят Helper, API bodies/headers и sourcemaps; Twitch network/3s compliance не
+заявляется. Минификация по-прежнему отключена, source maps и лицензии сохранены.
+
+Исправлены подтверждённые старые UI defects: пустая свита не обновляла доступность
+после изменения gold; party reads применялись в обратном порядке/после stop;
+подтверждение армии и локальные delayed reads использовали новую личность/JWT;
+recruit отправлял вместо цели текст placeholder. Нормальная wire-последовательность
+совпадает, последнее поле recruit и безопасные invalidation paths явно перечислены
+как intentional exceptions. Цена/cap без серверного подтверждения не выдумываются.
+
+[Полный A/B отчёт и ограничения DTO](PANEL_PARTY_PARITY_2026-10-03.md).
+**Этот checkpoint локальный.** GitHub writes остановлены после отказа/единственного
+повтора, remote `feature/panel-preact` по-прежнему `58c2e4f` (первые321tests).
+Нового GitHub CI нет. Backend/legacy/mods/OBS/frozenZIP не менялись; merge/deploy нет.
+Браузер318px/телефон/Hosted Test/настоящая игра не проверены; desktop вновь подтверждён
+offline21:38UTC. Следующий согласованный срез — королевство и дипломатия.
+
+
 ## Следующий проверенный checkpoint: боевые действия
 
 Combat checkpoint `0bbc802bc0e37dacf62e353543bbbfef235eea17`, последний runtime
 `fc0dde744ceed2089238185a305d27c5644ab313` (JWT callback ownership исправлен). Отдельный panel вход теперь включает
 развитие героя, снаряжение **и полный боевой экран без турниров**. Это по-прежнему
-не весь старый Hero/Battle tab и не вся панель. Свита/отряд/армия — следующий этап.
+не весь старый Hero/Battle tab и не вся панель. Свита/отряд/армия добавлены в следующем локальном checkpoint выше.
 
 | Дополнение | Переписан / паритет | Что осталось |
 |---|---|---|
@@ -74,7 +118,8 @@ tree `ce98da4f1fcdd80b589852449dee4d006655fa68`, в `feature/panel-preact`.
 | Счётчики UI | Да, прежние server events | Да: реальные PanelApp traces + неизменённый collector/server validator | Только осмысленные intent/exposure events; no click scraping |
 | Обновление баланса после действия | Общий transport tail | Да: stats → level + duels | Это не перенос всего самостоятельного экрана баланса/статистики |
 | Боевые действия | Да, в следующем checkpoint выше | Да, scoped actual host | Турниры ещё не перенесены |
-| Отряд/армия, дипломатия/королевство, кузница, турниры | Нет | Нет | Остаток согласованного порядка |
+| Свита, клан/отряд/армия | Да, последующий локальный checkpoint выше | Да, с перечисленными безопасными исключениями | Не вся Династия |
+| Дипломатия/королевство, кузница, турниры | Нет | Нет | Следующие согласованные области |
 | Кейсы, квесты, промо, голосования, статистика | Нет | Нет | Остаток общих экранов |
 | RimWorld, ShedColony | Нет | Нет | Последующие этапы |
 | OBS overlay | Не изменялся | Вне задания | Остаётся прежним |

@@ -72,6 +72,20 @@ async def run(db):
     assert out['expected_cost_gold'] == 9 and out['expected_value'] == 4, out
     print('OK   0.0.5: атрибут {attribute_key, amount} принят, котировка 9💰 при значении 4')
 
+    # 02.10, найдено пробой в игре: 0.0.5 шлёт 'Vigor' из своего списка, игра называет 'vigor'.
+    progression['attributes'].append(dict(id='vigor', value=4, limit=10, native_limit=10,
+                                          options=[dict(amount=1, cost_gold=50000, available=True)]))
+    await publish()
+    r = await buy('hero.add_attribute', attribute_key='Vigor', amount=1)
+    assert r.get('success'), ('0.0.5 sends Vigor, game calls it vigor - refused', r)
+    out = await queued(r)
+    assert out['attribute_key'] == 'vigor' and out['expected_cost_gold'] == 50000 and out['expected_value'] == 4, out
+    print("OK   0.0.5: атрибут 'Vigor' из панели найден как 'vigor' игры, в мод уходит id игры")
+    r = await buy('hero.add_attribute', attribute_key='Vigor', amount=1, progression_context=dict(context),
+                  expected_cost_gold=50000, expected_value=4)
+    assert r.get('reason') == 'progression_option_not_found', r
+    print('OK   новая панель с неверным регистром id — по-прежнему отказ (точное сравнение)')
+
     r = await buy('hero.add_skill', price=500)
     assert r.get('success'), ('0.0.5 random XP purchase refused', r)
     out = await queued(r)

@@ -120,6 +120,13 @@ async def validate(conn,channel_id,username,action_type,data,*,prepared=False,pr
         return refusal('progression_option_not_found')
     entries=ctx['progression']['attributes' if attr else 'skills']
     entry=next((x for x in entries if x['id']==key),None)
+    if entry is None and legacy and key:
+        # 0.0.5 шлёт атрибуты из своего списка с большой буквы ('Vigor'), игра называет
+        # их 'vigor'. Старой панели — совпадение без регистра, только если оно однозначно;
+        # дальше идёт настоящий id игры. Новая панель сравнивает точно (моды различают регистр).
+        folded=[x for x in entries if isinstance(x.get('id'),str) and x['id'].casefold()==key.casefold()]
+        if len(folded)==1:
+            entry=folded[0]; key=entry['id']
     payload={key_name:key}
     if is_xp:
         if not key:

@@ -201,3 +201,18 @@ it('a definite server refusal is retryable and does not create unknown-outcome b
   expect((await s.transport.action('hero.add_attribute', intent))?.success).toBe(true);
   expect(s.trace.filter(r => r.method === 'POST')).toHaveLength(2); s.controller.stop();
 });
+it('unknown-outcome disables visible mutation controls while refresh and another identity stay usable', async () => {
+  const s = setup({ '/api/bannerlord/action': {} }); await s.start(); const ui = render(<HeroDevelopmentView controller={s.controller} />);
+  await act(async () => { (ui.container.querySelector('[data-attr="Vigor"]') as HTMLElement).click(); await flush(); });
+  expect(s.controller.snapshot().canAct).toBe(true);
+  expect([...ui.container.querySelectorAll('[data-attr],[data-skill],[data-bnr-build-spec],[data-bnr-build-starter]')].every(node => (node as HTMLButtonElement).disabled)).toBe(true);
+  expect((ui.getByRole('button', { name: 'Обновить' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(ui.container.textContent).toContain('могла дойти до сервера');
+  await act(async () => { s.authorize({ ...authValue, token: 'rotated' }); await flush(); });
+  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => { s.routes['/api/user/resolve-twitch-token'] = { login: 'carol' }; s.authorize({ ...authValue, userId: 'opaque-carol', token: 'carol' }); await flush(); });
+  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(false);
+  await act(async () => { s.routes['/api/user/resolve-twitch-token'] = { login: 'alice' }; s.authorize(authValue); await flush(); });
+  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(true);
+  s.controller.stop();
+});

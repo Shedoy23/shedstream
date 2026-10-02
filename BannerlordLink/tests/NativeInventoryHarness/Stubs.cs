@@ -50,6 +50,17 @@ namespace TaleWorlds.CampaignSystem {
  public interface IDataStore { void SyncData<T>(string key,ref T value); }
  public class TickEvent { public void AddNonSerializedListener(object owner,Action<float> tick) {} }
  public static class CampaignEvents { public static TickEvent TickEvent=new(); }
+ // 02.10: RuntimeGameCatalogs (каталоги 0.0.6) компилируется вместе с магазином;
+ // здесь их не проверяем (это RuntimeCatalogHarness), нужны только типы.
+ public enum Occupation { Wanderer, Lord }
+ public class CultureObject { public string StringId, Name, EncyclopediaText; }
+ public class CharacterObject { public CultureObject Culture; public Occupation Occupation; }
+ public class PolicyObject : TaleWorlds.Core.PropertyObject { public string SecondaryEffects; public static List<PolicyObject> All = new(); }
+}
+namespace TaleWorlds.Core {
+ public class PropertyObject { public string StringId, Name, Description; }
+ public class SkillObject : PropertyObject { }
+ public class CharacterAttribute : PropertyObject { }
 }
 namespace TaleWorlds.CampaignSystem.Actions {
  public static class GiveGoldAction { public static void ApplyBetweenCharacters(TaleWorlds.CampaignSystem.Hero from,TaleWorlds.CampaignSystem.Hero to,int amount,bool notification) { if(from!=null) from.Gold-=amount; if(to!=null) to.Gold+=amount; } }

@@ -62,3 +62,17 @@ describe('skillgame polling and rules regressions', () => {
     expect(screen.getByText('Правила этой сохранённой партии')).toBeTruthy();
   });
 });
+
+describe('skillgame disclosed consequences', () => {
+  it('confirms restart separately and never implicitly starts a new paid/ranked command', () => {
+    const submit = mount(); fireEvent.click(screen.getByRole('button', { name: 'Сбросить попытку' })); expect(submit).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Подтвердить сброс' }));
+    expect(submit).toHaveBeenCalledExactlyOnceWith('action', { session_id: 'one', version: 0, action: 'restart' });
+  });
+  it('shows the server reward amount and calibration disclosure without defaults', () => {
+    mount({ ...empty, catalog: [{ ...catalog[0], balance_status: 'Баланс ещё проверяется', rewards: { ...catalog[0]!.rewards, immediate_points: 0 }, contest: { sponsor: 'Организатор из сервера', not_sponsors: ['Apple', 'Twitch'] } }] });
+    expect(screen.getByText('Баланс ещё проверяется')).toBeTruthy();
+    expect(screen.getByText('Крустики за отдельную победу: 0')).toBeTruthy();
+    expect(screen.getByText(/Организатор из сервера/)).toBeTruthy();
+  });
+});

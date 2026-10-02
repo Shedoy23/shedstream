@@ -14,7 +14,7 @@
 
 Исходный checkpoint двух областей: `05acd8c`; реализация боевых действий и финальный
 60-секундный balance dependency: `5da6e79`; воспроизводимые проверки мутаций:
-`c45fe61`. Последующий документный commit не меняет этот код.
+`c45fe61`. Дополнение сохранённого inventory: реализация `8db206d`, дополнительные мутации `e5436a1`. Последующий документный commit не меняет этот код.
 
 ## Что перенесено
 
@@ -75,10 +75,19 @@ hosts: 8s hero/classes/build и active inventory, 2.5s buffs, 2s battle, 1s disp
 
 Начальная проверенная последовательность default combat host:
 config(no-store), my-hero, classes, build, my-buffs, stats(no-store), level, duels,
-battle-status, дополнительный my-buffs на inactive→active. Сохранённые вкладки
-проверены отдельно на первоначальную видимость; полный startup-тrace восстановленного
-inventory не заявляется идентичным полному старому приложению. Его защищённое чтение
-остаётся привязано к observable hero identity, как в предыдущем checkpoint.
+battle-status, дополнительный my-buffs на inactive→active. **Все три сохранённые
+вкладки combat/hero/inventory теперь имеют точное сравнение полного admitted-host
+startup trace**, последующих 8s polls и переключений. Для восстановленного inventory
+единственный equipment-shop GET идёт **первым**, как у настоящего старого tab binder.
+Контроллер заранее отправляет этот owned GET, а реальный EquipmentView однократно
+получает его результат после первого подтверждённого hero snapshot. До этого
+snapshot нельзя использовать для действий. При смене viewer, observable hero или
+уходе со стартовой вкладки непринятый preload отбрасывается; действующие generation/
+hero/request/revision guards EquipmentView сохранены. Медленные ответы отдельно
+проверены. Как и прежде, equipment wire не содержит save/session/hero ID: невидимую
+смену серверного контекста frontend доказать не может, окончательная проверка
+принадлежности и цены остаётся на backend. Это выбранный host, не весь старый
+DOMContentLoaded/SDK bootstrap с неперенесёнными областями.
 
 Каждая wire-проверка сравнивает **метод, путь, query, JSON body, JWT, Content-Type,
 cache**, где применимо keepalive, порядок и кратность read/poll/tail/usage запросов.
@@ -125,12 +134,15 @@ mounted build не получает «Набег». Это не исправле
 - `8305543`: 3 failures на поздних отказах/уведомлениях; исправление `8cf41e0`
 - `627d7db`: 4 failures на 60s balance dependency и старых countdown labels;
   исправление `5da6e79`
-- **24 семантические мутации: все exit 1**, затем точное восстановление из
+- `98d4213`: saved inventory exact trace красный: GET магазина был последним
+  вместо первого; saved hero/combat уже совпадали. `84ffed4` / `f2832b2` закрепляют
+  loading/slow response/hero/viewer guards. Исправление `8db206d`
+- **27 семантических мутаций: все exit 1**, затем точное восстановление из
   собственных byte backups и полный зелёный suite. Код до каждого прогона
   закоммичен. Проверяются payload/price/key каждой семьи, shared weapon CD,
   participant, malformed price, family lock, transition read, client ID, tail,
   pending/cooldown revisions, balance cadence/gate, stance identity, viewer
-  ownership, actual collector key и section order
+  ownership, actual collector key, section order, saved-inventory initial request order, single consumption и initial hero readiness
 - Viewer ownership имеет два независимых барьера: abort и generation. Первое
   снятие только generation сохранило зелёный тест благодаря abort. Корректная
   adversarial mutation снимает оба, получает exit 1; это не скрытый выживший mutant
@@ -142,7 +154,7 @@ Runner: `python frontend-next/scripts/check-combat-mutations.py <output-dir>`.
 
 | Проверка | Результат |
 |---|---|
-| Исходные 321 + 142 новые unit/DOM tests | **463 passed**, 2 explicit live skips, exit 0 |
+| Исходные 321 + 148 новые unit/DOM tests | **469 passed**, 2 explicit live skips, exit 0 |
 | Typecheck | exit 0 |
 | Build и check-build | exit 0: 6 entrypoints, CSP/Helper first, парные HTML, независимые графы, readable sources и лицензии |
 | Fresh self-contained build | отдельный `git archive`, собственный `npm ci --offline`, exit 0 |
@@ -158,9 +170,9 @@ Generator требует заявленные backend test dependencies; лок�
 ## Вес
 
 Чистая отдельная сборка: `panel-mobile.html` и весь его initial import graph:
-**148 804 bytes raw / 41 864 bytes gzip-9**. Предыдущие две области:
+**150 305 bytes raw / 42 250 bytes gzip-9**. Предыдущие две области:
 114 632 / 32 980 bytes. Добавление полного боевого экрана и общей зависимости
-уведомлений/баланса: **+34 172 raw / +8 884 gzip-9**.
+уведомлений/баланса: **+35 673 raw / +9 270 gzip-9**.
 
 Метод: `node frontend-next/scripts/measure-build.mjs frontend-next/dist panel-mobile.html`,
 `gzip -9 -c` отдельно для каждого файла. [Все файлы и суммы](evidence/panel-combat-2026-10-03/sizes.json).

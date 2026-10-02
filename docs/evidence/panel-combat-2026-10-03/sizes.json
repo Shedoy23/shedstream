@@ -25,13 +25,13 @@
       "raw": 83644,
       "gzip9": 23381
     },
-    "assets/main-sh7ujL8-.js": {
-      "raw": 108708,
-      "gzip9": 27620
+    "assets/main-DHz2co7n.js": {
+      "raw": 110209,
+      "gzip9": 28006
     },
-    "assets/main-sh7ujL8-.js.map": {
-      "raw": 173387,
-      "gzip9": 46347
+    "assets/main-DHz2co7n.js.map": {
+      "raw": 176306,
+      "gzip9": 47075
     },
     "assets/origin-6oRUfO6P.js": {
       "raw": 6223,
@@ -55,24 +55,24 @@
     }
   },
   "assets_total": {
-    "raw": 701402,
-    "gzip9": 199709
+    "raw": 705822,
+    "gzip9": 200823
   },
   "runtime_assets_total": {
-    "raw": 229776,
-    "gzip9": 64358
+    "raw": 231277,
+    "gzip9": 64744
   },
   "page": "panel-mobile.html",
   "initial_files": [
     "assets/jsxRuntime-BJoMBIby.js",
     "assets/main-Ccc3DrDT.css",
-    "assets/main-sh7ujL8-.js",
+    "assets/main-DHz2co7n.js",
     "assets/origin-6oRUfO6P.js",
     "panel-mobile.html"
   ],
   "initial_total": {
-    "raw": 148804,
-    "gzip9": 41864
+    "raw": 150305,
+    "gzip9": 42250
   },
   "excludes": [
     "Twitch-hosted Helper script (external and unchanged)",

@@ -1,6 +1,51 @@
 {
   "mutations": [
     {
+      "mutation": "restored-startup-order",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "restored inventory initial selected-host"
+      ],
+      "exit": 1,
+      "log": "restored-startup-order.log"
+    },
+    {
+      "mutation": "restored-read-consumption",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "restored inventory initial selected-host"
+      ],
+      "exit": 1,
+      "log": "restored-read-consumption.log"
+    },
+    {
+      "mutation": "restored-initial-readiness",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "restored inventory preloads first"
+      ],
+      "exit": 1,
+      "log": "restored-initial-readiness.log"
+    },
+    {
       "mutation": "order-price",
       "command": [
         "npm",

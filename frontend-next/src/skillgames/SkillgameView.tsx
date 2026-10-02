@@ -89,14 +89,14 @@ function CatalogCard({ game, rating, disabled, onSubmit }: { game: GameCatalog; 
 }
 function Confirmation({ onCancel, onConfirm, action, rules }: { onCancel: () => void; onConfirm: () => void; action: 'quit' | 'restart'; rules: string[] }) {
   const cancel = useRef<HTMLButtonElement>(null);
-  useEffect(() => { const previous = document.activeElement as HTMLElement | null; cancel.current?.focus(); return () => { previous?.focus(); }; }, []);
+  useLayoutEffect(() => { const previous = document.activeElement as HTMLElement | null; cancel.current?.focus(); return () => { previous?.focus(); }; }, []);
   return <div className="sg-dialog-backdrop"><section className="sg-dialog" role="dialog" aria-modal="true" aria-labelledby="quit-title" onKeyDown={event => { if (event.key === 'Escape') onCancel(); if (event.key === 'Tab') { event.preventDefault(); const target = event.currentTarget.querySelectorAll('button'); (document.activeElement === target[0] ? target[1] : target[0]).focus(); } }}><h2 id="quit-title">{action === 'restart' ? 'Сбросить эту попытку?' : 'Завершить эту партию?'}</h2><p>Сервер завершит текущую партию по её правилам. Если это поражение, он изменит рейтинг. Новую игру нужно будет выбрать отдельно.</p><ul className="sg-rules">{rules.map((rule, index) => <li key={index}>{rule}</li>)}</ul><div className="sg-actions"><button ref={cancel} onClick={onCancel}>Остаться</button><button className="sg-danger" onClick={onConfirm}>{action === 'restart' ? 'Подтвердить сброс' : 'Подтвердить выход'}</button></div></section></div>;
 }
 export function SkillgameView({ state, onSubmit, onRefresh, onRetry, demo, localIntegration }: Props) {
   const [confirmQuit, setConfirmQuit] = useState<'quit' | 'restart' | null>(null); const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const data = state.data; const session = data?.active_session; const config = session?.rules || data?.catalog.find(game => game.game_type === session?.game_type);
-  useEffect(() => setConfirmQuit(null), [session?.id]);
+  useLayoutEffect(() => setConfirmQuit(null), [session?.id]);
   const serverNow = (data?.server_time ?? state.receivedAt / 1000) + (now - state.receivedAt) / 1000;
   const remaining = session?.expires_at != null ? Math.max(0, Math.ceil(session.expires_at - serverNow)) : null;
   const act = (command: Command) => { if (session && state.canAct) onSubmit('action', { session_id: session.id, version: session.version, ...command }); };

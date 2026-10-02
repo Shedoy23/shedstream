@@ -126,6 +126,7 @@ def apply_action(state, username, action, cell=None, ships=None, now=0):
             out['ready'][username] = True
             if all(out['ready'].values()):
                 out['phase'] = 'active'
+                out['started_at'] = now
                 out['turn'] = random.SystemRandom().choice(out['players'])
                 out['turn_started_at'] = now
         return out

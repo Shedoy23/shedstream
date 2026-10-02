@@ -14,3 +14,4 @@
 .panel-hp span {display:block;height:100%;background:linear-gradient(90deg,#d35045,#69b889)}
 .panel-buff {display:inline-block;border-radius:20px;padding:5px 9px;margin:3px;background:#59438b;font-size:12px}
 @media(max-width:340px){.panel-orders {grid-template-columns:repeat(2,minmax(0,1fr))}}
+.panel-combat .bnr-cant-afford {opacity:.55}

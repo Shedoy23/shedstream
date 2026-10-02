@@ -8,7 +8,7 @@ export class PanelController {
   private state: PanelState;
   private listeners = new Set<() => void>(); private active = false; private generation = 0; private owner = '';
   private unsubscribe: (() => void)[] = []; private issued: Record<string, number> = {}; private applied: Record<string, number> = {};
-  private combatEnabled = false;
+  private combatEnabled = false; private stanceRevision = 0;
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
   constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now, private readonly usage?: Pick<PanelUsage, 'start' | 'stop' | 'trackPanel' | 'trackSection' | 'trackAction'>) { this.state = this.empty(); }
@@ -18,7 +18,7 @@ export class PanelController {
   private publish(patch: Partial<PanelState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()); }
   identityGeneration = () => this.generation;
   ready = () => this.active && this.identity.snapshot().status === 'ready' && !!this.identity.snapshot().login && !!this.auth.current()?.token && this.owner === owner(this.auth);
-  private invalidate() { this.generation++; this.aborts.forEach(abort => abort.abort()); this.aborts.clear(); this.timers.forEach(timer => clearTimeout(timer)); this.timers.clear(); this.issued = {}; this.applied = {}; this.cooldownRevision++; this.buildRevision++; this.state = this.empty(); }
+  private invalidate() { this.generation++; this.aborts.forEach(abort => abort.abort()); this.aborts.clear(); this.timers.forEach(timer => clearTimeout(timer)); this.timers.clear(); this.issued = {}; this.applied = {}; this.cooldownRevision++; this.buildRevision++; this.stanceRevision++; this.state = this.empty(); }
   private mutationGate() { const message = this.transport.mutationBlock?.(); return { mutationBlocked: !!message, ...(message ? { message } : {}) }; }
   private syncIdentity = () => {
     const next = owner(this.auth); const changed = next !== this.owner;
@@ -112,10 +112,10 @@ export class PanelController {
   }
   async combatAction(type: string, data: Record<string, unknown>, buildFamily = false) {
     if (!combatAllowed(this.state, type, data, buildFamily, this.clock())) return null;
-    const generation = this.generation;
+    const generation = this.generation, stanceRevision = type === 'hero.set_combat_stance' ? ++this.stanceRevision : this.stanceRevision;
     if (type === 'hero.set_combat_stance') this.publish({ optimisticStance: String(data.stance) });
     const result = await this.action(type, data, { tail: 'hero', buildFamily, cooldownKey: semanticCooldown(type, data, buildFamily) });
-    if (generation === this.generation && type === 'hero.set_combat_stance' && !result?.success) this.publish({ optimisticStance: null });
+    if (generation === this.generation && stanceRevision === this.stanceRevision && type === 'hero.set_combat_stance' && !result?.success) this.publish({ optimisticStance: null });
     return result;
   }
   async action(type: string, data: Record<string, unknown>, options: ActionOptions): Promise<ActionReply | null> {

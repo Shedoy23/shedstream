@@ -237,7 +237,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     ${options.equipmentHost || options.panelLifecycle ? '<section class="bnr-tab-pane" data-bnr-pane="inventory"><div id="bnr-equipment-shop"></div></section>' : ''}
   </main>`;
   evaluate(`authToken=${JSON.stringify(token)};userLogin=${JSON.stringify(login)};window.userLogin=userLogin;`);
-  if (options.panelLifecycle) evaluate("localStorage.setItem('bnr_active_tab','hero');_bindBnrInnerTabs();");
+  if (options.panelLifecycle) evaluate(`localStorage.setItem('bnr_active_tab',${JSON.stringify(options.combatHost ? 'combat' : 'hero')});_bindBnrInnerTabs();`);
 
   async function settle() {
     // A native event-loop turn drains recursively scheduled promise jobs from

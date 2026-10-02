@@ -13,7 +13,7 @@ const flush=async()=>{for(let i=0;i<45;i++)await Promise.resolve();};
 const response=(body:unknown)=>new Response(JSON.stringify(body));
 const deferred=<T,>()=>{let resolve!:(value:T)=>void;const promise=new Promise<T>(r=>resolve=r);return {resolve,promise};};
 const cleanupFns:(()=>void)[]=[];
-beforeEach(()=>{vi.useFakeTimers({toFake:['setTimeout','clearTimeout','setInterval','clearInterval','Date']});vi.setSystemTime(epoch);Object.defineProperty(document,'hidden',{configurable:true,value:false});});
+beforeEach(()=>{vi.useFakeTimers({toFake:['setTimeout','clearTimeout','setInterval','clearInterval','Date']});vi.setSystemTime(epoch);localStorage.clear();Object.defineProperty(document,'hidden',{configurable:true,value:false});});
 afterEach(()=>{cleanup();cleanupFns.splice(0).forEach(fn=>fn());vi.useRealTimers();});
 async function setup(overrides:Record<string,unknown>={}){
   const trace:{path:string;method:string;body?:{action_type:string;data:Record<string,unknown>};token:string|null}[]=[];

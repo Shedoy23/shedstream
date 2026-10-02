@@ -78,7 +78,7 @@ it('same-frame opposite summons remain independent', async () => {
   expect(posts(p)).toHaveLength(2); release(c.spawn_player.response); await p.advance(3500); p.check();
 });
 it('combat timer/visibility/tab lifecycle and telemetry use actual host and unchanged collector', async () => {
-  const p=await combatPair(); await p.tab('combat'); await p.tab('combat'); await p.click('[data-stance="aggressive"]');
+  const p=await combatPair(); await p.tab('hero'); await p.tab('combat'); await p.tab('combat'); await p.click('[data-stance="aggressive"]');
   await p.advance(3000); await p.tab('inventory'); await p.advance(5000); await p.tab('hero'); await p.advance(22000); p.check();
   expect(usageEvents(p.trace)).toContainEqual({kind:'section_open',feature:'bannerlord:tab.combat',count:1});
   expect(usageEvents(p.trace)).toContainEqual({kind:'action_attempt',feature:'bannerlord:hero.set_combat_stance',count:1});

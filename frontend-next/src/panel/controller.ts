@@ -1,5 +1,6 @@
+import { diplomacyAllowed, diplomacyOwner, type DiplomacyReply } from './diplomacy';
 import { kingdomAllowed, kingdomOwner } from './kingdom';
-import { clanInfo, partyAllowed, partyOwner, type PartyOrdersReply } from './party';
+import { clanInfo, kingdomInfo, partyAllowed, partyOwner, type PartyOrdersReply } from './party';
 import { TwitchAuthStore } from '../auth';
 import type { PanelUsage } from './usage';
 import type { IdentityBootstrap } from '../skillgames/identity';
@@ -19,7 +20,7 @@ export class PanelController {
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
   constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now, private readonly usage?: Pick<PanelUsage, 'start' | 'stop' | 'trackPanel' | 'trackSection' | 'trackAction'>) { this.state = this.empty(); }
-  private empty(): PanelState { return { partyOrders: null, refundNotices: [], battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
+  private empty(): PanelState { return { diplomacy: null, partyOrders: null, refundNotices: [], battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
   snapshot = () => this.state;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   private publish(patch: Partial<PanelState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()); }
@@ -107,11 +108,37 @@ export class PanelController {
       if (this.equipmentPreload.hero === undefined) this.equipmentPreload.hero = heroContext(hero);
       else if (this.equipmentPreload.hero !== heroContext(hero)) this.discardEquipmentPreload();
     }
+    if (kingdomOwner(hero) !== kingdomOwner(this.state.hero)) { this.applied.diplomacy = this.issued.diplomacy = (this.issued.diplomacy || 0) + 1; this.state = { ...this.state, diplomacy: null }; }
     if (partyOwner(hero) !== partyOwner(this.state.hero)) { this.applied.party = this.issued.party = (this.issued.party || 0) + 1; this.state = { ...this.state, partyOrders: null }; }
     return { hero, refundNotices: this.refundNotices(hero), optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance || this.stanceRefused(hero) ? null : this.state.optimisticStance };
   }).then(applied => { if (applied) this.refreshVisibleParty(); });
   setPartyActive(active: boolean) { this.partyActive = active; if (active) this.refreshVisibleParty(); }
-  refreshVisibleParty = () => { if (this.partyActive && !document.hidden && this.state.hero?.hero?.is_alive && clanInfo(this.state.hero)?.is_leader) void this.refreshPartyOrders(); };
+  refreshVisibleParty = () => { if (this.partyActive && !document.hidden && this.state.hero?.hero?.is_alive && clanInfo(this.state.hero)?.is_leader) { void this.refreshPartyOrders(); void this.refreshDiplomacy(); } };
+  refreshDiplomacy = () => {
+    if(!this.state.hero?.hero?.is_alive||!clanInfo(this.state.hero)?.is_leader)return Promise.resolve();
+    const context=kingdomOwner(this.state.hero),token=this.auth.current()?.token;
+    return this.load<DiplomacyReply>('diplomacy','/api/bannerlord/kingdom-state',diplomacy=>{
+      // Never combine a different realm's state with this hero's target catalog.
+      const realm=kingdomInfo(this.state.hero)?.id;
+      if(diplomacy.has_hero&&diplomacy.kingdom_id&&realm&&diplomacy.kingdom_id!==realm)return {};
+      return {diplomacy};
+    },()=>context===kingdomOwner(this.state.hero)&&token===this.auth.current()?.token);
+  };
+  async diplomacyAction(type:string,data:Record<string,unknown>) {
+    if(!this.partyActive||!diplomacyAllowed(this.state,type,data,this.clock())||!this.ready())return null;
+    const owns=this.captureRequestOwner(),context=diplomacyOwner(this.state);
+    const result=await this.action(type,data,{tail:type.startsWith('hero.')?'hero':'balance'});
+    if(!owns()||context!==diplomacyOwner(this.state))return result;
+    if(result?.success)this.applied.diplomacy=this.issued.diplomacy=(this.issued.diplomacy||0)+1;
+    if(type==='kingdom.propose_war'||type==='kingdom.propose_peace'){
+      if(result?.success)this.showMessage(type==='kingdom.propose_war'?`📜 Заявка на войну с «${data.target_kingdom_name}» отправлена на голосование кланов. Войну объявят, только если кланы проголосуют ЗА — это не мгновенно.`:`📜 Заявка на мир с «${data.target_kingdom_name}» отправлена на голосование кланов. Мир заключат, только если кланы проголосуют ЗА — это не мгновенно.`,7000);
+      void this.refreshDiplomacy();
+    }else{
+      const timer=setTimeout(()=>{this.timers.delete(timer);if(owns()&&context===diplomacyOwner(this.state))void this.refreshDiplomacy();},type==='kingdom.set_tax_rate'?1200:2000);
+      this.timers.add(timer);
+    }
+    return result;
+  }
   refreshPartyOrders = () => {
     if (!this.state.hero?.hero?.is_alive || !clanInfo(this.state.hero)?.is_leader) return Promise.resolve();
     const context = partyOwner(this.state.hero), token = this.auth.current()?.token;

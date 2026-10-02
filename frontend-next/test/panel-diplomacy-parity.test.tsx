@@ -1,7 +1,6 @@
 import { act } from '@testing-library/preact';
 import { expect,it } from 'vitest';
 import { kingdomPair,r,toggle,input,posts } from './panel-kingdom-support';
-import { flush } from './panel-combat-support';
 const laws=[['policy_forgiveness_of_debts','Прощение долгов'],['policy_land_grands_for_veteran','Земля ветеранам'],['policy_precarial_land_tenure','Условное землевладение'],['policy_royal_guard','Королевская гвардия'],['policy_sacred_majesty','Священное величие'],['policy_trial_by_jury','Суд присяжных'],['policy_imperial_towns','Имперские города'],['policy_noble_retinues','Дружины знати'],['policy_lords_privy_council','Тайный совет лордов'],['policy_council_of_the_commons','Совет общин'],['policy_serfdom','Крепостное право'],['policy_citizenship','Гражданство']];
 const law=(id='policy_royal_guard')=>`[data-policy-id="${id}"]`;
 it('complete Politics card follows army in actual saved Dynasty with one read per active hero cadence',async()=>{const p=await kingdomPair();expect(p.ui.container.querySelector('[data-bnr-section="diplomacy"]')?.textContent).toContain('Fixture Kingdom');expect(p.ui.container.querySelectorAll('.bnr-diplo-policy-row')).toHaveLength(12);p.check();await p.advance(8000);p.check();await p.tab('hero');await p.advance(8000);p.check();await p.tab('dynasty');p.check();});

@@ -6,3 +6,5 @@
 .panel-party select, .panel-party input:not([type=radio]) { width: 100%; box-sizing: border-box; margin: .5rem 0; }
 .panel-party dl { display: grid; grid-template-columns: auto 1fr; gap: .3rem .6rem; }
 .panel-party dd { margin: 0; }
+/* Complete Dynasty politics card, sharing the existing narrow panel layout. */
+.bnr-diplo-policy-row{display:block;width:100%;text-align:left;margin:4px 0;white-space:normal}.panel-policy-description{display:block;font-size:.8rem;font-weight:normal;margin-top:3px;color:var(--panel-muted,#adadb8)}.panel-policy-active{border-color:#86efac}.panel-policy-badge{display:inline-block;border:1px solid #92400e;border-radius:4px;padding:3px 5px;margin:2px}.panel-tax-buttons{display:flex;gap:4px}.panel-tax-buttons button{flex:1;min-width:0}.panel-tax-buttons [aria-pressed=true]{background:#92400e}

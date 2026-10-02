@@ -1,0 +1,3 @@
+# The frontend telemetry contract test executes the unchanged Python validator.
+# No backend service, database, Twitch credentials, or game process is started.
+pyyaml==6.0.3

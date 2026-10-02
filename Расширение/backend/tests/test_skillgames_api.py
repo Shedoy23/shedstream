@@ -490,16 +490,15 @@ class SkillgamesHTTPTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_declared_dependency_excludes_incompatible_pydantic_v1(self):
         import pydantic
-        from packaging.requirements import Requirement
         requirements = []
         for line in (BACKEND / 'requirements.txt').read_text().splitlines():
             line = line.split('#',1)[0].strip()
             if line:
-                requirements.append(Requirement(line))
-        declared = [r for r in requirements if r.name.lower()=='pydantic']
+                requirements.append(line)
+        declared = [r for r in requirements if r.lower().startswith('pydantic==')]
         self.assertEqual(len(declared),1,'The API uses Pydantic v2-only validation, so v2 must be an explicit runtime dependency')
-        self.assertNotIn('1.10.26',declared[0].specifier)
-        self.assertIn(pydantic.__version__,declared[0].specifier)
+        self.assertTrue(pydantic.__version__.startswith('2.'),'The actual imported runtime must be v2')
+        self.assertEqual(declared[0], 'pydantic=='+pydantic.__version__,'Runtime pin must match the validated installed version')
         from routes.skillgames import Action
         body = Action.model_validate_json(b'{"session_id":"abcdefgh","version":0,"request_id":"abcdefgh","action":"open","cell":0}')
         self.assertEqual(body.model_dump()['cell'],0)

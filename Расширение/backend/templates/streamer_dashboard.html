@@ -1,6 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><title>Dashboard — {{ display }}</title>
+<html lang="ru"><head><meta charset="utf-8"><title>ShedLink — кабинет {{ display }}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0e0e10;color:#efeff1;margin:0;padding:20px;min-height:100vh;box-sizing:border-box}
   /* 840px — ширина «под чтение текста абзацами», и она стояла здесь с тех пор,
@@ -141,40 +144,88 @@
   .mod-btn{flex:1;background:#0e0e10;color:#adadb8;border:1px solid #3d3d3f;padding:12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600}
   .mod-btn:hover{border-color:#9147ff;color:#fff}
   .mod-btn.active{background:#7e22ce;color:#fff;border-color:#9147ff}
+
+  /* ShedLink control room: visual layer only; existing controls keep their IDs and handlers. */
+  :root{color-scheme:dark;--sl-bg:#090e1a;--sl-panel:#121c2d;--sl-border:#27364e;--sl-text:#edf3fb;--sl-muted:#9aabc2;--sl-lilac:#a899ff;--sl-mint:#6be5cc}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{position:relative;padding:0 24px 64px;background:radial-gradient(circle at 86% 2%,rgba(119,91,235,.2),transparent 28%),radial-gradient(circle at 5% 28%,rgba(33,151,160,.12),transparent 32%),var(--sl-bg);color:var(--sl-text);font-family:Manrope,"Segoe UI",sans-serif;line-height:1.5}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.2;background-image:linear-gradient(rgba(179,197,230,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(179,197,230,.1) 1px,transparent 1px);background-size:64px 64px;mask-image:linear-gradient(to bottom,#000,transparent 75%)}
+  .wrap{position:relative;max-width:1360px;margin:0 auto}
+  .header{min-height:90px;margin:0;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid rgba(151,174,213,.16)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{position:relative;display:grid;place-items:center;width:41px;height:41px;border-radius:13px;background:linear-gradient(145deg,#8171f8,#3eb6bd);box-shadow:0 10px 30px rgba(70,101,213,.3);color:white;font-family:"Space Grotesk",sans-serif;font-size:24px;font-weight:700;line-height:1}
+  .brand-mark span{position:absolute;top:-6px;right:-6px;color:#d7ffef;font-size:13px}
+  .brand-copy{display:grid;gap:0}.brand-copy strong{font-family:"Space Grotesk",sans-serif;font-size:18px;letter-spacing:.12em;line-height:1.1}.brand-copy small{color:var(--sl-muted);font-size:11px;letter-spacing:.05em}
+  .logout{border-color:#364660;color:#c5d2e5;border-radius:10px;padding:9px 16px;font-family:inherit;font-weight:700;transition:background .2s,border-color .2s,transform .2s}
+  .logout:hover{background:#1a2940;border-color:#8498b8;transform:translateY(-1px)}
+  .hero{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;min-height:244px;margin:26px 0 16px;padding:32px 40px;border:1px solid #364773;border-radius:24px;background:linear-gradient(112deg,#1d2849 0%,#142440 49%,#132e3c 100%);box-shadow:0 22px 65px rgba(1,5,14,.25)}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 80% 45%,rgba(115,233,212,.23),transparent 31%),linear-gradient(90deg,rgba(154,130,255,.08),transparent 55%);z-index:-1}
+  .hero-copy{position:relative;z-index:1;max-width:760px}.eyebrow{display:flex;align-items:center;gap:9px;color:#a8e9dc;font-size:11px;font-weight:800;letter-spacing:.17em}.eyebrow-dot{width:7px;height:7px;border-radius:50%;background:#74ead3;box-shadow:0 0 0 4px rgba(116,234,211,.12)}
+  .hero h1{margin:13px 0 9px;font-family:"Space Grotesk",Manrope,sans-serif;font-size:clamp(30px,3.4vw,48px);line-height:1.12;letter-spacing:-.04em}.nick{color:#c0b5ff}.hero-period{color:var(--sl-mint)}
+  .hero p{margin:0;max-width:620px;color:#c6d4e8;font-size:14px;line-height:1.7}.hero-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}.hero-tags span{border:1px solid rgba(170,198,225,.27);border-radius:100px;padding:6px 12px;background:rgba(7,15,32,.26);font-size:11px;color:#dbe7f7;font-weight:700}
+  .hero-orbit{position:absolute;right:7%;width:220px;height:220px;border:1px solid rgba(158,204,239,.25);border-radius:50%;display:grid;place-items:center;transform:rotate(-18deg)}.hero-orbit::before,.hero-orbit::after{content:"";position:absolute;border:1px solid rgba(158,204,239,.22);border-radius:50%;inset:24px}.hero-orbit::after{inset:52px;border-color:rgba(161,142,255,.32)}.orbit-core{display:grid;place-items:center;width:74px;height:74px;border-radius:23px;background:linear-gradient(145deg,#9c8aff,#4dd3c0);color:white;font:700 42px "Space Grotesk",sans-serif;box-shadow:0 12px 45px rgba(85,206,202,.25)}.orbit-star{position:absolute;color:#a2f1de;font-size:25px}.star-one{top:4px;right:43px}.star-two{bottom:22px;left:17px}
+  .jumpnav{display:flex;gap:6px;overflow:auto;margin-bottom:22px;padding:6px;border:1px solid rgba(150,173,212,.16);border-radius:14px;background:rgba(12,21,37,.7);scrollbar-width:none}.jumpnav::-webkit-scrollbar{display:none}.jumpnav a{flex:0 0 auto;padding:9px 14px;border-radius:9px;color:#aebed3;text-decoration:none;font-size:12px;font-weight:800;transition:background .2s,color .2s}.jumpnav a:hover,.jumpnav a:focus-visible{background:#22324c;color:white}
+  .status,.section,.tile{border:1px solid var(--sl-border);background:linear-gradient(165deg,rgba(23,35,56,.97),rgba(15,25,42,.97));box-shadow:0 12px 35px rgba(0,0,0,.12)}
+  .status{position:relative;overflow:hidden;border-radius:20px;padding:25px 28px;margin-bottom:16px}.status::before{content:"";position:absolute;top:0;bottom:0;left:0;width:4px;background:var(--sl-lilac)}.status.ok{border-color:rgba(73,202,171,.38);background:linear-gradient(115deg,rgba(22,57,60,.94),rgba(15,31,46,.97))}.status.ok::before{background:var(--sl-mint)}.status.wait{border-color:rgba(232,174,94,.36);background:linear-gradient(115deg,rgba(59,46,41,.92),rgba(22,31,46,.97))}.status.wait::before{background:#f5be75}.status .head{font-family:"Space Grotesk",sans-serif;font-size:20px;letter-spacing:-.02em}.status .why{color:#bdcce0}.steps li{border-color:rgba(166,185,212,.15);color:#b4c3d8}.steps li.done{color:#f1f7fe}.steps .hint{color:#f5c787}.counts{color:#91a6c0;flex-wrap:wrap;gap:10px 22px}
+  .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-bottom:18px}.tile{position:relative;overflow:hidden;border-radius:17px;padding:19px 21px;min-height:102px;transition:transform .2s,border-color .2s,box-shadow .2s}.tile:hover{transform:translateY(-2px);border-color:#51658a;box-shadow:0 18px 35px rgba(0,0,0,.2)}.tile::after{content:"";position:absolute;width:95px;height:95px;right:-45px;top:-45px;border:1px solid rgba(175,192,255,.19);border-radius:50%}.tile .lbl{color:#8fa7c0;letter-spacing:.11em;font-size:10px;font-weight:800;margin-bottom:10px}.tile .val{font-family:"Space Grotesk",Manrope,sans-serif;font-size:19px;letter-spacing:-.02em;word-break:break-word}.tile:nth-child(1) .val,.tile:nth-child(2) .val{color:#c1b6ff}.tile:nth-child(6) .val{color:#86e9d3}.tier-badge{background:#7766da;border:1px solid rgba(205,196,255,.3);border-radius:8px;font-family:Manrope,sans-serif}
+  .status-updated{margin-top:12px;color:#8fa7c0;font-size:11px}
+  .section{position:relative;border-radius:20px;padding:26px 28px;margin-bottom:16px}.section h2{font-family:"Space Grotesk",Manrope,sans-serif;font-size:21px;letter-spacing:-.025em;color:#f3f6fc;margin-bottom:8px}.section .sub{color:#aebfd5;line-height:1.65;font-size:13px}.section#safety{border-color:rgba(246,125,123,.34);background:linear-gradient(110deg,rgba(54,30,44,.95),rgba(24,30,47,.97))}.section#safety h2{color:#ffd3ce}
+  .mod-switch{gap:10px}.mod-btn{background:#101a2c;color:#b9c8dd;border:1px solid #354661;border-radius:11px;padding:12px 15px;font-family:Manrope,sans-serif;font-weight:800;transition:transform .2s,border-color .2s,background .2s}.mod-btn:hover{border-color:#9686ef;background:#20304b;transform:translateY(-1px)}.mod-btn.active{background:linear-gradient(135deg,#6657c9,#4f72bc);border-color:#9b91ef;color:white;box-shadow:0 8px 24px rgba(99,88,205,.22)}#pause-btn{flex:0 1 auto;border-color:#9e676b;color:#ffe1df;background:#482b3c}#pause-btn:hover{background:#633344;border-color:#f0a3a0}#pause-btn.active{background:#23594e;border-color:#6be5cc;color:#e0fff4;box-shadow:none}
+  .install .path,code,.cfgbox textarea,.tok-field,.automsg-row input.am-text,.automsg-row select,.boosty-form input,.boosty-form select,.boosty-bulk textarea{background:#0b1423;border-color:#32445e;color:#dce9fa;border-radius:9px}.install .path{font-size:12px}.warnbox{background:rgba(237,178,101,.09);border-color:#735b49;color:#ecd3ad;border-radius:11px}.boosty-tier-info{background:rgba(158,137,255,.09);border-color:#504878;border-radius:11px;color:#bbc8dc}.boosty-row{background:#101c30;border-color:#2c3f59;border-radius:10px;padding:10px 13px}.boosty-row .t,.tok-name,.boosty-tier-info b{color:#bfb4ff}.boosty-row .n{color:#93a7c1}.tok-copy,.boosty-form button,.automsg-actions button.primary{background:#6959ce;border-color:#6959ce;border-radius:9px;font-family:Manrope,sans-serif}.tok-copy:hover,.boosty-form button:hover{background:#7e6ee3}.tok-show,.cfgbox .cfgcopy,.automsg-actions button{border-color:#41516b;border-radius:9px;color:#dce8f8;background:#1d2b40}.tok-show:hover,.automsg-actions button:hover{border-color:#9b8df3;color:white}.boosty-msg.ok{color:#8df1d9;border-color:#3a8d7d}.boosty-msg.err{color:#ffadaa;border-color:#ae5b63}.footnote{color:#8297b0}.section button,.section input,.section select,.section textarea{font-family:Manrope,"Segoe UI",sans-serif}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #b9adff;outline-offset:2px}
+  @media(max-width:940px){.hero-orbit{right:-3%;opacity:.35}.grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(max-width:640px){body{padding:0 14px 35px}.header{min-height:73px}.brand-copy strong{font-size:16px}.hero{min-height:0;padding:25px 22px;border-radius:18px}.hero-orbit{display:none}.hero h1{font-size:34px}.hero p{font-size:13px}.hero-tags{margin-top:17px}.jumpnav{margin-bottom:15px}.status,.section{padding:20px 18px;border-radius:16px}.status .head{font-size:18px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.tile{min-height:88px;padding:15px;border-radius:13px}.tile .val{font-size:16px}.tile .lbl{font-size:9px}.section h2{font-size:19px}.mod-switch{flex-direction:column}.mod-btn{width:100%}.boosty-form{grid-template-columns:1fr}.automsg-row{grid-template-columns:1fr 1fr}.tok-field{min-width:0;width:100%}.tok-row .tok-name{width:100%} }
+  @media(max-width:380px){.grid{grid-template-columns:1fr}.hero h1{font-size:30px}.brand-copy small{display:none} }
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.tile,.mod-btn,.logout{transition:none} }
+  /* Compact stream view: keep live controls visible, fold setup and rare tools. */
+  .header{min-height:70px}.hero{min-height:0;margin:18px 0 12px;padding:19px 25px;border-radius:17px}
+  .hero h1{margin:5px 0 2px;font-size:clamp(25px,2.6vw,34px)}.hero p,.hero-orbit{display:none}
+  .hero-tags{margin-top:9px}.hero-tags span{padding:4px 9px}.jumpnav{margin-bottom:13px}
+  .status{padding:18px 22px;margin-bottom:12px}.status .head{font-size:18px}.status .why{margin-top:4px}
+  .section{padding:20px 23px;margin-bottom:12px}.section .sub{margin-bottom:11px}
+  .status-steps{margin-top:10px}.status-steps summary{cursor:pointer;color:#b9c9df;font-size:12px;font-weight:800}
+  .status-steps .steps{margin-top:8px}
+  .tool-drawer{margin-bottom:11px;border:1px solid var(--sl-border);border-radius:16px;background:#142137}
+  .tool-drawer>summary{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:16px 20px;cursor:pointer;list-style:none;font-weight:800;color:#e4ecfa}
+  .tool-drawer>summary::-webkit-details-marker{display:none}.tool-drawer>summary::after{content:'＋';color:var(--sl-mint);font-size:18px}
+  .tool-drawer[open]>summary::after{content:'−'}.tool-drawer>summary small{color:var(--sl-muted);font-size:11px;font-weight:500}
+  .tool-drawer>.section{margin:0 12px 12px;box-shadow:none}
+  .tool-drawer>.section:first-of-type{margin-top:0}
+  .live-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;margin-bottom:12px}
+  .live-controls>.section{margin:0}.live-controls .mod-switch{gap:6px}.live-controls .mod-btn{padding:10px 9px;font-size:12px}
+  .brand-copy small{font-size:12px;letter-spacing:0;color:#bdcde1}
+  .header-meta{margin-left:auto;color:#9fb2cc;font-size:12px;font-weight:700}
+  @media(max-width:900px){.live-controls{grid-template-columns:1fr} }
+  @media(max-width:640px){.header-meta{display:none}.status,.section{padding:17px}.tool-drawer>summary{padding:15px}.tool-drawer>summary small{display:none} }
 </style></head>
 <body><div class="wrap">
-  <div class="header">
-    <h1>Привет, <span class="nick">{{ display }}</span></h1>
+  <header class="header">
+    <div class="brand"><span class="brand-mark">S<span>✦</span></span><span class="brand-copy"><strong>SHEDLINK</strong><small>Кабинет {{ display }}</small></span></div>
+    <span class="header-meta">{{ tier }} · #{{ channel_id }} · {{ module }}</span>
     <form action="/streamer/logout" method="post" style="margin:0">
       <button type="submit" class="logout">Выйти</button>
     </form>
-  </div>
+  </header>
+  <nav class="jumpnav" aria-label="Разделы кабинета">
+    <a href="#overview">Состояние</a><a href="#safety">Пауза</a><a href="#module-control">Игра</a><a href="#tts-mod-section">Модерация</a><a href="#setup-tools">Подключение</a><a href="#community-tools">Инструменты</a>
+  </nav>
+  <div id="overview"></div>
   <div class="status" id="setupCard">
     <div class="head"><span id="setupIcon">⏳</span><span id="setupTitle">Проверяю состояние…</span></div>
     <div class="why" id="setupWhy"></div>
-    <ul class="steps" id="setupSteps"></ul>
     <div class="counts" id="setupCounts"></div>
+    <div class="status-updated" id="setupUpdated">Ожидаю ответ сервера…</div>
+    <details class="status-steps" id="setupDetails"><summary>Шаги подключения</summary><ul class="steps" id="setupSteps"></ul></details>
   </div>
 
-  <div class="grid">
-    <div class="tile"><div class="lbl">Тариф</div><div class="val"><span class="tier-badge">{{ tier }}</span></div></div>
-    <div class="tile"><div class="lbl">Активный модуль</div><div class="val">{{ module }}</div></div>
-    <div class="tile"><div class="lbl">Twitch login</div><div class="val">{{ login }}</div></div>
-    <div class="tile"><div class="lbl">Channel ID</div><div class="val">{{ channel_id }}</div></div>
-    <div class="tile"><div class="lbl">Подключён</div><div class="val">{{ registered_at }}</div></div>
-    <div class="tile"><div class="lbl">OAuth токен</div><div class="val">{{ has_oauth }}</div></div>
-  </div>
-
+  <div class="live-controls">
   <!-- Аварийная остановка (2026-09-01). Стоит ПЕРВОЙ секцией намеренно: её
        ищут в тот момент, когда в эфире что-то идёт не так, и искать её надо
        не глазами по странице. -->
-  <div class="section">
+  <div class="section" id="safety">
     <h2>🛑 Аварийная остановка</h2>
     <div class="sub">
-      Пока пауза взведена: платные действия зрителей отклоняются <b>до списания</b>
-      (деньги не уходят), и мод не получает заданий — включая те, что уже стояли
-      в очереди. Снятие паузы вернёт очередь моду: выбрасывать оплаченное молча
-      хуже, чем задержать.
+       Пауза отклоняет новые платные действия <b>до списания</b> и временно не
+       передаёт задания моду. После снятия паузы очередь продолжится.
     </div>
     <button class="mod-btn" id="pause-btn" onclick="togglePause()">Загрузка…</button>
     <div id="pause-msg" class="boosty-msg"></div>
@@ -216,9 +267,9 @@
   </script>
 
   <!-- Переключатель активного модуля -->
-  <div class="section">
+  <div class="section" id="module-control">
     <h2>🎮 Активный модуль расширения</h2>
-    <div class="sub">Какую игру видят зрители в расширении. Переключение мгновенное — зритель увидит при следующем обновлении (пара секунд).</div>
+    <div class="sub">Какую игру видят зрители. Изменение появится при следующем обновлении расширения.</div>
     <div class="mod-switch">
       <button class="mod-btn" id="mod-btn-bannerlord" onclick="setModule('bannerlord')">⚔️ Bannerlord</button>
       <button class="mod-btn" id="mod-btn-rimworld" onclick="setModule('rimworld')">🪐 RimWorld</button>
@@ -232,6 +283,8 @@
       var b = document.getElementById('mod-btn-'+m);
       if(b) b.className = 'mod-btn' + (m === mod ? ' active' : '');
     });
+    var tag = document.getElementById('hero-active-module');
+    if(tag) tag.textContent = 'Активная игра · ' + (mod || '—');
   }
   function modMsg(txt, isErr){
     var m = document.getElementById('mod-msg');
@@ -247,9 +300,12 @@
   }
   markActiveModule({{ module_js }});
   </script>
+  </div>
 
+  <details class="tool-drawer" id="setup-tools">
+    <summary>Подключение и OBS <small>Установка, токены и адрес оверлея</small></summary>
   <!-- Установка мода -->
-  <div class="section install">
+  <div class="section install" id="connect">
     <h2>📦 Как подключить игру</h2>
     <div class="sub">
       Один раз. Дальше мод подключается сам при каждом запуске игры.
@@ -388,6 +444,7 @@
   }
   </script>
 
+  </details>
   <!-- Модерация озвучки (M107, 2026-08-01).
        Twitch Extensions Guidelines §7.2 требует, чтобы стример мог одобрить ИЛИ
        отклонить пользовательский аудиоконтент. До этой карточки эндпоинты
@@ -505,6 +562,8 @@
   <!-- Баг-репорты убраны из дашборда 2026-07-02: техбаги — забота разработчика
        (см. админку /admin), не стримера. Зритель шлёт !баг → падает разработчику. -->
 
+  <details class="tool-drawer" id="community-tools">
+    <summary>Инструменты сообщества <small>Промокоды, сообщения, голосование и Boosty</small></summary>
   <!-- Промокоды (self-serve, 2026-07-02) -->
   <div class="section">
     <h2>🎟 Промокоды</h2>
@@ -814,6 +873,9 @@
     </details>
   </div>
 
+  </details>
+  <details class="tool-drawer" id="danger-tools">
+    <summary>Опасные действия <small>Сброс данных Bannerlord</small></summary>
   <!-- Bannerlord admin tools (Sprint 5.33 RESET-1, 2026-05-28) -->
   <div class="section" id="bnr-admin-section">
     <h2>⚙ Bannerlord — admin tools</h2>
@@ -845,9 +907,10 @@
     </div>
   </div>
 
+  </details>
   <div class="footnote">
     Расширение установи через <a href="https://dashboard.twitch.tv/extensions" style="color:#9147ff">Twitch Dashboard → Extensions</a>.
-    Channel-points и settings (модуль, цены) появятся в следующих релизах M4.5+.
+    Проверяй его видимость на Twitch отдельно от состояния мода.
   </div>
 </div>
 
@@ -1038,17 +1101,31 @@
 (function(){
   var card = document.getElementById('setupCard');
   if (!card) return;
+  var updated = document.getElementById('setupUpdated');
+  var lastGoodAt = null;
+  var firstStatus = true;
+  function checkedAt(ts){ return new Date(ts).toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+  function stale(message){
+    card.className = 'status wait';
+    document.getElementById('setupIcon').textContent = '⚠️';
+    document.getElementById('setupTitle').textContent = 'Нет свежего состояния';
+    document.getElementById('setupWhy').textContent = message;
+    updated.textContent = lastGoodAt ? 'Последний успешный ответ: ' + checkedAt(lastGoodAt) : 'Успешного ответа пока не было';
+  }
   function paint(d){
+    lastGoodAt = Date.now();
     var icon = document.getElementById('setupIcon');
     var title = document.getElementById('setupTitle');
     var why = document.getElementById('setupWhy');
     var steps = document.getElementById('setupSteps');
     var counts = document.getElementById('setupCounts');
+    if (firstStatus && !d.all_good) document.getElementById('setupDetails').open = true;
+    firstStatus = false;
     card.className = 'status ' + (d.all_good ? 'ok' : 'wait');
     icon.textContent = d.all_good ? '✅' : '⏳';
-    title.textContent = d.all_good ? 'Всё работает' : ('Осталось: ' + d.next_step);
+    title.textContent = d.all_good ? 'Канал технически готов' : ('Осталось: ' + d.next_step);
     why.textContent = d.all_good
-      ? 'Зрители видят расширение, мод на связи.'
+      ? 'Мод на связи. Проверь, что расширение включено на Twitch.'
       : (d.next_hint || '');
     steps.innerHTML = '';
     (d.steps || []).forEach(function(s){
@@ -1066,13 +1143,23 @@
       li.appendChild(m); li.appendChild(t); steps.appendChild(li);
     });
     counts.textContent = 'Зрителей всего: ' + (d.viewers_total || 0)
-      + '   ·   активных за 15 минут: ' + (d.viewers_active || 0);
+      + '   ·   активных за 15 минут: ' + (d.viewers_active || 0)
+      + (d.mod_silent_sec == null ? '' : '   ·   сигнал мода ' +
+         (d.mod_silent_sec < 60 ? d.mod_silent_sec + ' с'
+           : d.mod_silent_sec < 3600 ? Math.floor(d.mod_silent_sec / 60) + ' мин'
+           : Math.floor(d.mod_silent_sec / 3600) + ' ч') + ' назад');
+    updated.textContent = 'Обновлено: ' + checkedAt(lastGoodAt);
   }
   function tick(){
     fetch('/api/streamer/setup-status', {credentials:'same-origin'})
-      .then(function(r){ return r.json(); })
-      .then(function(d){ if (d && d.success) paint(d); })
-      .catch(function(){ /* сеть моргнула — покажем на следующем круге */ });
+      .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(d){
+        if (d && d.success) paint(d);
+        else stale(d && d.status === 'unauthenticated'
+          ? 'Сессия истекла. Войди снова через /streamer.'
+          : 'Не удалось проверить канал. Обнови страницу.');
+      })
+      .catch(function(){ stale('Сервер или сеть недоступны. Данные ниже могли устареть.'); });
   }
   tick();
   setInterval(tick, 15000);

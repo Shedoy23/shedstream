@@ -156,9 +156,11 @@ async def bannerlord_reset_preview(request: Request):
 
 
 @router.get("/api/admin/bannerlord/reset/preview")
-async def admin_bannerlord_reset_preview(_admin: str = Depends(require_admin)):
-    """Same preview, but via admin-panel Basic auth (default channel)."""
-    return await _reset_preview_data(resolve_channel_id_or_default())
+async def admin_bannerlord_reset_preview(channel_id: int = 0,
+                                         _admin: str = Depends(require_admin)):
+    """Same preview for the channel selected in the admin panel."""
+    return await _reset_preview_data(channel_id if channel_id > 0
+                                     else resolve_channel_id_or_default())
 
 
 def _confirm_phrase_ok(body: dict, channel_id: int) -> tuple[bool, str]:

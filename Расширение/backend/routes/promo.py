@@ -18,6 +18,17 @@ from dependencies import (
 router = APIRouter()
 
 
+def promo_values_error(points: int, max_uses: int, item_def: str = None) -> str:
+    """Reject codes that charge a use without a reward or hide a bad limit."""
+    if points < 0:
+        return "Очки не могут быть отрицательными"
+    if max_uses < 0:
+        return "Лимит применений не может быть отрицательным (0 = без лимита)"
+    if points == 0 and not item_def:
+        return "Укажи награду: очки или предмет"
+    return ""
+
+
 @router.post("/api/promo/use")
 async def use_promo(request: Request):
     """Активировать промокод"""
@@ -57,6 +68,15 @@ async def use_promo(request: Request):
                 await conn.execute("ROLLBACK")
                 return {"success": False, "message": "❌ Промокод уже исчерпан"}
 
+            item_id = None
+            if item_def:
+                icur = await conn.execute("SELECT id FROM items WHERE name = ?", (item_def,))
+                irow = await icur.fetchone()
+                item_id = irow[0] if irow else None
+            if points <= 0 and item_id is None:
+                await conn.execute("ROLLBACK")
+                return {"success": False, "message": "❌ У промокода нет действующей награды"}
+
             c2 = await conn.execute(
                 "SELECT id FROM promo_uses WHERE channel_id = ? AND code = ? AND username = ?",
                 (channel_id, code, username))
@@ -74,15 +94,12 @@ async def use_promo(request: Request):
             if points > 0:
                 await db.add_points_tx(conn, username, points, channel_id)
                 reward_parts.append(f"{points}💎")
-            if item_def:
-                icur = await conn.execute("SELECT id FROM items WHERE name = ?", (item_def,))
-                irow = await icur.fetchone()
-                if irow:
-                    await conn.execute(
-                        "INSERT INTO inventory (channel_id, username, item_id, quantity) VALUES (?, ?, ?, 1) "
-                        "ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + 1",
-                        (channel_id, username.lower(), irow[0]))
-                    reward_parts.append(f"предмет «{item_name or item_def}»")
+            if item_id is not None:
+                await conn.execute(
+                    "INSERT INTO inventory (channel_id, username, item_id, quantity) VALUES (?, ?, ?, 1) "
+                    "ON CONFLICT(channel_id, username, item_id) DO UPDATE SET quantity = quantity + 1",
+                    (channel_id, username.lower(), item_id))
+                reward_parts.append(f"предмет «{item_name or item_def}»")
             await conn.commit()
         except Exception:
             await conn.execute("ROLLBACK")
@@ -112,18 +129,32 @@ async def admin_get_promos(channel_id: int = 0, _admin: str = Depends(require_ad
 
 @router.post("/api/admin/promocodes/create")
 async def admin_create_promo(request: Request, _admin: str = Depends(require_admin)):
-    data      = await request.json()
+    try:
+        data = await request.json()
+    except Exception:
+        return {"success": False, "message": "Ожидается JSON"}
+    if not isinstance(data, dict):
+        return {"success": False, "message": "Ожидается JSON-объект"}
     code      = str(data.get("code", "")).strip().upper()
-    points    = int(data.get("points", 0))
-    item_def  = data.get("item_def", "") or None
-    item_name = data.get("item_name", "") or None
-    max_uses  = int(data.get("max_uses", 1))
+    try:
+        points = int(data.get("points", 0))
+        max_uses = int(data.get("max_uses", 1))
+    except (TypeError, ValueError):
+        return {"success": False, "message": "Очки и лимит — числа"}
+    item_def  = str(data.get("item_def") or "").strip() or None
+    item_name = str(data.get("item_name") or "").strip() or None
     if not code:
         return {"success": False, "message": "Укажи код"}
+    if error := promo_values_error(points, max_uses, item_def):
+        return {"success": False, "message": error}
 
     channel_id = data.get("channel_id") or resolve_channel_id_or_default()
     db = get_db()
     async with db._connect() as conn:
+        if item_def:
+            cur = await conn.execute("SELECT 1 FROM items WHERE name=?", (item_def,))
+            if not await cur.fetchone():
+                return {"success": False, "message": "Предмет не найден в каталоге"}
         try:
             await conn.execute(
                 "INSERT INTO promocodes (channel_id, code, points, item_def, item_name, max_uses) "

@@ -1,9 +1,9 @@
 """
 routes/admin.py — администрирование: пользователи, предметы, очки.
 
-tenant-lint: skip-file — admin panel is a single platform-owner surface
-(require_admin = one HTTP-Basic credential, read-only since the 2026-06-14 audit);
-its cross-channel viewer/inventory/pawn reads are intentional, not a tenant leak.
+tenant-lint: skip-file — admin panel is a single platform-owner surface.
+The selected channel is explicit for tenant data; global catalog/funnel reads
+remain intentionally platform-wide.
 
 ARCH NOTE (Block 2 audit): этот файл — единственный route'ер использующий
 `aiosqlite.connect(db.db_path)` напрямую (bypass pool). Причина: Row factory
@@ -20,13 +20,22 @@ helpers (`db.list_users(search, limit)`, `db.update_user_points`, etc.) —
 сейчас raw SQL прямо в endpoint'ах. Это тоже Block 2 follow-up task.
 """
 import aiosqlite
-from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+import time
+from datetime import datetime, timedelta, timezone
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
-from config import sanitize_username
-from dependencies import get_bot, get_db, require_admin
+from config import RIMWORLD_OFFLINE_TIMEOUT, sanitize_username
+from dependencies import get_bot, get_db, require_admin, resolve_channel_id_or_default
 
 router = APIRouter()
+_login_security = HTTPBasic(auto_error=False)
+
+
+def _channel(channel_id: int = 0) -> int:
+    """Admin's explicit channel, or the legacy default for older callers."""
+    return channel_id if channel_id > 0 else resolve_channel_id_or_default()
 
 
 @router.get("/api/admin/channels")
@@ -40,6 +49,7 @@ async def admin_list_channels(_admin: str = Depends(require_admin)):
     pending = [r for r in rows if not r.get("approved")]
     return {
         "success": True,
+        "default_channel_id": resolve_channel_id_or_default(),
         "total": len(rows),
         "pending_count": len(pending),
         "channels": rows,
@@ -265,13 +275,27 @@ async def admin_dev_jwt(
 
 
 @router.get("/admin", response_class=HTMLResponse)
-async def admin_panel(_admin: str = Depends(require_admin)):
-    """Админ-панель"""
+async def admin_panel():
+    """Login shell. All admin data and mutations remain behind HTTP Basic."""
     try:
         with open("../admin/admin.html", "r", encoding="utf-8") as f:
-            return f.read()
+            return HTMLResponse(f.read(), headers={"Cache-Control": "no-store"})
     except Exception:
         return "Создайте admin/admin.html"
+
+
+@router.get("/api/admin/login")
+async def admin_login(request: Request,
+                      credentials: HTTPBasicCredentials = Depends(_login_security)):
+    """Check Basic credentials without triggering a browser-native login dialog."""
+    if credentials is None:
+        return JSONResponse({"success": False}, status_code=401)
+    try:
+        await require_admin(credentials, request)
+    except HTTPException as exc:
+        return JSONResponse({"success": False, "detail": exc.detail},
+                            status_code=exc.status_code)
+    return {"success": True}
 
 
 # 2026-06-14 (audit): POST /api/admin/drop удалён — админка стала read-only
@@ -280,16 +304,76 @@ async def admin_panel(_admin: str = Depends(require_admin)):
 
 
 @router.get("/api/admin/stats")
-async def admin_stats(_admin: str = Depends(require_admin)):
+async def admin_stats(channel_id: int = 0, _admin: str = Depends(require_admin)):
     """Статистика для админки"""
-    return await get_db().get_stats()
+    return await get_db().get_stats(_channel(channel_id))
+
+
+@router.get("/api/admin/audience")
+async def admin_audience(channel_id: int = 0,
+                         _admin: str = Depends(require_admin)):
+    """Distinct viewers with credited watch minutes, not Twitch live viewers.
+
+    Current seven Moscow calendar days include today; the preceding seven days
+    form the comparison cohort. A return means watch minutes in both periods.
+    """
+    cid = _channel(channel_id)
+    today = datetime.now(timezone(timedelta(hours=3))).date()
+    current_start = (today - timedelta(days=6)).isoformat()
+    previous_start = (today - timedelta(days=13)).isoformat()
+    days = [(today - timedelta(days=offset)).isoformat()
+            for offset in range(6, -1, -1)]
+    async with get_db()._connect() as conn:
+        cur = await conn.execute(
+            "SELECT DISTINCT username, date(created_at, '+3 hours') AS day "
+            "FROM activity_stats WHERE channel_id=? "
+            "AND date(created_at, '+3 hours') >= ?",
+            (cid, previous_start))
+        activity = await cur.fetchall()
+        cur = await conn.execute(
+            "SELECT COUNT(DISTINCT username) FROM chat_stats "
+            "WHERE channel_id=? AND date(created_at, '+3 hours') >= ?",
+            (cid, current_start))
+        chatters = (await cur.fetchone())[0]
+        cur = await conn.execute(
+            "SELECT COUNT(DISTINCT actor), COUNT(*) FROM ("
+            "SELECT CASE WHEN json_valid(data) THEN "
+            "LOWER(TRIM(json_extract(data, '$.initiated_by'))) END AS actor "
+            "FROM module_actions WHERE channel_id=? AND status='acked' "
+            "AND date(created_at, '+3 hours') >= ?) WHERE actor IS NOT NULL "
+            "AND actor <> ''",
+            (cid, current_start))
+        game_participants, game_actions = await cur.fetchone()
+
+    current, previous = set(), set()
+    daily = {day: set() for day in days}
+    for username, day in activity:
+        if day >= current_start:
+            current.add(username)
+            if day in daily:
+                daily[day].add(username)
+        elif day >= previous_start:
+            previous.add(username)
+    returned = len(current & previous)
+    return {
+        "channel_id": cid,
+        "period_start": current_start,
+        "previous_start": previous_start,
+        "watched_7d": len(current),
+        "watched_prev_7d": len(previous),
+        "returned_7d": returned,
+        "return_rate": round(100 * returned / len(previous)) if previous else None,
+        "chatters_7d": chatters,
+        "game_participants_7d": game_participants,
+        "game_actions_7d": game_actions,
+        "daily": [{"day": day, "viewers": len(daily[day])} for day in days],
+    }
 
 
 @router.get("/api/admin/bug-reports")
-async def admin_bug_reports(_admin: str = Depends(require_admin)):
+async def admin_bug_reports(channel_id: int = 0, _admin: str = Depends(require_admin)):
     """Read-only наблюдение: последние баг-репорты (!баг) канала."""
-    from dependencies import resolve_channel_id_or_default
-    channel_id = resolve_channel_id_or_default()
+    channel_id = _channel(channel_id)
     db = get_db()
     async with db._connect() as conn:
         cur = await conn.execute(
@@ -306,12 +390,14 @@ async def admin_bug_reports(_admin: str = Depends(require_admin)):
 async def admin_bug_report_status(request: Request, _admin: str = Depends(require_admin)):
     """Разработчик помечает багрепорт resolved/open. Триаж переехал сюда из
     стримерского дашборда 2026-07-02 (техбаги расширения чинит разработчик, не стример)."""
-    from dependencies import resolve_channel_id_or_default
-    channel_id = resolve_channel_id_or_default()
     try:
         body = await request.json()
     except Exception:
         body = {}
+    try:
+        channel_id = _channel(int(body.get("channel_id") or 0))
+    except (TypeError, ValueError):
+        return {"status": "invalid_channel_id"}
     try:
         report_id = int(body.get("id"))
     except (TypeError, ValueError):
@@ -325,10 +411,9 @@ async def admin_bug_report_status(request: Request, _admin: str = Depends(requir
 
 
 @router.get("/api/admin/feature-usage")
-async def admin_feature_usage(_admin: str = Depends(require_admin)):
+async def admin_feature_usage(channel_id: int = 0, _admin: str = Depends(require_admin)):
     """Read-only наблюдение: топ используемых фич за 7 дней (feature_usage)."""
-    from dependencies import resolve_channel_id_or_default
-    channel_id = resolve_channel_id_or_default()
+    channel_id = _channel(channel_id)
     db = get_db()
     async with db._connect() as conn:
         cur = await conn.execute(
@@ -345,37 +430,49 @@ async def admin_get_users(
     search: str = "",
     limit: int = 50,
     offset: int = 0,
+    channel_id: int = 0,
     _admin: str = Depends(require_admin),
 ):
-    """Список всех пользователей с поиском"""
+    """Users of one selected channel, with matching search pagination."""
     db          = get_db()
+    channel_id  = _channel(channel_id)
     safe_search = sanitize_username(search) if search else ""
     async with aiosqlite.connect(db.db_path) as conn:
         conn.row_factory = aiosqlite.Row
         if safe_search:
             cursor = await conn.execute("""
                 SELECT username, points, is_afk, last_seen, join_time
-                FROM viewers WHERE username LIKE ?
+                FROM viewers WHERE channel_id=? AND username LIKE ?
                 ORDER BY points DESC LIMIT ? OFFSET ?
-            """, (f"%{safe_search}%", limit, offset))
+            """, (channel_id, f"%{safe_search}%", limit, offset))
         else:
             cursor = await conn.execute("""
                 SELECT username, points, is_afk, last_seen, join_time
-                FROM viewers ORDER BY points DESC LIMIT ? OFFSET ?
-            """, (limit, offset))
+                FROM viewers WHERE channel_id=? ORDER BY points DESC LIMIT ? OFFSET ?
+            """, (channel_id, limit, offset))
         rows    = await cursor.fetchall()
-        cursor2 = await conn.execute("SELECT COUNT(*) FROM viewers")
+        if safe_search:
+            cursor2 = await conn.execute(
+                "SELECT COUNT(*) FROM viewers WHERE channel_id=? AND username LIKE ?",
+                (channel_id, f"%{safe_search}%"))
+        else:
+            cursor2 = await conn.execute(
+                "SELECT COUNT(*) FROM viewers WHERE channel_id=?", (channel_id,))
         total   = (await cursor2.fetchone())[0]
     return {"users": [dict(r) for r in rows], "total": total}
 
 
 @router.get("/api/admin/user/{username}")
-async def admin_get_user(username: str, _admin: str = Depends(require_admin)):
+async def admin_get_user(username: str, channel_id: int = 0,
+                         _admin: str = Depends(require_admin)):
     """Детали пользователя"""
     db = get_db()
+    channel_id = _channel(channel_id)
     async with aiosqlite.connect(db.db_path) as conn:
         conn.row_factory = aiosqlite.Row
-        cursor = await conn.execute("SELECT * FROM viewers WHERE username = ?", (username,))
+        cursor = await conn.execute(
+            "SELECT * FROM viewers WHERE channel_id=? AND username=?",
+            (channel_id, username))
         user   = await cursor.fetchone()
         if not user:
             return {"error": "Пользователь не найден"}
@@ -383,13 +480,14 @@ async def admin_get_user(username: str, _admin: str = Depends(require_admin)):
         cursor = await conn.execute("""
             SELECT i.display_name, i.emoji, i.rarity, inv.quantity
             FROM inventory inv JOIN items i ON inv.item_id = i.id
-            WHERE inv.username = ?
-        """, (username,))
+            WHERE inv.channel_id=? AND inv.username=?
+        """, (channel_id, username))
         inventory = [dict(r) for r in await cursor.fetchall()]
 
         cursor = await conn.execute(
-            "SELECT pawn_name, is_alive, health, world_name FROM rimworld_pawns WHERE username = ?",
-            (username,))
+            "SELECT pawn_name, is_alive, health, world_name FROM rimworld_pawns "
+            "WHERE channel_id=? AND username=?",
+            (channel_id, username))
         pawn = await cursor.fetchone()
 
     return {
@@ -415,6 +513,53 @@ async def admin_get_items(_admin: str = Depends(require_admin)):
             "SELECT id, name, display_name, emoji, rarity, value FROM items ORDER BY rarity, name")
         rows = await cursor.fetchall()
     return {"items": [dict(r) for r in rows]}
+
+
+@router.get("/api/admin/rimworld/status")
+async def admin_rimworld_status(channel_id: int = 0,
+                                _admin: str = Depends(require_admin)):
+    """Connector heartbeat for the selected channel, using admin auth."""
+    import module_liveness
+    seen = await module_liveness.last_seen(get_db(), _channel(channel_id), "rimworld")
+    age = max(0, int(time.time() - seen)) if seen else None
+    return {"online": age is not None and age < RIMWORLD_OFFLINE_TIMEOUT,
+            "last_seen_sec": age}
+
+
+@router.get("/api/admin/rimworld/pawns")
+async def admin_rimworld_pawns(channel_id: int = 0,
+                               _admin: str = Depends(require_admin)):
+    """Pawn data in the same fractional-health format the admin UI renders."""
+    db = get_db()
+    async with db._connect() as conn:
+        cur = await conn.execute(
+            "SELECT username,pawn_name,is_alive,health,world_name "
+            "FROM rimworld_pawns WHERE channel_id=? ORDER BY pawn_name",
+            (_channel(channel_id),))
+        rows = await cur.fetchall()
+    return {"pawns": [{"username": r[0], "pawn_name": r[1],
+                       "is_alive": bool(r[2]), "health": r[3] or 0,
+                       "world_name": r[4] or ""} for r in rows]}
+
+
+@router.get("/api/admin/rimworld/events")
+async def admin_rimworld_events(channel_id: int = 0,
+                                _admin: str = Depends(require_admin)):
+    """Read-only catalog for the selected channel; viewer JWT is not needed."""
+    db = get_db()
+    try:
+        async with db._connect() as conn:
+            cur = await conn.execute(
+                "SELECT id,name,cost,category FROM rimworld_event_catalog "
+                "WHERE channel_id=? ORDER BY category,name",
+                (_channel(channel_id),))
+            rows = await cur.fetchall()
+    except aiosqlite.OperationalError as exc:
+        if "no such table" not in str(exc).lower():
+            raise
+        rows = []
+    return {"events": [{"id": r[0], "name": r[1], "cost": r[2],
+                        "category": r[3] or ""} for r in rows]}
 
 
 # 2026-06-14 (audit): POST /api/admin/item/give + /api/admin/item/remove удалены —

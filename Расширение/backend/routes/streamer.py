@@ -968,6 +968,8 @@ async def streamer_create_promo(request: Request):
         data = await request.json()
     except Exception:
         data = {}
+    if not isinstance(data, dict):
+        return {"success": False, "message": "Ожидается JSON-объект"}
     code = str(data.get("code", "")).strip().upper()
     if not code:
         return {"success": False, "message": "Укажи код"}
@@ -976,6 +978,9 @@ async def streamer_create_promo(request: Request):
         max_uses = int(data.get("max_uses", 1))
     except (TypeError, ValueError):
         return {"success": False, "message": "Очки и лимит — числа"}
+    from routes.promo import promo_values_error
+    if error := promo_values_error(points, max_uses):
+        return {"success": False, "message": error}
     import sqlite3 as _sqlite3
     db = get_db()
     async with db._connect() as conn:

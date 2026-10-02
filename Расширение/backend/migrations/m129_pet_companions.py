@@ -10,3 +10,4 @@ async def apply(conn):
     await seed_collection(conn)
     await conn.execute('INSERT INTO migrations_applied(name) VALUES(?)', (name,))
     await conn.commit()
+

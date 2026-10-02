@@ -33,7 +33,14 @@ def _manifest_actions():
     return frozenset(result)
 
 
+# New rules are first-party core games, not streamed game-module manifests.
+# Only semantic intent is counted. Never add a cell/ship/seed to these keys.
+_SKILLGAME_ACTIONS = frozenset(
+    ['core:battleship.' + action for action in ('queue', 'place', 'autoplace', 'ready', 'fire', 'quit')]
+    + ['core:minesweeper.' + action for action in ('start', 'open', 'flag', 'unflag', 'quit', 'restart')])
+# Exported legacy sets retain their frozen-client parity contract.
 ACTIONS = _manifest_actions()
+_SKILLGAME_SECTIONS = frozenset(('core:game.battleship', 'core:game.minesweeper'))
 
 
 def validate_batch(body):
@@ -60,8 +67,8 @@ def validate_batch(body):
         kind, feature, count = event['kind'], event['feature'], event['count']
         if not isinstance(feature, str) or not re.fullmatch(r'[a-z0-9_.:-]{1,96}', feature):
             raise ValueError('invalid_feature')
-        allowed = (kind == 'section_open' and feature in SECTIONS
-                   or kind == 'action_attempt' and feature in ACTIONS
+        allowed = (kind == 'section_open' and feature in (SECTIONS | _SKILLGAME_SECTIONS)
+                   or kind == 'action_attempt' and feature in (ACTIONS | _SKILLGAME_ACTIONS)
                    or kind == 'panel_view' and feature in {m + ':panel' for m in MODULES})
         if not allowed:
             raise ValueError('unknown_feature')

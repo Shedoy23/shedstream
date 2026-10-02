@@ -5,6 +5,10 @@ Twitch ZIP, production и релизный упаковщик не меняют�
 
 ## Входы
 
+- `panel-extension.html`, `panel-mobile.html`: отдельный Preact-кандидат подэкранов
+  развития героя Bannerlord и магазина/инвентаря. Это ещё не вся старая панель.
+  Парные входы одинаковы, используют прежний Twitch resolver и тот же проверяемый
+  build-time EBS origin. Старые viewer scripts в их граф не входят
 - `index.html`, `extension.html`, `mobile.html`: одинаковое Preact-приложение
   новых мини-игр. Обычный вход использует настоящий `HttpSkillgameTransport`,
   проверенный сервером Twitch Helper JWT и `/api/skillgames/*` выбранного при сборке EBS
@@ -31,11 +35,18 @@ API-стенда. Это проверка реальных запросов ло
 Node.js 22.12+ (здесь Node 24.19.0), npm:
 
 ```sh
+python -m pip install -r frontend-next/requirements-contract-tests.txt
 npm --prefix frontend-next ci
 npm --prefix frontend-next test
 npm --prefix frontend-next run build
 npm --prefix frontend-next run preview
 ```
+
+Для одного frontend contract-теста нужен Python 3 с PyYAML: он передаёт настоящий
+telemetry batch неизменённому `backend/ui_usage.py`, без запуска сервера или БД.
+По умолчанию тест ищет `python3` (Windows: `python`); `PANEL_BACKEND_PYTHON` позволяет
+указать готовый интерпретатор/venv. CI устанавливает эту зависимость явно, отдельно
+от backend job. Остальные UI-тесты выполняются в Node/jsdom.
 
 Статические входы: `http://127.0.0.1:4173/extension.html`, `/mobile.html`,
 `/tournament.html`. Для картинки без API добавьте `?demo=minesweeper`.

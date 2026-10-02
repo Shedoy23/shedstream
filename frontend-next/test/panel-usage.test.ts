@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwitchAuthStore } from '../src/auth';
 import type { IdentityState } from '../src/skillgames/identity';
@@ -8,7 +10,7 @@ import fixtures from './panel-fixtures/real-responses.json';
 
 // This is the unchanged production collector, executed independently rather
 // than a test-side reimplementation of its batching/deduplication algorithm.
-const oldSource = readFileSync(new URL('../../Расширение/frontend/viewer-usage.js', import.meta.url), 'utf8');
+const oldSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../Расширение/frontend/viewer-usage.js'), 'utf8');
 const allowedActions: string[] = JSON.parse(oldSource.match(/var actions = new Set\((\[.*?\])\)/)![1]);
 const allowedSections: string[] = JSON.parse(oldSource.match(/var sections = new Set\((\[.*?\])\)/)![1]);
 interface UsageApi { trackPanel(module: string): void; trackSection(feature: string): void; trackAction(feature: string): void; flush(): Promise<void> }

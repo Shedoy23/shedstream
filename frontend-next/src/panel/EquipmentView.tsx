@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { PanelController } from './controller';
-import { categories, directPayload, number, numericStats, paymentText, purchaseOption, slotNames, statNames, stats, tierName, type EquipmentReply, type OwnedItem, type ShopItem } from './equipment';
+import { categories, directPayload, number, numericStats, paymentText, priceText, purchaseOption, slotNames, statNames, stats, tierName, validQuote, type EquipmentReply, type OwnedItem, type ShopItem } from './equipment';
 import './equipment.css';
 interface Confirmation {
   message: string; yes: string; opener: HTMLElement | null; generation: number; hero: string;
@@ -66,7 +66,7 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
       return !!data.party_inventory?.available && !!item && JSON.stringify(item) === pending.signature;
     }
     const item = data.items.find(row => row.item_id === pending.id);
-    return !!item && item.can_buy && !item.unavailable && !!purchaseOption(item, slotsRef.current)?.can_buy && quoteSignature(item, slotsRef.current) === pending.signature;
+    return !!item && item.can_buy && !item.unavailable && validQuote(item, purchaseOption(item, slotsRef.current)) && !!purchaseOption(item, slotsRef.current)?.can_buy && quoteSignature(item, slotsRef.current) === pending.signature;
   };
   const refresh = useCallback(async () => {
     if (!mounted.current || !activeRef.current || !controller.ready()) return;
@@ -77,9 +77,9 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
       if (!current()) return;
       if (!result.success) throw new Error(result.message || 'Не удалось загрузить снаряжение');
       applied.current = issued; dataHero.current = hero; update(result); setError('');
-    } catch {
+    } catch (failure) {
       if (!current()) return;
-      applied.current = issued; update(null); setError('Не удалось загрузить магазин. Обнови данные.');
+      applied.current = issued; update(null); setError(failure instanceof Error ? failure.message : 'Не удалось загрузить магазин. Обнови данные.');
     }
   }, [controller]);
   useLayoutEffect(() => {
@@ -118,7 +118,7 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
   }
   function buy(id: string) {
     const item = dataRef.current?.items.find(row => row.item_id === id);
-    if (!manageable() || !item?.can_buy || item.unavailable) return;
+    if (!manageable() || !item?.can_buy || item.unavailable || !validQuote(item, purchaseOption(item, slotsRef.current))) return;
     if (item.purchase_mode !== 'equip') { void perform('hero.buy_equipment', { item_id: item.item_id }); return; }
     const option = purchaseOption(item, slotsRef.current); if (!option?.can_buy) return;
     confirm('hero.buy_equipment', item.item_id, quoteSignature(item, slotsRef.current), directPayload(item, option), `Купить и надеть «${item.name || item.item_id}» в «${slotNames[option.slot] || option.slot}»?${option.replace_owned_id ? ` «${option.replaced_name}» будет продан за ${number(option.trade_in_gold)} 💰 и исчезнет из снаряжения.` : ''} ${paymentText(option.net_price_gold)}.`);
@@ -177,17 +177,18 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
           <select data-bnr-eq-tier aria-label="Тир" value={tier} onChange={event => { setTier(event.currentTarget.value); setPage(0); }}><option value="">Все тиры</option>{snapshot.tiers.map(t => <option key={t.tier} value={String(t.tier)}>Тир {tierName(t.tier)}</option>)}</select></div>}
       </div>
       <div className="bnr-eq-results" data-bnr-eq-results>{view === 'shop' ? <div className="bnr-eq-shop-grid">{filtered.slice(currentPage * 20, (currentPage + 1) * 20).map(item => {
-        const option = purchaseOption(item, purchaseSlots);
+        const option = purchaseOption(item, purchaseSlots), quoteValid = validQuote(item, option);
         return <article className="bnr-eq-item" key={item.item_id} data-tier={item.tier >= 1 && item.tier <= 6 ? item.tier : 1}>
           <div className="bnr-eq-item-top"><strong>{item.name || item.item_id}</strong><span className="bnr-eq-tier">{tierName(item.tier)}</span></div>
           <div className="bnr-eq-meta">{categories[item.category || ''] || item.category || ''} · ур. {number(item.required_level)}</div>
           {stats(item) && <div className="bnr-eq-stats">{stats(item)}</div>}
           {item.purchase_mode === 'equip' ? <>
             <select aria-label={`Куда надеть ${item.name}`} data-bnr-eq-purchase-slot={item.item_id} disabled={blocked} value={option?.slot} onChange={event => setPurchaseSlots({ ...purchaseSlots, [item.item_id]: event.currentTarget.value })}>{item.purchase_options?.map(o => <option key={o.slot} value={o.slot}>{slotNames[o.slot] || o.slot} · {o.replace_owned_id ? `заменить ${o.replaced_name}` : 'пусто'}</option>)}</select>
-            <div className="bnr-eq-meta">Цена {number(item.price_gold)} 💰{option?.replace_owned_id ? ` · Продажа старой вещи ${number(option.trade_in_gold)} 💰` : ''}</div>
-            <button type="button" className="bnr-eq-action" data-bnr-eq-buy={item.item_id} disabled={blocked || item.unavailable || !item.can_buy || !option?.can_buy} onClick={() => buy(item.item_id)}>Купить и надеть · {paymentText(option?.net_price_gold)}</button>
+            <div className="bnr-eq-meta">Цена {priceText(item.price_gold)} 💰{option?.replace_owned_id ? ` · Продажа старой вещи ${priceText(option.trade_in_gold)} 💰` : ''}</div>
+            <button type="button" className="bnr-eq-action" data-bnr-eq-buy={item.item_id} disabled={blocked || !quoteValid || item.unavailable || !item.can_buy || !option?.can_buy} onClick={() => buy(item.item_id)}>Купить и надеть · {paymentText(option?.net_price_gold)}</button>
             {option?.reason && <div className="bnr-eq-reason">{option.message || option.reason}</div>}
-          </> : <><button type="button" className="bnr-eq-action" data-bnr-eq-buy={item.item_id} disabled={blocked || item.unavailable || !item.can_buy} onClick={() => buy(item.item_id)}>Купить · {number(item.price_gold)} 💰</button>{!item.can_buy && item.reason && <div className="bnr-eq-reason">{item.message || item.reason}</div>}</>}
+          </> : <><button type="button" className="bnr-eq-action" data-bnr-eq-buy={item.item_id} disabled={blocked || !quoteValid || item.unavailable || !item.can_buy} onClick={() => buy(item.item_id)}>Купить · {priceText(item.price_gold)} 💰</button>{!item.can_buy && item.reason && <div className="bnr-eq-reason">{item.message || item.reason}</div>}</>}
+          {!quoteValid && <div className="bnr-eq-reason">Сервер не передал корректную цену или условия замены. Покупка недоступна.</div>}
         </article>;
       })}{!filtered.length && <div className="bnr-eq-empty">{search || effectiveCategory || tier ? 'Ничего не найдено. Измени фильтры.' : 'Каталог появится, когда мод передаст вещи из игры.'}</div>}</div> : !snapshot.ready ? <div className="bnr-eq-empty">Данных о вещах героя пока нет.</div> : <>
         <h3>Надето на герое</h3><div className="bnr-eq-slots">{Object.entries(slotNames).map(([slot, name]) => <button type="button" key={slot} className="bnr-eq-slot" data-bnr-owned-slot={slot} aria-pressed={ownedSlot === slot} onClick={() => { setOwnedSlot(slot); setSearch(''); }}><span>{name}</span><strong>{inventory.find(item => item.slot === slot)?.name || 'Пусто'}</strong></button>)}</div>

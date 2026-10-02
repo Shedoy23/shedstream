@@ -112,6 +112,8 @@ class MinesweeperEngineTests(unittest.TestCase):
                     with self.subTest(tier=tier, first=first, seed=seed):
                         state = self.make(tier, seed, first)
                         self.assertEqual(state['rules_version'], game.RULES_VERSION)
+                        self.assertEqual(state['status'], 'active')
+                        self.assertGreater(state['certification']['solver_steps'], 0)
                         self.assertEqual(len(state['mines']), game.TIERS[tier]['mine_count'])
                         self.assertFalse(set(state['mines']) & (neighbors(first) | {first}))
                         self.assertEqual(state['opened'][str(first)], 0)
@@ -127,6 +129,41 @@ class MinesweeperEngineTests(unittest.TestCase):
                         self.assertLessEqual(work[-1], game.DEFAULT_LIMITS.max_work)
         print(f'216 certified boards / all 36 starts: {time.monotonic()-begin:.3f}s; '
               f'max attempts={max(attempts)}, max work={max(work)}')
+
+    def test_trivial_first_flood_wins_are_rejected_before_play(self):
+        trivial = [5, 29, 30, 34, 35]
+
+        class TrivialFirst(random.Random):
+            calls = 0
+
+            def sample(self, population, k):
+                self.calls += 1
+                if self.calls == 1:
+                    assert set(trivial) <= set(population)
+                    return trivial
+                return super().sample(population, k)
+
+        source = TrivialFirst(0)
+        state = game.initialize(0, rng=source)
+        self.assertEqual(state['status'], 'active', 'initial flood is not a rated skill win')
+        self.assertGreater(state['certification']['solver_steps'], 0)
+        self.assertGreaterEqual(state['generation']['rejected_trivial'], 1)
+        self.assertGreater(source.calls, 1)
+        self.assertNotEqual(state['mines'], trivial)
+
+    def test_first_region_safety_is_not_incidental_solver_filtering(self):
+        # If the generator merely excludes the clicked cell, this legal sample
+        # would put mines in all five neighbors of edge cell 1. Direct logic can
+        # solve that board, so certification alone is not first-region safety.
+        class NeighborFirst(random.Random):
+            def sample(self, population, k):
+                if neighbors(1) <= set(population):
+                    return sorted(neighbors(1))
+                return super().sample(population, k)
+
+        state = game.initialize(1, rng=NeighborFirst(0))
+        self.assertFalse(neighbors(1) & set(state['mines']))
+        self.assertEqual(state['opened']['1'], 0)
 
     def test_public_projection_whitelist_and_detached_values(self):
         state = self.make()

@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent } from '@testing-library/preact';
 import { click, change, deferred, equipmentSetup, f, flush, response } from './panel-equipment-support';
 afterEach(() => { cleanup(); vi.useRealTimers(); });
-const posts = (s: ReturnType<typeof equipmentSetup>) => s.trace.filter(r => r.method === 'POST');
+const posts = (s: ReturnType<typeof equipmentSetup>) => s.trace.filter(r => r.method === 'POST' && r.path === '/api/bannerlord/action');
 const button = (root: ParentNode, selector: string) => root.querySelector(selector) as HTMLButtonElement;
 it('renders complete shop and slot-based inventory from real handler data with matching owned IDs', async () => {
   const s = equipmentSetup(); const ui = await s.start();
@@ -130,8 +130,8 @@ it('preserves pages and filters through refresh, clamps shrinking pages and rese
   expect(ui.container.querySelectorAll('[data-bnr-eq-buy]')).toHaveLength(1); s.controller.stop();
 });
 it('shows weight decrease as improvement and never conflates repeated item IDs with owned IDs', async () => {
-  const data = structuredClone(f.equipment_inventory); data.inventory[0].stats = { ...data.inventory[0].stats, weight: 2 } as typeof data.inventory[0]['stats'];
-  data.inventory[1].stats = { ...data.inventory[1].stats, weight: 1 } as typeof data.inventory[1]['stats'];
+  const data = structuredClone(f.equipment_inventory); Object.assign(data.inventory[0].stats, { weight: 2 });
+  Object.assign(data.inventory[1].stats, { weight: 1 });
   const s = equipmentSetup(data); const ui = await s.start(); await click(ui.container, '[data-bnr-eq-view="owned"]');
   expect([...ui.container.querySelectorAll('.bnr-eq-delta.better')].map(n => n.textContent)).toContain('-1');
   await click(ui.container, '[data-bnr-eq-discard="legacy-owned-1"]'); await click(ui.container, '#confirm-dyn-yes');
@@ -151,4 +151,25 @@ it('inactive equipment stays idle; activation loads once and preserves editor th
   await s.setActive(ui, false); await s.refresh(); expect(s.trace).toHaveLength(1);
   await s.setActive(ui, true); expect(s.trace).toHaveLength(2);
   expect(ui.container.querySelector('[data-bnr-owned-slot="weapon1"]')?.getAttribute('aria-pressed')).toBe('true'); s.controller.stop();
+});
+it('blocks duplicate clicks synchronously before the action reply and then preserves pending', async () => {
+  const s = equipmentSetup(); const ui = await s.start(); const reply = deferred<Response>(); s.routes['/api/bannerlord/action'] = reply.promise;
+  await click(ui.container, '[data-bnr-eq-buy="sword"]'); await click(ui.container, '[data-bnr-eq-buy="sword"]'); await click(ui.container, '[data-bnr-eq-buy="tier5"]');
+  expect(posts(s)).toHaveLength(1); reply.resolve(response(f.equipment_buy.response)); await act(async () => { await flush(); });
+  expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(true); s.controller.stop();
+});
+it('rejects late equipment response after identity change, including rejection after newer current data', async () => {
+  const s = equipmentSetup(); const ui = await s.start(); const previous = deferred<Response>();
+  s.routes['/api/bannerlord/equipment-shop'] = previous.promise; const old = s.refresh();
+  s.routes['/api/bannerlord/equipment-shop'] = { ...f.equipment_inventory, gold: 987 }; await s.switchIdentity();
+  previous.resolve(response({ ...f.equipment_inventory, gold: 456 })); await old; await act(async () => { await flush(); });
+  expect(ui.container.textContent).toContain('987'); expect(ui.container.textContent).not.toContain('456'); s.controller.stop();
+});
+it('direct confirmation cancellation supports Escape and traps Tab within its buttons', async () => {
+  const s = equipmentSetup(f.equipment_direct); const ui = await s.start(); const opener = button(ui.container, '[data-bnr-eq-buy="sword"]'); opener.focus(); await click(ui.container, '[data-bnr-eq-buy="sword"]');
+  const no = button(ui.container, '#confirm-dyn-no'), yes = button(ui.container, '#confirm-dyn-yes'); expect(document.activeElement).toBe(no);
+  await act(async () => { fireEvent.keyDown(document, { key: 'Tab' }); }); expect(document.activeElement).toBe(yes);
+  await act(async () => { fireEvent.keyDown(document, { key: 'Tab', shiftKey: true }); }); expect(document.activeElement).toBe(no);
+  await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }); await flush(); });
+  expect(document.activeElement).toBe(opener); expect(posts(s)).toHaveLength(0); s.controller.stop();
 });

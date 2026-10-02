@@ -1,0 +1,2162 @@
+{
+  "provenance": {
+    "repository": "/workspace/scratch/f566ddb2e035/preact-implementation",
+    "handlers": "routes.bannerlord",
+    "database": "isolated full-migrations temporary SQLite",
+    "live_game": false,
+    "representative_state_sources": [
+      "tests/test_bannerlord_buy_action.py",
+      "tests/test_bannerlord_build.py",
+      "tests/test_bannerlord_equipment_shop.py",
+      "BannerlordLink/src/Util/HeroBuildRuntime.cs"
+    ]
+  },
+  "responses": {
+    "config": {
+      "ui": {
+        "version": 1,
+        "combat_order": [
+          "summon",
+          "active_powers",
+          "tournament",
+          "weapon_choice"
+        ],
+        "combat_visible": {
+          "summon": true,
+          "active_powers": true,
+          "tournament": true,
+          "weapon_choice": true
+        },
+        "labels": {
+          "active_powers": "Активки",
+          "tournament": "🏆 Турнир зрителей",
+          "weapon_choice": "Оружейная способность",
+          "summon_ally": "📯 Призвать за стримера",
+          "summon_enemy": "⚔️ Призвать против стримера",
+          "discard": "🗑 Выкинуть вещь"
+        },
+        "tier_colors": {
+          "1": {
+            "text": "#c0c3ca",
+            "border": "#5b5e66",
+            "background": "#2b2d31"
+          },
+          "2": {
+            "text": "#89dba1",
+            "border": "#467457",
+            "background": "#203127"
+          },
+          "3": {
+            "text": "#87c6fa",
+            "border": "#426c91",
+            "background": "#202d3a"
+          },
+          "4": {
+            "text": "#c7a0f5",
+            "border": "#785398",
+            "background": "#30253b"
+          },
+          "5": {
+            "text": "#f2b17f",
+            "border": "#966139",
+            "background": "#3b2b20"
+          },
+          "6": {
+            "text": "#f5d174",
+            "border": "#aa8436",
+            "background": "#39311e"
+          }
+        }
+      },
+      "give_gold_presets": [
+        {
+          "crusticov": 1000,
+          "dinars": 5000
+        },
+        {
+          "crusticov": 5000,
+          "dinars": 25000
+        },
+        {
+          "crusticov": 20000,
+          "dinars": 100000
+        }
+      ],
+      "add_skill_presets": [
+        {
+          "crusticov": 500,
+          "xp": 50
+        },
+        {
+          "crusticov": 1000,
+          "xp": 100
+        },
+        {
+          "crusticov": 5000,
+          "xp": 500
+        }
+      ],
+      "focus_tier_costs": [
+        30000,
+        40000,
+        50000,
+        60000,
+        75000
+      ],
+      "attribute_cost": 50000,
+      "recruit_tier_costs": [
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        80000
+      ],
+      "recruit_elite_mult": 3,
+      "gear_upgrade_costs": {
+        "1": 50000,
+        "2": 100000,
+        "3": 200000,
+        "4": 400000,
+        "5": 800000,
+        "6": 1500000
+      },
+      "reforge_price": 20000,
+      "spawn_prices": {
+        "player": 50,
+        "enemy": 100
+      },
+      "gender_swap_cost": 50000,
+      "baby_cost": 100000,
+      "workshop_price": 2500,
+      "caravan_price": 4000,
+      "tournament_prize_gold": 50000,
+      "tournament_round_gold": 10000,
+      "action_prices": {
+        "hero.set_specialization": 0,
+        "hero.select_weapon_power": 0,
+        "hero.claim_starter": 0,
+        "hero.buy_equipment": 0,
+        "hero.equip_owned": 0,
+        "hero.unequip_owned": 0,
+        "hero.discard_owned": 0,
+        "hero.create": 0,
+        "player.modify_attribute": 50,
+        "world.trigger_event": 1000,
+        "hero.reforge_quality": 20000,
+        "hero.set_combat_stance": 0,
+        "hero.discard_item": 0,
+        "hero.detach": 10,
+        "hero.attach": 10,
+        "hero.detach_hold": 30,
+        "hero.detach_charge": 30,
+        "hero.detach_skirmish": 30,
+        "hero.detach_raid": 30,
+        "hero.detach_walls": 30,
+        "hero.detach_gate": 30,
+        "hero.propose_marriage": 100,
+        "hero.respond_marriage_proposal": 0,
+        "hero.cancel_proposal": 0,
+        "hero.rename_child": 50,
+        "hero.change_child_looks": 200,
+        "hero.respec_child_skills": 500,
+        "hero.create_vassal_clan": 0,
+        "hero.recruit_vassal_clan": 0,
+        "hero.rename_vassal": 100,
+        "hero.party_order_set": 500,
+        "hero.party_order_release": 0,
+        "hero.army_create": 1000,
+        "hero.army_disband": 0,
+        "hero.enact_policy": 1500,
+        "hero.make_peace": 2000,
+        "kingdom.propose_war": 2000,
+        "kingdom.propose_peace": 3000,
+        "hero.pay_ransom": 500,
+        "kingdom.set_tax_rate": 0,
+        "hero.buy_workshop": 2500,
+        "hero.sell_workshop": 0,
+        "hero.buy_caravan": 4000,
+        "hero.sell_caravan": 0
+      },
+      "power_prices": {
+        "heal_burst": 100,
+        "shield_break_burst": 200,
+        "rage": 300,
+        "retribution_toggle": 300,
+        "poison_dot": 350,
+        "disarm_burst": 250,
+        "berserker_charge": 200,
+        "lifesteal_burst": 300,
+        "ironskin_toggle": 300,
+        "explosive_arrows": 350,
+        "cleave": 350
+      },
+      "hero_gold_costs": {
+        "marry": 50000,
+        "create_clan": 1000000,
+        "join_clan": 50000,
+        "create_kingdom": 5000000,
+        "join_kingdom": 100000,
+        "create_party": 200000,
+        "recruit_vassal": 3000000,
+        "make_baby": 100000,
+        "create_vassal_clan": 250000
+      }
+    },
+    "hero": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": "vlandia",
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": "Pravend",
+        "adopted_at": "2026-10-02 18:42:12",
+        "last_sync": "2026-10-02 18:42:12",
+        "level": 35,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [
+        {
+          "skill_key": "Engineering",
+          "level": 200,
+          "xp": 1251,
+          "focus": 2
+        },
+        {
+          "skill_key": "Medicine",
+          "level": 190,
+          "xp": 1250,
+          "focus": 1
+        },
+        {
+          "skill_key": "Steward",
+          "level": 180,
+          "xp": 1249,
+          "focus": 0
+        },
+        {
+          "skill_key": "Trade",
+          "level": 170,
+          "xp": 1248,
+          "focus": 4
+        },
+        {
+          "skill_key": "Leadership",
+          "level": 160,
+          "xp": 1247,
+          "focus": 3
+        },
+        {
+          "skill_key": "Charm",
+          "level": 150,
+          "xp": 1246,
+          "focus": 2
+        },
+        {
+          "skill_key": "Roguery",
+          "level": 140,
+          "xp": 1245,
+          "focus": 1
+        },
+        {
+          "skill_key": "Tactics",
+          "level": 130,
+          "xp": 1244,
+          "focus": 0
+        },
+        {
+          "skill_key": "Scouting",
+          "level": 120,
+          "xp": 1243,
+          "focus": 4
+        },
+        {
+          "skill_key": "Crafting",
+          "level": 110,
+          "xp": 1242,
+          "focus": 3
+        },
+        {
+          "skill_key": "Athletics",
+          "level": 100,
+          "xp": 1241,
+          "focus": 2
+        },
+        {
+          "skill_key": "Riding",
+          "level": 90,
+          "xp": 1240,
+          "focus": 1
+        },
+        {
+          "skill_key": "Throwing",
+          "level": 80,
+          "xp": 1239,
+          "focus": 0
+        },
+        {
+          "skill_key": "Crossbow",
+          "level": 70,
+          "xp": 1238,
+          "focus": 4
+        },
+        {
+          "skill_key": "Bow",
+          "level": 60,
+          "xp": 1237,
+          "focus": 3
+        },
+        {
+          "skill_key": "Polearm",
+          "level": 50,
+          "xp": 1236,
+          "focus": 2
+        },
+        {
+          "skill_key": "TwoHanded",
+          "level": 40,
+          "xp": 1235,
+          "focus": 1
+        },
+        {
+          "skill_key": "OneHanded",
+          "level": 30,
+          "xp": 1234,
+          "focus": 0
+        }
+      ],
+      "attributes": {
+        "Control": 3,
+        "Cunning": 5,
+        "Endurance": 4,
+        "Intelligence": 7,
+        "Social": 6,
+        "Vigor": 2
+      },
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "classes": {
+      "success": true,
+      "classes": [
+        {
+          "class_key": "archer",
+          "name": "Лучник",
+          "formation": "Ranged",
+          "slots": [
+            "Bow",
+            "Arrows",
+            "Arrows",
+            "OneHandedWeapon"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Лук + два колчана + кинжал. Держит дистанцию и жжёт взрывными стрелами. Стиль: Баттания (лесной капюшон)."
+        },
+        {
+          "class_key": "assassin",
+          "name": "Убийца",
+          "formation": "Infantry",
+          "slots": [
+            "OneHandedWeapon",
+            "Thrown"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Кинжал и метательные ножи, разбойничий капюшон. Бьёт слабо и умирает быстро — живёт скрытностью: активка прячет его, и враги теряют цель на 45 секунд (удар ненадолго выдаёт). Кнопка пока подписана «Стойкость» — переименуем в ближайшем обновлении расширения."
+        },
+        {
+          "class_key": "berserk",
+          "name": "Берсерк",
+          "formation": "Infantry",
+          "slots": [
+            "TwoHandedWeapon",
+            "TwoHandedWeapon"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Северянин с двумя двуручными топорами. Косит толпу и лечится с урона, но ловит больше — стеклянная пушка. Стиль: Стургия (меха)."
+        },
+        {
+          "class_key": "crossbow",
+          "name": "Арбалетчик",
+          "formation": "Ranged",
+          "slots": [
+            "Crossbow",
+            "Bolts",
+            "Bolts",
+            "OneHandedWeapon"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Арбалет: медленный, но пробивает броню и разбивает щиты. Крепче лучника. Стиль: Асераи (пустынный стрелок)."
+        },
+        {
+          "class_key": "horse_archer",
+          "name": "Конный Лучник",
+          "formation": "HorseArcher",
+          "slots": [
+            "Bow",
+            "Arrows",
+            "OneHandedWeapon",
+            "Arrows"
+          ],
+          "use_horse": true,
+          "use_camel": false,
+          "description": "Лук верхом: кайт, набег, отравленные стрелы. Самый мобильный. Стиль: Кузаиты (степь)."
+        },
+        {
+          "class_key": "knight",
+          "name": "Кавалерист",
+          "formation": "Cavalry",
+          "slots": [
+            "Polearm",
+            "OneHandedWeapon",
+            "Shield"
+          ],
+          "use_horse": true,
+          "use_camel": false,
+          "description": "Конное копьё + меч + большой щит, латы. Таранный наскок и живучесть в седле. Стиль: Вландия (рыцарь)."
+        },
+        {
+          "class_key": "tank",
+          "name": "Латник",
+          "formation": "Infantry",
+          "slots": [
+            "OneHandedWeapon",
+            "Shield"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Булава + большой щит, тяжёлые латы. Несокрушимая стена: держит удар, сбить с ног почти нельзя. Стиль: Империя (ламелляр)."
+        }
+      ],
+      "current": {
+        "class_key": "tank",
+        "class_level": 1,
+        "primary_skill": "OneHanded",
+        "primary_skill_level": 30,
+        "next_threshold": 50
+      },
+      "current_powers": [
+        {
+          "power_key": "ironskin_toggle",
+          "value": 37.5,
+          "price": 300
+        },
+        {
+          "power_key": "rage",
+          "value": 1.6,
+          "price": 300
+        },
+        {
+          "power_key": "heal_burst",
+          "value": 50.0,
+          "price": 100
+        }
+      ]
+    },
+    "build_no_session": {
+      "success": true,
+      "enabled": false,
+      "build": {
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": false,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "inventory_not_ready",
+      "message": "Игра ещё не передала инвентарь этого героя"
+    },
+    "buffs": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": []
+    },
+    "daily": {
+      "success": true,
+      "can_claim": true,
+      "last_claim_date": null,
+      "last_reward_type": null,
+      "today_date": "2026-10-02",
+      "reward_amounts": {
+        "gold": 100000,
+        "xp": 50000
+      }
+    },
+    "tournament": {
+      "success": true,
+      "queue": [],
+      "state": {
+        "status": "idle",
+        "current_round": 0,
+        "participants": [],
+        "last_winner": null,
+        "started_at": null
+      },
+      "in_queue": false,
+      "my_prediction": null,
+      "my_username": "alice",
+      "config": {
+        "entry_fee_gold": 0,
+        "join_price": 0
+      }
+    },
+    "hero_absent": {
+      "success": true,
+      "has_hero": false
+    },
+    "focus_success": {
+      "request": {
+        "action_type": "hero.add_focus",
+        "data": {
+          "skill_key": "OneHanded",
+          "amount": 1,
+          "client_action_id": "fixture-focus_success"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "d6d7b32663ac467cb0bd77fef574ef63",
+        "charged": 0,
+        "message": "⚔️ Action hero.add_focus в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 10
+      }
+    },
+    "focus_buffs": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "hero.add_focus",
+          "remaining_s": 10.0
+        }
+      ]
+    },
+    "focus_cooldown": {
+      "request": {
+        "action_type": "hero.add_focus",
+        "data": {
+          "skill_key": "TwoHanded",
+          "amount": 1,
+          "client_action_id": "fixture-focus_cooldown"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (9с)",
+        "cooldown_remaining_s": 10.0
+      }
+    },
+    "attribute_success": {
+      "request": {
+        "action_type": "hero.add_attribute",
+        "data": {
+          "attribute_key": "Vigor",
+          "amount": 1,
+          "client_action_id": "fixture-attribute_success"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "0e474cda05e34a9181209ec6b34ee97f",
+        "charged": 0,
+        "message": "⚔️ Action hero.add_attribute в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      }
+    },
+    "class_success": {
+      "request": {
+        "action_type": "hero.set_class",
+        "data": {
+          "class_key": "archer",
+          "price": 0,
+          "client_action_id": "fixture-class_success"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "0d0af8cf56e54c78901d44b4d6f2e073",
+        "charged": 0,
+        "message": "⚔️ Action hero.set_class в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 60
+      }
+    },
+    "attribute_insufficient": {
+      "request": {
+        "action_type": "hero.add_attribute",
+        "data": {
+          "attribute_key": "Vigor",
+          "amount": 1,
+          "client_action_id": "fixture-attribute_insufficient"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Нужно 50,000💰 динаров у героя (у тебя 0💰). Заработай в битвах или конвертируй крустики в gold."
+      }
+    },
+    "focus_insufficient": {
+      "request": {
+        "action_type": "hero.add_focus",
+        "data": {
+          "skill_key": "OneHanded",
+          "amount": 1,
+          "client_action_id": "fixture-focus_insufficient"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Минимум 30,000💰 динаров нужно (у тебя 0💰)."
+      }
+    },
+    "build_ready": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": null,
+        "starter_claimed": false,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": false,
+        "can_manage": true,
+        "in_battle": false,
+        "specializations": [
+          {
+            "id": "guardian",
+            "label": "Защитник",
+            "description": "+15% здоровья в полевых боях."
+          },
+          {
+            "id": "assault",
+            "label": "Натиск",
+            "description": "+10% урона оружием в ближнем бою."
+          },
+          {
+            "id": "marksman",
+            "label": "Стрелок",
+            "description": "+10% урона стрелами, болтами и метательным оружием."
+          },
+          {
+            "id": "mobility",
+            "label": "Подвижность",
+            "description": "+10% скорости передвижения пешком."
+          }
+        ],
+        "starter_kits": [
+          {
+            "id": "infantry",
+            "label": "Одноручное оружие и щит",
+            "items": [],
+            "available": true,
+            "reason": null,
+            "reason_code": null
+          },
+          {
+            "id": "two_handed",
+            "label": "Двуручное оружие",
+            "items": [],
+            "available": true,
+            "reason": null,
+            "reason_code": null
+          },
+          {
+            "id": "archer",
+            "label": "Лук и стрелы",
+            "items": [],
+            "available": true,
+            "reason": null,
+            "reason_code": null
+          }
+        ],
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 40,
+            "rank": 1,
+            "value": 0.2,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 350,
+            "reason_code": "required_weapon_not_equipped"
+          }
+        ],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": true,
+      "cooldown_remaining_s": 0,
+      "reason": null,
+      "message": ""
+    },
+    "hero_new_equipment": {
+      "equipment_shop_ready": true,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": "vlandia",
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": "Pravend",
+        "adopted_at": "2026-10-02 18:42:12",
+        "last_sync": "2026-10-02 18:42:12",
+        "level": 35,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [
+        {
+          "skill_key": "Engineering",
+          "level": 200,
+          "xp": 1251,
+          "focus": 2
+        },
+        {
+          "skill_key": "Medicine",
+          "level": 190,
+          "xp": 1250,
+          "focus": 1
+        },
+        {
+          "skill_key": "Steward",
+          "level": 180,
+          "xp": 1249,
+          "focus": 0
+        },
+        {
+          "skill_key": "Trade",
+          "level": 170,
+          "xp": 1248,
+          "focus": 4
+        },
+        {
+          "skill_key": "Leadership",
+          "level": 160,
+          "xp": 1247,
+          "focus": 3
+        },
+        {
+          "skill_key": "Charm",
+          "level": 150,
+          "xp": 1246,
+          "focus": 2
+        },
+        {
+          "skill_key": "Roguery",
+          "level": 140,
+          "xp": 1245,
+          "focus": 1
+        },
+        {
+          "skill_key": "Tactics",
+          "level": 130,
+          "xp": 1244,
+          "focus": 0
+        },
+        {
+          "skill_key": "Scouting",
+          "level": 120,
+          "xp": 1243,
+          "focus": 4
+        },
+        {
+          "skill_key": "Crafting",
+          "level": 110,
+          "xp": 1242,
+          "focus": 3
+        },
+        {
+          "skill_key": "Athletics",
+          "level": 100,
+          "xp": 1241,
+          "focus": 2
+        },
+        {
+          "skill_key": "Riding",
+          "level": 90,
+          "xp": 1240,
+          "focus": 1
+        },
+        {
+          "skill_key": "Throwing",
+          "level": 80,
+          "xp": 1239,
+          "focus": 0
+        },
+        {
+          "skill_key": "Crossbow",
+          "level": 70,
+          "xp": 1238,
+          "focus": 4
+        },
+        {
+          "skill_key": "Bow",
+          "level": 60,
+          "xp": 1237,
+          "focus": 3
+        },
+        {
+          "skill_key": "Polearm",
+          "level": 50,
+          "xp": 1236,
+          "focus": 2
+        },
+        {
+          "skill_key": "TwoHanded",
+          "level": 40,
+          "xp": 1235,
+          "focus": 1
+        },
+        {
+          "skill_key": "OneHanded",
+          "level": 30,
+          "xp": 1234,
+          "focus": 0
+        }
+      ],
+      "attributes": {
+        "Control": 3,
+        "Cunning": 5,
+        "Endurance": 4,
+        "Intelligence": 7,
+        "Social": 6,
+        "Vigor": 2
+      },
+      "equipment": {
+        "weapon0": {
+          "item_id": "sword",
+          "item_name": "Sword",
+          "tier": 3,
+          "item_value": 0,
+          "weight": null,
+          "stats": {
+            "swing_dmg": 30
+          },
+          "quality": null
+        }
+      },
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "specialization_success": {
+      "request": {
+        "action_type": "hero.set_specialization",
+        "data": {
+          "specialization": "assault",
+          "client_action_id": "fixture-specialization_success"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "c32a04cca6d74931b219e63260f4a7f3",
+        "charged": 0,
+        "message": "⚔️ Action hero.set_specialization в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "build_pending": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": null,
+        "starter_claimed": false,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": false,
+        "can_manage": true,
+        "in_battle": false,
+        "specializations": [
+          {
+            "id": "guardian",
+            "label": "Защитник",
+            "description": "+15% здоровья в полевых боях."
+          },
+          {
+            "id": "assault",
+            "label": "Натиск",
+            "description": "+10% урона оружием в ближнем бою."
+          },
+          {
+            "id": "marksman",
+            "label": "Стрелок",
+            "description": "+10% урона стрелами, болтами и метательным оружием."
+          },
+          {
+            "id": "mobility",
+            "label": "Подвижность",
+            "description": "+10% скорости передвижения пешком."
+          }
+        ],
+        "starter_kits": [
+          {
+            "id": "infantry",
+            "label": "Одноручное оружие и щит",
+            "items": [],
+            "available": true,
+            "reason": null,
+            "reason_code": null
+          },
+          {
+            "id": "two_handed",
+            "label": "Двуручное оружие",
+            "items": [],
+            "available": true,
+            "reason": null,
+            "reason_code": null
+          },
+          {
+            "id": "archer",
+            "label": "Лук и стрелы",
+            "items": [],
+            "available": true,
+            "reason": null,
+            "reason_code": null
+          }
+        ],
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 40,
+            "rank": 1,
+            "value": 0.2,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 350,
+            "reason_code": "required_weapon_not_equipped"
+          }
+        ],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": true,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "pending",
+      "message": "Предыдущее действие с экипировкой ещё выполняется"
+    },
+    "starter_success": {
+      "request": {
+        "action_type": "hero.claim_starter",
+        "data": {
+          "starter_kit": "infantry",
+          "client_action_id": "fixture-starter_success"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "6607c150ed9143a883dbcf682205bb55",
+        "charged": 0,
+        "message": "⚔️ Action hero.claim_starter в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "build_claimed": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": "infantry",
+        "starter_claimed": true,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": false,
+        "can_manage": true,
+        "in_battle": false,
+        "specializations": [
+          {
+            "id": "guardian",
+            "label": "Защитник",
+            "description": "+15% здоровья в полевых боях."
+          },
+          {
+            "id": "assault",
+            "label": "Натиск",
+            "description": "+10% урона оружием в ближнем бою."
+          },
+          {
+            "id": "marksman",
+            "label": "Стрелок",
+            "description": "+10% урона стрелами, болтами и метательным оружием."
+          },
+          {
+            "id": "mobility",
+            "label": "Подвижность",
+            "description": "+10% скорости передвижения пешком."
+          }
+        ],
+        "starter_kits": [],
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 40,
+            "rank": 1,
+            "value": 0.2,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 350,
+            "reason_code": "required_weapon_not_equipped"
+          }
+        ],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": true,
+      "cooldown_remaining_s": 0,
+      "reason": null,
+      "message": ""
+    },
+    "build_battle": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "version": 1,
+        "specialization": "guardian",
+        "selected_weapon_type": "one_handed",
+        "selected_power": "rage",
+        "starter_kit": null,
+        "starter_claimed": false,
+        "weapon_power_cooldown_until": 0,
+        "is_prisoner": false,
+        "is_mounted": false,
+        "can_manage": false,
+        "in_battle": true,
+        "specializations": [
+          {
+            "id": "guardian",
+            "label": "Защитник",
+            "description": "+15% здоровья в полевых боях."
+          },
+          {
+            "id": "assault",
+            "label": "Натиск",
+            "description": "+10% урона оружием в ближнем бою."
+          },
+          {
+            "id": "marksman",
+            "label": "Стрелок",
+            "description": "+10% урона стрелами, болтами и метательным оружием."
+          },
+          {
+            "id": "mobility",
+            "label": "Подвижность",
+            "description": "+10% скорости передвижения пешком."
+          }
+        ],
+        "starter_kits": [
+          {
+            "id": "infantry",
+            "label": "Одноручное оружие и щит",
+            "items": [],
+            "available": true,
+            "reason": null,
+            "reason_code": null
+          },
+          {
+            "id": "two_handed",
+            "label": "Двуручное оружие",
+            "items": [],
+            "available": true,
+            "reason": null,
+            "reason_code": null
+          },
+          {
+            "id": "archer",
+            "label": "Лук и стрелы",
+            "items": [],
+            "available": true,
+            "reason": null,
+            "reason_code": null
+          }
+        ],
+        "power_options": [
+          {
+            "weapon_type": "one_handed",
+            "power_key": "rage",
+            "label": "Натиск",
+            "description": "Усиливает удары одноручным оружием на 45 секунд.",
+            "skill": "OneHanded",
+            "skill_level": 80,
+            "rank": 2,
+            "value": 1.25,
+            "available": true,
+            "reason": null,
+            "price": 300,
+            "reason_code": null
+          },
+          {
+            "weapon_type": "two_handed",
+            "power_key": "cleave",
+            "label": "Рассечение",
+            "description": "Удары двуручным оружием задевают соседних врагов на 45 секунд.",
+            "skill": "TwoHanded",
+            "skill_level": 40,
+            "rank": 1,
+            "value": 0.2,
+            "available": false,
+            "reason": "Надень подходящее оружие перед выбором способности.",
+            "price": 350,
+            "reason_code": "required_weapon_not_equipped"
+          }
+        ],
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "in_battle",
+      "message": "Менять сборку можно только между боями"
+    },
+    "build_syncing": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": false,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "build_not_ready",
+      "message": "Настройки героя ещё синхронизируются с игрой"
+    },
+    "build_legacy": {
+      "success": true,
+      "enabled": true,
+      "build": {
+        "common_powers": [
+          {
+            "power_key": "heal_burst",
+            "label": "Лечение",
+            "description": "Восстанавливает 50 здоровья в бою",
+            "price": 100,
+            "value": 50
+          }
+        ]
+      },
+      "has_hero": true,
+      "ready": false,
+      "pending": false,
+      "can_manage": false,
+      "cooldown_remaining_s": 0,
+      "reason": "legacy_build",
+      "message": "Этот герой создан в старой системе. Специализации и стартовые наборы доступны новым героям; прогресс этого героя сохранён."
+    },
+    "equipment_inventory": {
+      "success": true,
+      "items": [
+        {
+          "item_id": "sword",
+          "name": "Sword",
+          "tier": 4,
+          "required_level": 25,
+          "price_gold": 1000,
+          "category": "one_handed",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "stats": {
+            "swing_dmg": 30
+          },
+          "weight": 1.2,
+          "id": "sword",
+          "purchase_mode": "inventory",
+          "can_buy": true,
+          "reason": null,
+          "message": ""
+        },
+        {
+          "item_id": "tier5",
+          "name": "Tier Five Sword",
+          "tier": 5,
+          "required_level": 30,
+          "price_gold": 1500,
+          "category": "one_handed",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "stats": {
+            "swing_dmg": 40
+          },
+          "weight": 1.7,
+          "id": "tier5",
+          "purchase_mode": "inventory",
+          "can_buy": true,
+          "reason": null,
+          "message": ""
+        }
+      ],
+      "inventory": [
+        {
+          "owned_id": "equipped|weapon0",
+          "item_id": "sword",
+          "name": "Sword",
+          "tier": 4,
+          "slot": "weapon0",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "modifier_id": "",
+          "source": "equipped",
+          "trade_in_gold": 700,
+          "category": "one_handed",
+          "stats": {
+            "swing_dmg": 30
+          }
+        },
+        {
+          "owned_id": "party|sword|fine",
+          "item_id": "sword",
+          "name": "Fine Sword",
+          "tier": 4,
+          "slot": null,
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "modifier_id": "fine",
+          "source": "party",
+          "count": 2,
+          "category": "one_handed",
+          "stats": {
+            "swing_dmg": 35
+          }
+        },
+        {
+          "owned_id": "legacy-owned-1",
+          "item_id": "sword",
+          "name": "Stored Sword",
+          "tier": 4,
+          "slot": null,
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "modifier_id": "",
+          "source": "legacy",
+          "category": "one_handed",
+          "stats": {
+            "swing_dmg": 30
+          }
+        }
+      ],
+      "party_inventory": {
+        "available": true,
+        "reason": null,
+        "message": "",
+        "party_id": "alice-party",
+        "party_name": "Alice Party"
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "required_level": 1
+        },
+        {
+          "tier": 2,
+          "required_level": 10
+        },
+        {
+          "tier": 3,
+          "required_level": 15
+        },
+        {
+          "tier": 4,
+          "required_level": 25
+        },
+        {
+          "tier": 5,
+          "required_level": 30
+        },
+        {
+          "tier": 6,
+          "required_level": 35
+        }
+      ],
+      "hero_level": 35,
+      "gold": 500000,
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": true,
+      "reason": null,
+      "message": ""
+    },
+    "equipment_buy": {
+      "request": {
+        "action_type": "hero.buy_equipment",
+        "data": {
+          "item_id": "sword",
+          "client_action_id": "fixture-equipment_buy"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "d64d37efca404d6ebfc738c1d4023ffd",
+        "charged": 0,
+        "message": "⚔️ Action hero.buy_equipment в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "equipment_equip": {
+      "request": {
+        "action_type": "hero.equip_owned",
+        "data": {
+          "owned_id": "party|sword|fine",
+          "slot": "weapon1",
+          "client_action_id": "fixture-equipment_equip"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "e66943f7766f497b8901e61ae9d11948",
+        "charged": 0,
+        "message": "⚔️ Action hero.equip_owned в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "equipment_unequip": {
+      "request": {
+        "action_type": "hero.unequip_owned",
+        "data": {
+          "slot": "weapon0",
+          "client_action_id": "fixture-equipment_unequip"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "15438370a18146519c4d015f8758f70a",
+        "charged": 0,
+        "message": "⚔️ Action hero.unequip_owned в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "equipment_discard": {
+      "request": {
+        "action_type": "hero.discard_owned",
+        "data": {
+          "owned_id": "party|sword|fine",
+          "client_action_id": "fixture-equipment_discard"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "7b7457cfc39942a6a324617972b2a3cf",
+        "charged": 0,
+        "message": "⚔️ Action hero.discard_owned в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "equipment_direct": {
+      "success": true,
+      "items": [
+        {
+          "item_id": "sword",
+          "name": "Sword",
+          "tier": 4,
+          "required_level": 25,
+          "price_gold": 1000,
+          "category": "one_handed",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "stats": {
+            "swing_dmg": 30
+          },
+          "weight": 1.2,
+          "id": "sword",
+          "purchase_mode": "equip",
+          "purchase_options": [
+            {
+              "slot": "weapon0",
+              "replace_owned_id": "equipped|weapon0",
+              "replace_item_id": "sword",
+              "replace_modifier_id": "",
+              "replaced_name": "Sword",
+              "trade_in_gold": 700,
+              "net_price_gold": 300,
+              "can_buy": true,
+              "reason": null,
+              "message": ""
+            },
+            {
+              "slot": "weapon1",
+              "replace_owned_id": "",
+              "replace_item_id": "",
+              "replace_modifier_id": "",
+              "replaced_name": null,
+              "trade_in_gold": 0,
+              "net_price_gold": 1000,
+              "can_buy": true,
+              "reason": null,
+              "message": ""
+            }
+          ],
+          "can_buy": true,
+          "reason": null,
+          "message": ""
+        },
+        {
+          "item_id": "tier5",
+          "name": "Tier Five Sword",
+          "tier": 5,
+          "required_level": 30,
+          "price_gold": 1500,
+          "category": "one_handed",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "stats": {
+            "swing_dmg": 40
+          },
+          "weight": 1.7,
+          "id": "tier5",
+          "purchase_mode": "equip",
+          "purchase_options": [
+            {
+              "slot": "weapon0",
+              "replace_owned_id": "equipped|weapon0",
+              "replace_item_id": "sword",
+              "replace_modifier_id": "",
+              "replaced_name": "Sword",
+              "trade_in_gold": 700,
+              "net_price_gold": 800,
+              "can_buy": true,
+              "reason": null,
+              "message": ""
+            },
+            {
+              "slot": "weapon1",
+              "replace_owned_id": "",
+              "replace_item_id": "",
+              "replace_modifier_id": "",
+              "replaced_name": null,
+              "trade_in_gold": 0,
+              "net_price_gold": 1500,
+              "can_buy": true,
+              "reason": null,
+              "message": ""
+            }
+          ],
+          "can_buy": true,
+          "reason": null,
+          "message": ""
+        }
+      ],
+      "inventory": [
+        {
+          "owned_id": "equipped|weapon0",
+          "item_id": "sword",
+          "name": "Sword",
+          "tier": 4,
+          "slot": "weapon0",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "modifier_id": "",
+          "source": "equipped",
+          "trade_in_gold": 700,
+          "category": "one_handed",
+          "stats": {
+            "swing_dmg": 30
+          }
+        },
+        {
+          "owned_id": "legacy-owned-1",
+          "item_id": "sword",
+          "name": "Stored Sword",
+          "tier": 4,
+          "slot": null,
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "modifier_id": "",
+          "source": "legacy",
+          "category": "one_handed",
+          "stats": {
+            "swing_dmg": 30
+          }
+        }
+      ],
+      "party_inventory": {
+        "available": false,
+        "reason": "no_party_inventory",
+        "message": "У героя сейчас нет доступного багажа отряда",
+        "party_id": null,
+        "party_name": null
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "required_level": 1
+        },
+        {
+          "tier": 2,
+          "required_level": 10
+        },
+        {
+          "tier": 3,
+          "required_level": 15
+        },
+        {
+          "tier": 4,
+          "required_level": 25
+        },
+        {
+          "tier": 5,
+          "required_level": 30
+        },
+        {
+          "tier": 6,
+          "required_level": 35
+        }
+      ],
+      "hero_level": 35,
+      "gold": 500000,
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": true,
+      "reason": null,
+      "message": ""
+    },
+    "equipment_direct_buy": {
+      "request": {
+        "action_type": "hero.buy_equipment",
+        "data": {
+          "item_id": "sword",
+          "equip_now": true,
+          "slot": "weapon0",
+          "replace_owned_id": "equipped|weapon0",
+          "replace_item_id": "sword",
+          "replace_modifier_id": "",
+          "expected_price_gold": 1000,
+          "expected_trade_in_gold": 700,
+          "client_action_id": "fixture-equipment_direct_buy"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "157703aca9924323b9a0fed1b9cd11e0",
+        "charged": 0,
+        "message": "⚔️ Action hero.buy_equipment в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "equipment_stash": {
+      "success": true,
+      "items": [
+        {
+          "item_id": "sword",
+          "name": "Sword",
+          "tier": 4,
+          "required_level": 25,
+          "price_gold": 1000,
+          "category": "one_handed",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "stats": {
+            "swing_dmg": 30
+          },
+          "weight": 1.2,
+          "id": "sword",
+          "purchase_mode": "inventory",
+          "can_buy": true,
+          "reason": null,
+          "message": ""
+        },
+        {
+          "item_id": "tier5",
+          "name": "Tier Five Sword",
+          "tier": 5,
+          "required_level": 30,
+          "price_gold": 1500,
+          "category": "one_handed",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "stats": {
+            "swing_dmg": 40
+          },
+          "weight": 1.7,
+          "id": "tier5",
+          "purchase_mode": "inventory",
+          "can_buy": true,
+          "reason": null,
+          "message": ""
+        }
+      ],
+      "inventory": [
+        {
+          "owned_id": "equipped|weapon0",
+          "item_id": "sword",
+          "name": "Sword",
+          "tier": 4,
+          "slot": "weapon0",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "modifier_id": "",
+          "source": "equipped",
+          "trade_in_gold": 700,
+          "category": "one_handed",
+          "stats": {
+            "swing_dmg": 30
+          }
+        },
+        {
+          "owned_id": "legacy-owned-1",
+          "item_id": "sword",
+          "name": "Stored Sword",
+          "tier": 4,
+          "slot": null,
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "modifier_id": "",
+          "source": "party",
+          "category": "one_handed",
+          "stats": {
+            "swing_dmg": 30
+          }
+        }
+      ],
+      "party_inventory": {
+        "available": true,
+        "reason": null,
+        "message": "",
+        "party_id": null,
+        "party_name": "Личный сундук героя (1/10)"
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "required_level": 1
+        },
+        {
+          "tier": 2,
+          "required_level": 10
+        },
+        {
+          "tier": 3,
+          "required_level": 15
+        },
+        {
+          "tier": 4,
+          "required_level": 25
+        },
+        {
+          "tier": 5,
+          "required_level": 30
+        },
+        {
+          "tier": 6,
+          "required_level": 35
+        }
+      ],
+      "hero_level": 35,
+      "gold": 500000,
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": true,
+      "reason": null,
+      "message": ""
+    },
+    "hero_dead": {
+      "equipment_shop_ready": true,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": "vlandia",
+        "is_alive": false,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": "Pravend",
+        "adopted_at": "2026-10-02 18:42:12",
+        "last_sync": "2026-10-02 18:42:12",
+        "level": 35,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [
+        {
+          "skill_key": "Engineering",
+          "level": 200,
+          "xp": 1251,
+          "focus": 2
+        },
+        {
+          "skill_key": "Medicine",
+          "level": 190,
+          "xp": 1250,
+          "focus": 1
+        },
+        {
+          "skill_key": "Steward",
+          "level": 180,
+          "xp": 1249,
+          "focus": 0
+        },
+        {
+          "skill_key": "Trade",
+          "level": 170,
+          "xp": 1248,
+          "focus": 4
+        },
+        {
+          "skill_key": "Leadership",
+          "level": 160,
+          "xp": 1247,
+          "focus": 3
+        },
+        {
+          "skill_key": "Charm",
+          "level": 150,
+          "xp": 1246,
+          "focus": 2
+        },
+        {
+          "skill_key": "Roguery",
+          "level": 140,
+          "xp": 1245,
+          "focus": 1
+        },
+        {
+          "skill_key": "Tactics",
+          "level": 130,
+          "xp": 1244,
+          "focus": 0
+        },
+        {
+          "skill_key": "Scouting",
+          "level": 120,
+          "xp": 1243,
+          "focus": 4
+        },
+        {
+          "skill_key": "Crafting",
+          "level": 110,
+          "xp": 1242,
+          "focus": 3
+        },
+        {
+          "skill_key": "Athletics",
+          "level": 100,
+          "xp": 1241,
+          "focus": 2
+        },
+        {
+          "skill_key": "Riding",
+          "level": 90,
+          "xp": 1240,
+          "focus": 1
+        },
+        {
+          "skill_key": "Throwing",
+          "level": 80,
+          "xp": 1239,
+          "focus": 0
+        },
+        {
+          "skill_key": "Crossbow",
+          "level": 70,
+          "xp": 1238,
+          "focus": 4
+        },
+        {
+          "skill_key": "Bow",
+          "level": 60,
+          "xp": 1237,
+          "focus": 3
+        },
+        {
+          "skill_key": "Polearm",
+          "level": 50,
+          "xp": 1236,
+          "focus": 2
+        },
+        {
+          "skill_key": "TwoHanded",
+          "level": 40,
+          "xp": 1235,
+          "focus": 1
+        },
+        {
+          "skill_key": "OneHanded",
+          "level": 30,
+          "xp": 1234,
+          "focus": 0
+        }
+      ],
+      "attributes": {
+        "Control": 3,
+        "Cunning": 5,
+        "Endurance": 4,
+        "Intelligence": 7,
+        "Social": 6,
+        "Vigor": 2
+      },
+      "equipment": {
+        "weapon0": {
+          "item_id": "sword",
+          "item_name": "Sword",
+          "tier": 3,
+          "item_value": 0,
+          "weight": null,
+          "stats": {
+            "swing_dmg": 30
+          },
+          "quality": null
+        }
+      },
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "equipment_dead": {
+      "success": true,
+      "items": [
+        {
+          "item_id": "sword",
+          "name": "Sword",
+          "tier": 4,
+          "required_level": 25,
+          "price_gold": 1000,
+          "category": "one_handed",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "stats": {
+            "swing_dmg": 30
+          },
+          "weight": 1.2,
+          "id": "sword",
+          "purchase_mode": "inventory",
+          "can_buy": false,
+          "reason": "hero_dead",
+          "message": "Герой погиб"
+        },
+        {
+          "item_id": "tier5",
+          "name": "Tier Five Sword",
+          "tier": 5,
+          "required_level": 30,
+          "price_gold": 1500,
+          "category": "one_handed",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "stats": {
+            "swing_dmg": 40
+          },
+          "weight": 1.7,
+          "id": "tier5",
+          "purchase_mode": "inventory",
+          "can_buy": false,
+          "reason": "hero_dead",
+          "message": "Герой погиб"
+        }
+      ],
+      "inventory": [
+        {
+          "owned_id": "equipped|weapon0",
+          "item_id": "sword",
+          "name": "Sword",
+          "tier": 4,
+          "slot": "weapon0",
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "modifier_id": "",
+          "source": "equipped",
+          "trade_in_gold": 700,
+          "category": "one_handed",
+          "stats": {
+            "swing_dmg": 30
+          }
+        },
+        {
+          "owned_id": "legacy-owned-1",
+          "item_id": "sword",
+          "name": "Stored Sword",
+          "tier": 4,
+          "slot": null,
+          "slots": [
+            "weapon0",
+            "weapon1"
+          ],
+          "modifier_id": "",
+          "source": "party",
+          "category": "one_handed",
+          "stats": {
+            "swing_dmg": 30
+          }
+        }
+      ],
+      "party_inventory": {
+        "available": true,
+        "reason": null,
+        "message": "",
+        "party_id": null,
+        "party_name": "Личный сундук героя (1/10)"
+      },
+      "tiers": [
+        {
+          "tier": 1,
+          "required_level": 1
+        },
+        {
+          "tier": 2,
+          "required_level": 10
+        },
+        {
+          "tier": 3,
+          "required_level": 15
+        },
+        {
+          "tier": 4,
+          "required_level": 25
+        },
+        {
+          "tier": 5,
+          "required_level": 30
+        },
+        {
+          "tier": 6,
+          "required_level": 35
+        }
+      ],
+      "hero_level": 35,
+      "gold": 500000,
+      "has_hero": true,
+      "ready": true,
+      "pending": false,
+      "can_manage": false,
+      "reason": "hero_dead",
+      "message": "Герой погиб"
+    }
+  }
+}

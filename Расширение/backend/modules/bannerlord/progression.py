@@ -101,6 +101,14 @@ async def validate(conn,channel_id,username,action_type,data,*,prepared=False,pr
     ctx=await context(conn,channel_id,username)
     if ctx['reason']:
         return refusal(ctx['reason'])
+    # 02.10: панель 0.0.5 (замороженная на CDN Twitch до следующего релиза) шлёт
+    # {skill_key,amount} / {attribute_key,amount} / {price} без контекста и котировок.
+    # Отказывать ей — значит закрыть зрителям три кнопки до релиза. Без контекста
+    # котировку берёт сервер из последнего снимка игры; мод всё равно сверяет её с
+    # игрой перед списанием, так что убрать поле нарочно ничего не даёт.
+    legacy = data.get('_legacy_progression') is True if prepared else 'progression_context' not in data
+    if legacy and not prepared:
+        data['progression_context']=dict(ctx['context'])
     supplied=data.get('progression_context')
     if not isinstance(supplied,dict) or any(supplied.get(k)!=ctx['context'][k] for k in _CONTEXT):
         return refusal('progression_changed')
@@ -122,6 +130,9 @@ async def validate(conn,channel_id,username,action_type,data,*,prepared=False,pr
             return refusal('progression_option_not_found')
         if not available:
             return refusal(why or 'progression_unavailable')
+        if legacy:
+            # Старая панель не знает итоговой цены со скидками: показанная цена = базовая.
+            data['expected_platform_price']=price if prepared else data.get('price')
         expected=data.get('expected_platform_price')
         if type(expected) is not int or expected<0 or (prepared and expected!=price):
             return refusal('platform_price_changed')
@@ -139,6 +150,9 @@ async def validate(conn,channel_id,username,action_type,data,*,prepared=False,pr
         if not option:
             return refusal('progression_option_not_found')
         current=entry['value' if attr else 'focus']
+        if legacy:
+            data['expected_cost_gold']=option['cost_gold']
+            data['expected_value']=current
         if (type(data.get('expected_cost_gold')) is not int or data['expected_cost_gold']!=option['cost_gold']
                 or type(data.get('expected_value')) is not int or data['expected_value']!=current):
             return refusal('progression_quote_changed')
@@ -148,6 +162,8 @@ async def validate(conn,channel_id,username,action_type,data,*,prepared=False,pr
     payload.update(ctx['context'])
     if not prepared:
         payload['progression_context']=dict(ctx['context'])
+        if legacy:
+            payload['_legacy_progression']=True
     else:
         for field in ('reward_boost','_perk_label'):
             if field in data:

@@ -53,10 +53,11 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
   const dataRef = useRef(snapshot), busyRef = useRef(false), slotsRef = useRef(purchaseSlots), activeRef = useRef(active);
   const request = useRef(0), applied = useRef(0), revision = useRef(0), mounted = useRef(false);
   const generation = useRef(panel.generation), dialogRef = useRef(confirmation);
+  const currentHero = heroIdentity(controller), observedHero = useRef(currentHero), dataHero = useRef(currentHero);
   activeRef.current = active; slotsRef.current = purchaseSlots; dialogRef.current = confirmation;
   const update = (data: EquipmentReply | null) => { dataRef.current = data; setSnapshot(data); };
   const close = () => { dialogRef.current = null; setConfirmation(null); };
-  const manageable = () => activeRef.current && controller.ready() && !controller.snapshot().mutationBlocked && !!dataRef.current?.has_hero && !!dataRef.current.ready && !!dataRef.current.can_manage && !dataRef.current.pending && !busyRef.current;
+  const manageable = () => activeRef.current && controller.ready() && dataHero.current === heroIdentity(controller) && !controller.snapshot().mutationBlocked && !!dataRef.current?.has_hero && !!dataRef.current.ready && !!dataRef.current.can_manage && !dataRef.current.pending && !busyRef.current;
   const valid = (pending: Confirmation) => {
     if (!manageable() || controller.identityGeneration() !== pending.generation || heroIdentity(controller) !== pending.hero) return false;
     const data = dataRef.current!;
@@ -69,13 +70,13 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
   };
   const refresh = useCallback(async () => {
     if (!mounted.current || !activeRef.current || !controller.ready()) return;
-    const identity = controller.identityGeneration(), issued = ++request.current, actionRevision = revision.current;
-    const current = () => mounted.current && activeRef.current && controller.ready() && identity === controller.identityGeneration() && issued > applied.current && actionRevision === revision.current;
+    const identity = controller.identityGeneration(), hero = heroIdentity(controller), issued = ++request.current, actionRevision = revision.current;
+    const current = () => mounted.current && activeRef.current && controller.ready() && identity === controller.identityGeneration() && hero === heroIdentity(controller) && issued > applied.current && actionRevision === revision.current;
     try {
       const result = await controller.read<EquipmentReply>('/api/bannerlord/equipment-shop');
       if (!current()) return;
       if (!result.success) throw new Error(result.message || 'Не удалось загрузить снаряжение');
-      applied.current = issued; update(result); setError('');
+      applied.current = issued; dataHero.current = hero; update(result); setError('');
     } catch {
       if (!current()) return;
       applied.current = issued; update(null); setError('Не удалось загрузить магазин. Обнови данные.');
@@ -87,26 +88,30 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
   }, [controller, refresh]);
   useLayoutEffect(() => {
     if (generation.current !== panel.generation) {
-      generation.current = panel.generation; revision.current++; applied.current = ++request.current;
+      generation.current = panel.generation; observedHero.current = currentHero; revision.current++; applied.current = ++request.current;
       update(null); busyRef.current = false; setBusy(false); close(); setError('');
       setView('shop'); setSearch(''); setCategory(''); setTier(''); setPage(0); setOwnedSlot('weapon0'); setPurchaseSlots({});
     }
+    if (observedHero.current !== currentHero) {
+      observedHero.current = currentHero; revision.current++; applied.current = ++request.current;
+      update(null); close(); busyRef.current = false; setBusy(false);
+    }
     if (!active || !panel.canAct) { close(); return; }
     void refresh();
-  }, [controller, refresh, active, panel.canAct, panel.generation]);
+  }, [controller, refresh, active, panel.canAct, panel.generation, currentHero]);
   useLayoutEffect(() => { if (dialogRef.current && !valid(dialogRef.current)) close(); }, [snapshot, panel, active]);
   async function perform(type: string, data: Record<string, unknown>) {
     if (!manageable()) return;
-    const identity = controller.identityGeneration(); busyRef.current = true; setBusy(true);
+    const identity = controller.identityGeneration(), hero = heroIdentity(controller); busyRef.current = true; setBusy(true);
     try {
       const result = await controller.action(type, data, { tail: 'balance', successMessage: 'Заявка отправлена в игру. Инвентарь обновится после выполнения.' });
-      if (mounted.current && identity === controller.identityGeneration() && result?.success) {
+      if (mounted.current && identity === controller.identityGeneration() && hero === heroIdentity(controller) && result?.success) {
         // A pre-ack GET cannot overwrite the newer local pending flag. A GET
         // started after this revision remains authoritative and may release it.
         revision.current++;
         if (dataRef.current) update({ ...dataRef.current, pending: true });
       }
-    } finally { if (mounted.current && identity === controller.identityGeneration()) { busyRef.current = false; setBusy(false); } }
+    } finally { if (mounted.current && identity === controller.identityGeneration() && hero === heroIdentity(controller)) { busyRef.current = false; setBusy(false); } }
   }
   function confirm(action: Confirmation['action'], id: string, signature: string, data: Record<string, unknown>, message: string, yes = '✅ Да') {
     setConfirmation({ action, id, signature, data, message, yes, opener: document.activeElement as HTMLElement | null, generation: controller.identityGeneration(), hero: heroIdentity(controller) });
@@ -138,7 +143,7 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
   const filtered = (snapshot?.items || []).filter(item => (!effectiveCategory || item.category === effectiveCategory) && (!tier || String(item.tier) === tier) && matches(item));
   const pages = Math.max(1, Math.ceil(filtered.length / 20)), currentPage = Math.min(page, pages - 1);
   useLayoutEffect(() => { if (page !== currentPage) setPage(currentPage); }, [page, currentPage]);
-  const blocked = !active || !panel.canAct || panel.mutationBlocked || !snapshot?.ready || !snapshot.has_hero || !snapshot.can_manage || snapshot.pending || busy;
+  const blocked = !active || dataHero.current !== currentHero || !panel.canAct || panel.mutationBlocked || !snapshot?.ready || !snapshot.has_hero || !snapshot.can_manage || snapshot.pending || busy;
   const party = snapshot?.party_inventory, partyAvailable = !!party?.available, inventoryBlocked = blocked || !partyAvailable;
   const inventory = snapshot?.inventory || [], equipped = inventory.find(item => item.slot === ownedSlot);
   const candidates = inventory.filter(item => !item.slot && (item.source !== 'party' || partyAvailable) && item.slots?.includes(ownedSlot) && matches(item));

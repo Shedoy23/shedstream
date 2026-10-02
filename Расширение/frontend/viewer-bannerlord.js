@@ -121,7 +121,12 @@ function _bnrBindDetailsPersistence() {
         const key = el.getAttribute('data-bnr-details');
         if (!key || el.dataset.bnrBound === '1') return;
         el.dataset.bnrBound = '1';
+        let usageWasOpen = el.open;
         el.addEventListener('toggle', () => {
+            if (el.open && !usageWasOpen) {
+                try { ShedLink.usage?.trackSection('bannerlord:details.' + key); } catch (e) {}
+            }
+            usageWasOpen = el.open;
             if (el.open) _bannerlordDetailsOpen.add(key);
             else _bannerlordDetailsOpen.delete(key);
         });
@@ -442,7 +447,12 @@ function _bindBnrInnerTabs() {
     document.querySelectorAll('.bnr-tab-btn').forEach(btn => {
         if (btn.dataset.bnrBound) return;  // idempotent
         btn.dataset.bnrBound = '1';
-        btn.addEventListener('click', () => _setBnrInnerTab(btn.dataset.bnrTab));
+        btn.addEventListener('click', () => {
+            if (!btn.classList.contains('active')) {
+                try { ShedLink.usage?.trackSection('bannerlord:tab.' + btn.dataset.bnrTab); } catch (e) {}
+            }
+            _setBnrInnerTab(btn.dataset.bnrTab);
+        });
     });
     // Restore tab из last session. Sprint 5.32 (revised): default = combat.
     let saved = 'combat';
@@ -808,7 +818,7 @@ async function _bannerlordBuyAction(actionType, data) {
     const isCurrent = () => lifecycle === _bannerlordLifecycle && token === authToken;
     return await ShedLink.buyAction('bannerlord', actionType, data, {
         cooldownAttr: 'data-bnr-cd',
-        onCooldown: _bnrSetLocalCooldown,
+        onCooldown: (key, seconds) => { if (isCurrent()) _bnrSetLocalCooldown(key, seconds); },
         onSuccess: () => {
             if (!isCurrent()) return;
             // Sprint 5.3d: ускоряем UI feedback — вместо ожидания 8s polling
@@ -1842,15 +1852,33 @@ async function loadBannerlordInheritance() {
 // Sprint 5.33 (BLT-parity VAS) — Vassal sub-clan management.
 // Viewer-leader клана может выделить взрослого ребёнка (heir) в собственный
 // vassal-clan. Прогрессия sub-clan'ов = long-term retention для donator'ов.
+// UI lifetime follows viewer/channel identity, not JWT expiry/refresh. This key
+// never authorizes an action; the backend still verifies the submitted JWT.
+function _bnrVassalAuthIdentity() {
+    let claims = {};
+    try {
+        const payload = (authToken || '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        claims = JSON.parse(atob(payload)) || {};
+    } catch (e) {}
+    return JSON.stringify([claims.channel_id || '', claims.user_id
+        || (typeof _authUserId !== 'undefined' ? _authUserId : ''),
+    claims.opaque_user_id || (typeof userId !== 'undefined' ? userId : '')]);
+}
 async function loadBannerlordVassals() {
     const slot = document.getElementById('bnr-vassals-slot');
     if (!slot) return;
+    const identity = _bnrVassalAuthIdentity();
+    if (slot._bnrVassalIdentity !== identity) {
+        slot.replaceChildren();
+        delete _smartHtmlCache[slot.id];
+        slot._bnrVassalIdentity = identity;
+    }
     const isEditing = () => slot.querySelector('[data-bnr-details="vas-create"]')?.open
         || slot.querySelector('[data-bnr-vassal-rename-form]');
     if (isEditing()) return;
     const lifecycle = _bannerlordLifecycle, token = authToken;
     const requestSeq = ++_bnrVassalRequestSeq;
-    const isCurrent = () => lifecycle === _bannerlordLifecycle && token === authToken
+    const isCurrent = () => lifecycle === _bannerlordLifecycle && identity === _bnrVassalAuthIdentity()
         && document.getElementById('bnr-vassals-slot') === slot;
     try {
         const [vassR, heirsR] = await Promise.all([
@@ -1863,7 +1891,7 @@ async function loadBannerlordVassals() {
         ]);
         // A request started before editing/stop must not remove the new form,
         // including when its result is an empty list. Failed reads keep the last UI.
-        if (!isCurrent() || requestSeq !== _bnrVassalRequestSeq || isEditing()) return;
+        if (!isCurrent() || token !== authToken || requestSeq !== _bnrVassalRequestSeq || isEditing()) return;
         if (!vassR?.success || !heirsR?.success) return;
         const vassals = (vassR.success && Array.isArray(vassR.vassals))
             ? vassR.vassals : [];
@@ -1965,18 +1993,26 @@ async function loadBannerlordVassals() {
                     }
                     if (newName === oldName) { closeEditor(); return; }
                     pending = true;
+                    const mutationToken = authToken;
                     form.querySelectorAll('button,input').forEach(control => { control.disabled = true; });
                     try {
                         const result = await _bannerlordBuyAction('hero.rename_vassal', {vassal_id:id,new_name:newName});
-                        if (!canEdit()) return;
+                        if (!canEdit() || mutationToken !== authToken) return;
                         if (!result?.success) throw new Error(result?.message || 'Не удалось отправить переименование.');
                         closeEditor();
                         setTimeout(() => { if (isCurrent()) loadBannerlordVassals(); }, 1500);
                     } catch (renameError) {
-                        if (!canEdit()) return;
+                        if (!canEdit() || mutationToken !== authToken) return;
                         pending = false;
                         form.querySelectorAll('button,input').forEach(control => { control.disabled = false; });
                         error.textContent = renameError?.message || 'Не удалось отправить переименование.'; error.style.display = 'block';
+                    } finally {
+                        // Do not apply an old-token result or leave the editor
+                        // disabled forever. Reconcile with a fresh authenticated read.
+                        if (canEdit() && mutationToken !== authToken) {
+                            closeEditor();
+                            loadBannerlordVassals();
+                        }
                     }
                 });
             });
@@ -2073,8 +2109,13 @@ function _bnrBindSectionToggle() {
     document.querySelectorAll('[data-bnr-section]').forEach(el => {
         if (el.dataset.bnrSecBound === '1') return;
         el.dataset.bnrSecBound = '1';
+        let usageWasOpen = el.open;
         el.addEventListener('toggle', () => {
             const k = el.getAttribute('data-bnr-section');
+            if (el.open && !usageWasOpen) {
+                try { ShedLink.usage?.trackSection('bannerlord:section.' + k); } catch (e) {}
+            }
+            usageWasOpen = el.open;
             if (el.open) _bnrSectionCollapsed.delete(k);
             else _bnrSectionCollapsed.add(k);
         });

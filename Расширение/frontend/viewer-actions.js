@@ -102,6 +102,10 @@
             return null;
         }
 
+        // UI intent only: no price, target, name, or action payload is recorded.
+        // Observability must never block or change the financial action path.
+        try { ShedLink.usage?.trackAction(game + ':' + actionType); } catch (e) {}
+
         // Ключ замка включает САМО действие вместе с его параметрами. Раньше он
         // был game+actionType, и это склеивало то, что сервер намеренно
         // разделяет: оба призыва Bannerlord — «player.spawn», но за стримера и

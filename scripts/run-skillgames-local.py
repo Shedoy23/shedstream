@@ -10,8 +10,6 @@ Build frontend-next first, then:
 Open two tabs: /extension.html?player=alice and /mobile.html?player=bobby.
 Closing this process discards its temporary SQLite database.
 """
-from __future__ import annotations
-
 import argparse
 import base64
 import json
@@ -38,7 +36,8 @@ def create_local_app():
                       RIMLINK_ENV='local', TWITCH_OAUTH_TOKEN='oauth:local-unused',
                       TWITCH_CLIENT_ID='local-unused', TWITCH_CLIENT_SECRET='local-unused',
                       TWITCH_BOT_ID='local-unused', TWITCH_BROADCASTER_ID='11',
-                      ADMIN_PASSWORD=secrets.token_hex(32))
+                      ADMIN_PASSWORD=secrets.token_hex(32),
+                      RIMWORLD_PRICES_PATH=str(Path(tempfile.gettempdir()) / 'skillgames-local-unused-prices.json'))
     sys.path.insert(0, str(BACKEND))
     import aiosqlite
     import jwt
@@ -46,8 +45,8 @@ def create_local_app():
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import HTMLResponse, JSONResponse, Response
     from fastapi.staticfiles import StaticFiles
-    from migrations import m135_skillgames
-    from routes import skillgames
+    from migrations import m134_ui_usage, m135_skillgames
+    from routes import skillgames, ui_usage
     from skillgames.service import SkillgameService
 
     @asynccontextmanager
@@ -79,10 +78,13 @@ def create_local_app():
                   INSERT INTO channels VALUES(11,'bannerlord'),(22,'rimworld');
                   INSERT INTO viewers VALUES(11,'alice',0),(11,'bobby',0),(22,'alice',0),(22,'bobby',0);
                 ''')
+                await m134_ui_usage.apply(connection)
                 await m135_skillgames.apply(connection)
             dependencies.set_db(db)
-            dependencies.mark_channel_registered(11, 'local_channel', approved=True)
-            dependencies.mark_channel_registered(22, 'other_local_channel', approved=True)
+            dependencies.mark_channel_registered(11, 'local_channel')
+            dependencies.mark_channel_approved(11)
+            dependencies.mark_channel_registered(22, 'other_local_channel')
+            dependencies.mark_channel_approved(22)
             service = SkillgameService(db)
             skillgames.get_service = lambda: service
             app.state.local_service = service
@@ -111,6 +113,7 @@ def create_local_app():
         return response
 
     app.include_router(skillgames.router)
+    app.include_router(ui_usage.router)
 
     @app.get('/local-identity')
     async def local_identity(player: str = 'alice', channel: int = 11):

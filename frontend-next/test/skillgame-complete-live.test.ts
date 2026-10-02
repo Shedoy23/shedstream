@@ -1,6 +1,9 @@
 // @vitest-environment node
 // Opt-in real HTTP integration, not browser/visual QA. Only the disposable
 // scripts/run-skillgames-local.py service on loopback may be targeted.
+// Shares disposable channel 22 / Alice / Bobby with skillgame-live.test.ts.
+// Run live files serially: test:live passes --no-file-parallelism, and the
+// Vitest config disables file parallelism for any LOCAL_TEST_BASE_URL opt-in.
 import { expect, it } from 'vitest';
 import { TwitchAuthStore, type TwitchAuthorization } from '../src/auth';
 import { SkillgameController } from '../src/skillgames/controller';

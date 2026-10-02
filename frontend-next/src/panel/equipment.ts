@@ -1,3 +1,4 @@
+import { validPrice } from './contracts';
 // Equipment wire shapes preserve the server's exact owned IDs and quote fields.
 export interface PurchaseOption {
   slot: string; replace_owned_id: string; replace_item_id: string; replace_modifier_id: string;
@@ -26,7 +27,8 @@ export const categories: Record<string, string> = { one_handed: 'Одноруч�
 export const statNames: Record<string, string> = { weight: 'Вес', head: 'Голова', body: 'Тело', leg: 'Ноги', arm: 'Руки', swing_dmg: 'Урон руб.', thrust_dmg: 'Урон кол.', swing_spd: 'Скорость руб.', thrust_spd: 'Скорость кол.', length: 'Длина', missile_spd: 'Скорость снаряда', accuracy: 'Точность', stack: 'Боезапас', speed: 'Скорость', maneuver: 'Манёвренность', charge: 'Урон натиска', hp: 'Прочность', armor: 'Защита', dmg: 'Урон' };
 export const number = (value: unknown) => Number(value || 0).toLocaleString('ru-RU');
 export const tierName = (value: number) => ['—', 'I', 'II', 'III', 'IV', 'V', 'VI'][value] || String(value);
-export const paymentText = (value: number | undefined) => Number(value) < 0 ? `Получишь ${number(-Number(value))} 💰` : `К оплате ${number(value)} 💰`;
+export const priceText = (value: unknown) => validPrice(value) ? number(value) : '—';
+export const paymentText = (value: number | undefined) => typeof value !== 'number' || !Number.isFinite(value) ? 'К оплате —' : Number(value) < 0 ? `Получишь ${number(-Number(value))} 💰` : `К оплате ${number(value)} 💰`;
 export const purchaseOption = (item: ShopItem, slots: Record<string, string>) => item.purchase_options?.find(option => option.slot === slots[item.item_id]) || item.purchase_options?.find(option => option.can_buy) || item.purchase_options?.[0];
 export function stats(item: EquipmentItem) {
   const raw = item.weight ?? item.stats?.weight;
@@ -42,4 +44,12 @@ export function directPayload(item: ShopItem, option: PurchaseOption) {
   return { item_id: item.item_id, equip_now: true, slot: option.slot, replace_owned_id: option.replace_owned_id,
     replace_item_id: option.replace_item_id, replace_modifier_id: option.replace_modifier_id,
     expected_price_gold: item.price_gold, expected_trade_in_gold: option.trade_in_gold };
+}
+
+export function validQuote(item: ShopItem, option?: PurchaseOption) {
+  if (!validPrice(item.price_gold)) return false;
+  if (item.purchase_mode !== 'equip') return true;
+  return !!option && typeof option.slot === 'string' && !!option.slot && validPrice(option.trade_in_gold)
+    && typeof option.net_price_gold === 'number' && Number.isFinite(option.net_price_gold)
+    && [option.replace_owned_id, option.replace_item_id, option.replace_modifier_id].every(value => typeof value === 'string');
 }

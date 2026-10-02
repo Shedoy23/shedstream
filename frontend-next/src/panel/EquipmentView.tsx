@@ -53,6 +53,7 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const dataRef = useRef(snapshot), busyRef = useRef(false), slotsRef = useRef(purchaseSlots), activeRef = useRef(active);
   const request = useRef(0), applied = useRef(0), revision = useRef(0), mounted = useRef(false);
+  const flight = useRef<{ key: string; promise: Promise<void> } | null>(null);
   const generation = useRef(panel.generation), dialogRef = useRef(confirmation);
   const currentHero = heroIdentity(controller), observedHero = useRef(currentHero), dataHero = useRef(currentHero);
   activeRef.current = active; slotsRef.current = purchaseSlots; dialogRef.current = confirmation;
@@ -69,23 +70,32 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
     const item = data.items.find(row => row.item_id === pending.id);
     return !!item && item.can_buy && !item.unavailable && validQuote(item, purchaseOption(item, slotsRef.current)) && !!purchaseOption(item, slotsRef.current)?.can_buy && quoteSignature(item, slotsRef.current) === pending.signature;
   };
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(() => {
     if (!mounted.current || !controller.ready()) return;
-    const identity = controller.identityGeneration(), hero = heroIdentity(controller), issued = ++request.current, actionRevision = revision.current;
+    const identity = controller.identityGeneration(), hero = heroIdentity(controller), actionRevision = revision.current;
+    const key = JSON.stringify([identity, hero, actionRevision]);
+    // Match the old loader's synchronous single flight only within this context.
+    // A new viewer, hero or accepted action must still admit a fresh read.
+    if (flight.current?.key === key) return flight.current.promise;
+    const issued = ++request.current, pending = { key, promise: Promise.resolve() };
+    flight.current = pending;
     const current = () => mounted.current && controller.ready() && identity === controller.identityGeneration() && hero === heroIdentity(controller) && issued > applied.current && actionRevision === revision.current;
-    try {
-      const result = await controller.read<EquipmentReply>('/api/bannerlord/equipment-shop');
-      if (!current()) return;
-      if (!result.success) throw new Error(result.message || 'Не удалось загрузить снаряжение');
-      applied.current = issued; dataHero.current = hero; update(result); setError('');
-    } catch (failure) {
-      if (!current()) return;
-      applied.current = issued; update(null); setError(failure instanceof Error ? failure.message : 'Не удалось загрузить магазин. Обнови данные.');
-    }
+    pending.promise = (async () => {
+      try {
+        const result = await controller.read<EquipmentReply>('/api/bannerlord/equipment-shop');
+        if (!current()) return;
+        if (!result.success) throw new Error(result.message || 'Не удалось загрузить снаряжение');
+        applied.current = issued; dataHero.current = hero; update(result); setError('');
+      } catch (failure) {
+        if (!current()) return;
+        applied.current = issued; update(null); setError(failure instanceof Error ? failure.message : 'Не удалось загрузить магазин. Обнови данные.');
+      } finally { if (flight.current === pending) flight.current = null; }
+    })();
+    return pending.promise;
   }, [controller]);
   useLayoutEffect(() => {
     mounted.current = true; const unregister = controller.registerEquipmentRefresh(refresh);
-    return () => { mounted.current = false; request.current++; revision.current++; unregister(); };
+    return () => { mounted.current = false; flight.current = null; request.current++; revision.current++; unregister(); };
   }, [controller, refresh]);
   useLayoutEffect(() => {
     if (generation.current !== panel.generation) {

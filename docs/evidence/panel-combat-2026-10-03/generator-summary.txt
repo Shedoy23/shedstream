@@ -1,0 +1,4 @@
+PROBE_OK 40 bodies; real attributes: {'Control': 3, 'Cunning': 5, 'Endurance': 4, 'Intelligence': 7, 'Social': 6, 'Vigor': 2} classes: 7
+All requested success fixtures verified
+BATTLE_PROBE_OK 98 bodies 7 classes 9 legacy powers 7 weapon choices
+SUCCESS_ACTIONS 38

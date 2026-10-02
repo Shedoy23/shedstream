@@ -1,0 +1,365 @@
+{
+  "mutations": [
+    {
+      "mutation": "order-price",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "old rendered hero.detach_hold"
+      ],
+      "exit": 1,
+      "log": "order-price.log"
+    },
+    {
+      "mutation": "stance-key",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "old rendered stance aggressive"
+      ],
+      "exit": 1,
+      "log": "stance-key.log"
+    },
+    {
+      "mutation": "summon-side",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "old rendered enemy summon"
+      ],
+      "exit": 1,
+      "log": "summon-side.log"
+    },
+    {
+      "mutation": "summon-price",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "old rendered enemy summon"
+      ],
+      "exit": 1,
+      "log": "summon-price.log"
+    },
+    {
+      "mutation": "legacy-price",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "legacy ability rage"
+      ],
+      "exit": 1,
+      "log": "legacy-price.log"
+    },
+    {
+      "mutation": "legacy-power-key",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "legacy ability rage"
+      ],
+      "exit": 1,
+      "log": "legacy-power-key.log"
+    },
+    {
+      "mutation": "new-price-field",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "actual selected one_handed ability"
+      ],
+      "exit": 1,
+      "log": "new-price-field.log"
+    },
+    {
+      "mutation": "thrown-weapon-key",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "actual weapon choice thrown"
+      ],
+      "exit": 1,
+      "log": "thrown-weapon-key.log"
+    },
+    {
+      "mutation": "choice-power-not-weapon",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "actual weapon choice crossbow"
+      ],
+      "exit": 1,
+      "log": "choice-power-not-weapon.log"
+    },
+    {
+      "mutation": "shared-weapon-cooldown",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "shared weapon cooldown disables"
+      ],
+      "exit": 1,
+      "log": "shared-weapon-cooldown.log"
+    },
+    {
+      "mutation": "participant-alive",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "new build participant gate"
+      ],
+      "exit": 1,
+      "log": "participant-alive.log"
+    },
+    {
+      "mutation": "malformed-price",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "malformed price -1"
+      ],
+      "exit": 1,
+      "log": "malformed-price.log"
+    },
+    {
+      "mutation": "shared-build-busy",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "weapon selection blocks development"
+      ],
+      "exit": 1,
+      "log": "shared-build-busy.log"
+    },
+    {
+      "mutation": "battle-transition-buffs",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "actual host has combat startup"
+      ],
+      "exit": 1,
+      "log": "battle-transition-buffs.log"
+    },
+    {
+      "mutation": "client-action-id",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "old rendered hero.detach_hold"
+      ],
+      "exit": 1,
+      "log": "client-action-id.log"
+    },
+    {
+      "mutation": "delayed-build-tail",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "old rendered hero.detach_hold"
+      ],
+      "exit": 1,
+      "log": "delayed-build-tail.log"
+    },
+    {
+      "mutation": "cooldown-revision",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "pre-action buffs reply"
+      ],
+      "exit": 1,
+      "log": "cooldown-revision.log"
+    },
+    {
+      "mutation": "build-pending-revision",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "pre-action build response"
+      ],
+      "exit": 1,
+      "log": "build-pending-revision.log"
+    },
+    {
+      "mutation": "balance-interval",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "60-second balance phase"
+      ],
+      "exit": 1,
+      "log": "balance-interval.log"
+    },
+    {
+      "mutation": "late-stance-ownership",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "older refunded stance"
+      ],
+      "exit": 1,
+      "log": "late-stance-ownership.log"
+    },
+    {
+      "mutation": "battle-response-ownership",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "old viewer balance, battle, build"
+      ],
+      "exit": 1,
+      "log": "battle-response-ownership.log"
+    },
+    {
+      "mutation": "combat-telemetry-feature",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "actual collector counts combat family player.spawn"
+      ],
+      "exit": 1,
+      "log": "combat-telemetry-feature.log"
+    },
+    {
+      "mutation": "combat-ui-order",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-parity.test.tsx",
+        "-t",
+        "server UI permutation"
+      ],
+      "exit": 1,
+      "log": "combat-ui-order.log"
+    },
+    {
+      "mutation": "new-balance-gate",
+      "command": [
+        "npm",
+        "--prefix",
+        "frontend-next",
+        "test",
+        "--",
+        "test/panel-combat-safety.test.tsx",
+        "-t",
+        "new weapon balance boundary 299"
+      ],
+      "exit": 1,
+      "log": "new-balance-gate.log"
+    }
+  ],
+  "exact_restore": true
+}

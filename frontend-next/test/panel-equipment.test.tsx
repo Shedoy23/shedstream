@@ -173,3 +173,24 @@ it('direct confirmation cancellation supports Escape and traps Tab within its bu
   await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }); await flush(); });
   expect(document.activeElement).toBe(opener); expect(posts(s)).toHaveLength(0); s.controller.stop();
 });
+it('observable hero iteration invalidates old equipment and pre-change GET until new authoritative data', async () => {
+  const s = equipmentSetup(); const ui = await s.start(); const previous = deferred<Response>(), current = deferred<Response>();
+  s.routes['/api/bannerlord/equipment-shop'] = previous.promise; const oldRead = s.beginRefresh();
+  s.routes['/api/bannerlord/equipment-shop'] = current.promise;
+  s.routes['/api/bannerlord/my-hero'] = { ...f.hero, hero: { ...f.hero.hero, iteration: 2 } };
+  await act(async () => { await s.controller.refreshHero(); await flush(); });
+  expect(ui.container.querySelector('[data-bnr-eq-buy]')).toBeNull();
+  previous.resolve(response({ ...f.equipment_inventory, gold: 456 })); await act(async () => { await oldRead; await flush(); });
+  expect(ui.container.querySelector('[data-bnr-eq-buy]')).toBeNull();
+  current.resolve(response({ ...f.equipment_inventory, gold: 987 })); await act(async () => { await flush(); });
+  expect(ui.container.textContent).toContain('987'); expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(false); s.controller.stop();
+});
+it('unknown mutation outcome visibly blocks spending but leaves equipment reads and filters usable', async () => {
+  const s = equipmentSetup(); const ui = await s.start(); s.routes['/api/bannerlord/action'] = () => { throw new Error('connection lost'); };
+  await click(ui.container, '[data-bnr-eq-buy="sword"]'); expect(s.controller.snapshot().mutationBlocked).toBe(true);
+  expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(true);
+  await s.refresh(); expect(button(ui.container, '[data-bnr-eq-buy="sword"]').disabled).toBe(true);
+  await click(ui.container, '[data-bnr-eq-view="owned"]'); expect(button(ui.container, '[data-bnr-eq-discard="party|sword|fine"]').disabled).toBe(true);
+  const input = ui.container.querySelector('[data-bnr-eq-search]') as HTMLInputElement; expect(input.disabled).toBe(false);
+  expect(posts(s)).toHaveLength(1); s.controller.stop();
+});

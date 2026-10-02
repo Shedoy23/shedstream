@@ -28,10 +28,10 @@ function Mines({ session, disabled, act }: { session: Session; disabled: boolean
   </section>;
 }
 function Battleship({ session, disabled, act }: { session: Session; disabled: boolean; act: (command: Command) => void }) {
-  const state = session.state; const fleet = cells(state.fleet_sizes); const own = ships(state.own_ships);
+  const state = session.state; const fleet = cells(state.fleet_sizes); const own = ships(state.own_ships); const ownFleetRevision = JSON.stringify(own);
   const [draft, setDraft] = useState<number[][]>(own); const [selected, setSelected] = useState(0); const [vertical, setVertical] = useState(false);
   const [ownBoard, setOwnBoard] = useState(false); const [placementError, setPlacementError] = useState('');
-  useEffect(() => { setDraft(ships(session.state.own_ships)); setPlacementError(''); }, [session.id, session.version]);
+  useEffect(() => { setDraft(JSON.parse(ownFleetRevision) as number[][]); setPlacementError(''); }, [session.id, ownFleetRevision]);
   const placement = state.phase === 'placement'; const locked = disabled || state.ready === true;
   const draftSaved = JSON.stringify(draft) === JSON.stringify(own); const complete = fleet.length > 0 && fleet.every((size, i) => draft[i]?.length === size);
   function place(cell: number) {
@@ -53,7 +53,7 @@ function Battleship({ session, disabled, act }: { session: Session; disabled: bo
       const shot = shotMap.get(cell); const ship = showOwn && visibleFleet.includes(cell); const description = shot === 'hit' ? 'попадание' : shot === 'miss' ? 'промах' : ship ? 'корабль' : 'неизвестно';
       return <button className={`sg-cell ${ship ? 'ship' : ''} ${shot === 'hit' ? 'hit' : shot === 'miss' ? 'miss' : ''}`} aria-label={`${coordinate(cell, state.cols)} — ${description}`} disabled={placement ? locked : disabled || terminal(session) || showOwn || !state.your_turn || !!shot} onClick={() => placement ? place(cell) : act({ action: 'fire', cell })}>{shot === 'hit' ? '×' : shot === 'miss' ? '•' : ship ? '■' : <span className="sg-cell-dot">·</span>}</button>;
     }} />
-    {placement ? <><div className="sg-actions"><button disabled={locked} onClick={() => act({ action: 'autoplace' })}>Авторасстановка</button><button disabled={locked || !complete || draftSaved} onClick={() => act({ action: 'place', ships: draft })}>Сохранить расстановку</button></div>
+    {placement ? <><div className="sg-actions"><button disabled={locked} onClick={() => { setDraft(own); setPlacementError(''); act({ action: 'autoplace' }); }}>Авторасстановка</button><button disabled={locked || !complete || draftSaved} onClick={() => act({ action: 'place', ships: draft })}>Сохранить расстановку</button></div>
       <button className="sg-primary" disabled={locked || !complete || !draftSaved} onClick={() => act({ action: 'ready' })}>{state.ready ? 'Вы готовы' : 'Готов к бою'}</button>
       <p className="sg-hint">Соперник {state.opponent_ready ? 'готов' : 'расставляет корабли'}</p></> : <p className="sg-hint">Потоплено кораблей соперника: {String(state.sunk_count ?? '—')}</p>}
   </section>;

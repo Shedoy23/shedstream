@@ -1,0 +1,3610 @@
+{
+  "scripts": [
+    "realtime.js",
+    "pawn.js",
+    "shop.js",
+    "cases.js",
+    "tictactoe.js",
+    "tugofwar.js",
+    "guilds.js",
+    "voting.js",
+    "pet-stage.js",
+    "pets.js",
+    "family.js",
+    "duels.js",
+    "xenotype.js",
+    "viewer-registry.js",
+    "viewer-usage.js",
+    "viewer-actions.js",
+    "viewer.js",
+    "viewer-bannerlord.js",
+    "viewer-bannerlord-ui-config.js",
+    "viewer-bannerlord-equipment.js",
+    "viewer-bannerlord-builds.js",
+    "viewer-rimworld.js",
+    "viewer-shedcolony.js"
+  ],
+  "scenarios": {
+    "controls_independent": {
+      "controls": [
+        {
+          "tag": "SUMMARY",
+          "id": "",
+          "text": "👑 Создать королевство (5M💰)",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "SUMMARY",
+          "id": "",
+          "text": "🤝 Вступить в королевство (100K💰)",
+          "disabled": false,
+          "policy": null
+        }
+      ],
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "controls_ruler": {
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "text": "🚪 Покинуть королевство",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "text": "🛡 Нанять вассальный клан (3M💰)",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "text": "Обновить цены",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "SUMMARY",
+          "id": "",
+          "text": "🏛 Политика — Fixture Kingdom 👑 КОРОЛЬ",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "SUMMARY",
+          "id": "",
+          "text": "📜 Законы королевства (политики, 1500💎)",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Прощение долгов\n                                \n                                \n                                    Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.",
+          "disabled": false,
+          "policy": "policy_forgiveness_of_debts"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Земля ветеранам\n                                \n                                \n                                    Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.",
+          "disabled": false,
+          "policy": "policy_land_grands_for_veteran"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Условное землевладение\n                                \n                                \n                                    Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.",
+          "disabled": false,
+          "policy": "policy_precarial_land_tenure"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Королевская гвардия\n                                \n                                \n                                    Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.",
+          "disabled": false,
+          "policy": "policy_royal_guard"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Священное величие\n                                \n                                \n                                    Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.",
+          "disabled": false,
+          "policy": "policy_sacred_majesty"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Суд присяжных\n                                \n                                \n                                    Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.",
+          "disabled": false,
+          "policy": "policy_trial_by_jury"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Имперские города\n                                \n                                \n                                    Доход и процветание (prosperity) городов +5%. Города богатеют.",
+          "disabled": false,
+          "policy": "policy_imperial_towns"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Дружины знати\n                                \n                                \n                                    Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.",
+          "disabled": false,
+          "policy": "policy_noble_retinues"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Тайный совет лордов\n                                \n                                \n                                    Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.",
+          "disabled": false,
+          "policy": "policy_lords_privy_council"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Совет общин\n                                \n                                \n                                    Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.",
+          "disabled": false,
+          "policy": "policy_council_of_the_commons"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Крепостное право\n                                \n                                \n                                    Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.",
+          "disabled": false,
+          "policy": "policy_serfdom"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Гражданство\n                                \n                                \n                                    Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.",
+          "disabled": false,
+          "policy": "policy_citizenship"
+        },
+        {
+          "tag": "SUMMARY",
+          "id": "",
+          "text": "🕊 Предложить peace (2000💎)",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "text": "0%",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "text": "10%",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "text": "25%",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "text": "50%",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "SELECT",
+          "id": "bnr-war-target",
+          "text": "Fixture Neutral",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "bnr-war-propose",
+          "text": "⚔ Предложить (2000💎)",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "SELECT",
+          "id": "bnr-peace-vote-target",
+          "text": "Fixture Enemy",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "bnr-peace-vote-propose",
+          "text": "🕊 Предложить (3000💎)",
+          "disabled": false,
+          "policy": null
+        }
+      ],
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "controls_vassal": {
+      "controls": [
+        {
+          "tag": "SUMMARY",
+          "id": "",
+          "text": "⚔ Поднять восстание (1/2 сторонников)",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "text": "🚪 Покинуть королевство",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "SUMMARY",
+          "id": "",
+          "text": "🏛 Политика — Fixture Kingdom",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "SUMMARY",
+          "id": "",
+          "text": "📜 Законы королевства (политики, 1500💎)",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Прощение долгов\n                                \n                                \n                                    Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.",
+          "disabled": false,
+          "policy": "policy_forgiveness_of_debts"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Земля ветеранам\n                                \n                                \n                                    Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.",
+          "disabled": false,
+          "policy": "policy_land_grands_for_veteran"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Условное землевладение\n                                \n                                \n                                    Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.",
+          "disabled": false,
+          "policy": "policy_precarial_land_tenure"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Королевская гвардия\n                                \n                                \n                                    Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.",
+          "disabled": false,
+          "policy": "policy_royal_guard"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Священное величие\n                                \n                                \n                                    Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.",
+          "disabled": false,
+          "policy": "policy_sacred_majesty"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Суд присяжных\n                                \n                                \n                                    Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.",
+          "disabled": false,
+          "policy": "policy_trial_by_jury"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Имперские города\n                                \n                                \n                                    Доход и процветание (prosperity) городов +5%. Города богатеют.",
+          "disabled": false,
+          "policy": "policy_imperial_towns"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Дружины знати\n                                \n                                \n                                    Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.",
+          "disabled": false,
+          "policy": "policy_noble_retinues"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Тайный совет лордов\n                                \n                                \n                                    Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.",
+          "disabled": false,
+          "policy": "policy_lords_privy_council"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Совет общин\n                                \n                                \n                                    Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.",
+          "disabled": false,
+          "policy": "policy_council_of_the_commons"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Крепостное право\n                                \n                                \n                                    Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.",
+          "disabled": false,
+          "policy": "policy_serfdom"
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "text": "Гражданство\n                                \n                                \n                                    Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.",
+          "disabled": false,
+          "policy": "policy_citizenship"
+        },
+        {
+          "tag": "SELECT",
+          "id": "bnr-war-target",
+          "text": "Fixture Neutral",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "bnr-war-propose",
+          "text": "⚔ Предложить (2000💎)",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "SELECT",
+          "id": "bnr-peace-vote-target",
+          "text": "Fixture Enemy",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "BUTTON",
+          "id": "bnr-peace-vote-propose",
+          "text": "🕊 Предложить (3000💎)",
+          "disabled": false,
+          "policy": null
+        }
+      ],
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "controls_member": {
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "id": "",
+          "text": "🚪 Покинуть королевство",
+          "disabled": false,
+          "policy": null
+        },
+        {
+          "tag": "SUMMARY",
+          "id": "",
+          "text": "🏛 Политика — Fixture Kingdom",
+          "disabled": false,
+          "policy": null
+        }
+      ],
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "create_click": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "hero.create_kingdom",
+          "data": {
+            "kingdom_name": "My Kingdom",
+            "client_action_id": "77a1f977-e19e-41de-a7e3-915ddfadb39b"
+          }
+        }
+      },
+      "detailsClosed": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.create_kingdom",
+            "data": {
+              "kingdom_name": "My Kingdom",
+              "client_action_id": "77a1f977-e19e-41de-a7e3-915ddfadb39b"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "create_enter": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "hero.create_kingdom",
+          "data": {
+            "kingdom_name": "My Kingdom",
+            "client_action_id": "36a18b70-1662-478a-89e9-69b3ca164101"
+          }
+        }
+      },
+      "detailsClosed": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.create_kingdom",
+            "data": {
+              "kingdom_name": "My Kingdom",
+              "client_action_id": "36a18b70-1662-478a-89e9-69b3ca164101"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "join_click": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "hero.join_kingdom",
+          "data": {
+            "kingdom_name": "Existing Kingdom",
+            "client_action_id": "947b4c5b-5006-4456-ac7a-dd1ed930de35"
+          }
+        }
+      },
+      "detailsClosed": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.join_kingdom",
+            "data": {
+              "kingdom_name": "Existing Kingdom",
+              "client_action_id": "947b4c5b-5006-4456-ac7a-dd1ed930de35"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "join_enter": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "hero.join_kingdom",
+          "data": {
+            "kingdom_name": "Existing Kingdom",
+            "client_action_id": "1ccb0890-8d77-4631-8dad-ede414d501aa"
+          }
+        }
+      },
+      "detailsClosed": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.join_kingdom",
+            "data": {
+              "kingdom_name": "Existing Kingdom",
+              "client_action_id": "1ccb0890-8d77-4631-8dad-ede414d501aa"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "create_quote_retry": {
+      "blockedMalformed": true,
+      "draft": "Keep Draft",
+      "enabledAfterRetry": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        }
+      ]
+    },
+    "leave_confirm_identity_change": {
+      "confirmation": "⚠️ Подтверди\n            Покинуть королевство? Обратно примут только новым вступлением, и только если согласятся принять.\n            \n                ✅ Да\n                ❌ Нет",
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "bobby-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "hero.leave_kingdom",
+          "data": {
+            "client_action_id": "6604898e-ad92-40ac-8d9f-079dcc9c1ca4"
+          }
+        }
+      },
+      "bugReproduced": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.leave_kingdom",
+            "data": {
+              "client_action_id": "6604898e-ad92-40ac-8d9f-079dcc9c1ca4"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/bobby",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/classes",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/build",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/my-buffs",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/battle-status",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/bobby",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "recruit_confirm_token": {
+      "confirmation": "⚠️ Подтверди\n            Нанять вассальный клан за 3 000 000💰? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.\n            \n                ✅ Да\n                ❌ Нет",
+      "sent": null,
+      "bugReproduced": false,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "recruit_confirm_price": {
+      "confirmation": "⚠️ Подтверди\n            Нанять вассальный клан за 3 000 000💰? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.\n            \n                ✅ Да\n                ❌ Нет",
+      "sent": null,
+      "bugReproduced": false,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        }
+      ]
+    },
+    "recruit_confirm_kingdom": {
+      "confirmation": "⚠️ Подтверди\n            Нанять вассальный клан за 3 000 000💰? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.\n            \n                ✅ Да\n                ❌ Нет",
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "hero.recruit_vassal_clan",
+          "data": {
+            "client_action_id": "f9847fc2-10e6-433d-bde3-fb54357c1d6d"
+          }
+        }
+      },
+      "bugReproduced": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.recruit_vassal_clan",
+            "data": {
+              "client_action_id": "f9847fc2-10e6-433d-bde3-fb54357c1d6d"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "policy_all12": {
+      "ids": [
+        "policy_forgiveness_of_debts",
+        "policy_land_grands_for_veteran",
+        "policy_precarial_land_tenure",
+        "policy_royal_guard",
+        "policy_sacred_majesty",
+        "policy_trial_by_jury",
+        "policy_imperial_towns",
+        "policy_noble_retinues",
+        "policy_lords_privy_council",
+        "policy_council_of_the_commons",
+        "policy_serfdom",
+        "policy_citizenship"
+      ],
+      "posts": [
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_forgiveness_of_debts",
+              "policy_name": "Прощение долгов",
+              "client_action_id": "aed49931-c8fe-4fdc-be04-73d3b0911561"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_land_grands_for_veteran",
+              "policy_name": "Земля ветеранам",
+              "client_action_id": "802e3cbc-70c2-4537-9dcf-4d5b9bb8ba23"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_precarial_land_tenure",
+              "policy_name": "Условное землевладение",
+              "client_action_id": "edf3a420-b397-46ed-8185-63965d4dbec7"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_royal_guard",
+              "policy_name": "Королевская гвардия",
+              "client_action_id": "5407276d-7719-444e-a124-19dcda245291"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_sacred_majesty",
+              "policy_name": "Священное величие",
+              "client_action_id": "2f642475-fa67-49c5-8555-85becaed8273"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_trial_by_jury",
+              "policy_name": "Суд присяжных",
+              "client_action_id": "fdf34339-28b3-46cd-b4a1-8a68b04962cf"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_imperial_towns",
+              "policy_name": "Имперские города",
+              "client_action_id": "1b4d6ce1-e91d-4820-ab40-6704b20d6cea"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_noble_retinues",
+              "policy_name": "Дружины знати",
+              "client_action_id": "dc7c229c-ed51-4d33-b461-db292e045f11"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_lords_privy_council",
+              "policy_name": "Тайный совет лордов",
+              "client_action_id": "0c5fb6e5-fb80-4b9d-8f9b-c0a8522435b7"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_council_of_the_commons",
+              "policy_name": "Совет общин",
+              "client_action_id": "96da95b3-04cc-4e00-b55d-c56632bbf85c"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_serfdom",
+              "policy_name": "Крепостное право",
+              "client_action_id": "edb978e4-4b13-4629-b969-009d6b39f3dd"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_citizenship",
+              "policy_name": "Гражданство",
+              "client_action_id": "e8fa4297-94ef-491b-a794-16493c35eff4"
+            }
+          }
+        }
+      ],
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_forgiveness_of_debts",
+              "policy_name": "Прощение долгов",
+              "client_action_id": "aed49931-c8fe-4fdc-be04-73d3b0911561"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_land_grands_for_veteran",
+              "policy_name": "Земля ветеранам",
+              "client_action_id": "802e3cbc-70c2-4537-9dcf-4d5b9bb8ba23"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_precarial_land_tenure",
+              "policy_name": "Условное землевладение",
+              "client_action_id": "edf3a420-b397-46ed-8185-63965d4dbec7"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_royal_guard",
+              "policy_name": "Королевская гвардия",
+              "client_action_id": "5407276d-7719-444e-a124-19dcda245291"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_sacred_majesty",
+              "policy_name": "Священное величие",
+              "client_action_id": "2f642475-fa67-49c5-8555-85becaed8273"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_trial_by_jury",
+              "policy_name": "Суд присяжных",
+              "client_action_id": "fdf34339-28b3-46cd-b4a1-8a68b04962cf"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_imperial_towns",
+              "policy_name": "Имперские города",
+              "client_action_id": "1b4d6ce1-e91d-4820-ab40-6704b20d6cea"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_noble_retinues",
+              "policy_name": "Дружины знати",
+              "client_action_id": "dc7c229c-ed51-4d33-b461-db292e045f11"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_lords_privy_council",
+              "policy_name": "Тайный совет лордов",
+              "client_action_id": "0c5fb6e5-fb80-4b9d-8f9b-c0a8522435b7"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_council_of_the_commons",
+              "policy_name": "Совет общин",
+              "client_action_id": "96da95b3-04cc-4e00-b55d-c56632bbf85c"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_serfdom",
+              "policy_name": "Крепостное право",
+              "client_action_id": "edb978e4-4b13-4629-b969-009d6b39f3dd"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_citizenship",
+              "policy_name": "Гражданство",
+              "client_action_id": "e8fa4297-94ef-491b-a794-16493c35eff4"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "policy_pending": {
+      "blocked": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_forgiveness_of_debts",
+              "policy_name": "Прощение долгов",
+              "client_action_id": "aed49931-c8fe-4fdc-be04-73d3b0911561"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_land_grands_for_veteran",
+              "policy_name": "Земля ветеранам",
+              "client_action_id": "802e3cbc-70c2-4537-9dcf-4d5b9bb8ba23"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_precarial_land_tenure",
+              "policy_name": "Условное землевладение",
+              "client_action_id": "edf3a420-b397-46ed-8185-63965d4dbec7"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_royal_guard",
+              "policy_name": "Королевская гвардия",
+              "client_action_id": "5407276d-7719-444e-a124-19dcda245291"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_sacred_majesty",
+              "policy_name": "Священное величие",
+              "client_action_id": "2f642475-fa67-49c5-8555-85becaed8273"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_trial_by_jury",
+              "policy_name": "Суд присяжных",
+              "client_action_id": "fdf34339-28b3-46cd-b4a1-8a68b04962cf"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_imperial_towns",
+              "policy_name": "Имперские города",
+              "client_action_id": "1b4d6ce1-e91d-4820-ab40-6704b20d6cea"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_noble_retinues",
+              "policy_name": "Дружины знати",
+              "client_action_id": "dc7c229c-ed51-4d33-b461-db292e045f11"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_lords_privy_council",
+              "policy_name": "Тайный совет лордов",
+              "client_action_id": "0c5fb6e5-fb80-4b9d-8f9b-c0a8522435b7"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_council_of_the_commons",
+              "policy_name": "Совет общин",
+              "client_action_id": "96da95b3-04cc-4e00-b55d-c56632bbf85c"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_serfdom",
+              "policy_name": "Крепостное право",
+              "client_action_id": "edb978e4-4b13-4629-b969-009d6b39f3dd"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_citizenship",
+              "policy_name": "Гражданство",
+              "client_action_id": "e8fa4297-94ef-491b-a794-16493c35eff4"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "direct_peace": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "hero.make_peace",
+          "data": {
+            "target_kingdom_id": "Fixture Enemy",
+            "target_kingdom_name": "Fixture Enemy",
+            "offered_tribute": -200,
+            "client_action_id": "6f41db11-9e7d-410d-b74a-46541c052b36"
+          }
+        }
+      },
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.make_peace",
+            "data": {
+              "target_kingdom_id": "Fixture Enemy",
+              "target_kingdom_name": "Fixture Enemy",
+              "offered_tribute": -200,
+              "client_action_id": "6f41db11-9e7d-410d-b74a-46541c052b36"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "war": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "kingdom.propose_war",
+          "data": {
+            "target_kingdom_id": "fixture_neutral",
+            "target_kingdom_name": "Fixture Neutral",
+            "client_action_id": "6a0af901-371a-48ec-97d3-4c4d5b3b36d6"
+          }
+        }
+      },
+      "bodyText": "Fixture Kingdom\n        \n        \n        \n            👑 Правитель:Alice Hero (ты)\n            🏰 Кланов:3\n            🌆 Поселений:5\n            ⚔ Война с:1 корол. (Fixture Enemy)\n        \n        \n                🚪 Покинуть королевство\n           \n        \n                🛡 Нанять вассальный клан (3M💰)\n           \n        Цена этого действия не загружена. Покупка недоступна.\n        Обновить цены🏛 Политика — Fixture Kingdom 👑 КОРОЛЬ\n                \n                    \n                        📜 Законы королевства (политики, 1500💎)\n                    \n                    \n                        Клик по политике = toggle (активна → отозвать). 1500💎 за действие.\n                    \n                    \n                        \n                            \n                                \n                                Прощение долгов\n                                \n                                \n                                    Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.\n                                \n                            \n                            \n                                \n                                Земля ветеранам\n                                \n                                \n                                    Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.\n                                \n                            \n                            \n                                \n                                Условное землевладение\n                                \n                                \n                                    Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.\n                                \n                            \n                            \n                                \n                                Королевская гвардия\n                                \n                                \n                                    Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.\n                                \n                            \n                            \n                                \n                                Священное величие\n                                \n                                \n                                    Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.\n                                \n                            \n                            \n                                \n                                Суд присяжных\n                                \n                                \n                                    Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.\n                                \n                            \n                            \n                                \n                                Имперские города\n                                \n                                \n                                    Доход и процветание (prosperity) городов +5%. Города богатеют.\n                                \n                            \n                            \n                                \n                                Дружины знати\n                                \n                                \n                                    Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.\n                                \n                            \n                            \n                                \n                                Тайный совет лордов\n                                \n                                \n                                    Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.\n                                \n                            \n                            \n                                \n                                Совет общин\n                                \n                                \n                                    Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.\n                                \n                            \n                            \n                                \n                                Крепостное право\n                                \n                                \n                                    Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.\n                                \n                            \n                            \n                                \n                                Гражданство\n                                \n                                \n                                    Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.\n                                \n                            \n                    \n                \n                \n                    \n                        🕊 Предложить peace (2000💎)\n                    \n                    \n                \n                \n                    \n                        👑 Налог королевства: 0%\n                         — % дневной прибыли вассалов → тебе\n                    \n                    \n                        \n                            \n                                0%\n                            \n                            \n                                10%\n                            \n                            \n                                25%\n                            \n                            \n                                50%\n                            \n                    \n                \n                \n                    \n                        ⚖ Дипломатия — на голосование кланов\n                    \n                    \n                        Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.\n                        Повторно жать не нужно: следи за статусом войн выше.\n                    \n                    \n                        \n                            Fixture Neutral\n                        \n                        ⏳ 4:59\n                    \n                    \n                        \n                            Fixture Enemy\n                        \n                        🕊 Предложить (3000💎)\n                    ✅ 📜 Заявка на войну с «Fixture Neutral» отправлена на голосование кланов. Войну объявят, только если кланы проголосуют ЗА — это не мгновенно.",
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "kingdom.propose_war",
+            "data": {
+              "target_kingdom_id": "fixture_neutral",
+              "target_kingdom_name": "Fixture Neutral",
+              "client_action_id": "6a0af901-371a-48ec-97d3-4c4d5b3b36d6"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "peace_vote": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "kingdom.propose_peace",
+          "data": {
+            "target_kingdom_id": "fixture_enemy",
+            "target_kingdom_name": "Fixture Enemy",
+            "client_action_id": "c5e5f1cb-9e99-40a8-b933-b22e58fd9fc8"
+          }
+        }
+      },
+      "bodyText": "Fixture Kingdom\n        \n        \n        \n            👑 Правитель:Alice Hero (ты)\n            🏰 Кланов:3\n            🌆 Поселений:5\n            ⚔ Война с:1 корол. (Fixture Enemy)\n        \n        \n                🚪 Покинуть королевство\n           \n        \n                🛡 Нанять вассальный клан (3M💰)\n           \n        Цена этого действия не загружена. Покупка недоступна.\n        Обновить цены🏛 Политика — Fixture Kingdom 👑 КОРОЛЬ\n                \n                    \n                        📜 Законы королевства (политики, 1500💎)\n                    \n                    \n                        Клик по политике = toggle (активна → отозвать). 1500💎 за действие.\n                    \n                    \n                        \n                            \n                                \n                                Прощение долгов\n                                \n                                \n                                    Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.\n                                \n                            \n                            \n                                \n                                Земля ветеранам\n                                \n                                \n                                    Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.\n                                \n                            \n                            \n                                \n                                Условное землевладение\n                                \n                                \n                                    Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.\n                                \n                            \n                            \n                                \n                                Королевская гвардия\n                                \n                                \n                                    Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.\n                                \n                            \n                            \n                                \n                                Священное величие\n                                \n                                \n                                    Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.\n                                \n                            \n                            \n                                \n                                Суд присяжных\n                                \n                                \n                                    Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.\n                                \n                            \n                            \n                                \n                                Имперские города\n                                \n                                \n                                    Доход и процветание (prosperity) городов +5%. Города богатеют.\n                                \n                            \n                            \n                                \n                                Дружины знати\n                                \n                                \n                                    Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.\n                                \n                            \n                            \n                                \n                                Тайный совет лордов\n                                \n                                \n                                    Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.\n                                \n                            \n                            \n                                \n                                Совет общин\n                                \n                                \n                                    Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.\n                                \n                            \n                            \n                                \n                                Крепостное право\n                                \n                                \n                                    Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.\n                                \n                            \n                            \n                                \n                                Гражданство\n                                \n                                \n                                    Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.\n                                \n                            \n                    \n                \n                \n                    \n                        🕊 Предложить peace (2000💎)\n                    \n                    \n                \n                \n                    \n                        👑 Налог королевства: 0%\n                         — % дневной прибыли вассалов → тебе\n                    \n                    \n                        \n                            \n                                0%\n                            \n                            \n                                10%\n                            \n                            \n                                25%\n                            \n                            \n                                50%\n                            \n                    \n                \n                \n                    \n                        ⚖ Дипломатия — на голосование кланов\n                    \n                    \n                        Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.\n                        Повторно жать не нужно: следи за статусом войн выше.\n                    \n                    \n                        \n                            Fixture Neutral\n                        \n                        ⚔ Предложить (2000💎)\n                    \n                    \n                        \n                            Fixture Enemy\n                        \n                        ⏳ 4:59\n                    ✅ 📜 Заявка на мир с «Fixture Enemy» отправлена на голосование кланов. Мир заключат, только если кланы проголосуют ЗА — это не мгновенно.",
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "kingdom.propose_peace",
+            "data": {
+              "target_kingdom_id": "fixture_enemy",
+              "target_kingdom_name": "Fixture Enemy",
+              "client_action_id": "c5e5f1cb-9e99-40a8-b933-b22e58fd9fc8"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "tax_0": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "kingdom.set_tax_rate",
+          "data": {
+            "tax_rate_pct": 0,
+            "client_action_id": "7b5c26b3-cf55-4d5a-9843-9b61adc51bed"
+          }
+        }
+      },
+      "bodyText": "Fixture Kingdom\n        \n        \n        \n            👑 Правитель:Alice Hero (ты)\n            🏰 Кланов:3\n            🌆 Поселений:5\n            ⚔ Война с:1 корол. (Fixture Enemy)\n        \n        \n                🚪 Покинуть королевство\n           \n        \n                🛡 Нанять вассальный клан (3M💰)\n           \n        Цена этого действия не загружена. Покупка недоступна.\n        Обновить цены🏛 Политика — Fixture Kingdom 👑 КОРОЛЬ\n                \n                    \n                        📜 Законы королевства (политики, 1500💎)\n                    \n                    \n                        Клик по политике = toggle (активна → отозвать). 1500💎 за действие.\n                    \n                    \n                        \n                            \n                                \n                                Прощение долгов\n                                \n                                \n                                    Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.\n                                \n                            \n                            \n                                \n                                Земля ветеранам\n                                \n                                \n                                    Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.\n                                \n                            \n                            \n                                \n                                Условное землевладение\n                                \n                                \n                                    Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.\n                                \n                            \n                            \n                                \n                                Королевская гвардия\n                                \n                                \n                                    Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.\n                                \n                            \n                            \n                                \n                                Священное величие\n                                \n                                \n                                    Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.\n                                \n                            \n                            \n                                \n                                Суд присяжных\n                                \n                                \n                                    Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.\n                                \n                            \n                            \n                                \n                                Имперские города\n                                \n                                \n                                    Доход и процветание (prosperity) городов +5%. Города богатеют.\n                                \n                            \n                            \n                                \n                                Дружины знати\n                                \n                                \n                                    Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.\n                                \n                            \n                            \n                                \n                                Тайный совет лордов\n                                \n                                \n                                    Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.\n                                \n                            \n                            \n                                \n                                Совет общин\n                                \n                                \n                                    Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.\n                                \n                            \n                            \n                                \n                                Крепостное право\n                                \n                                \n                                    Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.\n                                \n                            \n                            \n                                \n                                Гражданство\n                                \n                                \n                                    Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.\n                                \n                            \n                    \n                \n                \n                    \n                        🕊 Предложить peace (2000💎)\n                    \n                    \n                \n                \n                    \n                        👑 Налог королевства: 0%\n                         — % дневной прибыли вассалов → тебе\n                    \n                    \n                        \n                            \n                                0%\n                            \n                            \n                                10%\n                            \n                            \n                                25%\n                            \n                            \n                                50%\n                            \n                    \n                \n                \n                    \n                        ⚖ Дипломатия — на голосование кланов\n                    \n                    \n                        Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.\n                        Повторно жать не нужно: следи за статусом войн выше.\n                    \n                    \n                        \n                            Fixture Neutral\n                        \n                        ⚔ Предложить (2000💎)\n                    \n                    \n                        \n                            Fixture Enemy\n                        \n                        🕊 Предложить (3000💎)\n                    ✅ ⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "kingdom.set_tax_rate",
+            "data": {
+              "tax_rate_pct": 0,
+              "client_action_id": "7b5c26b3-cf55-4d5a-9843-9b61adc51bed"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "tax_10": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "kingdom.set_tax_rate",
+          "data": {
+            "tax_rate_pct": 10,
+            "client_action_id": "900eb5a0-4bea-408d-8cf8-2d5a845b182a"
+          }
+        }
+      },
+      "bodyText": "Fixture Kingdom\n        \n        \n        \n            👑 Правитель:Alice Hero (ты)\n            🏰 Кланов:3\n            🌆 Поселений:5\n            ⚔ Война с:1 корол. (Fixture Enemy)\n        \n        \n                🚪 Покинуть королевство\n           \n        \n                🛡 Нанять вассальный клан (3M💰)\n           \n        Цена этого действия не загружена. Покупка недоступна.\n        Обновить цены🏛 Политика — Fixture Kingdom 👑 КОРОЛЬ\n                \n                    \n                        📜 Законы королевства (политики, 1500💎)\n                    \n                    \n                        Клик по политике = toggle (активна → отозвать). 1500💎 за действие.\n                    \n                    \n                        \n                            \n                                \n                                Прощение долгов\n                                \n                                \n                                    Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.\n                                \n                            \n                            \n                                \n                                Земля ветеранам\n                                \n                                \n                                    Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.\n                                \n                            \n                            \n                                \n                                Условное землевладение\n                                \n                                \n                                    Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.\n                                \n                            \n                            \n                                \n                                Королевская гвардия\n                                \n                                \n                                    Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.\n                                \n                            \n                            \n                                \n                                Священное величие\n                                \n                                \n                                    Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.\n                                \n                            \n                            \n                                \n                                Суд присяжных\n                                \n                                \n                                    Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.\n                                \n                            \n                            \n                                \n                                Имперские города\n                                \n                                \n                                    Доход и процветание (prosperity) городов +5%. Города богатеют.\n                                \n                            \n                            \n                                \n                                Дружины знати\n                                \n                                \n                                    Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.\n                                \n                            \n                            \n                                \n                                Тайный совет лордов\n                                \n                                \n                                    Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.\n                                \n                            \n                            \n                                \n                                Совет общин\n                                \n                                \n                                    Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.\n                                \n                            \n                            \n                                \n                                Крепостное право\n                                \n                                \n                                    Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.\n                                \n                            \n                            \n                                \n                                Гражданство\n                                \n                                \n                                    Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.\n                                \n                            \n                    \n                \n                \n                    \n                        🕊 Предложить peace (2000💎)\n                    \n                    \n                \n                \n                    \n                        👑 Налог королевства: 0%\n                         — % дневной прибыли вассалов → тебе\n                    \n                    \n                        \n                            \n                                0%\n                            \n                            \n                                10%\n                            \n                            \n                                25%\n                            \n                            \n                                50%\n                            \n                    \n                \n                \n                    \n                        ⚖ Дипломатия — на голосование кланов\n                    \n                    \n                        Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.\n                        Повторно жать не нужно: следи за статусом войн выше.\n                    \n                    \n                        \n                            Fixture Neutral\n                        \n                        ⚔ Предложить (2000💎)\n                    \n                    \n                        \n                            Fixture Enemy\n                        \n                        🕊 Предложить (3000💎)\n                    ✅ ⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "kingdom.set_tax_rate",
+            "data": {
+              "tax_rate_pct": 10,
+              "client_action_id": "900eb5a0-4bea-408d-8cf8-2d5a845b182a"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "tax_25": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "kingdom.set_tax_rate",
+          "data": {
+            "tax_rate_pct": 25,
+            "client_action_id": "b2603208-276c-459b-853f-29d44832e84c"
+          }
+        }
+      },
+      "bodyText": "Fixture Kingdom\n        \n        \n        \n            👑 Правитель:Alice Hero (ты)\n            🏰 Кланов:3\n            🌆 Поселений:5\n            ⚔ Война с:1 корол. (Fixture Enemy)\n        \n        \n                🚪 Покинуть королевство\n           \n        \n                🛡 Нанять вассальный клан (3M💰)\n           \n        Цена этого действия не загружена. Покупка недоступна.\n        Обновить цены🏛 Политика — Fixture Kingdom 👑 КОРОЛЬ\n                \n                    \n                        📜 Законы королевства (политики, 1500💎)\n                    \n                    \n                        Клик по политике = toggle (активна → отозвать). 1500💎 за действие.\n                    \n                    \n                        \n                            \n                                \n                                Прощение долгов\n                                \n                                \n                                    Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.\n                                \n                            \n                            \n                                \n                                Земля ветеранам\n                                \n                                \n                                    Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.\n                                \n                            \n                            \n                                \n                                Условное землевладение\n                                \n                                \n                                    Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.\n                                \n                            \n                            \n                                \n                                Королевская гвардия\n                                \n                                \n                                    Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.\n                                \n                            \n                            \n                                \n                                Священное величие\n                                \n                                \n                                    Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.\n                                \n                            \n                            \n                                \n                                Суд присяжных\n                                \n                                \n                                    Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.\n                                \n                            \n                            \n                                \n                                Имперские города\n                                \n                                \n                                    Доход и процветание (prosperity) городов +5%. Города богатеют.\n                                \n                            \n                            \n                                \n                                Дружины знати\n                                \n                                \n                                    Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.\n                                \n                            \n                            \n                                \n                                Тайный совет лордов\n                                \n                                \n                                    Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.\n                                \n                            \n                            \n                                \n                                Совет общин\n                                \n                                \n                                    Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.\n                                \n                            \n                            \n                                \n                                Крепостное право\n                                \n                                \n                                    Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.\n                                \n                            \n                            \n                                \n                                Гражданство\n                                \n                                \n                                    Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.\n                                \n                            \n                    \n                \n                \n                    \n                        🕊 Предложить peace (2000💎)\n                    \n                    \n                \n                \n                    \n                        👑 Налог королевства: 0%\n                         — % дневной прибыли вассалов → тебе\n                    \n                    \n                        \n                            \n                                0%\n                            \n                            \n                                10%\n                            \n                            \n                                25%\n                            \n                            \n                                50%\n                            \n                    \n                \n                \n                    \n                        ⚖ Дипломатия — на голосование кланов\n                    \n                    \n                        Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.\n                        Повторно жать не нужно: следи за статусом войн выше.\n                    \n                    \n                        \n                            Fixture Neutral\n                        \n                        ⚔ Предложить (2000💎)\n                    \n                    \n                        \n                            Fixture Enemy\n                        \n                        🕊 Предложить (3000💎)\n                    ✅ ⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "kingdom.set_tax_rate",
+            "data": {
+              "tax_rate_pct": 25,
+              "client_action_id": "b2603208-276c-459b-853f-29d44832e84c"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "tax_50": {
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "kingdom.set_tax_rate",
+          "data": {
+            "tax_rate_pct": 50,
+            "client_action_id": "d4070485-baea-41bb-b81e-2c73790e331e"
+          }
+        }
+      },
+      "bodyText": "Fixture Kingdom\n        \n        \n        \n            👑 Правитель:Alice Hero (ты)\n            🏰 Кланов:3\n            🌆 Поселений:5\n            ⚔ Война с:1 корол. (Fixture Enemy)\n        \n        \n                🚪 Покинуть королевство\n           \n        \n                🛡 Нанять вассальный клан (3M💰)\n           \n        Цена этого действия не загружена. Покупка недоступна.\n        Обновить цены🏛 Политика — Fixture Kingdom 👑 КОРОЛЬ\n                \n                    \n                        📜 Законы королевства (политики, 1500💎)\n                    \n                    \n                        Клик по политике = toggle (активна → отозвать). 1500💎 за действие.\n                    \n                    \n                        \n                            \n                                \n                                Прощение долгов\n                                \n                                \n                                    Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.\n                                \n                            \n                            \n                                \n                                Земля ветеранам\n                                \n                                \n                                    Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.\n                                \n                            \n                            \n                                \n                                Условное землевладение\n                                \n                                \n                                    Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.\n                                \n                            \n                            \n                                \n                                Королевская гвардия\n                                \n                                \n                                    Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.\n                                \n                            \n                            \n                                \n                                Священное величие\n                                \n                                \n                                    Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.\n                                \n                            \n                            \n                                \n                                Суд присяжных\n                                \n                                \n                                    Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.\n                                \n                            \n                            \n                                \n                                Имперские города\n                                \n                                \n                                    Доход и процветание (prosperity) городов +5%. Города богатеют.\n                                \n                            \n                            \n                                \n                                Дружины знати\n                                \n                                \n                                    Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.\n                                \n                            \n                            \n                                \n                                Тайный совет лордов\n                                \n                                \n                                    Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.\n                                \n                            \n                            \n                                \n                                Совет общин\n                                \n                                \n                                    Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.\n                                \n                            \n                            \n                                \n                                Крепостное право\n                                \n                                \n                                    Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.\n                                \n                            \n                            \n                                \n                                Гражданство\n                                \n                                \n                                    Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.\n                                \n                            \n                    \n                \n                \n                    \n                        🕊 Предложить peace (2000💎)\n                    \n                    \n                \n                \n                    \n                        👑 Налог королевства: 0%\n                         — % дневной прибыли вассалов → тебе\n                    \n                    \n                        \n                            \n                                0%\n                            \n                            \n                                10%\n                            \n                            \n                                25%\n                            \n                            \n                                50%\n                            \n                    \n                \n                \n                    \n                        ⚖ Дипломатия — на голосование кланов\n                    \n                    \n                        Это ЗАЯВКА на голосование кланов королевства — не мгновенно и может не пройти.\n                        Повторно жать не нужно: следи за статусом войн выше.\n                    \n                    \n                        \n                            Fixture Neutral\n                        \n                        ⚔ Предложить (2000💎)\n                    \n                    \n                        \n                            Fixture Enemy\n                        \n                        🕊 Предложить (3000💎)\n                    ✅ ⚔️ Action kingdom.set_tax_rate в очереди (0💎 списано)",
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "kingdom.set_tax_rate",
+            "data": {
+              "tax_rate_pct": 50,
+              "client_action_id": "d4070485-baea-41bb-b81e-2c73790e331e"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "war_server_cooldown": {
+      "disabled": true,
+      "label": "⏳ 5:00",
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "kingdom.propose_war",
+            "data": {
+              "target_kingdom_id": "fixture_neutral",
+              "target_kingdom_name": "Fixture Neutral",
+              "client_action_id": "b1d24c55-5741-4793-bd84-5b1a6fe3b00b"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "diplomacy_read_reorder": {
+      "newer": true,
+      "older": true,
+      "bugReproduced": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "diplomacy_read_after_stop": {
+      "stale": true,
+      "bugReproduced": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "policy_local_tail_after_stop": {
+      "late": {
+        "method": "GET",
+        "path": "/api/bannerlord/kingdom-state",
+        "query": "",
+        "token": "bobby-token",
+        "contentType": null,
+        "cache": null,
+        "body": null
+      },
+      "bugReproduced": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.enact_policy",
+            "data": {
+              "policy_id": "policy_royal_guard",
+              "policy_name": "Королевская гвардия",
+              "client_action_id": "f80e88c6-e4fb-48d4-b8b9-826e94026608"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "tax_local_tail_after_stop": {
+      "late": {
+        "method": "GET",
+        "path": "/api/bannerlord/kingdom-state",
+        "query": "",
+        "token": "bobby-token",
+        "contentType": null,
+        "cache": null,
+        "body": null
+      },
+      "bugReproduced": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "kingdom.set_tax_rate",
+            "data": {
+              "tax_rate_pct": 25,
+              "client_action_id": "37a752f8-a0e3-485e-a978-3e33ebd258b7"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "bobby-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "peace_draft_old_kingdom": {
+      "oldControls": true,
+      "oldTitle": true,
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "hero.make_peace",
+          "data": {
+            "target_kingdom_id": "Draft Enemy",
+            "target_kingdom_name": "Draft Enemy",
+            "offered_tribute": 123,
+            "client_action_id": "98edf239-23f2-4a88-8fe2-6d9040862c6c"
+          }
+        }
+      },
+      "bugReproduced": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.make_peace",
+            "data": {
+              "target_kingdom_id": "Draft Enemy",
+              "target_kingdom_name": "Draft Enemy",
+              "offered_tribute": 123,
+              "client_action_id": "98edf239-23f2-4a88-8fe2-6d9040862c6c"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "transient_keep_absent_clear": {
+      "kept": true,
+      "absentCleared": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "peace_draft_hero_pipeline": {
+      "acceptedNewKingdom": true,
+      "oldTitle": true,
+      "staleControl": true,
+      "bugReproduced": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/my-hero",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/my-hero",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "recruit_confirm_hero_pipeline": {
+      "acceptedNewKingdom": true,
+      "sent": {
+        "method": "POST",
+        "path": "/api/bannerlord/action",
+        "query": "",
+        "token": "alice-token",
+        "contentType": "application/json",
+        "cache": null,
+        "body": {
+          "action_type": "hero.recruit_vassal_clan",
+          "data": {
+            "client_action_id": "c625756c-c45d-4b0d-bbe1-715bafa6c134"
+          }
+        }
+      },
+      "bugReproduced": true,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/my-hero",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/my-hero",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "POST",
+          "path": "/api/bannerlord/action",
+          "query": "",
+          "token": "alice-token",
+          "contentType": "application/json",
+          "cache": null,
+          "body": {
+            "action_type": "hero.recruit_vassal_clan",
+            "data": {
+              "client_action_id": "c625756c-c45d-4b0d-bbe1-715bafa6c134"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/viewer/stats/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/user/level/alice",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/duel/list",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    },
+    "dynasty_visibility_gate": {
+      "hiddenCount": 0,
+      "visibleCount": 1,
+      "memberCount": 1,
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/config",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": "no-store",
+          "body": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/bannerlord/kingdom-state",
+          "query": "",
+          "token": "alice-token",
+          "contentType": null,
+          "cache": null,
+          "body": null
+        }
+      ]
+    }
+  }
+}

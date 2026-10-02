@@ -53,3 +53,32 @@ export function validQuote(item: ShopItem, option?: PurchaseOption) {
     && typeof option.net_price_gold === 'number' && Number.isFinite(option.net_price_gold)
     && [option.replace_owned_id, option.replace_item_id, option.replace_modifier_id].every(value => typeof value === 'string');
 }
+const defaultPalette: Record<string, { text: string; border: string; background: string }> = {
+  '1': { text: '#c0c3ca', border: '#5b5e66', background: '#2b2d31' },
+  '2': { text: '#89dba1', border: '#467457', background: '#203127' },
+  '3': { text: '#87c6fa', border: '#426c91', background: '#202d3a' },
+  '4': { text: '#c7a0f5', border: '#785398', background: '#30253b' },
+  '5': { text: '#f2b17f', border: '#966139', background: '#3b2b20' },
+  '6': { text: '#f5d174', border: '#aa8436', background: '#39311e' },
+};
+export function equipmentPresentation(raw: unknown) {
+  let discard = '🗑 Выкинуть вещь';
+  const palette = Object.fromEntries(Object.entries(defaultPalette).map(([tier, colors]) => [tier, { ...colors }]));
+  const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
+  if (object(raw) && raw.version === 1) {
+    const label = object(raw.labels) ? raw.labels.discard : undefined;
+    if (typeof label === 'string' && label.length >= 1 && label.length <= 64 && !/[\u0000-\u001f\u007f]/.test(label)) discard = label;
+    if (object(raw.tier_colors)) for (const tier of Object.keys(palette)) {
+      const entry = raw.tier_colors[tier]; if (!object(entry)) continue;
+      for (const key of ['text', 'border', 'background'] as const) {
+        const value = entry[key];
+        if (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value)) palette[tier][key] = value;
+      }
+    }
+  }
+  const tierStyle = (tier: number) => {
+    const entry = palette[String(Number(tier))];
+    return entry ? { '--tier-color': entry.text, '--tier-border': entry.border, '--tier-bg': entry.background } : undefined;
+  };
+  return { discard, tierStyle };
+}

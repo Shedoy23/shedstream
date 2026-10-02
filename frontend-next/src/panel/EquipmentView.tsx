@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { PanelController } from './controller';
-import { categories, directPayload, number, numericStats, paymentText, priceText, purchaseOption, slotNames, statNames, stats, tierName, validQuote, type EquipmentReply, type OwnedItem, type ShopItem } from './equipment';
+import { categories, directPayload, equipmentPresentation, number, numericStats, paymentText, priceText, purchaseOption, slotNames, statNames, stats, tierName, validQuote, type EquipmentReply, type OwnedItem, type ShopItem } from './equipment';
 import './equipment.css';
 interface Confirmation {
   message: string; yes: string; opener: HTMLElement | null; generation: number; hero: string;
@@ -44,6 +44,7 @@ function ComparedStats({ item, equipped }: { item: OwnedItem; equipped?: OwnedIt
 }
 export function EquipmentView({ controller, active = true }: { controller: PanelController; active?: boolean }) {
   const panel = useSyncExternalStore(controller.subscribe, controller.snapshot);
+  const presentation = equipmentPresentation(panel.config?.ui);
   const [snapshot, setSnapshot] = useState<EquipmentReply | null>(null), [error, setError] = useState('');
   const [busy, setBusy] = useState(false), [view, setView] = useState<'shop' | 'owned'>('shop');
   const [search, setSearch] = useState(''), [category, setCategory] = useState(''), [tier, setTier] = useState('');
@@ -69,9 +70,9 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
     return !!item && item.can_buy && !item.unavailable && validQuote(item, purchaseOption(item, slotsRef.current)) && !!purchaseOption(item, slotsRef.current)?.can_buy && quoteSignature(item, slotsRef.current) === pending.signature;
   };
   const refresh = useCallback(async () => {
-    if (!mounted.current || !activeRef.current || !controller.ready()) return;
+    if (!mounted.current || !controller.ready()) return;
     const identity = controller.identityGeneration(), hero = heroIdentity(controller), issued = ++request.current, actionRevision = revision.current;
-    const current = () => mounted.current && activeRef.current && controller.ready() && identity === controller.identityGeneration() && hero === heroIdentity(controller) && issued > applied.current && actionRevision === revision.current;
+    const current = () => mounted.current && controller.ready() && identity === controller.identityGeneration() && hero === heroIdentity(controller) && issued > applied.current && actionRevision === revision.current;
     try {
       const result = await controller.read<EquipmentReply>('/api/bannerlord/equipment-shop');
       if (!current()) return;
@@ -148,12 +149,12 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
   const inventory = snapshot?.inventory || [], equipped = inventory.find(item => item.slot === ownedSlot);
   const candidates = inventory.filter(item => !item.slot && (item.source !== 'party' || partyAvailable) && item.slots?.includes(ownedSlot) && matches(item));
   const baggage = candidates.filter(item => item.source === 'party'), legacy = candidates.filter(item => item.source !== 'party');
-  const candidate = (item: OwnedItem) => <article className="bnr-eq-candidate" key={item.owned_id} data-tier={item.tier || 1}>
+  const candidate = (item: OwnedItem) => <article className="bnr-eq-candidate" key={item.owned_id} data-tier={item.tier || 1} style={presentation.tierStyle(item.tier || 1)}>
     <div className="bnr-eq-item-top"><strong>{item.name || item.item_id}{item.source === 'party' && Number(item.count) > 1 ? ` ×${number(item.count)}` : ''}</strong><span className="bnr-eq-tier">{tierName(item.tier)}</span></div>
     <div className="bnr-eq-source">{item.source === 'party' ? 'Инвентарь отряда (багаж)' : 'Старое хранилище мода — не багаж отряда'}</div>
     <div className="bnr-eq-compare"><ComparedStats item={item} equipped={equipped} /></div>
     <button type="button" className="bnr-eq-action secondary" data-bnr-eq-equip={item.owned_id} disabled={inventoryBlocked || item.unavailable} onClick={() => equip(item.owned_id)}>Надеть в «{slotNames[ownedSlot]}»</button>
-    <button type="button" className="bnr-eq-action discard" data-bnr-eq-discard={item.owned_id} disabled={inventoryBlocked} onClick={() => discard(item.owned_id)}>{item.source === 'party' ? '🗑 Выкинуть одну' : '🗑 Выкинуть вещь'}</button>
+    <button type="button" className="bnr-eq-action discard" data-bnr-eq-discard={item.owned_id} disabled={inventoryBlocked} onClick={() => discard(item.owned_id)}>{presentation.discard}</button>
     {item.unavailable && <div className="bnr-eq-reason">Предмет недоступен в текущей сборке игры.</div>}
   </article>;
   return <section id="bnr-equipment-shop" className="panel-equipment panel-card" aria-label="Снаряжение">
@@ -164,7 +165,7 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
     {!snapshot && !error && <p role="status">Загружаем снаряжение…</p>}
     {snapshot && <>
       <div className="bnr-eq-summary"><span>Герой · ур. {number(snapshot.hero_level)}</span><strong>{number(snapshot.gold)} 💰</strong></div>
-      <div className="bnr-eq-unlocks">{snapshot.tiers.map(t => <span key={t.tier} data-tier={t.tier} className={snapshot.hero_level >= t.required_level ? 'unlocked' : ''}>{tierName(t.tier)} · ур. {number(t.required_level)}</span>)}</div>
+      <div className="bnr-eq-unlocks">{snapshot.tiers.map(t => <span key={t.tier} data-tier={t.tier} style={presentation.tierStyle(t.tier)} className={snapshot.hero_level >= t.required_level ? 'unlocked' : ''}>{tierName(t.tier)} · ур. {number(t.required_level)}</span>)}</div>
       <div className="bnr-eq-tabs" role="group" aria-label="Снаряжение">
         <button type="button" data-bnr-eq-view="shop" aria-pressed={view === 'shop'} onClick={() => { setView('shop'); setPage(0); }}>Магазин</button>
         <button type="button" data-bnr-eq-view="owned" aria-pressed={view === 'owned'} onClick={() => { setView('owned'); setPage(0); }}>Инвентарь{snapshot.ready ? '' : ' · нет данных'}</button>
@@ -178,7 +179,7 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
       </div>
       <div className="bnr-eq-results" data-bnr-eq-results>{view === 'shop' ? <div className="bnr-eq-shop-grid">{filtered.slice(currentPage * 20, (currentPage + 1) * 20).map(item => {
         const option = purchaseOption(item, purchaseSlots), quoteValid = validQuote(item, option);
-        return <article className="bnr-eq-item" key={item.item_id} data-tier={item.tier >= 1 && item.tier <= 6 ? item.tier : 1}>
+        return <article className="bnr-eq-item" key={item.item_id} data-tier={item.tier >= 1 && item.tier <= 6 ? item.tier : 1} style={presentation.tierStyle(item.tier >= 1 && item.tier <= 6 ? item.tier : 1)}>
           <div className="bnr-eq-item-top"><strong>{item.name || item.item_id}</strong><span className="bnr-eq-tier">{tierName(item.tier)}</span></div>
           <div className="bnr-eq-meta">{categories[item.category || ''] || item.category || ''} · ур. {number(item.required_level)}</div>
           {stats(item) && <div className="bnr-eq-stats">{stats(item)}</div>}
@@ -192,7 +193,7 @@ export function EquipmentView({ controller, active = true }: { controller: Panel
         </article>;
       })}{!filtered.length && <div className="bnr-eq-empty">{search || effectiveCategory || tier ? 'Ничего не найдено. Измени фильтры.' : 'Каталог появится, когда мод передаст вещи из игры.'}</div>}</div> : !snapshot.ready ? <div className="bnr-eq-empty">Данных о вещах героя пока нет.</div> : <>
         <h3>Надето на герое</h3><div className="bnr-eq-slots">{Object.entries(slotNames).map(([slot, name]) => <button type="button" key={slot} className="bnr-eq-slot" data-bnr-owned-slot={slot} aria-pressed={ownedSlot === slot} onClick={() => { setOwnedSlot(slot); setSearch(''); }}><span>{name}</span><strong>{inventory.find(item => item.slot === slot)?.name || 'Пусто'}</strong></button>)}</div>
-        {equipped ? <article className="bnr-eq-current" data-tier={equipped.tier || 1}><div><span>Сейчас надето</span><strong>{equipped.name || equipped.item_id}</strong></div><div className="bnr-eq-stats">{stats(equipped)}</div><div className="bnr-eq-current-actions"><button type="button" data-bnr-eq-unequip={ownedSlot} disabled={inventoryBlocked} onClick={unequip}>Снять</button><button type="button" className="discard" data-bnr-eq-discard={equipped.owned_id} disabled={inventoryBlocked} onClick={() => discard(equipped.owned_id)}>🗑 Выкинуть</button></div></article> : <div className="bnr-eq-current empty">Слот свободен</div>}
+        {equipped ? <article className="bnr-eq-current" data-tier={equipped.tier || 1} style={presentation.tierStyle(equipped.tier || 1)}><div><span>Сейчас надето</span><strong>{equipped.name || equipped.item_id}</strong></div><div className="bnr-eq-stats">{stats(equipped)}</div><div className="bnr-eq-current-actions"><button type="button" data-bnr-eq-unequip={ownedSlot} disabled={inventoryBlocked} onClick={unequip}>Снять</button><button type="button" className="discard" data-bnr-eq-discard={equipped.owned_id} disabled={inventoryBlocked} onClick={() => discard(equipped.owned_id)}>{presentation.discard}</button></div></article> : <div className="bnr-eq-current empty">Слот свободен</div>}
         <h3>Багаж отряда{partyAvailable && party?.party_name ? ` · ${party.party_name}` : ''}</h3>
         {!partyAvailable && <div className="bnr-eq-notice">{party?.message || 'Доступ к багажу ещё не подтверждён игрой.'}</div>}
         <div className="bnr-eq-slot-title"><strong>{slotNames[ownedSlot]}</strong>{partyAvailable && <span>{baggage.reduce((sum, item) => sum + Number(item.count || 1), 0)} доступно</span>}</div>

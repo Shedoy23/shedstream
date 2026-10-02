@@ -115,6 +115,9 @@ async def main():
                     break
             assert code == 429, 'Telemetry has a bounded per-viewer rate'
             assert (await post(batch(), uid='106'))[0] == 200, 'Rate limiting one viewer must not block another'
+            with patch.dict(deps._channel_rate_buckets, {}, clear=True), patch.object(deps, '_CHANNEL_POLL_BUCKETS_MAX', 0):
+                assert (await post(batch(), uid='990'))[0] == 429, 'Telemetry cache overflow must fail closed instead of consuming action quota'
+                assert not deps._channel_rate_buckets, 'Telemetry overload cannot create a shared action bucket'
             # Commit old rows, then ingestion must prune only its own channel.
             with sqlite3.connect(db.path) as conn:
                 conn.execute("UPDATE ui_feature_usage SET day='2000-01-01' WHERE channel_id=22")

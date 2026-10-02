@@ -14,6 +14,9 @@ changes.extend([
  ('preaction-read-barrier',safety,'accepted mutation prevents pre-action',[('controller.ts','if(result?.success)this.applied.diplomacy=this.issued.diplomacy=(this.issued.diplomacy||0)+1;','/* deliberately remove accepted mutation read barrier */')]),
  ('new-kingdom-identity',safety,'direct peace old saved click cannot cross kingdom',[('kingdom.ts','kingdomInfo(hero)?.id,','/* deliberately omit nested realm ID */')]),
  ('missing-price-gate',quotes,'hero.enact_policy unverified null',[('diplomacy.ts',"if(type!=='kingdom.set_tax_rate'&&diplomacyPrice(s,type)===null)return false;",'/* deliberately permit unknown quote */')]),
+ ('discard-observed-conflict',safety,'independent review: fresh different-realm',[('controller.ts','return {diplomacy};',"if(diplomacy.kingdom_id&&diplomacy.kingdom_id!==(this.state.hero?.hero?.kingdom_info as {id?:string}|null)?.id)return {}; return {diplomacy};")]),
+ ('forget-observed-conflict',safety,'fresh observed state remains quarantined',[('controller.ts','if (kingdomOwner(hero) !== kingdomOwner(this.state.hero)) { this.applied.diplomacy = this.issued.diplomacy = (this.issued.diplomacy || 0) + 1; }','if (kingdomOwner(hero) !== kingdomOwner(this.state.hero)) { this.applied.diplomacy = this.issued.diplomacy = (this.issued.diplomacy || 0) + 1; this.state = {...this.state,diplomacy:null}; }')]),
+ ('ignore-kingdom-quarantine','test/panel-kingdom-safety.test.tsx','fresh observed fixture_kingdom/false contradiction',[('kingdom.ts','s.mutationBlocked||kingdomConflicted(s)||','s.mutationBlocked||')]),
 ])
 paths={source/file for *_,edits in changes for file,_,_ in edits}
 assert subprocess.run(['git','diff','--quiet','HEAD','--',*[str(x.relative_to(root)) for x in paths]],cwd=root).returncode==0

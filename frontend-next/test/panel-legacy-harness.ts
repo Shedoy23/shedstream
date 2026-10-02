@@ -103,7 +103,7 @@ export const legacySelectors = {
 };
 
 export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, options: {
-  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean; combatHost?: boolean; initialTab?: 'combat' | 'hero' | 'inventory';
+  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean; combatHost?: boolean; retinueHost?: boolean; initialTab?: 'combat' | 'hero' | 'inventory';
 } = {}) {
   let login = options.login ?? 'alice';
   let token = options.token ?? 'alice-token';
@@ -247,6 +247,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
       <div id="bnr-pane-hero-stats"></div>
       <div id="hero-class-picker-slot"></div>
       <div id="bnr-progression-slot"></div>
+      ${options.retinueHost ? '<div id="bnr-retinue-slot"></div>' : ''}
     </section>
     ${options.equipmentHost || options.panelLifecycle ? '<section class="bnr-tab-pane" data-bnr-pane="inventory"><div id="bnr-equipment-shop"></div></section>' : ''}
   </main>`;

@@ -24,10 +24,10 @@ export function normalized(trace: LegacyRequest[]) {
   });
 }
 export const usageEvents = (trace: LegacyRequest[]) => trace.filter(row => row.path === '/api/viewer/ui-usage').flatMap(row => (row.body as { events: { kind: string; feature: string; count: number }[] }).events);
-export async function combatPair(overrides: Partial<LegacyFixtures> = {}, hidden = false, initialTab?: 'combat' | 'hero' | 'inventory') {
+export async function combatPair(overrides: Partial<LegacyFixtures> = {}, hidden = false, initialTab?: 'combat' | 'hero' | 'inventory', retinueHost = false) {
   if (initialTab) localStorage.setItem('bnr_active_tab', initialTab);
   Object.defineProperty(document, 'hidden', { configurable: true, value: hidden });
-  const old = createLegacyHarness({ usage: f.usage_ok, build: c.build_no_session, classes: c.classes_by_key.tank, battle: c.battle_siege, buffs: c.buffs_empty, action: combatAction, ...overrides }, { panelLifecycle: true, combatHost: true, initialTab, now }); drains.push(old.dispose);
+  const old = createLegacyHarness({ usage: f.usage_ok, build: c.build_no_session, classes: c.classes_by_key.tank, battle: c.battle_siege, buffs: c.buffs_empty, action: combatAction, ...overrides }, { panelLifecycle: true, combatHost: true, retinueHost, initialTab, now }); drains.push(old.dispose);
   if (hidden) await old.setHidden(true);
   await old.bootCombat(); await old.exposeUsagePanels();
   const trace: LegacyRequest[] = [], failures: string[] = [], calls: Record<string, number> = {};

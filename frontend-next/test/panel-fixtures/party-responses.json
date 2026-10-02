@@ -1,0 +1,2554 @@
+{
+  "provenance": {
+    "repository": "/workspace/scratch/f566ddb2e035/panel-preact-implementation",
+    "database": "isolated full-migrations temporary SQLite",
+    "live_game": false,
+    "handlers": [
+      "routes.bannerlord",
+      "routes.bannerlord_party_orders",
+      "routes.bannerlord_vassals"
+    ],
+    "state_sources": [
+      "tests/test_bannerlord_buy_action.py",
+      "BannerlordLink/src/Util/HeroStateSync.cs"
+    ],
+    "representative_ids": "fixture_* IDs are seeded local identities, no external game resolution performed"
+  },
+  "responses": {
+    "config": {
+      "ui": {
+        "version": 1,
+        "combat_order": [
+          "summon",
+          "active_powers",
+          "tournament",
+          "weapon_choice"
+        ],
+        "combat_visible": {
+          "summon": true,
+          "active_powers": true,
+          "tournament": true,
+          "weapon_choice": true
+        },
+        "labels": {
+          "active_powers": "Активки",
+          "tournament": "🏆 Турнир зрителей",
+          "weapon_choice": "Оружейная способность",
+          "summon_ally": "📯 Призвать за стримера",
+          "summon_enemy": "⚔️ Призвать против стримера",
+          "discard": "🗑 Выкинуть вещь"
+        },
+        "tier_colors": {
+          "1": {
+            "text": "#c0c3ca",
+            "border": "#5b5e66",
+            "background": "#2b2d31"
+          },
+          "2": {
+            "text": "#89dba1",
+            "border": "#467457",
+            "background": "#203127"
+          },
+          "3": {
+            "text": "#87c6fa",
+            "border": "#426c91",
+            "background": "#202d3a"
+          },
+          "4": {
+            "text": "#c7a0f5",
+            "border": "#785398",
+            "background": "#30253b"
+          },
+          "5": {
+            "text": "#f2b17f",
+            "border": "#966139",
+            "background": "#3b2b20"
+          },
+          "6": {
+            "text": "#f5d174",
+            "border": "#aa8436",
+            "background": "#39311e"
+          }
+        }
+      },
+      "give_gold_presets": [
+        {
+          "crusticov": 1000,
+          "dinars": 5000
+        },
+        {
+          "crusticov": 5000,
+          "dinars": 25000
+        },
+        {
+          "crusticov": 20000,
+          "dinars": 100000
+        }
+      ],
+      "add_skill_presets": [
+        {
+          "crusticov": 500,
+          "xp": 50
+        },
+        {
+          "crusticov": 1000,
+          "xp": 100
+        },
+        {
+          "crusticov": 5000,
+          "xp": 500
+        }
+      ],
+      "focus_tier_costs": [
+        30000,
+        40000,
+        50000,
+        60000,
+        75000
+      ],
+      "attribute_cost": 50000,
+      "recruit_tier_costs": [
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        80000
+      ],
+      "recruit_elite_mult": 3,
+      "gear_upgrade_costs": {
+        "1": 50000,
+        "2": 100000,
+        "3": 200000,
+        "4": 400000,
+        "5": 800000,
+        "6": 1500000
+      },
+      "reforge_price": 20000,
+      "spawn_prices": {
+        "player": 50,
+        "enemy": 100
+      },
+      "gender_swap_cost": 50000,
+      "baby_cost": 100000,
+      "workshop_price": 2500,
+      "caravan_price": 4000,
+      "tournament_prize_gold": 50000,
+      "tournament_round_gold": 10000,
+      "action_prices": {
+        "hero.set_specialization": 0,
+        "hero.select_weapon_power": 0,
+        "hero.claim_starter": 0,
+        "hero.buy_equipment": 0,
+        "hero.equip_owned": 0,
+        "hero.unequip_owned": 0,
+        "hero.discard_owned": 0,
+        "hero.create": 0,
+        "player.modify_attribute": 50,
+        "world.trigger_event": 1000,
+        "hero.reforge_quality": 20000,
+        "hero.set_combat_stance": 0,
+        "hero.discard_item": 0,
+        "hero.detach": 10,
+        "hero.attach": 10,
+        "hero.detach_hold": 30,
+        "hero.detach_charge": 30,
+        "hero.detach_skirmish": 30,
+        "hero.detach_raid": 30,
+        "hero.detach_walls": 30,
+        "hero.detach_gate": 30,
+        "hero.propose_marriage": 100,
+        "hero.respond_marriage_proposal": 0,
+        "hero.cancel_proposal": 0,
+        "hero.rename_child": 50,
+        "hero.change_child_looks": 200,
+        "hero.respec_child_skills": 500,
+        "hero.create_vassal_clan": 0,
+        "hero.recruit_vassal_clan": 0,
+        "hero.rename_vassal": 100,
+        "hero.party_order_set": 500,
+        "hero.party_order_release": 0,
+        "hero.army_create": 1000,
+        "hero.army_disband": 0,
+        "hero.enact_policy": 1500,
+        "hero.make_peace": 2000,
+        "kingdom.propose_war": 2000,
+        "kingdom.propose_peace": 3000,
+        "hero.pay_ransom": 500,
+        "kingdom.set_tax_rate": 0,
+        "hero.buy_workshop": 2500,
+        "hero.sell_workshop": 0,
+        "hero.buy_caravan": 4000,
+        "hero.sell_caravan": 0
+      },
+      "power_prices": {
+        "heal_burst": 100,
+        "shield_break_burst": 200,
+        "rage": 300,
+        "retribution_toggle": 300,
+        "poison_dot": 350,
+        "disarm_burst": 250,
+        "berserker_charge": 200,
+        "lifesteal_burst": 300,
+        "ironskin_toggle": 300,
+        "explosive_arrows": 350,
+        "cleave": 350
+      },
+      "hero_gold_costs": {
+        "marry": 50000,
+        "create_clan": 1000000,
+        "join_clan": 50000,
+        "create_kingdom": 5000000,
+        "join_kingdom": 100000,
+        "create_party": 200000,
+        "recruit_vassal": 3000000,
+        "make_baby": 100000,
+        "create_vassal_clan": 250000
+      }
+    },
+    "hero_no_party": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Vlandia",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 0,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true,
+          "is_ruler": false,
+          "own_settlements": [
+            {
+              "id": "fixture_own_town",
+              "name": "Own Town",
+              "type": "town",
+              "days": 3
+            },
+            {
+              "id": "fixture_own_village",
+              "name": "Own Village",
+              "type": "village",
+              "days": 1
+            },
+            {
+              "id": "fixture_own_castle",
+              "name": "Own Castle",
+              "type": "castle",
+              "days": 2
+            }
+          ],
+          "enemy_settlements": [
+            {
+              "id": "fixture_enemy_castle",
+              "name": "Enemy Castle",
+              "type": "castle",
+              "days": 4
+            },
+            {
+              "id": "fixture_enemy_town",
+              "name": "Enemy Town",
+              "type": "town",
+              "days": 2
+            },
+            {
+              "id": "fixture_enemy_village",
+              "name": "Enemy Village",
+              "type": "village",
+              "days": 1
+            }
+          ]
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": null,
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "orders_none": {
+      "success": true,
+      "active": null
+    },
+    "vassals_none": {
+      "success": true,
+      "vassals": []
+    },
+    "create_party": {
+      "request": {
+        "action_type": "hero.create_party",
+        "data": {
+          "client_action_id": "party-probe-create_party"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "8013744cfb3e499e8f45bf43d116ea7a",
+        "charged": 0,
+        "message": "⚔️ Action hero.create_party в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 600
+      },
+      "queued": [
+        {
+          "type": "hero.create_party",
+          "data": {
+            "client_action_id": "party-probe-create_party",
+            "_user_role": "viewer",
+            "retinue": [],
+            "hero_gold_cost": 200000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "hero_party": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Vlandia",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true,
+          "is_ruler": false,
+          "own_settlements": [
+            {
+              "id": "fixture_own_town",
+              "name": "Own Town",
+              "type": "town",
+              "days": 3
+            },
+            {
+              "id": "fixture_own_village",
+              "name": "Own Village",
+              "type": "village",
+              "days": 1
+            },
+            {
+              "id": "fixture_own_castle",
+              "name": "Own Castle",
+              "type": "castle",
+              "days": 2
+            }
+          ],
+          "enemy_settlements": [
+            {
+              "id": "fixture_enemy_castle",
+              "name": "Enemy Castle",
+              "type": "castle",
+              "days": 4
+            },
+            {
+              "id": "fixture_enemy_town",
+              "name": "Enemy Town",
+              "type": "town",
+              "days": 2
+            },
+            {
+              "id": "fixture_enemy_village",
+              "name": "Enemy Village",
+              "type": "village",
+              "days": 1
+            }
+          ]
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "size": 25,
+          "task": "GoToSettlement",
+          "target": "Own Town",
+          "in_army": 0,
+          "has_army": 0,
+          "army_party_count": 0,
+          "cohesion": 0
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "army_create": {
+      "request": {
+        "action_type": "hero.army_create",
+        "data": {
+          "client_action_id": "party-probe-army_create"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "fe273186e1a443438ddb05ceb590eb4e",
+        "charged": 1000,
+        "message": "⚔️ Action hero.army_create в очереди (1000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued": [
+        {
+          "type": "hero.army_create",
+          "data": {
+            "client_action_id": "party-probe-army_create",
+            "_user_role": "viewer",
+            "price": 1000,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "hero_army_leader": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Vlandia",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true,
+          "is_ruler": false,
+          "own_settlements": [
+            {
+              "id": "fixture_own_town",
+              "name": "Own Town",
+              "type": "town",
+              "days": 3
+            },
+            {
+              "id": "fixture_own_village",
+              "name": "Own Village",
+              "type": "village",
+              "days": 1
+            },
+            {
+              "id": "fixture_own_castle",
+              "name": "Own Castle",
+              "type": "castle",
+              "days": 2
+            }
+          ],
+          "enemy_settlements": [
+            {
+              "id": "fixture_enemy_castle",
+              "name": "Enemy Castle",
+              "type": "castle",
+              "days": 4
+            },
+            {
+              "id": "fixture_enemy_town",
+              "name": "Enemy Town",
+              "type": "town",
+              "days": 2
+            },
+            {
+              "id": "fixture_enemy_village",
+              "name": "Enemy Village",
+              "type": "village",
+              "days": 1
+            }
+          ]
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "size": 25,
+          "task": "GoToSettlement",
+          "target": "Own Town",
+          "in_army": 1,
+          "has_army": 1,
+          "army_party_count": 3,
+          "cohesion": 70
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "hero_army_member": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Vlandia",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true,
+          "is_ruler": false,
+          "own_settlements": [
+            {
+              "id": "fixture_own_town",
+              "name": "Own Town",
+              "type": "town",
+              "days": 3
+            },
+            {
+              "id": "fixture_own_village",
+              "name": "Own Village",
+              "type": "village",
+              "days": 1
+            },
+            {
+              "id": "fixture_own_castle",
+              "name": "Own Castle",
+              "type": "castle",
+              "days": 2
+            }
+          ],
+          "enemy_settlements": [
+            {
+              "id": "fixture_enemy_castle",
+              "name": "Enemy Castle",
+              "type": "castle",
+              "days": 4
+            },
+            {
+              "id": "fixture_enemy_town",
+              "name": "Enemy Town",
+              "type": "town",
+              "days": 2
+            },
+            {
+              "id": "fixture_enemy_village",
+              "name": "Enemy Village",
+              "type": "village",
+              "days": 1
+            }
+          ]
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "size": 25,
+          "task": "GoToSettlement",
+          "target": "Own Town",
+          "in_army": 1,
+          "has_army": 0,
+          "army_party_count": 0,
+          "cohesion": 0
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "army_already_in": {
+      "request": {
+        "action_type": "hero.army_create",
+        "data": {
+          "client_action_id": "party-probe-army_already_in"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Ты уже в армии — сначала распусти/покинь её"
+      }
+    },
+    "army_disband": {
+      "request": {
+        "action_type": "hero.army_disband",
+        "data": {
+          "client_action_id": "party-probe-army_disband"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "4537cba4fdc04c369acd6bbc43cf5530",
+        "charged": 0,
+        "message": "⚔️ Action hero.army_disband в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      },
+      "queued": [
+        {
+          "type": "hero.army_disband",
+          "data": {
+            "client_action_id": "party-probe-army_disband",
+            "_user_role": "viewer",
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "order_siege": {
+      "request": {
+        "action_type": "hero.party_order_set",
+        "data": {
+          "order_type": "siege",
+          "target_settlement_id": "fixture_enemy_town",
+          "target_settlement_name": "Fixture Target (город, ~2 дн)",
+          "client_action_id": "party-probe-order_siege"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "0daca462e5cf4844984c93dfbdd31c84",
+        "charged": 500,
+        "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 120
+      },
+      "queued": [
+        {
+          "type": "hero.party_order_set",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "order_type": "siege",
+            "target_settlement_id": "fixture_enemy_town",
+            "target_settlement_name": "Fixture Target (город, ~2 дн)",
+            "price": 500
+          }
+        }
+      ]
+    },
+    "orders_siege": {
+      "success": true,
+      "active": {
+        "id": 1,
+        "order_type": "siege",
+        "target_settlement_id": "fixture_enemy_town",
+        "target_settlement_name": "Fixture Target (город, ~2 дн)",
+        "issued_at": "2026-10-02 21:00:26",
+        "expires_at": "2026-10-02 21:30:26"
+      }
+    },
+    "buffs_order": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "hero.party_order_set",
+          "remaining_s": 120.0
+        }
+      ]
+    },
+    "order_cooldown": {
+      "request": {
+        "action_type": "hero.party_order_set",
+        "data": {
+          "order_type": "siege",
+          "target_settlement_id": "fixture_enemy_town",
+          "target_settlement_name": "Fixture Target (город, ~2 дн)",
+          "client_action_id": "party-probe-order_cooldown"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (119с)",
+        "cooldown_remaining_s": 120.0
+      }
+    },
+    "order_defend": {
+      "request": {
+        "action_type": "hero.party_order_set",
+        "data": {
+          "order_type": "defend",
+          "target_settlement_id": "fixture_own_town",
+          "target_settlement_name": "Fixture Target (город, ~2 дн)",
+          "client_action_id": "party-probe-order_defend"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "45e60e8098de4e428100cb47fd9e0efd",
+        "charged": 500,
+        "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 120
+      },
+      "queued": [
+        {
+          "type": "hero.party_order_set",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "order_type": "defend",
+            "target_settlement_id": "fixture_own_town",
+            "target_settlement_name": "Fixture Target (город, ~2 дн)",
+            "price": 500
+          }
+        }
+      ]
+    },
+    "orders_defend": {
+      "success": true,
+      "active": {
+        "id": 2,
+        "order_type": "defend",
+        "target_settlement_id": "fixture_own_town",
+        "target_settlement_name": "Fixture Target (город, ~2 дн)",
+        "issued_at": "2026-10-02 21:00:26",
+        "expires_at": "2026-10-02 21:30:26"
+      }
+    },
+    "order_raid": {
+      "request": {
+        "action_type": "hero.party_order_set",
+        "data": {
+          "order_type": "raid",
+          "target_settlement_id": "fixture_enemy_village",
+          "target_settlement_name": "Fixture Target (город, ~2 дн)",
+          "client_action_id": "party-probe-order_raid"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "8fa9d147947943e99d23f802dbde9e42",
+        "charged": 500,
+        "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 120
+      },
+      "queued": [
+        {
+          "type": "hero.party_order_set",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "order_type": "raid",
+            "target_settlement_id": "fixture_enemy_village",
+            "target_settlement_name": "Fixture Target (город, ~2 дн)",
+            "price": 500
+          }
+        }
+      ]
+    },
+    "orders_raid": {
+      "success": true,
+      "active": {
+        "id": 3,
+        "order_type": "raid",
+        "target_settlement_id": "fixture_enemy_village",
+        "target_settlement_name": "Fixture Target (город, ~2 дн)",
+        "issued_at": "2026-10-02 21:00:26",
+        "expires_at": "2026-10-02 21:30:26"
+      }
+    },
+    "order_garrison": {
+      "request": {
+        "action_type": "hero.party_order_set",
+        "data": {
+          "order_type": "garrison",
+          "target_settlement_id": "fixture_own_town",
+          "target_settlement_name": "Fixture Target (город, ~2 дн)",
+          "client_action_id": "party-probe-order_garrison"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "a7d5d08bb2d048edb9a6bed1d9a358ab",
+        "charged": 500,
+        "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 120
+      },
+      "queued": [
+        {
+          "type": "hero.party_order_set",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "order_type": "garrison",
+            "target_settlement_id": "fixture_own_town",
+            "target_settlement_name": "Fixture Target (город, ~2 дн)",
+            "price": 500
+          }
+        }
+      ]
+    },
+    "orders_garrison": {
+      "success": true,
+      "active": {
+        "id": 4,
+        "order_type": "garrison",
+        "target_settlement_id": "fixture_own_town",
+        "target_settlement_name": "Fixture Target (город, ~2 дн)",
+        "issued_at": "2026-10-02 21:00:26",
+        "expires_at": "2026-10-02 21:30:26"
+      }
+    },
+    "order_patrol": {
+      "request": {
+        "action_type": "hero.party_order_set",
+        "data": {
+          "order_type": "patrol",
+          "target_settlement_id": "fixture_own_town",
+          "target_settlement_name": "Fixture Target (город, ~2 дн)",
+          "client_action_id": "party-probe-order_patrol"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "aa068ce164e64925943b2289f8c39025",
+        "charged": 500,
+        "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 120
+      },
+      "queued": [
+        {
+          "type": "hero.party_order_set",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "order_type": "patrol",
+            "target_settlement_id": "fixture_own_town",
+            "target_settlement_name": "Fixture Target (город, ~2 дн)",
+            "price": 500
+          }
+        }
+      ]
+    },
+    "orders_patrol": {
+      "success": true,
+      "active": {
+        "id": 5,
+        "order_type": "patrol",
+        "target_settlement_id": "fixture_own_town",
+        "target_settlement_name": "Fixture Target (город, ~2 дн)",
+        "issued_at": "2026-10-02 21:00:26",
+        "expires_at": "2026-10-02 21:30:26"
+      }
+    },
+    "order_recruit": {
+      "request": {
+        "action_type": "hero.party_order_set",
+        "data": {
+          "order_type": "recruit",
+          "target_settlement_id": "",
+          "target_settlement_name": "",
+          "client_action_id": "party-probe-order_recruit"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "cb88da156c464b9ca306c281965aa35c",
+        "charged": 500,
+        "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 120
+      },
+      "queued": [
+        {
+          "type": "hero.party_order_set",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "order_type": "recruit",
+            "target_settlement_id": "",
+            "target_settlement_name": "",
+            "price": 500
+          }
+        }
+      ]
+    },
+    "orders_recruit": {
+      "success": true,
+      "active": {
+        "id": 6,
+        "order_type": "recruit",
+        "target_settlement_id": "",
+        "target_settlement_name": "",
+        "issued_at": "2026-10-02 21:00:26",
+        "expires_at": "2026-10-02 21:30:26"
+      }
+    },
+    "order_release": {
+      "request": {
+        "action_type": "hero.party_order_release",
+        "data": {
+          "client_action_id": "party-probe-order_release"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "8cfd6359977c48918aa56278908cfea5",
+        "charged": 0,
+        "message": "⚔️ Action hero.party_order_release в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 10
+      },
+      "queued": [
+        {
+          "type": "hero.party_order_release",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "order_type": "release",
+            "price": 0
+          }
+        }
+      ]
+    },
+    "orders_released": {
+      "success": true,
+      "active": null
+    },
+    "order_release_absent": {
+      "request": {
+        "action_type": "hero.party_order_release",
+        "data": {
+          "client_action_id": "party-probe-order_release_absent"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Нет активного приказа"
+      }
+    },
+    "order_missing_target": {
+      "request": {
+        "action_type": "hero.party_order_set",
+        "data": {
+          "order_type": "siege",
+          "client_action_id": "party-probe-order_missing_target"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "target_settlement_id required"
+      }
+    },
+    "order_for_expiry": {
+      "request": {
+        "action_type": "hero.party_order_set",
+        "data": {
+          "order_type": "patrol",
+          "target_settlement_id": "fixture_own_town",
+          "client_action_id": "party-probe-order_for_expiry"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "34b12416ecd74c669f742b47d54f33f5",
+        "charged": 500,
+        "message": "⚔️ Action hero.party_order_set в очереди (500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 120
+      },
+      "queued": [
+        {
+          "type": "hero.party_order_set",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "order_type": "patrol",
+            "target_settlement_id": "fixture_own_town",
+            "target_settlement_name": "fixture_own_town",
+            "price": 500
+          }
+        }
+      ]
+    },
+    "orders_expired": {
+      "success": true,
+      "active": null
+    },
+    "hero_empty_retinue_poor": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 0,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Vlandia",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true,
+          "is_ruler": false,
+          "own_settlements": [
+            {
+              "id": "fixture_own_town",
+              "name": "Own Town",
+              "type": "town",
+              "days": 3
+            },
+            {
+              "id": "fixture_own_village",
+              "name": "Own Village",
+              "type": "village",
+              "days": 1
+            },
+            {
+              "id": "fixture_own_castle",
+              "name": "Own Castle",
+              "type": "castle",
+              "days": 2
+            }
+          ],
+          "enemy_settlements": [
+            {
+              "id": "fixture_enemy_castle",
+              "name": "Enemy Castle",
+              "type": "castle",
+              "days": 4
+            },
+            {
+              "id": "fixture_enemy_town",
+              "name": "Enemy Town",
+              "type": "town",
+              "days": 2
+            },
+            {
+              "id": "fixture_enemy_village",
+              "name": "Enemy Village",
+              "type": "village",
+              "days": 1
+            }
+          ]
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "size": 25,
+          "task": "GoToSettlement",
+          "target": "Own Town",
+          "in_army": 0,
+          "has_army": 0,
+          "army_party_count": 0,
+          "cohesion": 0
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "recruit_insufficient": {
+      "request": {
+        "action_type": "hero.recruit_troops",
+        "data": {
+          "is_elite": false,
+          "client_action_id": "party-probe-recruit_insufficient"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Нужно 5,000💰 динаров для найм нового basic, у тебя 0💰 (накопи в игре)."
+      }
+    },
+    "party_insufficient": {
+      "request": {
+        "action_type": "hero.create_party",
+        "data": {
+          "client_action_id": "party-probe-party_insufficient"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Нужно 200,000💰 динаров (у тебя 0💰)."
+      }
+    },
+    "hero_empty_retinue_rich": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Vlandia",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true,
+          "is_ruler": false,
+          "own_settlements": [
+            {
+              "id": "fixture_own_town",
+              "name": "Own Town",
+              "type": "town",
+              "days": 3
+            },
+            {
+              "id": "fixture_own_village",
+              "name": "Own Village",
+              "type": "village",
+              "days": 1
+            },
+            {
+              "id": "fixture_own_castle",
+              "name": "Own Castle",
+              "type": "castle",
+              "days": 2
+            }
+          ],
+          "enemy_settlements": [
+            {
+              "id": "fixture_enemy_castle",
+              "name": "Enemy Castle",
+              "type": "castle",
+              "days": 4
+            },
+            {
+              "id": "fixture_enemy_town",
+              "name": "Enemy Town",
+              "type": "town",
+              "days": 2
+            },
+            {
+              "id": "fixture_enemy_village",
+              "name": "Enemy Village",
+              "type": "village",
+              "days": 1
+            }
+          ]
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "size": 25,
+          "task": "GoToSettlement",
+          "target": "Own Town",
+          "in_army": 0,
+          "has_army": 0,
+          "army_party_count": 0,
+          "cohesion": 0
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "recruit_basic": {
+      "request": {
+        "action_type": "hero.recruit_troops",
+        "data": {
+          "is_elite": false,
+          "client_action_id": "party-probe-recruit_basic"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "1f7d3fc4b0c144f6ae7a97c352bb26c1",
+        "charged": 0,
+        "message": "⚔️ Action hero.recruit_troops в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 10
+      },
+      "queued": [
+        {
+          "type": "hero.recruit_troops",
+          "data": {
+            "is_elite": false,
+            "client_action_id": "party-probe-recruit_basic",
+            "_user_role": "viewer",
+            "retinue": [],
+            "hero_gold_cost": 5000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "buffs_recruit_basic": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "hero.recruit_troops",
+          "remaining_s": 10.0
+        }
+      ]
+    },
+    "recruit_elite": {
+      "request": {
+        "action_type": "hero.recruit_troops",
+        "data": {
+          "is_elite": true,
+          "client_action_id": "party-probe-recruit_elite"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "c08fe68c83f54aeabd984d6000e1ab7c",
+        "charged": 0,
+        "message": "⚔️ Action hero.recruit_troops в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 10
+      },
+      "queued": [
+        {
+          "type": "hero.recruit_troops",
+          "data": {
+            "is_elite": true,
+            "client_action_id": "party-probe-recruit_elite",
+            "_user_role": "viewer",
+            "retinue": [],
+            "hero_gold_cost": 15000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "buffs_recruit_elite": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "hero.recruit_troops",
+          "remaining_s": 10.0
+        }
+      ]
+    },
+    "train_empty": {
+      "request": {
+        "action_type": "hero.train_troops",
+        "data": {
+          "client_action_id": "party-probe-train_empty"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "6c0156dca75143ba8dd4d41e00c9a58e",
+        "charged": 0,
+        "message": "⚔️ Action hero.train_troops в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      },
+      "queued": [
+        {
+          "type": "hero.train_troops",
+          "data": {
+            "client_action_id": "party-probe-train_empty",
+            "_user_role": "viewer",
+            "retinue": [],
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "buffs_train_empty": {
+      "success": true,
+      "buffs": [],
+      "cooldowns": [
+        {
+          "power_key": "hero.train_troops",
+          "remaining_s": 30.0
+        }
+      ]
+    },
+    "hero_retinue_full": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Vlandia",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true,
+          "is_ruler": false,
+          "own_settlements": [
+            {
+              "id": "fixture_own_town",
+              "name": "Own Town",
+              "type": "town",
+              "days": 3
+            },
+            {
+              "id": "fixture_own_village",
+              "name": "Own Village",
+              "type": "village",
+              "days": 1
+            },
+            {
+              "id": "fixture_own_castle",
+              "name": "Own Castle",
+              "type": "castle",
+              "days": 2
+            }
+          ],
+          "enemy_settlements": [
+            {
+              "id": "fixture_enemy_castle",
+              "name": "Enemy Castle",
+              "type": "castle",
+              "days": 4
+            },
+            {
+              "id": "fixture_enemy_town",
+              "name": "Enemy Town",
+              "type": "town",
+              "days": 2
+            },
+            {
+              "id": "fixture_enemy_village",
+              "name": "Enemy Village",
+              "type": "village",
+              "days": 1
+            }
+          ]
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "size": 25,
+          "task": "GoToSettlement",
+          "target": "Own Town",
+          "in_army": 0,
+          "has_army": 0,
+          "army_party_count": 0,
+          "cohesion": 0
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [
+        {
+          "slot_index": 0,
+          "troop_id": "fixture_basic_1",
+          "troop_name": "Basic One",
+          "tier": 1,
+          "is_elite": false,
+          "render_key": "500000:5"
+        },
+        {
+          "slot_index": 1,
+          "troop_id": "fixture_basic_5",
+          "troop_name": "Basic Max",
+          "tier": 5,
+          "is_elite": false,
+          "render_key": "500000:5"
+        },
+        {
+          "slot_index": 2,
+          "troop_id": "fixture_elite_5",
+          "troop_name": "Elite Five",
+          "tier": 5,
+          "is_elite": true,
+          "render_key": "500000:5"
+        },
+        {
+          "slot_index": 3,
+          "troop_id": "fixture_elite_6",
+          "troop_name": "Elite Max",
+          "tier": 6,
+          "is_elite": true,
+          "render_key": "500000:5"
+        },
+        {
+          "slot_index": 4,
+          "troop_id": "fixture_basic_3",
+          "troop_name": "Basic Three",
+          "tier": 3,
+          "is_elite": false,
+          "render_key": "500000:5"
+        }
+      ],
+      "recent_refunds": []
+    },
+    "upgrade_basic": {
+      "request": {
+        "action_type": "hero.recruit_troops",
+        "data": {
+          "is_elite": false,
+          "client_action_id": "party-probe-upgrade_basic"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "34ae67307b3041a994d9ec4ac05a6b80",
+        "charged": 0,
+        "message": "⚔️ Action hero.recruit_troops в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 10
+      },
+      "queued": [
+        {
+          "type": "hero.recruit_troops",
+          "data": {
+            "is_elite": false,
+            "client_action_id": "party-probe-upgrade_basic",
+            "_user_role": "viewer",
+            "retinue": [
+              {
+                "slot_index": 0,
+                "troop_id": "fixture_basic_1",
+                "troop_name": "Basic One",
+                "tier": 1,
+                "is_elite": false
+              },
+              {
+                "slot_index": 1,
+                "troop_id": "fixture_basic_5",
+                "troop_name": "Basic Max",
+                "tier": 5,
+                "is_elite": false
+              },
+              {
+                "slot_index": 2,
+                "troop_id": "fixture_elite_5",
+                "troop_name": "Elite Five",
+                "tier": 5,
+                "is_elite": true
+              },
+              {
+                "slot_index": 3,
+                "troop_id": "fixture_elite_6",
+                "troop_name": "Elite Max",
+                "tier": 6,
+                "is_elite": true
+              },
+              {
+                "slot_index": 4,
+                "troop_id": "fixture_basic_3",
+                "troop_name": "Basic Three",
+                "tier": 3,
+                "is_elite": false
+              }
+            ],
+            "hero_gold_cost": 10000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "upgrade_elite": {
+      "request": {
+        "action_type": "hero.recruit_troops",
+        "data": {
+          "is_elite": true,
+          "client_action_id": "party-probe-upgrade_elite"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "04e5e67ea42a4cb88d3f6a464bac1c16",
+        "charged": 0,
+        "message": "⚔️ Action hero.recruit_troops в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 10
+      },
+      "queued": [
+        {
+          "type": "hero.recruit_troops",
+          "data": {
+            "is_elite": true,
+            "client_action_id": "party-probe-upgrade_elite",
+            "_user_role": "viewer",
+            "retinue": [
+              {
+                "slot_index": 0,
+                "troop_id": "fixture_basic_1",
+                "troop_name": "Basic One",
+                "tier": 1,
+                "is_elite": false
+              },
+              {
+                "slot_index": 1,
+                "troop_id": "fixture_basic_5",
+                "troop_name": "Basic Max",
+                "tier": 5,
+                "is_elite": false
+              },
+              {
+                "slot_index": 2,
+                "troop_id": "fixture_elite_5",
+                "troop_name": "Elite Five",
+                "tier": 5,
+                "is_elite": true
+              },
+              {
+                "slot_index": 3,
+                "troop_id": "fixture_elite_6",
+                "troop_name": "Elite Max",
+                "tier": 6,
+                "is_elite": true
+              },
+              {
+                "slot_index": 4,
+                "troop_id": "fixture_basic_3",
+                "troop_name": "Basic Three",
+                "tier": 3,
+                "is_elite": false
+              }
+            ],
+            "hero_gold_cost": 240000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "train_full": {
+      "request": {
+        "action_type": "hero.train_troops",
+        "data": {
+          "client_action_id": "party-probe-train_full"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "c7eb81108fa941a883804f44d8e42ccb",
+        "charged": 0,
+        "message": "⚔️ Action hero.train_troops в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      },
+      "queued": [
+        {
+          "type": "hero.train_troops",
+          "data": {
+            "client_action_id": "party-probe-train_full",
+            "_user_role": "viewer",
+            "retinue": [
+              {
+                "slot_index": 0,
+                "troop_id": "fixture_basic_1",
+                "troop_name": "Basic One",
+                "tier": 1,
+                "is_elite": false
+              },
+              {
+                "slot_index": 1,
+                "troop_id": "fixture_basic_5",
+                "troop_name": "Basic Max",
+                "tier": 5,
+                "is_elite": false
+              },
+              {
+                "slot_index": 2,
+                "troop_id": "fixture_elite_5",
+                "troop_name": "Elite Five",
+                "tier": 5,
+                "is_elite": true
+              },
+              {
+                "slot_index": 3,
+                "troop_id": "fixture_elite_6",
+                "troop_name": "Elite Max",
+                "tier": 6,
+                "is_elite": true
+              },
+              {
+                "slot_index": 4,
+                "troop_id": "fixture_basic_3",
+                "troop_name": "Basic Three",
+                "tier": 3,
+                "is_elite": false
+              }
+            ],
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "train_cooldown": {
+      "request": {
+        "action_type": "hero.train_troops",
+        "data": {
+          "client_action_id": "party-probe-train_cooldown"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Способность на перезарядке (29с)",
+        "cooldown_remaining_s": 30.0
+      }
+    },
+    "hero_retinue_poor": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 0,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Vlandia",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true,
+          "is_ruler": false,
+          "own_settlements": [
+            {
+              "id": "fixture_own_town",
+              "name": "Own Town",
+              "type": "town",
+              "days": 3
+            },
+            {
+              "id": "fixture_own_village",
+              "name": "Own Village",
+              "type": "village",
+              "days": 1
+            },
+            {
+              "id": "fixture_own_castle",
+              "name": "Own Castle",
+              "type": "castle",
+              "days": 2
+            }
+          ],
+          "enemy_settlements": [
+            {
+              "id": "fixture_enemy_castle",
+              "name": "Enemy Castle",
+              "type": "castle",
+              "days": 4
+            },
+            {
+              "id": "fixture_enemy_town",
+              "name": "Enemy Town",
+              "type": "town",
+              "days": 2
+            },
+            {
+              "id": "fixture_enemy_village",
+              "name": "Enemy Village",
+              "type": "village",
+              "days": 1
+            }
+          ]
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "size": 25,
+          "task": "GoToSettlement",
+          "target": "Own Town",
+          "in_army": 0,
+          "has_army": 0,
+          "army_party_count": 0,
+          "cohesion": 0
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [
+        {
+          "slot_index": 0,
+          "troop_id": "fixture_basic_1",
+          "troop_name": "Basic One",
+          "tier": 1,
+          "is_elite": false,
+          "render_key": "0:5"
+        },
+        {
+          "slot_index": 1,
+          "troop_id": "fixture_basic_5",
+          "troop_name": "Basic Max",
+          "tier": 5,
+          "is_elite": false,
+          "render_key": "0:5"
+        },
+        {
+          "slot_index": 2,
+          "troop_id": "fixture_elite_5",
+          "troop_name": "Elite Five",
+          "tier": 5,
+          "is_elite": true,
+          "render_key": "0:5"
+        },
+        {
+          "slot_index": 3,
+          "troop_id": "fixture_elite_6",
+          "troop_name": "Elite Max",
+          "tier": 6,
+          "is_elite": true,
+          "render_key": "0:5"
+        },
+        {
+          "slot_index": 4,
+          "troop_id": "fixture_basic_3",
+          "troop_name": "Basic Three",
+          "tier": 3,
+          "is_elite": false,
+          "render_key": "0:5"
+        }
+      ],
+      "recent_refunds": []
+    },
+    "hero_retinue_cap7": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "[BLink] Fixture Clan",
+        "kingdom_name": "Vlandia",
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "[BLink] Fixture Clan",
+          "is_leader": true,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 1,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true,
+          "is_ruler": false,
+          "own_settlements": [
+            {
+              "id": "fixture_own_town",
+              "name": "Own Town",
+              "type": "town",
+              "days": 3
+            },
+            {
+              "id": "fixture_own_village",
+              "name": "Own Village",
+              "type": "village",
+              "days": 1
+            },
+            {
+              "id": "fixture_own_castle",
+              "name": "Own Castle",
+              "type": "castle",
+              "days": 2
+            }
+          ],
+          "enemy_settlements": [
+            {
+              "id": "fixture_enemy_castle",
+              "name": "Enemy Castle",
+              "type": "castle",
+              "days": 4
+            },
+            {
+              "id": "fixture_enemy_town",
+              "name": "Enemy Town",
+              "type": "town",
+              "days": 2
+            },
+            {
+              "id": "fixture_enemy_village",
+              "name": "Enemy Village",
+              "type": "village",
+              "days": 1
+            }
+          ]
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "size": 25,
+          "task": "GoToSettlement",
+          "target": "Own Town",
+          "in_army": 0,
+          "has_army": 0,
+          "army_party_count": 0,
+          "cohesion": 0
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 7
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [
+        {
+          "slot_index": 0,
+          "troop_id": "fixture_basic_1",
+          "troop_name": "Basic One",
+          "tier": 1,
+          "is_elite": false,
+          "render_key": "500000:7"
+        },
+        {
+          "slot_index": 1,
+          "troop_id": "fixture_basic_5",
+          "troop_name": "Basic Max",
+          "tier": 5,
+          "is_elite": false,
+          "render_key": "500000:7"
+        },
+        {
+          "slot_index": 2,
+          "troop_id": "fixture_elite_5",
+          "troop_name": "Elite Five",
+          "tier": 5,
+          "is_elite": true,
+          "render_key": "500000:7"
+        },
+        {
+          "slot_index": 3,
+          "troop_id": "fixture_elite_6",
+          "troop_name": "Elite Max",
+          "tier": 6,
+          "is_elite": true,
+          "render_key": "500000:7"
+        },
+        {
+          "slot_index": 4,
+          "troop_id": "fixture_basic_3",
+          "troop_name": "Basic Three",
+          "tier": 3,
+          "is_elite": false,
+          "render_key": "500000:7"
+        }
+      ],
+      "recent_refunds": []
+    },
+    "heirs_available": {
+      "success": true,
+      "heirs": [
+        {
+          "hero_id": "fixture_heir",
+          "name": "Fixture Heir"
+        }
+      ]
+    },
+    "vassal_create": {
+      "request": {
+        "action_type": "hero.create_vassal_clan",
+        "data": {
+          "heir_hero_id": "fixture_heir",
+          "vassal_name": "New Vassal",
+          "client_action_id": "party-probe-vassal_create"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "d45fdea97f4f4ef098d429caebba1ebb",
+        "charged": 0,
+        "message": "⚔️ Action hero.create_vassal_clan в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      },
+      "queued": [
+        {
+          "type": "hero.create_vassal_clan",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "parent_username": "alice",
+            "heir_hero_id": "fixture_heir",
+            "heir_name": "Fixture Heir",
+            "vassal_name": "New Vassal",
+            "placeholder_clan_id": "pending_cdc6444c56e84aaf",
+            "price": 0
+          }
+        }
+      ]
+    },
+    "vassals_pending_hidden": {
+      "success": true,
+      "vassals": []
+    },
+    "heirs_pending_reserved": {
+      "success": true,
+      "heirs": []
+    },
+    "vassals_real": {
+      "success": true,
+      "vassals": [
+        {
+          "id": 1,
+          "vassal_clan_id": "fixture_real_vassal",
+          "vassal_leader_hero_id": "fixture_heir",
+          "vassal_name": "New Vassal",
+          "income_share_pct": 25.0,
+          "banner_code": null,
+          "created_at": "2026-10-02 21:00:26"
+        }
+      ]
+    },
+    "vassal_rename": {
+      "request": {
+        "action_type": "hero.rename_vassal",
+        "data": {
+          "vassal_id": 1,
+          "new_name": "Renamed Vassal",
+          "client_action_id": "party-probe-vassal_rename"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "f73689e1dfea4b79a5da5af07e1f57d4",
+        "charged": 100,
+        "message": "⚔️ Action hero.rename_vassal в очереди (100💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      },
+      "queued": [
+        {
+          "type": "hero.rename_vassal",
+          "data": {
+            "initiated_by": "alice",
+            "target": "alice",
+            "vassal_clan_id": "fixture_real_vassal",
+            "new_name": "Renamed Vassal",
+            "old_name": "New Vassal",
+            "price": 100
+          }
+        }
+      ]
+    },
+    "vassals_renamed": {
+      "success": true,
+      "vassals": [
+        {
+          "id": 1,
+          "vassal_clan_id": "fixture_real_vassal",
+          "vassal_leader_hero_id": "fixture_heir",
+          "vassal_name": "Renamed Vassal",
+          "income_share_pct": 25.0,
+          "banner_code": null,
+          "created_at": "2026-10-02 21:00:26"
+        }
+      ]
+    },
+    "hero_clanless": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": null,
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": null,
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 7
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [
+        {
+          "slot_index": 0,
+          "troop_id": "fixture_basic_1",
+          "troop_name": "Basic One",
+          "tier": 1,
+          "is_elite": false,
+          "render_key": "500000:7"
+        },
+        {
+          "slot_index": 1,
+          "troop_id": "fixture_basic_5",
+          "troop_name": "Basic Max",
+          "tier": 5,
+          "is_elite": false,
+          "render_key": "500000:7"
+        },
+        {
+          "slot_index": 2,
+          "troop_id": "fixture_elite_5",
+          "troop_name": "Elite Five",
+          "tier": 5,
+          "is_elite": true,
+          "render_key": "500000:7"
+        },
+        {
+          "slot_index": 3,
+          "troop_id": "fixture_elite_6",
+          "troop_name": "Elite Max",
+          "tier": 6,
+          "is_elite": true,
+          "render_key": "500000:7"
+        },
+        {
+          "slot_index": 4,
+          "troop_id": "fixture_basic_3",
+          "troop_name": "Basic Three",
+          "tier": 3,
+          "is_elite": false,
+          "render_key": "500000:7"
+        }
+      ],
+      "recent_refunds": []
+    },
+    "army_no_kingdom": {
+      "request": {
+        "action_type": "hero.army_create",
+        "data": {
+          "client_action_id": "party-probe-army_no_kingdom"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Армию может собрать только член королевства"
+      }
+    },
+    "party_no_clan": {
+      "request": {
+        "action_type": "hero.create_party",
+        "data": {
+          "client_action_id": "party-probe-party_no_clan"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Сначала создай свой клан — party требует clan-leader статус."
+      }
+    },
+    "clan_create": {
+      "request": {
+        "action_type": "hero.create_clan",
+        "data": {
+          "clan_name": "Fixture New Clan",
+          "client_action_id": "party-probe-clan_create"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "b0cfe64a567848fe9e252b41f556311a",
+        "charged": 0,
+        "message": "⚔️ Action hero.create_clan в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 600
+      },
+      "queued": [
+        {
+          "type": "hero.create_clan",
+          "data": {
+            "clan_name": "Fixture New Clan",
+            "client_action_id": "party-probe-clan_create",
+            "_user_role": "viewer",
+            "hero_gold_cost": 1000000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "clan_join": {
+      "request": {
+        "action_type": "hero.join_clan",
+        "data": {
+          "clan_name": "Fixture Existing Clan",
+          "client_action_id": "party-probe-clan_join"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "5925eb3727e24fa1bd5959cf2904aa6f",
+        "charged": 0,
+        "message": "⚔️ Action hero.join_clan в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 120
+      },
+      "queued": [
+        {
+          "type": "hero.join_clan",
+          "data": {
+            "clan_name": "Fixture Existing Clan",
+            "client_action_id": "party-probe-clan_join",
+            "_user_role": "viewer",
+            "hero_gold_cost": 50000,
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    },
+    "hero_clan_member": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 2000000,
+        "location": null,
+        "adopted_at": "2026-10-02 21:00:26",
+        "last_sync": "2026-10-02 21:00:26",
+        "level": 1,
+        "clan_name": "Native Clan",
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "Native Clan",
+          "is_leader": false,
+          "leader_name": "Alice Hero",
+          "members_count": 3,
+          "tier": 3,
+          "renown": 1300,
+          "fiefs_count": 2,
+          "parties_count": 0,
+          "vassal_heirs": [
+            {
+              "hero_id": "fixture_heir",
+              "name": "Fixture Heir"
+            }
+          ]
+        },
+        "kingdom_info": null,
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": null,
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 7
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [
+        {
+          "slot_index": 0,
+          "troop_id": "fixture_basic_1",
+          "troop_name": "Basic One",
+          "tier": 1,
+          "is_elite": false,
+          "render_key": "2000000:7"
+        },
+        {
+          "slot_index": 1,
+          "troop_id": "fixture_basic_5",
+          "troop_name": "Basic Max",
+          "tier": 5,
+          "is_elite": false,
+          "render_key": "2000000:7"
+        },
+        {
+          "slot_index": 2,
+          "troop_id": "fixture_elite_5",
+          "troop_name": "Elite Five",
+          "tier": 5,
+          "is_elite": true,
+          "render_key": "2000000:7"
+        },
+        {
+          "slot_index": 3,
+          "troop_id": "fixture_elite_6",
+          "troop_name": "Elite Max",
+          "tier": 6,
+          "is_elite": true,
+          "render_key": "2000000:7"
+        },
+        {
+          "slot_index": 4,
+          "troop_id": "fixture_basic_3",
+          "troop_name": "Basic Three",
+          "tier": 3,
+          "is_elite": false,
+          "render_key": "2000000:7"
+        }
+      ],
+      "recent_refunds": []
+    },
+    "army_not_clan_leader": {
+      "request": {
+        "action_type": "hero.army_create",
+        "data": {
+          "client_action_id": "party-probe-army_not_clan_leader"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Армию может собрать только лидер клана"
+      }
+    },
+    "clan_leave": {
+      "request": {
+        "action_type": "hero.leave_clan",
+        "data": {
+          "client_action_id": "party-probe-clan_leave"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "01b5e2f477344127a46484af52a6e966",
+        "charged": 0,
+        "message": "⚔️ Action hero.leave_clan в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 60
+      },
+      "queued": [
+        {
+          "type": "hero.leave_clan",
+          "data": {
+            "client_action_id": "party-probe-clan_leave",
+            "_user_role": "viewer",
+            "price": 0,
+            "reward_boost": 1.0,
+            "_perk_label": "viewer",
+            "initiated_by": "alice",
+            "target": "alice"
+          }
+        }
+      ]
+    }
+  }
+}

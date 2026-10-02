@@ -128,3 +128,24 @@ for(const [saved,expected] of [['combat','Боевые действия'],['hero
 it('60-second balance phase survives same-viewer token resolution without leaking old authorization',async()=>{
   const s=await setup({'/api/viewer/stats/alice':{...f.stats,points:299}});await s.advance(30000);await act(async()=>{s.authorize({...initial,token:'rotated'});await flush();});s.routes['/api/viewer/stats/alice']={...f.stats,points:300};const before=s.trace.filter(r=>r.path==='/api/viewer/stats/alice').length;await s.advance(30000);const reads=s.trace.filter(r=>r.path==='/api/viewer/stats/alice');expect(reads).toHaveLength(before+1);expect(reads.at(-1)?.token).toBe('rotated');expect(s.button('[data-bnr-build-activate="rage"]').disabled).toBe(false);
 });
+it('restored inventory preloads first but cannot act until its initial owned hero snapshot is known',async()=>{
+  const hero=deferred<Response>();const s=await setup({'/api/bannerlord/my-hero':hero.promise},'inventory');
+  expect(s.trace.filter(r=>r.path!=='/api/user/resolve-twitch-token')[0].path).toBe('/api/bannerlord/equipment-shop');
+  await act(async()=>{s.ui.getByRole('button',{name:'Снаряжение'}).click();await flush();});
+  expect([...s.ui.container.querySelectorAll('[data-bnr-eq-buy]')].every(n=>(n as HTMLButtonElement).disabled)).toBe(true);expect(s.posts()).toHaveLength(0);
+  hero.resolve(response(f.hero));await act(flush);expect(s.trace.filter(r=>r.path.endsWith('/equipment-shop'))).toHaveLength(1);
+  expect(s.ui.container.querySelector('[data-bnr-eq-buy]')).toBeTruthy();
+});
+it('slow restored-inventory preload cannot overwrite a newer observable hero snapshot',async()=>{
+  const old=deferred<Response>();const s=await setup({'/api/bannerlord/equipment-shop':old.promise},'inventory');
+  await act(async()=>{s.ui.getByRole('button',{name:'Снаряжение'}).click();await flush();});
+  s.routes['/api/bannerlord/my-hero']={...f.hero,hero:{...f.hero.hero,hero_id:'test_hero_successor'}};s.routes['/api/bannerlord/equipment-shop']=f.equipment_dead;await s.load('Hero');
+  const requests=s.trace.filter(r=>r.path.endsWith('/equipment-shop')).length;expect(requests).toBe(2);
+  old.resolve(response(f.equipment_inventory));await act(flush);expect(s.ui.container.querySelector('[data-bnr-eq-buy]')).toBeNull();
+});
+it('slow restored-inventory preload is cleared across viewer identity replacement',async()=>{
+  const old=deferred<Response>();const s=await setup({'/api/bannerlord/equipment-shop':old.promise},'inventory');
+  await act(async()=>{s.ui.getByRole('button',{name:'Снаряжение'}).click();await flush();});
+  s.routes['/api/user/resolve-twitch-token']={login:'carol'};s.routes['/api/bannerlord/equipment-shop']=f.equipment_dead;await act(async()=>{s.authorize({...initial,userId:'opaque-carol',token:'carol-token'});await flush();});
+  expect(s.trace.filter(r=>r.path.endsWith('/equipment-shop')).at(-1)?.token).toBe('carol-token');old.resolve(response(f.equipment_inventory));await act(flush);expect(s.ui.container.querySelector('[data-bnr-eq-buy]')).toBeNull();
+});

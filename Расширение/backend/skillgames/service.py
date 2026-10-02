@@ -369,7 +369,9 @@ class SkillgameService:
                                                (cid,user,game))).fetchone()
                 ratings[game] = stat[0] if stat else config.ELO_START
             return dict(success=True,catalog=config.catalog(),active_session=self._projection(row,user) if row else None,
-                        queue=queue,ratings=ratings,server_time=time.time(),poll_interval_ms=config.POLL_INTERVAL_MS)
+                        queue=queue,ratings=ratings,server_time=time.time(),poll_interval_ms=config.POLL_INTERVAL_MS,
+                        request_retention_seconds=config.REQUEST_RETENTION_SECONDS,
+                        session_retention_seconds=config.SESSION_RETENTION_SECONDS,max_requests_per_user=config.MAX_RECEIPTS_PER_USER)
 
     async def _new(self, conn, cid, players, game, mode, difficulty=None):
         now, sid = time.time(), uuid.uuid4().hex

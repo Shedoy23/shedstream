@@ -3,10 +3,16 @@ Run with /tmp/preact-backend-venv/bin/python, repository root as first argument.
 Representative state is seeded using existing backend test infrastructure;
 every saved endpoint body is emitted by a real route handler.
 """
-import asyncio, copy, json, sys, tempfile, time
+import asyncio, atexit, copy, json, os, sys, tempfile, time
 from pathlib import Path
 REPO=Path(sys.argv[1]).resolve()
 OUT=Path(__file__).parent
+# Importing backend config must never touch a real home/game path. This process
+# always owns an unused temporary prices file, even when the caller omits env.
+_fixture_config=tempfile.TemporaryDirectory(prefix='panel-fixture-config-')
+atexit.register(_fixture_config.cleanup)
+os.environ['RIMWORLD_PRICES_PATH']=str(Path(_fixture_config.name)/'unused-prices.json')
+sys.dont_write_bytecode=True
 sys.path[:0]=[str(REPO/'Расширение/backend/tests'),str(REPO/'Расширение/backend')]
 from test_bannerlord_buy_action import _build_db, _make_anon_request, CHANNEL_ID
 

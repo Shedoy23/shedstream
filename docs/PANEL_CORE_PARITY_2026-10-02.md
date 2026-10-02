@@ -20,11 +20,11 @@ success-tail больше не заменены сокращёнными выд�
 или конкретном ответе сервера в production. Настоящая форма role refusal используется
 как forward-compatibility edge: текущие development actions не role-gated.
 
-Повтор генератора из корня (локальный путь нужен импортируемому RimWorld config):
+Повтор генератора из корня (сам скрипт изолирует импортируемый RimWorld config
+во временный неигровой путь, даже если вызывающий не передал environment):
 
 ```sh
-RIMWORLD_PRICES_PATH=/tmp/preact-local-unused-prices.json PYTHONDONTWRITEBYTECODE=1 \
-  /tmp/preact-backend-venv/bin/python frontend-next/test/panel-fixtures/generate-responses.py .
+/tmp/preact-backend-venv/bin/python frontend-next/test/panel-fixtures/generate-responses.py .
 ```
 
 `panel-legacy-harness.ts` читает script order из неизменённого `extension.html`
@@ -137,3 +137,10 @@ batch_id, как и action ID, нормализуется; содержимое,
 сортировка по исходному handle неверно ставила его перед давно запланированным
 one-shot timeout с тем же deadline. Теперь оба clock используют порядок
 повторного планирования; сами deadlines 30s/2.5s и traces не подменены.
+
+Три дополнительные controlled mutations снимали по очереди hook action_attempt,
+panel_view и section_open из настоящего controller. Все три дали assertion
+failure в полном host trace (exit 1), восстановленный host suite — exit 0.
+Файл генератора также прогнан без RIMWORLD_PRICES_PATH: 40 реальных fixtures,
+exit 0, цены направлены в принадлежащий самому процессу TemporaryDirectory;
+после выхода он удаляется. Backend bytecode при импорте не записывается.

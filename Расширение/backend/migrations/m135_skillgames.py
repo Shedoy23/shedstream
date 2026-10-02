@@ -56,6 +56,10 @@ async def apply(conn):
         );
         CREATE INDEX IF NOT EXISTS skillgame_sessions_status
             ON skillgame_sessions(channel_id,status,created_at);
+        CREATE INDEX IF NOT EXISTS skillgame_player_history
+            ON skillgame_players(channel_id,username,active,session_id);
+        CREATE INDEX IF NOT EXISTS skillgame_sessions_retention
+            ON skillgame_sessions(channel_id,created_at);
         CREATE INDEX IF NOT EXISTS skillgame_requests_retention
             ON skillgame_requests(channel_id,created_at);
         CREATE INDEX IF NOT EXISTS skillgame_queue_age

@@ -4,7 +4,7 @@ import logging
 import time
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError, model_validator
 
@@ -86,7 +86,8 @@ async def _dispatch(request, operation, model=None):
             payload = await _body(request,model)
         service = get_service()
         if operation=='config':
-            return dict(success=True,catalog=config.catalog(),server_time=time.time(),poll_interval_ms=config.POLL_INTERVAL_MS)
+            return dict(success=True,catalog=config.catalog(),server_time=time.time(),poll_interval_ms=config.POLL_INTERVAL_MS,request_retention_seconds=config.REQUEST_RETENTION_SECONDS,
+                        session_retention_seconds=config.SESSION_RETENTION_SECONDS,max_requests_per_user=config.MAX_RECEIPTS_PER_USER)
         if operation=='state':
             sid = request.query_params.get('session_id')
             if sid is not None and (not sid or len(sid)>64): raise GameError('invalid_request',422)
@@ -98,6 +99,8 @@ async def _dispatch(request, operation, model=None):
         else:
             data,code = await service.queue(cid,user,payload,cancel=operation=='cancel')
         return JSONResponse(data,status_code=code)
+    except HTTPException:
+        raise  # Authentication/channel/rate errors retain status, detail and headers.
     except GameError as exc:
         return JSONResponse(dict(success=False,reason=exc.reason,message=exc.message),status_code=exc.status)
     except Exception:

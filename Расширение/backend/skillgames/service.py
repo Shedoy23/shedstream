@@ -24,12 +24,12 @@ ACTIVE = ('awaiting_first_move', 'generating', 'active')
 class GameError(Exception):
     def __init__(self, reason, status=409, message=None):
         self.reason, self.status = reason, status
-        self.message = message or reason
+        self.message = message or config.message(reason)
         super().__init__(reason)
 
 
 def _json(value):
-    return json.dumps(value, sort_keys=True, separators=(',', ':'))
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
 
 
 def _fingerprint(operation, payload):
@@ -197,10 +197,37 @@ class SkillgameService:
             if result['outcome'] != 'void':
                 result['outcome'] = ('draw' if result['winner'] is None and row['game_type']=='battleship'
                                      else 'win' if result['winner']==user else 'loss')
+            result['message'] = {'win':'Победа', 'loss':'Поражение', 'draw':'Ничья', 'void':'Попытка отменена'}[result['outcome']]
+            result['reason_message'] = config.message(result['reason'])
         return {key: row[key] for key in ('id','game_type','mode','difficulty','status','version','created_at','started_at','expires_at')} | {
             'state': public, 'result': result, 'rules':row['rules']}
 
+    async def _maintenance(self, conn, cid):
+        # Bounded work, scoped by channel. No board or proof enters the durable
+        # result audit. Old result/rating ledgers are deliberately never pruned.
+        await conn.execute('DELETE FROM skillgame_requests WHERE channel_id=? AND rowid IN '
+                           '(SELECT rowid FROM skillgame_requests WHERE channel_id=? AND created_at<? LIMIT 256)',
+                           (cid,cid,time.time()-config.REQUEST_RETENTION_SECONDS))
+        history = await (await conn.execute('SELECT id FROM skillgame_sessions '
+            'WHERE channel_id=? AND created_at<? ORDER BY created_at LIMIT 8',
+            (cid,time.time()-config.SESSION_RETENTION_SECONDS))).fetchall()
+        for (sid,) in history:
+            row = await self._load(conn,cid,sid)
+            if row['status'] in ACTIVE:
+                await self._expire(conn,row)
+            if row['status'] not in ACTIVE:
+                await conn.execute('DELETE FROM skillgame_players WHERE channel_id=? AND session_id=?',(cid,sid))
+                await conn.execute('DELETE FROM skillgame_sessions WHERE channel_id=? AND id=?',(cid,sid))
+
+    async def _clear_stale_generations(self, conn, cid):
+        candidates = await (await conn.execute('SELECT id FROM skillgame_sessions '
+            "WHERE channel_id=? AND status='generating' ORDER BY created_at LIMIT 16",(cid,))).fetchall()
+        for (sid,) in candidates:
+            row = await self._load(conn,cid,sid)
+            await self._expire(conn,row)
+
     async def _receipt(self, conn, cid, user, request_id, fingerprint):
+        await self._maintenance(conn,cid)
         record = await (await conn.execute('SELECT fingerprint,response,http_status FROM skillgame_requests '
                                           'WHERE channel_id=? AND username=? AND request_id=?', (cid,user,request_id))).fetchone()
         if record:
@@ -209,6 +236,11 @@ class SkillgameService:
             if record[1] is None:
                 raise GameError('generation_in_progress', 409)
             return json.loads(record[1]), record[2]
+        retained = await (await conn.execute('SELECT COUNT(*) FROM skillgame_requests '
+            'WHERE channel_id=? AND username=? AND created_at>=?',
+            (cid,user,time.time()-config.REQUEST_RETENTION_SECONDS))).fetchone()
+        if retained[0]>=config.MAX_RECEIPTS_PER_USER:
+            raise GameError('request_rate_limited',429)
         return None
 
     async def _record(self, conn, cid, user, request_id, fingerprint, response, code=200, sid=None):
@@ -339,6 +371,9 @@ class SkillgameService:
             if row and (row['game_type'] != payload['game_type'] or row['mode'] != payload['mode']):
                 raise GameError('active_session')
             if row is None:
+                availability = config.GAME_AVAILABILITY[payload['game_type']]
+                if not availability['enabled']:
+                    raise GameError('game_unavailable',409,availability['reason'])
                 queued = await self._queue_state(conn,cid,user)
                 if payload['mode']=='ranked' and queued['status']=='queued':
                     raise GameError('already_queued')
@@ -369,6 +404,9 @@ class SkillgameService:
             elif row and (row['game_type']!='battleship' or row['mode']!='ranked'):
                 raise GameError('active_ranked_session')
             elif row is None:
+                availability = config.GAME_AVAILABILITY['battleship']
+                if not availability['enabled']:
+                    raise GameError('game_unavailable',409,availability['reason'])
                 candidates = await (await conn.execute('SELECT username FROM skillgame_queue '
                     'WHERE channel_id=? AND username!=? ORDER BY queued_at LIMIT 20',(cid,user))).fetchall()
                 opponent = None
@@ -402,7 +440,7 @@ class SkillgameService:
                 expired_pending = row['status']=='active' and row['expires_at'] is not None and time.time()>=row['expires_at']
                 if row['status'] not in ACTIVE or row['version'] != payload['version'] or expired_pending:
                     reason = 'expiry_verification_pending' if expired_pending else 'stale_version'
-                    result = dict(success=False,reason=reason,message='Обнови состояние игры',session=self._projection(row,user),server_time=time.time())
+                    result = dict(success=False,reason=reason,message=config.message(reason),session=self._projection(row,user),server_time=time.time())
                     await self._record(conn,cid,user,payload['request_id'],fp,result,409,row['id'])
                     return result,409
                 if row['status']=='generating': raise GameError('generation_in_progress')
@@ -416,10 +454,15 @@ class SkillgameService:
                 elif row['game_type']=='minesweeper' and row['secret_state'] is None:
                     if action!='open' or payload.get('cell') is None: raise GameError('first_action_must_open',422)
                     if self._generating >= config.GENERATION_CONCURRENCY: raise GameError('generation_busy',503)
+                    # Orphan reservations must not require their old viewer to return.
+                    await self._clear_stale_generations(conn,cid)
                     # Global DB count bounds concurrent workers, not only this instance.
                     count = await (await conn.execute('SELECT COUNT(*) FROM skillgame_sessions WHERE channel_id=? AND status=?',
                                                      (cid,'generating'))).fetchone()
-                    if count[0] >= config.GENERATION_CONCURRENCY: raise GameError('generation_busy',503)
+                    if count[0] >= config.GENERATION_CONCURRENCY:
+                        # Commit bounded cleanup even if more stale/live rows remain.
+                        # Failed admission does not consume the retry ID.
+                        return dict(success=False,reason='generation_busy',message=config.message('generation_busy')),503
                     self._generating += 1
                     reserved = True
                     row['status'] = 'generating'

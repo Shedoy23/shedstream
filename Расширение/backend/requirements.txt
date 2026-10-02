@@ -1,4 +1,6 @@
 fastapi==0.104.1
+# Skill-game strict bodies use model_validator/model_validate_json (Pydantic v2).
+pydantic==2.13.5
 uvicorn==0.24.0
 # 25.09.2026: быстрый цикл событий и разбор HTTP — uvicorn подхватывает их сам
 # (loop/http = auto). На стриме сервер упёрся в 1 ядро на ~50 запросах/с.

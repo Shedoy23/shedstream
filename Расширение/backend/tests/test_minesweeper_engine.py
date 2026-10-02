@@ -11,6 +11,7 @@ import random
 import sys
 import time
 import unittest
+from itertools import combinations
 from pathlib import Path
 from unittest.mock import patch
 
@@ -223,6 +224,18 @@ class MinesweeperEngineTests(unittest.TestCase):
         state = game.apply_action(state, 'open', safe)
         self.assertEqual(state['status'], 'won')
 
+    def test_flag_limit_and_solver_step_limit_are_enforced(self):
+        state = self.make()
+        for cell in state['mines']:
+            state = game.apply_action(state, 'flag', cell)
+        hidden_safe = next(c for c in range(36)
+                           if c not in state['mines'] and str(c) not in state['opened'])
+        with self.assertRaises(game.InvalidAction):
+            game.apply_action(state, 'flag', hidden_safe)
+        with self.assertRaises(game.GenerationError):
+            game.certify_board(state['mines'], state['first_cell'],
+                               limits=game.GenerationLimits(max_solver_steps=0))
+
     def test_exhausted_generation_never_returns_uncertified_fallback(self):
         for limits in (game.GenerationLimits(max_attempts=0),
                        game.GenerationLimits(max_seconds=0),
@@ -239,9 +252,34 @@ class MinesweeperEngineTests(unittest.TestCase):
                 game.initialize(0, limits=game.GenerationLimits(max_seconds=1))
 
     def test_ambiguous_layout_is_refused_and_proof_budgets_enforced(self):
-        # Safe first region, but the two remaining corner candidates are symmetric.
-        mines = [5, 30, 34, 35, 29]
+        # Independently enumerate all layouts consistent with the stalled clues.
+        # Every unknown (except proven mine 2) can still be either safe or a mine.
+        mines = {2, 9, 25, 29, 35}
+        opened = {0, 1, 6, 7, 12, 13, 8, 14, 18, 19, 20, 26}
+        unknown = set(range(36)) - opened
+        models = []
+        for positions in combinations(sorted(unknown - {2}), 4):
+            candidate = set(positions) | {2}
+            if all(len(neighbors(c) & candidate) == len(neighbors(c) & mines)
+                   for c in opened):
+                models.append(candidate)
+        self.assertGreater(len(models), 1)
+        self.assertEqual(set.intersection(*models), {2})
+        self.assertEqual(set.union(*models), unknown)
         self.assertIsNone(game.certify_board(mines, 0, allow_subset=True))
+
+        class RepeatedAmbiguousLayout:
+            calls = 0
+
+            def sample(self, population, k):
+                self.calls += 1
+                return sorted(mines)
+
+        source = RepeatedAmbiguousLayout()
+        with self.assertRaises(game.GenerationError):
+            game.initialize(0, rng=source,
+                            limits=game.GenerationLimits(max_attempts=3))
+        self.assertEqual(source.calls, 3)
         with self.assertRaises(game.GenerationError):
             game.certify_board(self.make()['mines'], 14,
                                limits=game.GenerationLimits(max_work=0))

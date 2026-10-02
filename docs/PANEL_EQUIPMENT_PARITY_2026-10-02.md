@@ -93,6 +93,22 @@ JWT, Content-Type и cache. Нормализуется только случай
    отключает их кнопки. Чтение, поиск и вкладки доступны. Это намеренное отличие
    общего транспорта; ограничение после перезагрузки страницы описано в core-отчёте
 
+## Повторное нажатие активной вкладки: дополнительная проверка
+
+По замечанию независимого чтения исходников дополнительно воспроизведён настоящий
+DOM-сценарий: два нажатия активной вкладки «Снаряжение», пока первый GET ещё ждёт
+ответа. Старая панель отправила один GET, новая до исправления — два; тест упал
+**exit 1** (`ce10d3f`, `equipment-singleflight-red.log`).
+
+Исправление `9e8d737` объединяет только чтения одинакового контекста:
+identity generation + наблюдаемый hero identity + action revision. Новая личность,
+новый герой или подтверждённое действие немедленно разрешают новый авторитетный
+GET. Завершение прежнего GET не может освободить замок более нового. После ошибки
+следующее явное чтение снова работает; pending barrier сохранён. Это не блокирует
+явные чтения скрытой карточки. Три дополнительные контрольные поломки (убрать
+single-flight, разрешить старому finally освободить новый flight, убрать revision
+из ключа) дали exit 1; после точного восстановления все тесты зелёные.
+
 ## Красное → зелёное
 
 Базовые equipment-тесты были закоммичены красными до реализации (`e0148b2`,
@@ -100,7 +116,7 @@ JWT, Content-Type и cache. Нормализуется только случай
 observable hero iteration `2e922fe`; некорректные котировки/ошибки `37575aa`;
 скрытый explicit refresh и конфигурация оформления `02adaca`.
 
-После реализации выполнены 11 независимых контрольных поломок своих файлов:
+Первоначально выполнены 11 независимых контрольных поломок своих файлов:
 неверные item_id/owned_id/слот надевания/слот снятия/ID выбрасывания;
 пропуск replace_modifier_id; перестановка двух expected-цен; пропуск equip_now;
 лишняя price:0 у обычной покупки; снятие revision barrier; разрешение неверной цены.
@@ -111,13 +127,14 @@ observable hero iteration `2e922fe`; некорректные котировки
 
 ```
 npm --prefix frontend-next test -- test/panel-equipment.test.tsx test/panel-equipment-parity.test.tsx test/panel-app-lifecycle.test.tsx
-# 85 passed, exit 0: equipment 78 + общий lifecycle 7
+# 89 passed, exit 0: equipment 81 + общий lifecycle 8
 npm --prefix frontend-next run typecheck
 # exit 0
 ```
 
-Evidence в соседнем `preact-evidence/`: `equipment-final-restored-green.log`,
-`equipment-mutation-results.json`, 11 `equipment-mutation-*.log`,
+Evidence в соседнем `preact-evidence/`: `equipment-singleflight-restored-green.log`,
+`equipment-singleflight-mutations.json`, `equipment-final-restored-green.log`,
+`equipment-mutation-results.json`, 14 `equipment-mutation-*.log`,
 `equipment-hero-epoch-red.log`, `equipment-malformed-quote-red.log`,
 `equipment-presentation-red.log`, `equipment-hidden-refresh-red.log`.
 Общий полный прогон/сборку и real-HTTP проверки выполняет владелец общего host после

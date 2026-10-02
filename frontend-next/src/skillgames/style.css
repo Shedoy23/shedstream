@@ -77,3 +77,9 @@ select { width: 100%; min-height: 44px; border: 1px solid #425b79; border-radius
 .sg-dialog p { font-size: 13px; line-height: 1.7; color: #b2c1d5; }
 @media (max-width: 420px) { .sg-layout { padding: 16px 8px 20px; } .sg-game-card { padding: 15px; } .sg-session { padding: 12px 8px; } .sg-board { border-spacing: 2px; } h1 { font-size: 23px; } .sg-cell { font-size: 21px; } .sg-demo { font-size: 10px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+.sg-contest { color: #8da6bf; font-size: 10px; line-height: 1.6; margin: 10px 0; }
+.sg-contest summary { cursor: pointer; min-height: 32px; padding: 7px 0; }
+.sg-contest p { margin: 7px 0; }
+.sg-session-exit { display: flex; gap: 8px; }
+.sg-session-exit > button { flex: 1; }
+.sg-dialog { max-height: calc(100dvh - 28px); overflow-y: auto; }

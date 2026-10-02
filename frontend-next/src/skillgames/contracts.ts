@@ -3,7 +3,7 @@ export interface GameCatalog {
   game_type: string; name: string; rules: string[]; modes: string[];
   difficulties: { id: string; label: string; mine_count?: number; puzzle_rating?: number }[];
   board: { rows: number; cols: number }; fleet?: number[];
-  timers: Record<string, number>; rewards: { enabled: boolean; reason: string };
+  timers: Record<string, number>; rewards: { enabled: boolean; reason: string; immediate_points?: number; seasonal_points?: number };
   rating: Record<string, unknown>;
   [key: string]: unknown;
 }

@@ -47,7 +47,7 @@ function Battleship({ session, disabled, act }: { session: Session; disabled: bo
     {placement ? <><h2>Расставьте флот</h2><p className="sg-hint">Выберите корабль, направление и его первую клетку. Правильность расстановки проверит сервер.</p>
       <div className="sg-ships">{fleet.map((size, index) => <button key={index} disabled={locked} aria-pressed={selected === index} aria-label={`Корабль ${index + 1}, ${size} клетки`} onClick={() => setSelected(index)}>{Array.from({ length: size }, () => '■').join('')} <span>{index + 1}</span></button>)}</div>
       <div className="sg-segment"><button disabled={locked} aria-pressed={!vertical} onClick={() => setVertical(false)}>Горизонтально</button><button disabled={locked} aria-pressed={vertical} onClick={() => setVertical(true)}>Вертикально</button></div>
-      {placementError && <p className="error" role="alert">{placementError}</p>}
+      {placementError && <p className="sg-error" role="alert">{placementError}</p>}
     </> : <><div className="sg-turn" role="status">{terminal(session) ? 'Матч завершён' : state.your_turn ? 'Ваш ход' : 'Ход соперника'}</div><div className="sg-segment"><button aria-pressed={!ownBoard} onClick={() => setOwnBoard(false)}>Поле соперника</button><button aria-pressed={ownBoard} onClick={() => setOwnBoard(true)}>Моё поле</button></div></>}
     <Board rows={state.rows} cols={state.cols} label={showOwn ? 'Моё поле' : 'Поле соперника'} renderCell={cell => {
       const shot = shotMap.get(cell); const ship = showOwn && visibleFleet.includes(cell); const description = shot === 'hit' ? 'попадание' : shot === 'miss' ? 'промах' : ship ? 'корабль' : 'неизвестно';
@@ -58,29 +58,41 @@ function Battleship({ session, disabled, act }: { session: Session; disabled: bo
       <p className="sg-hint">Соперник {state.opponent_ready ? 'готов' : 'расставляет корабли'}</p></> : <p className="sg-hint">Потоплено кораблей соперника: {String(state.sunk_count ?? '—')}</p>}
   </section>;
 }
+function RewardDisclosure({ game }: { game: GameCatalog }) {
+  const contest = isRecord(game.contest) ? game.contest : null;
+  return <div className="sg-disclosures">{contest?.free_entry === true && <p className="sg-hint">Вход бесплатный</p>}<p className="sg-rewards">{game.rewards.enabled ? 'Сезонные награды включены: ' : ''}{game.rewards.reason}</p>
+    {typeof game.rewards.immediate_points === 'number' && <p className="sg-hint">Крустики за отдельную победу: {game.rewards.immediate_points}</p>}
+    {typeof game.balance_status === 'string' && <p className="sg-hint">{game.balance_status}</p>}
+    {contest && <details className="sg-contest"><summary>Организатор и условия</summary>
+      {typeof contest.sponsor === 'string' && <p>Организатор: {contest.sponsor}</p>}
+      {Array.isArray(contest.not_sponsors) && <p>Не являются спонсорами: {contest.not_sponsors.filter(item => typeof item === 'string').join(', ')}</p>}
+      {typeof contest.eligibility === 'string' && <p>{contest.eligibility}</p>}
+    </details>}
+  </div>;
+}
 function CatalogCard({ game, rating, disabled, onSubmit }: { game: GameCatalog; rating?: number; disabled: boolean; onSubmit: Submit }) {
   const [difficulty, setDifficulty] = useState(game.difficulties[0]?.id || '');
   useEffect(() => { if (!game.difficulties.some(d => d.id === difficulty)) setDifficulty(game.difficulties[0]?.id || ''); }, [game.difficulties, difficulty]);
   return <article className="sg-game-card"><div className="sg-card-title"><span className="sg-game-icon" aria-hidden="true">{game.game_type === 'battleship' ? '⚓' : game.game_type === 'minesweeper' ? '⚑' : '◇'}</span><div><h2>{game.name}</h2><span className="sg-hint">Рейтинг канала: {rating ?? '—'}</span></div></div>
-    <ul className="sg-rules">{game.rules.map((rule, index) => <li key={index}>{rule}</li>)}</ul>
+    <p className="sg-hint">Поле: {game.board.rows} × {game.board.cols}{Array.isArray(game.fleet) ? ` · Флот: ${game.fleet.join(" / ")}` : ""}</p><ul className="sg-rules">{game.rules.map((rule, index) => <li key={index}>{rule}</li>)}</ul>
     <p className="sg-timers">{Object.entries(game.timers).map(([key, seconds]) => `${timerName[key] || key}: ${seconds} с`).join(' · ')}</p>
-    <p className="sg-rewards">{game.rewards.enabled ? 'Сезонные награды включены: ' : ''}{game.rewards.reason}</p>
+    <RewardDisclosure game={game} />
     {!knownGame(game.game_type) ? <p className="sg-hint">Нужна более новая версия панели</p> : <>
       {game.difficulties.length > 0 && <label className="sg-difficulty">Сложность<select value={difficulty} onChange={event => setDifficulty(event.target.value)} disabled={disabled}>{game.difficulties.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}</select></label>}
       <div className="sg-actions">{game.modes.filter(mode => mode === 'ranked' || mode === 'practice').map(mode => <button className={mode === 'ranked' ? 'sg-primary' : ''} disabled={disabled} key={mode} onClick={() => game.game_type === 'battleship' ? onSubmit('queue', {}) : onSubmit('start', { game_type: game.game_type, mode, difficulty })}>{game.game_type === 'battleship' ? 'Найти соперника' : modeName(mode)}</button>)}</div>
     </>}
   </article>;
 }
-function Confirmation({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+function Confirmation({ onCancel, onConfirm, action, rules }: { onCancel: () => void; onConfirm: () => void; action: 'quit' | 'restart'; rules: string[] }) {
   const cancel = useRef<HTMLButtonElement>(null);
   useEffect(() => { const previous = document.activeElement as HTMLElement | null; cancel.current?.focus(); return () => { previous?.focus(); }; }, []);
-  return <div className="sg-dialog-backdrop"><section className="sg-dialog" role="dialog" aria-modal="true" aria-labelledby="quit-title" onKeyDown={event => { if (event.key === 'Escape') onCancel(); if (event.key === 'Tab') { event.preventDefault(); const target = event.currentTarget.querySelectorAll('button'); (document.activeElement === target[0] ? target[1] : target[0]).focus(); } }}><h2 id="quit-title">Завершить эту партию?</h2><p>Выход после начала рейтинговой игры засчитывается как поражение. Закрытие панели само по себе не завершает игру; серверный срок продолжает идти.</p><div className="sg-actions"><button ref={cancel} onClick={onCancel}>Остаться</button><button className="sg-danger" onClick={onConfirm}>Подтвердить выход</button></div></section></div>;
+  return <div className="sg-dialog-backdrop"><section className="sg-dialog" role="dialog" aria-modal="true" aria-labelledby="quit-title" onKeyDown={event => { if (event.key === 'Escape') onCancel(); if (event.key === 'Tab') { event.preventDefault(); const target = event.currentTarget.querySelectorAll('button'); (document.activeElement === target[0] ? target[1] : target[0]).focus(); } }}><h2 id="quit-title">{action === 'restart' ? 'Сбросить эту попытку?' : 'Завершить эту партию?'}</h2><p>Сервер завершит текущую партию по её правилам. Если это поражение, он изменит рейтинг. Новую игру нужно будет выбрать отдельно.</p><ul className="sg-rules">{rules.map((rule, index) => <li key={index}>{rule}</li>)}</ul><div className="sg-actions"><button ref={cancel} onClick={onCancel}>Остаться</button><button className="sg-danger" onClick={onConfirm}>{action === 'restart' ? 'Подтвердить сброс' : 'Подтвердить выход'}</button></div></section></div>;
 }
 export function SkillgameView({ state, onSubmit, onRefresh, onRetry, demo, localIntegration }: Props) {
-  const [confirmQuit, setConfirmQuit] = useState(false); const [now, setNow] = useState(Date.now());
+  const [confirmQuit, setConfirmQuit] = useState<'quit' | 'restart' | null>(null); const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const data = state.data; const session = data?.active_session; const config = session?.rules || data?.catalog.find(game => game.game_type === session?.game_type);
-  useEffect(() => setConfirmQuit(false), [session?.id]);
+  useEffect(() => setConfirmQuit(null), [session?.id]);
   const serverNow = (data?.server_time ?? state.receivedAt / 1000) + (now - state.receivedAt) / 1000;
   const remaining = session?.expires_at != null ? Math.max(0, Math.ceil(session.expires_at - serverNow)) : null;
   const act = (command: Command) => { if (session && state.canAct) onSubmit('action', { session_id: session.id, version: session.version, ...command }); };
@@ -89,21 +101,21 @@ export function SkillgameView({ state, onSubmit, onRefresh, onRetry, demo, local
     {localIntegration && !demo && <aside className="sg-demo"><strong>ЛОКАЛЬНЫЙ API-СТЕНД</strong><p>Настоящий локальный сервер и временная база. Тестовые Twitch-личности; production не подключён.</p></aside>}
     <nav className="sg-nav" aria-label="Раздел"><span aria-current="page">Мини-игры</span><a href="./tournament.html">Макет турнира</a></nav>
     <div className="sg-page-heading"><div><p className="sg-eyebrow">ДУМАЙ · ИГРАЙ</p><h1>Твой следующий ход</h1></div><button aria-label="Обновить состояние" disabled={state.pending} onClick={onRefresh}>↻</button></div>
-    <p className="sg-subtitle">Бесплатные игры. Результат и рейтинг определяет сервер канала.</p>
+    <p className="sg-subtitle">Игры зрителей. Результат и рейтинг определяет сервер канала.</p>
     {state.error && <p className="sg-error" role="alert">{state.error}</p>}
     {state.notice && <p className="sg-notice" role="status">{state.notice}</p>}
     {state.pending && <p role="status" className="sg-hint">Ждём ответ сервера…</p>}
     {state.uncertain && <button className="sg-primary" disabled={state.pending} onClick={onRetry}>Безопасно повторить тот же запрос</button>}
     {state.loading && !data && <p className="sg-hint" role="status">Загружаем правила и сохранённую партию…</p>}
-    {data?.queue.status === 'queued' && <section className="sg-session"><h2>Ищем соперника</h2><p className="sg-hint">Можно закрыть панель и вернуться. Поиск и его срок хранит сервер.</p><button disabled={!state.canAct} onClick={() => onSubmit('cancel', {})}>Отменить поиск</button></section>}
+    {data?.queue.status === 'queued' && <section className="sg-session"><h2>Ищем соперника</h2><p className="sg-hint">Можно закрыть панель и вернуться. Поиск и его срок хранит сервер.</p>{typeof data.queue.expires_at === 'number' && <p className="sg-expiry">До конца поиска: {Math.max(0, Math.ceil(data.queue.expires_at - serverNow))} с</p>}<button disabled={!state.canAct} onClick={() => onSubmit('cancel', {})}>Отменить поиск</button></section>}
     {session && <article className="sg-session"><header className="sg-session-heading"><div><p className="sg-eyebrow">{modeName(session.mode)}</p><h2>{config?.name || session.game_type}</h2></div><span className="sg-version">#{session.version}</span></header>
       {remaining !== null && !terminal(session) && <p className="sg-expiry">{remaining ? `Осталось по времени сервера: ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}` : 'Срок по часам панели истёк. Ожидаем решение сервера.'}</p>}
-      {config && <p className="sg-rewards">{config.rewards.reason}</p>}
+      {config && <RewardDisclosure game={config} />}
       {session.game_type === 'minesweeper' ? <Mines session={session} disabled={!state.canAct} act={act} /> : session.game_type === 'battleship' ? <Battleship session={session} disabled={!state.canAct} act={act} /> : <p>Неизвестная игра. Обновите панель.</p>}
-      {terminal(session) ? <div className="sg-result" role="status"><h3>{session.result?.outcome || 'Партия завершена'}</h3><p>{session.result?.reason || session.status}</p>{session.result?.rating && <p>Рейтинг: {session.result.rating.before} → {session.result.rating.after} ({session.result.rating.delta > 0 ? '+' : ''}{session.result.rating.delta})</p>}<p className="sg-hint">Следующую игру можно выбрать ниже</p></div> : <button className="sg-quit" disabled={!state.canAct} onClick={() => setConfirmQuit(true)}>Завершить партию</button>}
+      {terminal(session) ? <div className="sg-result" role="status"><h3>{session.result?.outcome || 'Партия завершена'}</h3><p>{session.result?.reason || session.status}</p>{session.result?.rating && <p>Рейтинг: {session.result.rating.before} → {session.result.rating.after} ({session.result.rating.delta > 0 ? '+' : ''}{session.result.rating.delta})</p>}<p className="sg-hint">Следующую игру можно выбрать ниже</p></div> : <div className="sg-session-exit"><button className="sg-quit" disabled={!state.canAct} onClick={() => setConfirmQuit('quit')}>Завершить партию</button>{session.game_type === 'minesweeper' && <button className="sg-quit" disabled={!state.canAct} onClick={() => setConfirmQuit('restart')}>Сбросить попытку</button>}</div>}
     </article>}
     {data && <section className="sg-catalog" aria-label="Выбор игры">{data.catalog.map(game => <CatalogCard key={game.game_type} game={game} rating={data.ratings[game.game_type]} disabled={!state.canAct || (!!session && !terminal(session)) || data.queue.status === 'queued'} onSubmit={onSubmit} />)}</section>}
     <footer className="sg-footer">Закрытие панели не означает выход. Вернитесь до серверного срока, чтобы продолжить.</footer>
-    {confirmQuit && session && <Confirmation onCancel={() => setConfirmQuit(false)} onConfirm={() => { setConfirmQuit(false); act({ action: 'quit' }); }} />}
+    {confirmQuit && session && <Confirmation rules={config?.rules || []} action={confirmQuit} onCancel={() => setConfirmQuit(null)} onConfirm={() => { setConfirmQuit(null); act({ action: confirmQuit }); }} />}
   </main>;
 }

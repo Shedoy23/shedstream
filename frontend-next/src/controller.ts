@@ -18,13 +18,18 @@ export class TournamentController {
   private listeners = new Set<() => void>();
   private active = false;
   private requestId = 0;
+  // Epoch changes with identity, not with a temporary view stop/start.
   private epoch = 0;
+  private identity: string;
+  private deferredSettlement?: () => void;
   private abort?: AbortController;
   private detachAuth?: () => void;
   private actionLocked = false;
   private cooldownUntil = 0;
   private accepted?: { action: TournamentAction; round: string };
-  constructor(private readonly transport: TournamentTransport, private readonly auth: TwitchAuthStore) {}
+  constructor(private readonly transport: TournamentTransport, private readonly auth: TwitchAuthStore) {
+    this.identity = scope(auth);
+  }
   snapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private publish(patch: Partial<TournamentViewState>) {
@@ -35,19 +40,14 @@ export class TournamentController {
   start() {
     if (this.active) return;
     this.active = true;
-    let identity = scope(this.auth);
+    this.syncIdentity();
+    const settle = this.deferredSettlement;
+    this.deferredSettlement = undefined;
+    settle?.();
     this.detachAuth = this.auth.subscribe(() => {
       this.requestId++;
       this.abort?.abort();
-      const nextIdentity = scope(this.auth);
-      if (nextIdentity !== identity) {
-        this.epoch++;
-        this.actionLocked = false;
-        this.accepted = undefined;
-        this.cooldownUntil = 0;
-        identity = nextIdentity;
-        this.publish(initial);
-      }
+      this.syncIdentity();
       // A token refresh cancels stale GETs, but not a POST for the same viewer.
       void this.refresh();
     });
@@ -55,10 +55,28 @@ export class TournamentController {
   }
   stop() {
     this.active = false;
-    this.epoch++;
     this.requestId++;
     this.abort?.abort();
     this.detachAuth?.();
+  }
+  private syncIdentity() {
+    const nextIdentity = scope(this.auth);
+    if (nextIdentity === this.identity) return;
+    this.epoch++;
+    this.identity = nextIdentity;
+    this.actionLocked = false;
+    this.accepted = undefined;
+    this.cooldownUntil = 0;
+    this.deferredSettlement = undefined;
+    this.publish(initial);
+  }
+  private settleWhenActive(epoch: number, apply: () => void) {
+    if (epoch !== this.epoch) return false;
+    // Retain the outcome for this controller owner without notifying an unmounted
+    // view. A changed identity discards it before start publishes anything.
+    if (!this.active) { this.deferredSettlement = apply; return false; }
+    apply();
+    return true;
   }
   async refresh() {
     if (!this.active) return;
@@ -96,17 +114,20 @@ export class TournamentController {
     this.publish({ pending: true, notice: null });
     try {
       const reply = await this.transport.act(action);
-      if (!this.active || epoch !== this.epoch) return;
-      this.actionLocked = reply.success;
-      if (reply.success) this.accepted = { action, round: round(data) };
       const cooldown = reply.success ? reply.cooldown_applied_s : reply.cooldown_remaining_s;
-      if (typeof cooldown === 'number' && Number.isFinite(cooldown) && cooldown > 0) this.cooldownUntil = Date.now() + cooldown * 1000;
-      const message = reply.message || (reply.success ? 'Заявка принята.' : 'Действие отклонено сервером');
-      this.publish({ pending: false, notice: reply.success ? `${message} · Подтверждение смотрим в состоянии сервера.` : message });
-      if (reply.success) await this.refresh();
+      const deadline = typeof cooldown === 'number' && Number.isFinite(cooldown) && cooldown > 0 ? Date.now() + cooldown * 1000 : 0;
+      const settled = this.settleWhenActive(epoch, () => {
+        this.actionLocked = reply.success;
+        if (reply.success) this.accepted = { action, round: round(data) };
+        this.cooldownUntil = deadline;
+        const message = reply.message || (reply.success ? 'Заявка принята.' : 'Действие отклонено сервером');
+        this.publish({ pending: false, notice: reply.success ? `${message} · Подтверждение смотрим в состоянии сервера.` : message });
+      });
+      if (settled && reply.success) await this.refresh();
     } catch (error) {
-      if (!this.active || epoch !== this.epoch) return;
-      this.publish({ pending: false, notice: error instanceof Error ? error.message : 'Результат действия неизвестен' });
+      this.settleWhenActive(epoch, () => {
+        this.publish({ pending: false, notice: error instanceof Error ? error.message : 'Результат действия неизвестен' });
+      });
     }
   }
 }

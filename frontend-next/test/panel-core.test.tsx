@@ -130,3 +130,9 @@ it('failed new-build refresh removes stale enabled choices without exposing lega
   expect(ui.container.querySelector('select')).toBeNull();
   choices.forEach(button => fireEvent.click(button)); await flush(); expect(s.trace.filter(r => r.method === 'POST')).toEqual([]); s.controller.stop();
 });
+for (const costs of [[], [3], { 0: 3 }, null]) it(`manual refresh recovers malformed focus tiers ${JSON.stringify(costs)}`, async () => {
+  const s = setup({ '/api/bannerlord/config': { attribute_cost: 5, focus_tier_costs: costs } }); await s.start();
+  const ui = render(<HeroDevelopmentView controller={s.controller} />); s.routes['/api/bannerlord/config'] = f.config;
+  await act(async () => { fireEvent.click(ui.getByRole('button', { name: 'Обновить' })); await flush(); });
+  expect(s.controller.snapshot().config?.focus_tier_costs).toEqual(f.config.focus_tier_costs); s.controller.stop();
+});

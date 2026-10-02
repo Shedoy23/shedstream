@@ -71,3 +71,50 @@ it('old/new equipment HTTP failure clears stale actions', async () => {
   await p.old.refreshEquipment(); await p.next.refresh(); await p.finish();
   expect(p.old.document.querySelector('[data-bnr-eq-buy]')).toBeNull(); expect(p.ui.container.querySelector('[data-bnr-eq-buy]')).toBeNull();
 });
+it('old/new negative direct quote keeps the modifier and both quoted amounts exactly', async () => {
+  // Controlled variation of the real engine-shaped quote, not a live catalog dump.
+  const data = structuredClone(f.equipment_direct);
+  Object.assign(data.items[0].purchase_options[0], { replace_modifier_id: 'fine', trade_in_gold: 1300, net_price_gold: -300 });
+  const p = await pair(data, f.equipment_direct_buy.response); await p.click('[data-bnr-eq-buy="sword"]');
+  expect(p.old.document.querySelector('#confirm-dyn-modal')?.textContent).toContain('Получишь 300');
+  expect(p.ui.container.querySelector('[role="dialog"]')?.textContent).toContain('Получишь 300');
+  await p.click('#confirm-dyn-yes'); await p.finish();
+});
+for (const reason of ['insufficient_gold', 'tier_locked', 'stash_full']) it(`old/new item refusal ${reason} comes from server flags`, async () => {
+  const data = { ...f.equipment_inventory, items: f.equipment_inventory.items.map(item => ({ ...item, can_buy: false, reason, message: `Сервер: ${reason}` })) };
+  const p = await pair(data); await p.click('[data-bnr-eq-buy="sword"]'); await p.finish();
+  expect(p.next.trace.filter(r => r.method === 'POST')).toHaveLength(0); expect(p.ui.container.textContent).toContain(`Сервер: ${reason}`);
+});
+it('old/new unavailable owned rows cannot be equipped, but can be discarded after confirmation', async () => {
+  const data = { ...f.equipment_inventory, inventory: f.equipment_inventory.inventory.map(row => ({ ...row, unavailable: true })) };
+  const p = await pair(data, f.equipment_discard.response); await p.click('[data-bnr-eq-view="owned"]'); await p.click('[data-bnr-eq-equip="party|sword|fine"]');
+  expect(p.next.trace.filter(r => r.method === 'POST')).toHaveLength(0); await p.click('[data-bnr-eq-discard="party|sword|fine"]'); await p.click('#confirm-dyn-yes'); await p.finish();
+});
+for (const [reason, patch] of Object.entries({ no_hero: { has_hero: false, ready: false, inventory: [] }, not_ready: { ready: false }, prisoner: {}, offline: {} })) it(`old/new ${reason} context does not dispatch`, async () => {
+  const data = { ...f.equipment_inventory, ...patch, can_manage: false, reason, message: `Контекст: ${reason}`, items: f.equipment_inventory.items.map(item => ({ ...item, can_buy: false, reason, message: `Контекст: ${reason}` })) };
+  const p = await pair(data); await p.click('[data-bnr-eq-buy="sword"]'); await p.click('[data-bnr-eq-view="owned"]'); await p.finish();
+  expect(p.next.trace.filter(r => r.method === 'POST')).toHaveLength(0); expect(p.ui.container.textContent).toContain(`Контекст: ${reason}`);
+});
+it('old/new selected filters, pages and input search preserve the rendered item set', async () => {
+  const data = { ...f.equipment_inventory, items: Array.from({ length: 43 }, (_, i) => ({ ...f.equipment_inventory.items[0], item_id: 'sword-' + i, name: 'Sword ' + i, category: i === 42 ? 'shield' : 'one_handed' })) };
+  const p = await pair(data);
+  const ids = (root: ParentNode) => [...root.querySelectorAll('[data-bnr-eq-buy]')].map(node => node.getAttribute('data-bnr-eq-buy'));
+  for (let page = 0; page < 2; page++) { await p.click('[data-bnr-eq-page="1"]'); expect(ids(p.ui.container)).toEqual(ids(p.old.document)); }
+  await p.change('[data-bnr-eq-category]', 'shield'); expect(ids(p.ui.container)).toEqual(ids(p.old.document));
+  const oldInput = p.old.document.querySelector('[data-bnr-eq-search]') as HTMLInputElement;
+  const nextInput = p.ui.container.querySelector('[data-bnr-eq-search]') as HTMLInputElement;
+  oldInput.value = 'missing'; oldInput.dispatchEvent(new p.old.window.Event('input', { bubbles: true })); await p.old.settle();
+  await act(async () => { nextInput.value = 'missing'; nextInput.dispatchEvent(new Event('input', { bubbles: true })); await flush(); });
+  expect(ids(p.ui.container)).toEqual(ids(p.old.document)); expect(p.ui.container.textContent).toContain('Ничего не найдено'); await p.finish();
+});
+it('old discard reproduces the cross-identity dispatch; new identical lifecycle suppresses it', async () => {
+  const refusal = { success: false, message: 'Inert refusal: no external mutation' };
+  const p = await pair(f.equipment_inventory, refusal); await p.click('[data-bnr-eq-view="owned"]'); await p.click('[data-bnr-eq-discard="party|sword|fine"]');
+  const oldYes = p.old.document.querySelector('#confirm-dyn-yes') as HTMLButtonElement;
+  const newYes = p.ui.container.querySelector('#confirm-dyn-yes') as HTMLButtonElement;
+  await p.old.resetEquipment('carol', 'carol-token'); await p.next.switchIdentity();
+  oldYes.click(); await p.old.settle(); await act(async () => { newYes.click(); await flush(); });
+  expect(p.old.trace.filter(r => r.path === '/api/bannerlord/action')).toMatchObject([{ token: 'carol-token', body: { action_type: 'hero.discard_owned', data: { owned_id: 'party|sword|fine' } } }]);
+  expect(p.next.trace.filter(r => r.path === '/api/bannerlord/action')).toEqual([]);
+  // This proves the old client dispatch defect, not unauthorized server deletion.
+});

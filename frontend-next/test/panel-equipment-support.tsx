@@ -18,7 +18,7 @@ export function equipmentSetup(snapshot: unknown = f.equipment_inventory, action
     '/api/bannerlord/my-hero': f.hero, '/api/bannerlord/classes': f.classes,
     '/api/bannerlord/build': f.build_ready, '/api/bannerlord/my-buffs': f.buffs,
     '/api/bannerlord/equipment-shop': snapshot, '/api/bannerlord/action': actionReply,
-    '/api/viewer/stats/alice': { points: 100 }, '/api/user/level/alice': {}, '/api/duel/list': { duels: [] },
+    '/api/viewer/stats/alice': f.stats, '/api/user/level/alice': f.level, '/api/duel/list': f.duels,
     '/api/viewer/stats/carol': { points: 200 }, '/api/user/level/carol': {},
   };
   const fetcher = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
@@ -52,5 +52,5 @@ export async function click(root: ParentNode, selector: string) {
 }
 export async function change(root: ParentNode, selector: string, value: string) {
   const target = root.querySelector(selector); if (!target) throw new Error(`Missing control ${selector}`);
-  await act(async () => { fireEvent.change(target, { target: { value } }); await flush(); });
+  await act(async () => { (target as HTMLSelectElement).value = value; target.dispatchEvent(new Event('change', { bubbles: true })); await flush(); });
 }

@@ -137,3 +137,28 @@ for (const [first, second] of [
   expect(p.trace.filter(r => r.method === 'POST')).toHaveLength(1);
   resolve(f.specialization_success.response); await p.finish();
 });
+for (const [name, hero] of Object.entries({ absent: f.hero_absent, dead: f.hero_dead })) it(`${name} hero has no old or new progression controls`, async () => {
+  const p = await pair({ hero });
+  expect(p.old.document.querySelector('[data-skill],[data-attr]')).toBeNull();
+  expect(p.ui.container.querySelector('[data-skill],[data-attr]')).toBeNull(); await p.finish(); expect(p.trace).toEqual([]);
+});
+it('claimed starter and equipment-ready legacy mode preserve the old information-only state', async () => {
+  const p = await pair({ build: f.build_claimed });
+  expect(p.old.document.querySelector('[data-bnr-build-starter]')).toBeNull(); expect(p.ui.container.querySelector('[data-bnr-build-starter]')).toBeNull();
+  expect(p.ui.container.textContent).toContain('Стартовый набор получен'); await p.finish();
+});
+it('same-frame duplicate progression clicks have the exact old single POST and immediate reads', async () => {
+  let resolve!: (reply: LegacyJson) => void; const pending = new Promise<LegacyJson>(r => { resolve = r; });
+  const p = await pair({ action: () => pending });
+  const old = p.old.document.querySelector(oldSelect.attribute('Vigor')) as HTMLElement;
+  old.click(); old.click(); await p.old.settle();
+  await act(async () => { const next = p.ui.container.querySelector('[data-attr="Vigor"]') as HTMLElement; next.click(); next.click(); await flush(); });
+  expect(p.trace.filter(row => row.method === 'POST')).toHaveLength(1); expect(p.old.trace.filter(row => row.method === 'POST')).toHaveLength(1);
+  resolve(f.attribute_success.response); await p.finish();
+});
+it('missing config deliberately fails closed instead of buying at inherited legacy fallback prices', async () => {
+  const p = await pair({ config: {} });
+  await p.click(oldSelect.attribute('Vigor'), '[data-attr="Vigor"]');
+  expect(p.old.trace.filter(row => row.method === 'POST')).toHaveLength(1);
+  expect(p.trace).toEqual([]); expect((p.ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(true);
+});

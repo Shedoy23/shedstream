@@ -13,6 +13,9 @@
  *   stats refresh) a no-op instead of starting unrelated whole-panel polling.
  * - The source-created one-second cooldown ticker remains operational. Buff
  *   polling is explicit via refreshBuffs(), not the whole-panel 2.5-second loop.
+ * - panelLifecycle adds the unchanged old tab bindings and the selected-host
+ *   8s/2.5s polling schedule, including the old active-inventory condition. It
+ *   still excludes unrelated shop/status/tournament/battle hosts and startup.
  * All resulting requests, including stats/level/duels and the 3.5-second tail,
  * are recorded. There is no route fall-through, request filtering or action stub.
  */
@@ -310,6 +313,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
   function dispose() { disposed = true; timers.clear(); window.close(); }
   assertHealthy();
   return { bootHero, bootEquipment, resetEquipment, setIdentity, trace, document, window, fixtures, sourceFiles: [...sourceFiles], settle, advance, click, change,
+    refreshConfig: () => refresh('_hydrateBnrConfig'),
     refreshHero: () => refresh('loadBannerlordHero'), refreshBuild: () => refresh('loadBannerlordBuild'),
     refreshBuffs: () => refresh('loadBannerlordBuffs'),
     refreshEquipment: () => refresh('loadBannerlordEquipmentShop'), assertHealthy, dispose };

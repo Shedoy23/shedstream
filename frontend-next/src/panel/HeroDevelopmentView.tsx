@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { actionKey, validPrice } from './contracts';
+import { actionKey, hasProgressionPrices, validPrice } from './contracts';
 import type { PanelController } from './controller';
 const groups = [
   ['Vigor', 'Сила', [['OneHanded', 'Одноручное'], ['TwoHanded', 'Двуручное'], ['Polearm', 'Древковое']]],
@@ -19,7 +19,7 @@ export function HeroDevelopmentView({ controller }: { controller: PanelControlle
   const buildBusy = state.busy.some(key => key.startsWith('hero.set_specialization:') || key.startsWith('hero.claim_starter:'));
   const manage = canAct && !!state.build?.ready && !!state.build.can_manage && !state.buildPending && !state.build.pending && !build?.in_battle && !buildBusy;
   const attributePrice = state.config?.attribute_cost;
-  const hasPriceError = !validPrice(attributePrice) || !Array.isArray(state.config?.focus_tier_costs);
+  const hasPriceError = !hasProgressionPrices(state.config);
   const perform = (type: string, data: Record<string, unknown>, immediateHero = false) => { if (controller.ready()) void controller.action(type, data, { tail: 'hero', immediateHero }); };
   return <section className="panel-development" aria-label="Развитие героя">
     <div className="panel-section-heading"><div><p className="panel-eyebrow">BANNERLORD</p><h1>Развитие героя</h1></div>

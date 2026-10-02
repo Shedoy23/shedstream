@@ -1,6 +1,6 @@
 import { TwitchAuthStore } from '../auth';
 import type { IdentityBootstrap } from '../skillgames/identity';
-import { actionKey, validPrice, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
+import { actionKey, hasProgressionPrices, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
 export class PanelController {
   private state: PanelState;
@@ -62,7 +62,7 @@ export class PanelController {
   };
   async refreshDevelopment() {
     await Promise.all([this.refreshHero(), this.refreshBuild(), this.equipmentRefresh?.(),
-      !validPrice(this.state.config?.attribute_cost) || !this.state.config?.focus_tier_costs?.every(validPrice) ? this.refreshConfig() : undefined,
+      !hasProgressionPrices(this.state.config) ? this.refreshConfig() : undefined,
       !this.state.classes ? this.refreshClasses() : undefined]);
   }
   async refresh() {

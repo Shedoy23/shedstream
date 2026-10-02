@@ -1,3 +1,4 @@
+import { createLegacyHarness } from './panel-legacy-harness';
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render } from '@testing-library/preact';
 import { TwitchAuthStore } from '../src/auth';
@@ -270,12 +271,34 @@ it('late old-JWT acceptance refreshes same-viewer balance but cannot create wrap
   expect(s.trace).toEqual([]); expect(equipment).not.toHaveBeenCalled(); s.controller.stop();
 });
 
-it('late old-JWT build acceptance cannot put the refreshed view back into local pending', async () => {
+it('accepted build remains pending across same-viewer JWT rotation and prevents a second choice', async () => {
   vi.useFakeTimers(); const waiting = deferred<Response>();
   const s = setup({ '/api/bannerlord/action': waiting.promise }); await s.start();
-  const action = s.controller.action('hero.set_specialization', { specialization: f.build_ready.build.specializations[0].id }, { tail: 'hero' });
+  const action = s.controller.action('hero.set_specialization', { specialization: 'assault' }, { tail: 'hero' });
   s.authorize({ ...authValue, token: 'rotated-build' }); await flush();
-  expect(s.controller.snapshot().buildPending).toBe(false);
-  waiting.resolve(response(f.focus_success.response)); await action; await flush();
-  expect(s.controller.snapshot().buildPending).toBe(false); s.controller.stop();
+  waiting.resolve(response(f.specialization_success.response)); await action; await flush();
+  await s.controller.action('hero.set_specialization', { specialization: 'marksman' }, { tail: 'hero' });
+  expect({ pending: s.controller.snapshot().buildPending, posts: s.trace.filter(r => r.path === '/api/bannerlord/action').length }).toEqual({ pending: true, posts: 1 });
+  s.controller.stop();
+});
+it('unchanged legacy build continuation keeps the same pending guard after JWT rotation', async () => {
+  const waiting = deferred<any>(); const old = createLegacyHarness({ build: f.build_ready, action: () => waiting.promise });
+  try {
+    await old.bootHero(); await old.click('[data-bnr-build-spec="assault"]');
+    old.setIdentity('alice', 'rotated'); await old.refreshBuild();
+    waiting.resolve(f.specialization_success.response); await old.settle();
+    expect([...old.document.querySelectorAll('[data-bnr-build-spec]')].every(n => (n as HTMLButtonElement).disabled)).toBe(true);
+    await old.click('[data-bnr-build-spec="marksman"]');
+    expect(old.trace.filter(r => r.path === '/api/bannerlord/action')).toHaveLength(1);
+  } finally { old.dispose(); }
+});
+it('pre-accept build read cannot clear an accepted old-JWT build pending state', async () => {
+  const waiting = deferred<Response>(), stale = deferred<Response>();
+  const s = setup({ '/api/bannerlord/action': waiting.promise }); await s.start();
+  const action = s.controller.action('hero.set_specialization', { specialization: 'assault' }, { tail: 'hero' });
+  s.authorize({ ...authValue, token: 'rotated-build' }); await flush();
+  s.routes['/api/bannerlord/build'] = stale.promise; const read = s.controller.refreshBuild();
+  waiting.resolve(response(f.specialization_success.response)); await action; await flush();
+  stale.resolve(response(f.build_ready)); await read;
+  expect(s.controller.snapshot().buildPending).toBe(true); s.controller.stop();
 });

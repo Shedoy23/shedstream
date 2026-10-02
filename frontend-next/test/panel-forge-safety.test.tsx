@@ -98,10 +98,10 @@ it('forge real item removal invalidates a saved callback and displays its empty 
 it('forge unavailable quote has an explicit recovery control that preserves disclosure and then uses the recovered server price', async () => {
   const p = await forgePair({ config: { ...r.config, reforge_price: 'missing-quote' } }); await toggle(p, 'inv-forge');
   expect(p.controller.snapshot().config?.attribute_cost).toBe(r.config.attribute_cost);
-  const retry = p.ui.container.querySelector<HTMLButtonElement>('#bnr-forge-price-retry'); expect(retry).not.toBeNull();
+  const retry = p.ui.container.querySelector('#bnr-forge-price-retry') as HTMLButtonElement | null; expect(retry).not.toBeNull();
   const before = p.trace.length; p.fixtures.config = { ...r.config, reforge_price: 24680 };
   await act(async () => { retry!.click(); await flush(); });
   expect(p.trace.slice(before).map(q => q.path)).toEqual(['/api/bannerlord/config']);
   expect((p.ui.container.querySelector('[data-bnr-details="inv-forge"]') as HTMLDetailsElement).open).toBe(true);
-  expect(p.ui.container.querySelector<HTMLButtonElement>(head)?.title).toContain('24680'); await click(p); expect(posts(p)).toHaveLength(1);
+  expect((p.ui.container.querySelector(head) as HTMLButtonElement)?.title).toContain('24680'); await click(p); expect(posts(p)).toHaveLength(1);
 });

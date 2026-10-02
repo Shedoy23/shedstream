@@ -14,6 +14,7 @@ export function ForgeView({ controller, active }: { controller: PanelController;
     wasOpen.current = next; setOpen(next);
   }}><summary>🔨 Кузница (трофеи)</summary><div id="bnr-forge-slot">{open && (authenticated ? <>
     <p className="panel-muted">🔨 Поднимай качество надетой экипировки по ступеням: <strong>◆ Хорошее → ★ Шикарное → ✦ Легендарное</strong> (буст урона/брони/скорости). Каждое нажатие — <strong>+1 ступень</strong> за <strong>{validPrice(price) ? price.toLocaleString('ru-RU') + '💎' : 'Цена недоступна'}</strong>. База (тир) остаётся твоя, апается только качество.<br />На потолке (Легендарное) → крустики возвращаются. Доступно вне боя.</p>
+    {!validPrice(price) && <button type="button" id="bnr-forge-price-retry" disabled={!active || !state.canAct} onClick={() => { void controller.refreshConfig(); }}>Обновить цену кузницы</button>}
     {forgeSlots.map(([slot, emoji, label]) => {
       const item = forgeItem(state.hero, slot), next = item ? nextQuality(item) : null, quality = item ? qualities[qualityKey(item)] : undefined, context = forgeContext(state, slot);
       const shield = slot.startsWith('weapon') && item?.stats?.hp != null && item?.stats?.body != null;

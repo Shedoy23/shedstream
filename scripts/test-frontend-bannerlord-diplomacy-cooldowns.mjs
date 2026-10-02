@@ -124,6 +124,16 @@ await test('newest buff request wins reversed responses', async () => {
     await h.poll([{ power_key: 'kingdom.propose_war', remaining_s: 4 }]);
     h.releaseHeld(); await old; assert.equal(h.button('war').textContent, '⏳ 4с');
 });
+await test('overlapping slow polls still apply completed snapshots without starvation', async () => {
+    const h = harness(); await h.render();
+    h.holdNext(); const first = h.poll([{ power_key: 'kingdom.propose_war', remaining_s: 120 }]);
+    h.holdNext(); const second = h.poll([{ power_key: 'kingdom.propose_war', remaining_s: 117 }]);
+    h.holdNext(); const third = h.poll([{ power_key: 'kingdom.propose_war', remaining_s: 114 }]);
+    h.releaseHeld(0); await first;
+    assert.equal(h.button('war').textContent, '⏳ 2:00', 'an older completed read is useful while newer reads are pending');
+    h.releaseHeld(1); await second; assert.equal(h.button('war').textContent, '⏳ 1:57');
+    h.releaseHeld(2); await third; assert.equal(h.button('war').textContent, '⏳ 1:54');
+});
 for (const boundary of ['stop', 'token']) await test('buff response is ignored after ' + boundary, async () => {
     const h = harness(); await h.render(); h.holdNext();
     const old = h.poll([{ power_key: 'kingdom.propose_war', remaining_s: 80 }]);

@@ -1,0 +1,347 @@
+{
+  "repository": "Shedoy23/shedstream",
+  "branch": "feature/panel-preact",
+  "base_sha": "ccd1489486dc1703c60487bf2faa00f290cd109b",
+  "local_head": "05acd8c5b0478dc646e20d46df608d0906d282c7",
+  "commits": [
+    {
+      "local_sha": "fe622a045a7da73109e7d7cc2a656f74591948b8",
+      "proof_local_sha": "2306b4964bda6278c1b60a6973bd5f2b1f0b86da",
+      "remote_sha": "548425d2b58519a271e82e98f42cd2c94123f331",
+      "parent_sha": "ccd1489486dc1703c60487bf2faa00f290cd109b",
+      "tree_sha": "c85ef9ff9bfe412f6671a1d2c883b526fbb524f3",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "5b7f2d94ff8122d5c2de29b14a2651145c592a35",
+      "proof_local_sha": "165e5985eccda79c0f664725968fbeddcbe10212",
+      "remote_sha": "808a8fe0d5d05fd47081ccc65cfef1cceecec0c7",
+      "parent_sha": "548425d2b58519a271e82e98f42cd2c94123f331",
+      "tree_sha": "7ecb16d1535b8a403d925f51781e53f30b11cf03",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "d8fe33fe8ebcdccb048a01303decdf1296cd973b",
+      "proof_local_sha": "42b30f717c02e86df759e428c44e3d6311db4727",
+      "remote_sha": "a0a148133c9274b1c1b7eb67f1a8bfbba4d32698",
+      "parent_sha": "808a8fe0d5d05fd47081ccc65cfef1cceecec0c7",
+      "tree_sha": "df7e75c8af8a6ba50a5de3548b833915b92b0293",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "a20b8e106be1c997bf0fb7530ea1eafa9747200c",
+      "proof_local_sha": "e0148b280d8bd9a588d3f52a5039f6a617363c5e",
+      "remote_sha": "06ebc58e994ca0d124e5b5db272f309f1bb91bdb",
+      "parent_sha": "a0a148133c9274b1c1b7eb67f1a8bfbba4d32698",
+      "tree_sha": "8c6980639873d622ab5b4a07fb81fc75ab7069a0",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "088a9e2d74cb40c78c5686de73c31ec52cf9889c",
+      "proof_local_sha": "8baaa9313055b99e6e5e7d1526c41d26e854c0f6",
+      "remote_sha": "89e4fae5d6d8464f23703ab2d9b6c16887c02416",
+      "parent_sha": "06ebc58e994ca0d124e5b5db272f309f1bb91bdb",
+      "tree_sha": "d701fde5ff36773caf32ddd7b4eb57ea903c9739",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "a58d27a78622ae8d7f2c5d12cc0ec91581d7b149",
+      "proof_local_sha": "f1fd2dca82c0bf2a12a086cce679280bfa3309f8",
+      "remote_sha": "605e0aa85771df227facc62da8a5a56c952a5e66",
+      "parent_sha": "89e4fae5d6d8464f23703ab2d9b6c16887c02416",
+      "tree_sha": "ec49fbf1f547a73a4b26b44bb32627e7c7baacc3",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "8185fe2de55d4ba836a37fd226ddb9def349b4ca",
+      "proof_local_sha": "8355c0cd17812b6bc00a64a50b98b2597a89fb0c",
+      "remote_sha": "79ed477f553cfe9a24f6d190039bfa410020024f",
+      "parent_sha": "605e0aa85771df227facc62da8a5a56c952a5e66",
+      "tree_sha": "35d667fdbbff2cb39a57c3b738c8434e8437580e",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "c5f6de361749c9b671d539c1db18e645152ad385",
+      "proof_local_sha": "a8a699b63e294e1112440b95e4d6d1f8ccf0fff9",
+      "remote_sha": "7378ba713f109af861cf5433072a547769b95711",
+      "parent_sha": "79ed477f553cfe9a24f6d190039bfa410020024f",
+      "tree_sha": "e6cfcb5adaf643b34fe0d062073d4087a008d956",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "267aecedb68da50d65d95d347c3e7b2a58508cf7",
+      "proof_local_sha": "e9a88f696c620d84af40d12f1d77c06516fea280",
+      "remote_sha": "b6ec8a90b6fa7ca5f181181e4af03e102e3f2508",
+      "parent_sha": "7378ba713f109af861cf5433072a547769b95711",
+      "tree_sha": "ce6f0875018223e6b66ab9ba844f88f56dfc37cf",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "3b2edcc469aaa6395376b913e939dd1372dd7782",
+      "proof_local_sha": "b1ad5434ae263f467ccecd5a0ecd73f5b71c3451",
+      "remote_sha": "36dfe5ccc42c5aa3c445f0fecd6a76ea78b76bc1",
+      "parent_sha": "b6ec8a90b6fa7ca5f181181e4af03e102e3f2508",
+      "tree_sha": "120a45e6a5a6c4b0a6568819522345c92ce59058",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "ae1fec3e08c6e180f2c3e63d1322a2d153aad81e",
+      "proof_local_sha": "7bafe499a1792563e2af9d24edc68a4f646f3af5",
+      "remote_sha": "7530d293dada5920e60cf399cf6ad16d867e91d6",
+      "parent_sha": "36dfe5ccc42c5aa3c445f0fecd6a76ea78b76bc1",
+      "tree_sha": "ef561df0b2c2dd26b095b252dd3cb7be7ecb7dea",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "4fef064e3e8aa64cc7ac2d3c41a2412e23761977",
+      "proof_local_sha": "471efa8dddf17fb07ed08d1d2625540d15d6f914",
+      "remote_sha": "6298605f843c779961f66fbc067d1792497c81f0",
+      "parent_sha": "7530d293dada5920e60cf399cf6ad16d867e91d6",
+      "tree_sha": "bbe6eab04a7a61bc0e007b1fd4e30ef71fdc6744",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "6712d5c601961e8eaeae46da08a867cffa100cc3",
+      "proof_local_sha": "fd32db42130213a1a25af7d46f0e752b158c2efa",
+      "remote_sha": "f39ca0f2d495565025ffc1b91b2143efe7af17a7",
+      "parent_sha": "6298605f843c779961f66fbc067d1792497c81f0",
+      "tree_sha": "40afddea0533a65b0467a9d47e70346f7a07193a",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "fc423d784532daa66783fcd5c7360caa4c96d993",
+      "proof_local_sha": "1201631b916855f5deecf2ef65fb59899cbb2d25",
+      "remote_sha": "6d300331b284d3a202e76e57ff51a0c0d2591650",
+      "parent_sha": "f39ca0f2d495565025ffc1b91b2143efe7af17a7",
+      "tree_sha": "300a2277be2bab032cc4999780315fb5a8a02b0d",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "8884b5ac3d8473d515a55722d92e1ac99dec64ac",
+      "proof_local_sha": "39f3715cd0edddf405a2949dbf5b80f15397f557",
+      "remote_sha": "6544468702fe0c01d4288c921d7e994698563942",
+      "parent_sha": "6d300331b284d3a202e76e57ff51a0c0d2591650",
+      "tree_sha": "539d8857099f57b5450e215aae703314cdcd282a",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "f69db9edb6fd776616f43b1dae6c35c238fdcf68",
+      "proof_local_sha": "14285050c669062e5d78a870285f51c1d861aa65",
+      "remote_sha": "3333b9010de8811a54d08711d362a7c74207fefa",
+      "parent_sha": "6544468702fe0c01d4288c921d7e994698563942",
+      "tree_sha": "3b97acfc5082c31cbbc2733517be1a541fbaa789",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "e6970736d63d2304e19691c7660d79d8acaf962e",
+      "proof_local_sha": "2e922febf7038d8df7a4a25d28ef1368ac9030e1",
+      "remote_sha": "3dace04e263a80393466cedb5203100d9b5e533e",
+      "parent_sha": "3333b9010de8811a54d08711d362a7c74207fefa",
+      "tree_sha": "c7585ddf8f3d591938a2a1efbefad9318fb0faa6",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "5b2b4f31344c47761342a6f6e185c891914be78b",
+      "proof_local_sha": "a41b8aaac190f73daeef896cd4945c416dd24690",
+      "remote_sha": "f6899e6dc276dd1aaf05ddb6033c9398062c0194",
+      "parent_sha": "3dace04e263a80393466cedb5203100d9b5e533e",
+      "tree_sha": "570453f86b4ba124fbee46b252501e3a8e8877b6",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "12ef53a54b76154b5208dfe19bcb80dfa9fb2b6d",
+      "proof_local_sha": "37575aab9a0966c6f6f24d98c86a97786e90a5ac",
+      "remote_sha": "61bebb9a3c6b4d23ba6a0ab15a11395a05c240cd",
+      "parent_sha": "f6899e6dc276dd1aaf05ddb6033c9398062c0194",
+      "tree_sha": "8b855a8db0dfd8eeae655b47b47f5157d310bdbb",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "42b1f198163ac3980073a2771fa9f3ee1ec8755d",
+      "proof_local_sha": "181504f5ad134eb451e2a854c4895edadca56269",
+      "remote_sha": "673d0077b9405dd3fec3ca5867518fd9f5741e1c",
+      "parent_sha": "61bebb9a3c6b4d23ba6a0ab15a11395a05c240cd",
+      "tree_sha": "409ec188cad44151fbafcdf827fe055dec01cdf5",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "35a9954d3fa6651c7aff76940305170f85974372",
+      "proof_local_sha": "02adaca73206956583ddf5a670b4c2e5d39e1cb4",
+      "remote_sha": "8b31f56d055deb65df61313cf054467c992ca991",
+      "parent_sha": "673d0077b9405dd3fec3ca5867518fd9f5741e1c",
+      "tree_sha": "c0f226b21a5e0b270b06f2615f13301122a9b153",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "703263bedcca9dad9c903a6177afb2edc5250746",
+      "proof_local_sha": "77ef260c9d550fe905a1606ec3466ba369a0ba55",
+      "remote_sha": "e287f1b9035863251fdc67a0733abff0f2ab37a3",
+      "parent_sha": "8b31f56d055deb65df61313cf054467c992ca991",
+      "tree_sha": "fd92ecf16478e1dcc71b857406797a827baadd63",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "8efe1fadb1c0d07ed95463584302624a8824bc4e",
+      "proof_local_sha": "32f96930833e033752f4433a8b753cf6de554165",
+      "remote_sha": "74951ea471a35b1bc1aee8e4ea7ff9d5d7338923",
+      "parent_sha": "e287f1b9035863251fdc67a0733abff0f2ab37a3",
+      "tree_sha": "72aa660a7ca377bf44fe273e73363bb869db934d",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "4fb8eb129a9e582c7af5bbe8bc5bc85d64d2a1d1",
+      "proof_local_sha": "2b34d265bdf504a10178003f49546c9ddbe53e42",
+      "remote_sha": "72bf411a1dc01c7661e9da43015473f3d75e6266",
+      "parent_sha": "74951ea471a35b1bc1aee8e4ea7ff9d5d7338923",
+      "tree_sha": "10622ab4e230bb172fa43f61e04f3dd3bb7f1c94",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "db0c80ed3c16f42c530a44a96eb45e98ce72c50f",
+      "proof_local_sha": "070029b6d4b4498123a841dd2887ebc9737d3131",
+      "remote_sha": "90be68caf40ac498ae67de2acec4de365cada2b2",
+      "parent_sha": "72bf411a1dc01c7661e9da43015473f3d75e6266",
+      "tree_sha": "8a925c0d5e10d3e3d66e0149c876b293174a3ac1",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "428e395e56404257d32295427f7031b6384afbe9",
+      "proof_local_sha": "2bc59ba8ac9c760ac95514288983d5b5cb8bd6bf",
+      "remote_sha": "e5f9be8a5c3594cb8b6c3004d8501a4cf9c5aff1",
+      "parent_sha": "90be68caf40ac498ae67de2acec4de365cada2b2",
+      "tree_sha": "67c3e888ff981ce457b4e7d7b34d07c1174c8c6c",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "0c8c58f0affdd165ca2ada067dd6f67d7c27586f",
+      "proof_local_sha": "86f785e8dce8796a5d4b8c94681f45dc382ad0ef",
+      "remote_sha": "cadab507c874474a265509000faf6d7930ebf440",
+      "parent_sha": "e5f9be8a5c3594cb8b6c3004d8501a4cf9c5aff1",
+      "tree_sha": "05d13a11e6bca81958e5403b541af7969f1eeacf",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "719e3d24c3cd50b7383c4c212f2d471ba13087d9",
+      "proof_local_sha": "75edacc034db92efc1068536cefcb1570cf04ed3",
+      "remote_sha": "44a3cba644e7c7657c1399517e00cd15c16432a9",
+      "parent_sha": "cadab507c874474a265509000faf6d7930ebf440",
+      "tree_sha": "10de2787d518f608289399917eebe0072a7a1318",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "2eb10962d14b5a9fe1467174f571b98be36a3832",
+      "proof_local_sha": "592060b6567569b91ab44f90cd9173bfcdd513af",
+      "remote_sha": "d840c54a1c4dc3587725f0a907dc247a2cc5a9d9",
+      "parent_sha": "44a3cba644e7c7657c1399517e00cd15c16432a9",
+      "tree_sha": "09aa60453c662c6cb096008b114fbd83ea8a6047",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "6710ce11a764384e6a4fa4a4ef319677644c6a00",
+      "proof_local_sha": "83704f91af8f28e3c4f982f4dfbc77bc13bbf9f1",
+      "remote_sha": "a746b47896dc839ca7d58cf1760425016ec809ab",
+      "parent_sha": "d840c54a1c4dc3587725f0a907dc247a2cc5a9d9",
+      "tree_sha": "b1be772a6e66ae0e2f474532de9eb854ea916d78",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "8c76fd97454a07ccb52c147d438ac01ae859c0d1",
+      "proof_local_sha": "576141125e6baf9f492553aec8f21a4f29b75449",
+      "remote_sha": "a148723940484d5ba00c9aa29e21fb0febbeb60b",
+      "parent_sha": "a746b47896dc839ca7d58cf1760425016ec809ab",
+      "tree_sha": "d0b0be2e608d0e08a92e48fa04880856bc7ee6c0",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "f9abd05bb01f0f668cb617d699bcbc81c216101f",
+      "proof_local_sha": "aae8a60f1477df5e395ace84d1e98d00eb749cad",
+      "remote_sha": "82e49469bdacb849b54de2180e64b8c5ba227561",
+      "parent_sha": "a148723940484d5ba00c9aa29e21fb0febbeb60b",
+      "tree_sha": "027c76a4f6d8f09348f458134dce92dee5bd3bc5",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "74a30ee20568851515f42fdb9310486a591946be",
+      "proof_local_sha": "ce10d3f62f252bce932f50dcf454ad964b2b5721",
+      "remote_sha": "520927729f9ff0dbaee577035d4fdedd0dd4d6f3",
+      "parent_sha": "82e49469bdacb849b54de2180e64b8c5ba227561",
+      "tree_sha": "db5c606f399ab71510e2c8858b6192298ed80f45",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "119462ad656b3818cc840788296630e561e0b694",
+      "proof_local_sha": "9e8d73750874c4d1fe2ffbd75044a5b48567f586",
+      "remote_sha": "7854d922f08653e467aa28d3ab1a556b031c85d6",
+      "parent_sha": "520927729f9ff0dbaee577035d4fdedd0dd4d6f3",
+      "tree_sha": "329106b85ab87515a0a7854c46b168dcc6356279",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "b09cb3c6cf78af56b1b5e52f147292298d921448",
+      "proof_local_sha": "12dd887527b0d2657f9f0697ea69181aa79f6c4f",
+      "remote_sha": "95f1efee5448eb1aa24d5d9c063d3395768dad52",
+      "parent_sha": "7854d922f08653e467aa28d3ab1a556b031c85d6",
+      "tree_sha": "be850304e169b767042e3ce6d134e46c45775717",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "ada57409db3f35c05d16d44486fa89abe4148863",
+      "proof_local_sha": "12e786c5b581effd475ca9f2c719122e7773b245",
+      "remote_sha": "3da72b3b0c4e27dd8b926926df352d293c3dc2cf",
+      "parent_sha": "95f1efee5448eb1aa24d5d9c063d3395768dad52",
+      "tree_sha": "dfcb0e3c0d5e447c5d1f7800d6a6c2577b3104ca",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "7e9ca9acc07ad8575ecab99676be649c9311bcad",
+      "proof_local_sha": "31b4dc925134ff739cad6645021721051958b158",
+      "remote_sha": "cb5695be8f549a5affb41cf6cfcee45fd103560c",
+      "parent_sha": "3da72b3b0c4e27dd8b926926df352d293c3dc2cf",
+      "tree_sha": "4cb2ce72dd89b5bc60174b679e7a5957a61c3ee7",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "0bae0f8c6eebe025a3a29f11622f338bc1aa60d9",
+      "proof_local_sha": "bcef3ef297894d4ca8b29fba35d191a791ca937b",
+      "remote_sha": "342fefaa61fff6bf8fcbde0f61559881f3d6a414",
+      "parent_sha": "cb5695be8f549a5affb41cf6cfcee45fd103560c",
+      "tree_sha": "d7a5a5aeffb76fb62132430970e1027fad55f484",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "0d57d3e0c9330d7d37f6a36144ed3f39d712908d",
+      "proof_local_sha": null,
+      "remote_sha": "8f6de49c9da751e7c11fb4b7c03cc1af8c1c103b",
+      "parent_sha": "342fefaa61fff6bf8fcbde0f61559881f3d6a414",
+      "tree_sha": "995023f51759ff2c2787c9477db3205b5c879100",
+      "tree_verified": true
+    },
+    {
+      "local_sha": "05acd8c5b0478dc646e20d46df608d0906d282c7",
+      "proof_local_sha": null,
+      "remote_sha": "58c2e4f9fc0a74303931b7eb335144ed1439706a",
+      "parent_sha": "8f6de49c9da751e7c11fb4b7c03cc1af8c1c103b",
+      "tree_sha": "ce98da4f1fcdd80b589852449dee4d006655fa68",
+      "tree_verified": true
+    }
+  ],
+  "branch_created": true,
+  "status": "branch verified; exact-head CI rerun terminal; initial failure and reproduced backend test flake retained",
+  "remote_head": "58c2e4f9fc0a74303931b7eb335144ed1439706a",
+  "ci": {
+    "id": 37060498062,
+    "status": "completed",
+    "conclusion": "failure",
+    "head_sha": "58c2e4f9fc0a74303931b7eb335144ed1439706a",
+    "html_url": "https://github.com/Shedoy23/shedstream/actions/runs/37060498062"
+  },
+  "ci_rerun": {
+    "id": 37060498062,
+    "attempt": 2,
+    "status": "completed",
+    "conclusion": "success",
+    "head_sha": "58c2e4f9fc0a74303931b7eb335144ed1439706a",
+    "html_url": "https://github.com/Shedoy23/shedstream/actions/runs/37060498062"
+  },
+  "note": "Git Data API publication preserves every original tree, with rewritten author/date commit IDs; later combat work is outside this first checkpoint map."
+}

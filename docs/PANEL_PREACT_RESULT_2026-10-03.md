@@ -2,8 +2,12 @@
 
 ## Первый проверенный checkpoint: развитие героя, снаряжение, счётчики
 
-Кандидат `0d57d3e0c9330d7d37f6a36144ed3f39d712908d`, tree
-`995023f51759ff2c2787c9477db3205b5c879100`, находится в `feature/panel-preact`.
+Проверенный исходный кандидат `0d57d3e0c9330d7d37f6a36144ed3f39d712908d`, tree
+`995023f51759ff2c2787c9477db3205b5c879100`. Первый опубликованный checkpoint с отчётом:
+[`58c2e4f9fc0a74303931b7eb335144ed1439706a`](https://github.com/Shedoy23/shedstream/commit/58c2e4f9fc0a74303931b7eb335144ed1439706a),
+tree `ce98da4f1fcdd80b589852449dee4d006655fa68`, в `feature/panel-preact`.
+Все 40 опубликованных trees проверены по SHA и после git fetch совпали с локальной
+историей; [карта публикации](evidence/panel-2026-10-03/first-checkpoint-publication.json).
 Ветка продолжает **опубликованную** `feature/skillgames-preact` (`ccd1489`),
 а не старую несведённую поставку. Все 38 промежуточных red/green шагов сохранены;
 после переноса на опубликованную историю frontend каждого шага побайтно совпал.
@@ -108,6 +112,12 @@ Unknown-outcome lock находится в памяти открытой пан�
 | Red/green controls | 13 core/wiring + 14 equipment + 8 collector mutations, все exit 1 → exact restore → green |
 | Неизменность защищённых областей | Git diff legacy/backend/mod/OBS/frozen ZIP пуст |
 | Браузер/телефон/318 px/Hosted Test | НЕ проверены |
+
+**Exact-head CI:** [run 37060498062](https://github.com/Shedoy23/shedstream/actions/runs/37060498062),
+попытка 2 — success. Frontend и manager-core прошли сразу; первый backend gate
+упал в неизменённом `test_skillgames_api.py`. Локально воспроизведён SQLite lock
+в async-тесте heartbeat. [Причина, оба исхода и неприменённое предложение](PANEL_CI_FLAKE_2026-10-03.md).
+Зелёный повтор не означает, что эта тестовая нестабильность устранена.
 
 Frontend CI явно устанавливает Python 3.12 + PyYAML 6.0.3 для проверки канонического
 UI-usage validator; это test-only зависимость, сервер или БД для npm test не запускаются.

@@ -1,0 +1,61 @@
+{
+  "method": "gzip -9 -c <file>; decimal bytes; each file separately",
+  "files": {
+    "assets/jsx-runtime-DC628G0m.js": {
+      "raw": 566629,
+      "gzip9": 107130
+    },
+    "assets/jsx-runtime-DC628G0m.js.map": {
+      "raw": 985151,
+      "gzip9": 189519
+    },
+    "assets/main-BcDcf8_c.css": {
+      "raw": 7137,
+      "gzip9": 2236
+    },
+    "assets/main-EyaNeoM3.js": {
+      "raw": 63190,
+      "gzip9": 15788
+    },
+    "assets/main-EyaNeoM3.js.map": {
+      "raw": 100755,
+      "gzip9": 26921
+    },
+    "assets/tournament-DXEIGRqF.css": {
+      "raw": 4335,
+      "gzip9": 1540
+    },
+    "assets/tournament-gpfgBUNN.js": {
+      "raw": 20163,
+      "gzip9": 5264
+    },
+    "assets/tournament-gpfgBUNN.js.map": {
+      "raw": 29173,
+      "gzip9": 8690
+    }
+  },
+  "assets_total": {
+    "raw": 1776533,
+    "gzip9": 357088
+  },
+  "runtime_assets_total": {
+    "raw": 661454,
+    "gzip9": 131958
+  },
+  "page": "mobile.html",
+  "initial_files": [
+    "assets/jsx-runtime-DC628G0m.js",
+    "assets/main-BcDcf8_c.css",
+    "assets/main-EyaNeoM3.js",
+    "mobile.html"
+  ],
+  "initial_total": {
+    "raw": 637818,
+    "gzip9": 125625
+  },
+  "excludes": [
+    "Twitch-hosted Helper script (external and unchanged)",
+    "HTTP API responses",
+    "source maps from initial traffic"
+  ]
+}

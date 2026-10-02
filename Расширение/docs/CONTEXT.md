@@ -1,3 +1,11 @@
+## 03.10.2026: кандидат Preact мини-игр
+
+`frontend-next` в `feature/skillgames-preact` использует exact Preact 11 и общий compat/TS
+alias contract; старый frontend/ZIP/backend не меняются. Initial mobile 91 КБ raw / 27 КБ gzip,
+114 unit/DOM + 2 real HTTP зелёные; быстрые первые клики/фокус исправлены. Читаемые
+оригиналы Preact включены в source maps. Visual 318 px / две browser-вкладки / Hosted Test
+не доказаны; cloud loopback блокирован. [Отчёт](../../docs/PREACT_SKILLGAMES_RESULT_2026-10-03.md).
+
 ## Локальное дополнение 02.10.2026: следующая панель мини-игр
 
 `battleship`/`minesweeper` живут в отдельных приватных `skillgame_*` таблицах

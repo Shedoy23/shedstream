@@ -871,3 +871,16 @@ Latest-issued fence защитил от обратного порядка отв
 редактор того же игрока; реальную смену игрока/канала очищать обязательно.
 Доказательство должно пройти через настоящий host/lifecycle, а не только
 изолированный компонент.
+
+
+## 03.10.2026 — смена renderer меняет время первого клика
+
+При React→Preact переносе отложенный effect инициализации успевал стереть первый
+черновик флота и закрыть только что открытое подтверждение. Testing Library `act`
+может скрыть это, заранее отработав passive effects. Проверка: native DOM click
+с удержанным первым passive frame; red→green после узкого layout-effect фикса.
+`autoFocus` также требовал явного focus/restore. Это jsdom scheduling evidence,
+не живая браузерная/мобильная проверка. Ещё одна ловушка: sourcemap:true само по себе
+не гарантирует исходники npm-runtime — Vite сохранял minified dist без оригиналов.
+Теперь build gate требует исходные Preact sourcesContent.
+[Доказательства](docs/PREACT_SKILLGAMES_RESULT_2026-10-03.md).

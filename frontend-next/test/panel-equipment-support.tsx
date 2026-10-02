@@ -42,6 +42,7 @@ export function equipmentSetup(snapshot: unknown = f.equipment_inventory, action
       return ui;
     },
     async setActive(ui: ReturnType<typeof render>, active: boolean) { await act(async () => { ui.rerender(<EquipmentView controller={controller} active={active} />); await flush(); }); },
+    beginRefresh() { return refresh(); },
     async refresh() { await act(async () => { await refresh(); await flush(); }); },
     async switchIdentity() { await act(async () => { routes['/api/user/resolve-twitch-token'] = { login: 'carol' }; authorize({ token: 'carol-token', userId: 'opaque-carol', channelId: 'channel-a' }); await flush(); }); },
   };

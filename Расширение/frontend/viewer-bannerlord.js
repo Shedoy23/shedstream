@@ -656,6 +656,9 @@ function _bnrShowSimpleModal({ title, body, bind }) {
 function _stopBannerlordPolling() {
     // In-flight hero/vassal responses and rename callbacks belong to the old module run.
     _bannerlordLifecycle++;
+    _bnrCfgFlight = null;
+    _bnrCfgState = 'idle';
+    _bnrRefreshEconomicUi();
     _bannerlordLastHero = null;
     document.getElementById('bnr-vassals-slot')?.replaceChildren();
     BnrBuilds.reset();
@@ -825,6 +828,7 @@ if (!window._bnrCdTickerStarted) {
 // после успеха. Причина переезда — docs/FRONTEND_MODULE_ARCH_PLAN.md §1:
 // каждая игра писала покупку заново и теряла часть защит.
 async function _bannerlordBuyAction(actionType, data) {
+    if (!_bnrRequireEconomicPrice(actionType)) return null;
     const lifecycle = _bannerlordLifecycle, token = authToken;
     const isCurrent = () => lifecycle === _bannerlordLifecycle && token === authToken;
     return await ShedLink.buyAction('bannerlord', actionType, data, {
@@ -878,33 +882,55 @@ ShedLink.registerGame('bannerlord', {
 // ===== Thin-front (2026-07-02): статические цены/кулдауны с бэка =====
 // Цены/пороги берём из /api/bannerlord/config, а НЕ из хардкодов ниже: фронт
 // замораживается на CDN Twitch, и после ребаланса на бэке хардкод показал бы
-// устаревшие числа. Хардкоды ниже оставлены как fallback-дефолты (совпадают с
-// текущим бэком) — работают, пока конфиг не подъехал или фетч упал. Бэк всё
-// равно сам enforce'ит цену при списании; это только для отображения.
+// устаревшие числа. Четыре дорогих действия ниже уже требуют загруженную цену;
+// остальные legacy-пути пока сохраняют fallback. Бэк повторно проверяет цену
+// при списании: загруженный конфиг не является атомарной фиксацией цены.
 let _bnrCfg = {};
+let _bnrCfgState = 'idle';
+let _bnrCfgFlight = null;
 async function _hydrateBnrConfig() {
-    try {
-        const r = await fetch(`${API_URL}/api/bannerlord/config`, {
-            headers: { 'X-Twitch-JWT': authToken || '' },
-            cache: 'no-store',
-        });
-        if (!r.ok) return;
-        const c = await r.json();
-        _bnrCfg = c || {};
-        if (typeof BnrUiConfig !== 'undefined') BnrUiConfig.update(c?.ui);
-        if (Array.isArray(c.focus_tier_costs))         BNR_FOCUS_TIER_COSTS = c.focus_tier_costs;
-        if (typeof c.attribute_cost === 'number')      BNR_ATTRIBUTE_COST   = c.attribute_cost;
-        if (Array.isArray(c.recruit_tier_costs))       RETINUE_TIER_DINARS  = c.recruit_tier_costs;
-        if (typeof c.recruit_elite_mult === 'number')  RETINUE_ELITE_MULT   = c.recruit_elite_mult;
-        if (Array.isArray(c.give_gold_presets))        GIVE_GOLD_OPTIONS    = c.give_gold_presets;
-        if (Array.isArray(c.add_skill_presets))        ADD_SKILL_OPTIONS    = c.add_skill_presets;
-        if (c.gear_upgrade_costs && typeof HERO_GOLD_TIER_COSTS !== 'undefined') {
-            HERO_GOLD_TIER_COSTS = c.gear_upgrade_costs;   // ключи-строки из JSON — доступ по числу коэрсится, ок
+    const lifecycle = _bannerlordLifecycle, token = authToken;
+    if (_bnrCfgFlight?.lifecycle === lifecycle && _bnrCfgFlight.token === token) return _bnrCfgFlight.promise;
+    const flight = { lifecycle, token };
+    _bnrCfgFlight = flight;
+    const isCurrent = () => _bnrCfgFlight === flight && lifecycle === _bannerlordLifecycle && token === authToken;
+    _bnrCfgState = 'loading';
+    _bnrRefreshEconomicUi();
+    flight.promise = (async () => {
+        try {
+            const r = await fetch(`${API_URL}/api/bannerlord/config`, {
+                headers: { 'X-Twitch-JWT': token || '' },
+                cache: 'no-store',
+            });
+            if (!r.ok) throw new Error('config_unavailable');
+            const c = await r.json();
+            if (!isCurrent()) return;
+            if (!c || typeof c !== 'object' || Array.isArray(c)) throw new Error('invalid_config');
+            _bnrCfg = c;
+            _bnrCfgState = 'ready';
+            if (typeof BnrUiConfig !== 'undefined') BnrUiConfig.update(c.ui);
+            if (Array.isArray(c.focus_tier_costs))         BNR_FOCUS_TIER_COSTS = c.focus_tier_costs;
+            if (typeof c.attribute_cost === 'number')      BNR_ATTRIBUTE_COST   = c.attribute_cost;
+            if (Array.isArray(c.recruit_tier_costs))       RETINUE_TIER_DINARS  = c.recruit_tier_costs;
+            if (typeof c.recruit_elite_mult === 'number')  RETINUE_ELITE_MULT   = c.recruit_elite_mult;
+            if (Array.isArray(c.give_gold_presets))        GIVE_GOLD_OPTIONS    = c.give_gold_presets;
+            if (Array.isArray(c.add_skill_presets))        ADD_SKILL_OPTIONS    = c.add_skill_presets;
+            if (c.gear_upgrade_costs && typeof HERO_GOLD_TIER_COSTS !== 'undefined') {
+                HERO_GOLD_TIER_COSTS = c.gear_upgrade_costs;
+            }
+            if (typeof c.tournament_prize_gold === 'number') TOURNAMENT_PRIZE_GOLD = c.tournament_prize_gold;
+            if (typeof c.tournament_round_gold === 'number') TOURNAMENT_ROUND_GOLD = c.tournament_round_gold;
+        } catch (e) {
+            if (isCurrent()) _bnrCfgState = 'error';
+        } finally {
+            if (_bnrCfgFlight === flight) {
+                if (!isCurrent()) _bnrCfgState = 'idle';
+                _bnrCfgFlight = null;
+                _bnrRefreshEconomicUi();
+            }
         }
-        if (typeof c.tournament_prize_gold === 'number') TOURNAMENT_PRIZE_GOLD = c.tournament_prize_gold;
-        if (typeof c.tournament_round_gold === 'number') TOURNAMENT_ROUND_GOLD = c.tournament_round_gold;
-        // workshop_price / caravan_price читаются из _bnrCfg прямо в местах отрисовки.
-    } catch (e) { /* fallback-дефолты остаются в силе */ }
+    })();
+    return flight.promise;
 }
 
 // ── Цены в динарах для подписей кнопок ───────────────────────────────────────
@@ -923,6 +949,7 @@ async function _hydrateBnrConfig() {
 // до следующего ревью.
 function _bnrPrice(actionType, fallback) {
     const raw = _bnrCfg.action_prices?.[actionType];
+    if (fallback === undefined) return _bnrConfigNumber(raw);
     if (raw == null || raw === '') return fallback;
     const v = Number(raw);
     return isFinite(v) ? v : fallback;
@@ -930,17 +957,82 @@ function _bnrPrice(actionType, fallback) {
 
 function _bnrGold(key, fallback) {
     const raw = _bnrCfg.hero_gold_costs?.[key];
+    if (fallback === undefined) return _bnrConfigNumber(raw);
     if (raw == null || raw === '') return fallback;
     const v = Number(raw);
     return (isFinite(v) && v >= 0) ? v : fallback;
 }
 function _fmtK(n) {
-    if (!isFinite(n)) return '?';
+    if (n == null || !isFinite(n)) return '?';
     if (n >= 1000000) return (n / 1000000).toFixed(n % 1000000 ? 1 : 0) + 'M';
     if (n >= 1000)    return (n / 1000).toFixed(n % 1000 ? 1 : 0) + 'K';
     return String(n);
 }
-function _bnrGoldLabel(key, fallback) { return _fmtK(_bnrGold(key, fallback)) + '💰'; }
+function _bnrGoldLabel(key, fallback) {
+    const value = _bnrGold(key, fallback);
+    return value == null ? 'цена не загружена' : _fmtK(value) + '💰';
+}
+
+// Bounded migration: only these four legacy purchases require a config quote.
+// Other actions keep their existing endpoint-specific quotes/legacy behaviour.
+const _bnrEconomicActions = {
+    'hero.create_clan': { gold: 'create_clan' },
+    'hero.create_kingdom': { gold: 'create_kingdom' },
+    'hero.create_vassal_clan': { gold: 'create_vassal_clan', crustics: true },
+    'hero.recruit_vassal_clan': { gold: 'recruit_vassal', crustics: true },
+};
+function _bnrConfigNumber(raw) {
+    return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : null;
+}
+function _bnrEconomicQuote(actionType) {
+    const entry = _bnrEconomicActions[actionType];
+    if (!entry || _bnrCfgState !== 'ready') return null;
+    const gold = _bnrGold(entry.gold);
+    // Clan/kingdom creation use their own gold-only backend pricing branch.
+    // Vassal actions additionally use ACTION_PRICES_DEFAULT, currently zero.
+    const crustics = entry.crustics ? _bnrPrice(actionType) : 0;
+    return gold == null || crustics == null ? null : { gold, crustics };
+}
+function _bnrEconomicLabel(actionType, full = false) {
+    const quote = _bnrEconomicQuote(actionType);
+    if (!quote) return 'цена не загружена';
+    const fmt = n => full ? n.toLocaleString('ru-RU') : _fmtK(n);
+    return (quote.crustics ? fmt(quote.crustics) + '💎 + ' : '') + fmt(quote.gold) + '💰';
+}
+function _bnrEconomicPriceHtml(actionType) {
+    return `<span data-bnr-economic-price="${actionType}">${_bnrEconomicLabel(actionType)}</span>`;
+}
+function _bnrEconomicReason() {
+    return _bnrCfgState === 'loading' ? 'Загружаем цены с сервера…'
+        : _bnrCfgState === 'error' ? 'Не удалось загрузить цены. Покупка недоступна.'
+        : 'Цена этого действия не загружена. Покупка недоступна.';
+}
+function _bnrEconomicStatusHtml(actionType) {
+    return `<div data-bnr-economic-status="${actionType}" ${_bnrEconomicQuote(actionType) ? 'hidden' : ''} role="status" style="font-size:11px;color:#fca5a5;margin-top:6px;">
+        <span data-bnr-economic-reason>${_bnrEconomicReason()}</span>
+        <button type="button" class="small-btn" data-bnr-economic-retry="${actionType}">Обновить цены</button></div>`;
+}
+function _bnrRefreshEconomicUi() {
+    document.querySelectorAll('[data-bnr-economic-price]').forEach(node => {
+        node.textContent = _bnrEconomicLabel(node.dataset.bnrEconomicPrice);
+    });
+    document.querySelectorAll('[data-bnr-economic-action]').forEach(button => {
+        button.disabled = !_bnrEconomicQuote(button.dataset.bnrEconomicAction);
+    });
+    document.querySelectorAll('[data-bnr-economic-status]').forEach(node => {
+        node.hidden = !!_bnrEconomicQuote(node.dataset.bnrEconomicStatus);
+        node.querySelector('[data-bnr-economic-reason]').textContent = _bnrEconomicReason();
+    });
+}
+function _bnrRequireEconomicPrice(actionType) {
+    if (!_bnrEconomicActions[actionType] || _bnrEconomicQuote(actionType)) return true;
+    _bnrRefreshEconomicUi();
+    showNotification(_bnrEconomicReason() + ' Нажмите «Обновить цены».', 'warning');
+    return false;
+}
+document.addEventListener('click', event => {
+    if (event.target?.closest?.('[data-bnr-economic-retry]')) _hydrateBnrConfig();
+});
 
 // 2026-07-29 (багрепорт #22): «щит T3★ отображается во втором оружии, а не в
 // щитах». В движке щит ФИЗИЧЕСКИ занимает один из weapon-слотов, поэтому по
@@ -1945,11 +2037,11 @@ async function loadBannerlordVassals() {
             // + text-имя переживают 8s-poll (форма рендерится при раскрытии).
             html += `
                 <details data-bnr-details="vas-create" ${_bnrDetailsAttr('vas-create')}>
-                    <summary title="Выделить взрослого ребёнка в собственный sub-clan (${_bnrGoldLabel('create_vassal_clan', 250000)} у героя)"
+                    <summary title="Выделить взрослого ребёнка в собственный sub-clan"
                              style="list-style:none;cursor:pointer;width:100%;
                                     font-size:11px;padding:6px;background:#1e3a8a;box-sizing:border-box;
                                     color:#fff;font-weight:700;border-radius:3px;text-align:center;">
-                        🏰 Создать вассала (${_bnrGoldLabel('create_vassal_clan', 250000)}) — ${eligible.length} наследников доступно
+                        🏰 Создать вассала (${_bnrEconomicPriceHtml('hero.create_vassal_clan')}) — ${eligible.length} наследников доступно
                     </summary>
                     <div id="bnr-vas-create-slot" style="padding-top:6px;"></div>
                 </details>`;
@@ -2071,13 +2163,15 @@ function _renderCreateVassalInline(eligibleHeirs) {
                    style="width:100%;padding:6px;font-size:12px;background:#0f1730;
                           color:#dbeafe;border:1px solid #1e40af;margin-bottom:10px;
                           box-sizing:border-box;">
-            <button id="bnr-vas-confirm" class="extra-btn"
+            <button id="bnr-vas-confirm" class="extra-btn" data-bnr-economic-action="hero.create_vassal_clan" ${_bnrEconomicQuote('hero.create_vassal_clan') ? '' : 'disabled'}
                     style="width:100%;font-size:11px;padding:6px;
                            background:#1e40af;color:#fff;font-weight:700;">
-                🏰 Создать (${_bnrGoldLabel('create_vassal_clan', 250000)})
+                🏰 Создать (${_bnrEconomicPriceHtml('hero.create_vassal_clan')})
             </button>
+            ${_bnrEconomicStatusHtml('hero.create_vassal_clan')}
         </div>`;
     document.getElementById('bnr-vas-confirm')?.addEventListener('click', async () => {
+        if (!_bnrRequireEconomicPrice('hero.create_vassal_clan')) return;
         const heirId = document.getElementById('bnr-vas-heir-pick')?.value;
         const name = document.getElementById('bnr-vas-name-input')?.value?.trim();
         if (!heirId || !name || name.length < 2) {
@@ -4792,7 +4886,7 @@ function loadBannerlordDynastyLockedActions() {
                 <summary style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
                            font-size:12px;padding:9px;border-radius:3px;
                            background:#7c2d12;color:#fbbf24;font-weight:700;border:1px solid #b45309;">
-                    🏰 Создать клан (${_bnrGoldLabel('create_clan', 1000000)})
+                    🏰 Создать клан (${_bnrEconomicPriceHtml('hero.create_clan')})
                 </summary>
                 <div id="bnr-locked-create-slot" style="padding-top:6px;"></div>
            </details>
@@ -4918,10 +5012,10 @@ function loadBannerlordKingdomMgmt() {
                 🚪 Покинуть королевство
            </button>`
         : `<details data-bnr-details="kingdom-create" ${_bnrDetailsAttr('kingdom-create')} style="margin-bottom:4px;">
-                <summary title="Создать своё королевство (${_bnrGoldLabel('create_kingdom', 5000000)}). Клан становится правящим."
+                <summary title="Создать своё королевство. Клан становится правящим."
                          style="list-style:none;cursor:pointer;width:100%;box-sizing:border-box;
                                 font-size:12px;padding:7px;border-radius:3px;background:#7c2d12;color:#fbbf24;font-weight:700;">
-                    👑 Создать королевство (${_bnrGoldLabel('create_kingdom', 5000000)})
+                    👑 Создать королевство (${_bnrEconomicPriceHtml('hero.create_kingdom')})
                 </summary>
                 <div id="bnr-kingdom-create-slot" style="padding-top:6px;"></div>
            </details>
@@ -4939,11 +5033,11 @@ function loadBannerlordKingdomMgmt() {
     // аудит 0.0.2 нашёл здесь ровно тот случай, который changelog объявлял
     // закрытым — «3 000 000💰» стояли текстом и в кнопке, и в подтверждении.
     const rulerActions = (hasKingdom && info && info.is_ruler)
-        ? `<button class="extra-btn bnr-recruit-vassal"
-                   title="Нанять свежий NPC-вассальный клан (tier-1) в своё королевство. Списывается ${_bnrGoldLabel('recruit_vassal', 3000000)} динаров. Лимита нет — цена и есть ограничитель."
+        ? `<button class="extra-btn bnr-recruit-vassal" data-bnr-economic-action="hero.recruit_vassal_clan" ${_bnrEconomicQuote('hero.recruit_vassal_clan') ? '' : 'disabled'}
+                   title="Нанять свежий NPC-вассальный клан (tier-1) в своё королевство. Лимита нет — цена и есть ограничитель."
                    style="width:100%;font-size:12px;padding:7px;margin-top:5px;background:#1e3a5f;color:#93c5fd;font-weight:700;">
-                🛡 Нанять вассальный клан (${_bnrGoldLabel('recruit_vassal', 3000000)})
-           </button>`
+                🛡 Нанять вассальный клан (${_bnrEconomicPriceHtml('hero.recruit_vassal_clan')})
+           </button>${_bnrEconomicStatusHtml('hero.recruit_vassal_clan')}`
         : '';
     const html = `
         <div style="font-size:12px;color:#93c5fd;font-weight:700;margin-bottom:4px;text-align:center;">
@@ -4968,8 +5062,18 @@ function loadBannerlordKingdomMgmt() {
             // Число берём в МОМЕНТ КЛИКА, а не при отрисовке: конфиг мог
             // обновиться. Развёрнутый формат (не «3M») здесь намеренно —
             // подтверждение должно показать сумму целиком.
-            const _rvCost = _bnrGold('recruit_vassal', 3000000).toLocaleString('ru-RU');
-            if (!await _bnrConfirmDanger(`Нанять вассальный клан за ${_rvCost}💰 динаров? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.`, 'Да, нанять')) return;
+            if (!_bnrRequireEconomicPrice('hero.recruit_vassal_clan')) return;
+            const quote = _bnrEconomicQuote('hero.recruit_vassal_clan');
+            const lifecycle = _bannerlordLifecycle, token = authToken;
+            const _rvCost = _bnrEconomicLabel('hero.recruit_vassal_clan', true);
+            if (!await _bnrConfirmDanger(`Нанять вассальный клан за ${_rvCost}? Это огромная сумма, вернуть её нельзя. Клан возглавит NPC-лорд и войдёт в твоё королевство.`, 'Да, нанять')) return;
+            if (lifecycle !== _bannerlordLifecycle || token !== authToken) return;
+            if (!_bnrRequireEconomicPrice('hero.recruit_vassal_clan')) return;
+            const current = _bnrEconomicQuote('hero.recruit_vassal_clan');
+            if (current.gold !== quote.gold || current.crustics !== quote.crustics) {
+                showNotification('Цена изменилась. Проверьте новую цену и подтвердите покупку ещё раз.', 'warning');
+                return;
+            }
             const res = await _bannerlordBuyAction('hero.recruit_vassal_clan', {});
             if (res && res.success) {
                 showNotification('🛡 Заявка принята. NPC-лорд и его клан появятся в твоём королевстве в течение пары секунд (после обработки в игре). Динары спишутся при создании.', 'success', 7000);
@@ -5007,7 +5111,7 @@ function _renderCreateKingdomInline() {
                     ? `Ты заберёшь владения своего клана, а подходящие сторонники перейдут вместе со своими феодами. Сторонники: <b style="color:${supporterCount >= supporterRequired ? '#86efac' : '#fca5a5'};">${supporterCount}/${supporterRequired}</b>.`
                     : 'Твой независимый клан станет правящим в новом королевстве. Феоды для основания не нужны.'}
                 Списывается
-                <b style="color:#fbbf24;">${_bnrGoldLabel('create_kingdom', 5000000)} динаров</b> + бонус: 2K влияния и
+                <b style="color:#fbbf24;">${_bnrEconomicPriceHtml('hero.create_kingdom')}</b> + бонус: 2K влияния и
                 2M kingdom wallet. Имя получит префикс <code>[BLink]</code>.
             </div>
             <input id="bnr-kingdom-name-input" type="text" maxlength="32"
@@ -5016,14 +5120,16 @@ function _renderCreateKingdomInline() {
                           border:1px solid #3d3d3f;border-radius:4px;
                           padding:6px 8px;font-size:12px;margin-bottom:12px;
                           box-sizing:border-box;">
-            <button id="bnr-k-confirm" class="extra-btn"
+            <button id="bnr-k-confirm" class="extra-btn" data-bnr-economic-action="hero.create_kingdom" ${_bnrEconomicQuote('hero.create_kingdom') ? '' : 'disabled'}
                     style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
                            color:#fbbf24;font-weight:700;">
-                ${isRebellion ? '⚔ Поднять восстание' : '👑 Создать'} (${_bnrGoldLabel('create_kingdom', 5000000)})
+                ${isRebellion ? '⚔ Поднять восстание' : '👑 Создать'} (${_bnrEconomicPriceHtml('hero.create_kingdom')})
             </button>
+            ${_bnrEconomicStatusHtml('hero.create_kingdom')}
         </div>`;
     const input = document.getElementById('bnr-kingdom-name-input');
     const confirm = () => {
+        if (!_bnrRequireEconomicPrice('hero.create_kingdom')) return;
         const kingdom_name = (input?.value || '').trim();
         // 2026-06-07 FLICKER — закрыть форму ДО действия (иначе freeze-guard
         // заблокирует следующий repaint секции) + мгновенный фидбек на клик.
@@ -5088,8 +5194,8 @@ function _renderCreateClanInline() {
         <div style="background:#18181b;border:1px solid #3d3d3f;border-radius:6px;padding:12px;">
             <div style="font-size:11px;color:#adadb8;margin-bottom:10px;line-height:1.4;">
                 Твой герой станет лидером нового клана и сможет создать отряд
-                (party) на карте. Списывается <b style="color:#fbbf24;">${_bnrGoldLabel('create_clan', 1000000)}
-                динаров</b> у героя в игре. Имя получит префикс <code>[BLink]</code>.
+                (party) на карте. Списывается <b style="color:#fbbf24;">${_bnrEconomicPriceHtml('hero.create_clan')}
+                </b> у героя в игре. Имя получит префикс <code>[BLink]</code>.
             </div>
             <div style="font-size:11px;color:#adadb8;margin-bottom:4px;">
                 Имя клана (опционально, до 32 символов):
@@ -5100,14 +5206,16 @@ function _renderCreateClanInline() {
                           border:1px solid #3d3d3f;border-radius:4px;
                           padding:6px 8px;font-size:12px;margin-bottom:12px;
                           box-sizing:border-box;">
-            <button id="bnr-clan-confirm" class="extra-btn"
+            <button id="bnr-clan-confirm" class="extra-btn" data-bnr-economic-action="hero.create_clan" ${_bnrEconomicQuote('hero.create_clan') ? '' : 'disabled'}
                     style="width:100%;font-size:12px;padding:7px;background:#7c2d12;
                            color:#fbbf24;font-weight:700;">
-                🏰 Создать (${_bnrGoldLabel('create_clan', 1000000)})
+                🏰 Создать (${_bnrEconomicPriceHtml('hero.create_clan')})
             </button>
+            ${_bnrEconomicStatusHtml('hero.create_clan')}
         </div>`;
     const input = document.getElementById('bnr-clan-name-input');
     const confirm = () => {
+        if (!_bnrRequireEconomicPrice('hero.create_clan')) return;
         const clan_name = (input?.value || '').trim();
         // 2026-06-07 FLICKER — закрыть форму ДО действия (иначе freeze-guard
         // заблокирует следующий repaint секции) + мгновенный фидбек на клик.

@@ -130,6 +130,36 @@ await test('same-context config requests are single-flight', async () => {
     const h = harness(); const one = h.invoke('_hydrateBnrConfig()'), two = h.invoke('_hydrateBnrConfig()');
     assert.equal(h.reads.length, 1); h.respond(0, config()); await Promise.all([one, two]);
 });
+for (const kind of ['network', 'json']) await test(kind + ' failure clears the loader and an actual retry can recover', async () => {
+    const h = harness(); const button = h.render(cases[0]); const pending = h.invoke('_hydrateBnrConfig()');
+    if (kind === 'network') h.reads[0].reject(Error('offline'));
+    else h.reads[0].resolve({ ok: true, json: async () => { throw Error('invalid JSON'); } });
+    await pending; assert.equal(button.disabled, true);
+    await h.hydrate(); assert.equal(button.disabled, false);
+});
+await test('retry during loading deduplicates but a renewed token gets a new owner', async () => {
+    const h = harness(); h.render(cases[0]); const old = h.invoke('_hydrateBnrConfig()');
+    const retry = h.document.querySelector('[data-bnr-economic-retry]');
+    retry.dispatchEvent(new h.document.defaultView.Event('click', { bubbles: true }));
+    assert.equal(h.reads.length, 1);
+    h.invoke('authToken="renewed"'); retry.dispatchEvent(new h.document.defaultView.Event('click', { bubbles: true }));
+    assert.equal(h.reads.length, 2); h.respond(1, config()); await settle(); h.respond(0, {}); await old;
+    assert.equal(h.document.querySelector(cases[0][3]).disabled, false);
+});
+for (const boundary of ['stop', 'token']) await test('late config after ' + boundary + ' alone stays unknown and retryable', async () => {
+    const h = harness(); const button = h.render(cases[0]), old = h.invoke('_hydrateBnrConfig()');
+    h.invoke(boundary === 'stop' ? '_stopBannerlordPolling()' : 'authToken="renewed"');
+    h.respond(0, config()); await old; assert.equal(button.disabled, true);
+    assert.equal(h.document.querySelector('[data-bnr-economic-retry]').disabled, false);
+});
+await test('a valid quote becoming unavailable immediately closes open-form purchase without erasing input', async () => {
+    const h = harness(); await h.hydrate(); const button = h.render(cases[0]);
+    h.document.querySelector(cases[0][4]).value = 'Keep name';
+    const pending = h.invoke('_hydrateBnrConfig()'); assert.equal(button.disabled, true);
+    await h.enter(cases[0]); assert.equal(h.posts.length, 0);
+    h.respond(1, {}); await pending; assert.equal(button.disabled, true);
+    assert(h.document.querySelector(cases[0][4]).closest('details').hasAttribute('open'));
+});
 await test('changed price while recruit confirmation is open requires a fresh confirmation', async () => {
     const h = harness(); await h.hydrate(); h.render(cases[3]); let accept;
     h.setConfirmation(new Promise(resolve => { accept = resolve; })); await h.click(cases[3]);
@@ -137,6 +167,13 @@ await test('changed price while recruit confirmation is open requires a fresh co
     await h.hydrate(cfg); accept(true); await settle();
     assert.equal(h.posts.length, 0, 'old confirmation cannot approve a changed price');
     assert(h.notices.some(n => n[0].includes('изменилась')));
+});
+for (const boundary of ['stop', 'token', 'error']) await test('recruit confirmation cannot survive ' + boundary, async () => {
+    const h = harness(); await h.hydrate(); h.render(cases[3]); let accept;
+    h.setConfirmation(new Promise(resolve => { accept = resolve; })); await h.click(cases[3]);
+    if (boundary === 'error') await h.hydrate({}, false);
+    else h.invoke(boundary === 'stop' ? '_stopBannerlordPolling()' : 'authToken="renewed"');
+    accept(true); await settle(); assert.equal(h.posts.length, 0);
 });
 await test('legacy fallback callers remain compatible and missing strict gold is not zero', () => {
     const h = harness(); assert.equal(h.invoke('_bnrGoldLabel("join_clan", 50000)'), '50K💰');

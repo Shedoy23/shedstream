@@ -82,7 +82,7 @@ export const legacySelectors = {
 };
 
 export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, options: {
-  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean;
+  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean;
 } = {}) {
   let login = options.login ?? 'alice';
   let token = options.token ?? 'alice-token';
@@ -216,15 +216,17 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
   document.body.innerHTML = equipmentOnly
     ? '<main id="bannerlord-content"><div id="bnr-equipment-shop"></div></main>'
     : `<main id="bannerlord-content">
+    ${options.panelLifecycle ? '<button class="bnr-tab-btn" data-bnr-tab="hero">Развитие</button><button class="bnr-tab-btn" data-bnr-tab="inventory">Снаряжение</button>' : ''}
     <div id="hero-body"></div>
-    <section id="bnr-pane-hero-body">
+    <section id="bnr-pane-hero-body" class="bnr-tab-pane active" data-bnr-pane="hero">
       <div id="bnr-pane-hero-stats"></div>
       <div id="hero-class-picker-slot"></div>
       <div id="bnr-progression-slot"></div>
     </section>
-    ${options.equipmentHost ? '<div id="bnr-equipment-shop"></div>' : ''}
+    ${options.equipmentHost || options.panelLifecycle ? '<section class="bnr-tab-pane" data-bnr-pane="inventory"><div id="bnr-equipment-shop"></div></section>' : ''}
   </main>`;
   evaluate(`authToken=${JSON.stringify(token)};userLogin=${JSON.stringify(login)};window.userLogin=userLogin;`);
+  if (options.panelLifecycle) evaluate("localStorage.setItem('bnr_active_tab','hero');_bindBnrInnerTabs();");
 
   async function settle() {
     // A native event-loop turn drains recursively scheduled promise jobs from
@@ -258,8 +260,9 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     // Keep the registered module already active without invoking whole-panel
     // startup. This is a real selected-screen polling interval, not a sentinel.
     const reads = equipmentOnly ? 'loadBannerlordEquipmentShop();'
-      : 'loadBannerlordHero(); loadBannerlordClasses(); loadBannerlordBuild();';
+      : 'loadBannerlordHero(); loadBannerlordClasses(); loadBannerlordBuild();' + (options.panelLifecycle ? `if (document.querySelector('[data-bnr-pane="inventory"].active')) loadBannerlordEquipmentShop();` : '');
     evaluate(`_bannerlordPollId = safeInterval(() => { if (!document.hidden) { ${reads} } }, 8000);`);
+    if (options.panelLifecycle) evaluate('_bannerlordBuffPollId = safeInterval(() => { if (!document.hidden) loadBannerlordBuffs(); }, 2500);');
   }
   async function bootEquipment() {
     if (!document.getElementById('bnr-equipment-shop')) throw new Error('bootEquipment needs scope:equipment or equipmentHost:true');

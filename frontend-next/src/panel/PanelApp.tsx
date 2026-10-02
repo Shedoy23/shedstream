@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useSyncExternalStore, type ComponentType } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType } from 'react';
 import type { IdentityBootstrap } from '../skillgames/identity';
 import type { PanelController } from './controller';
 import { HeroDevelopmentView } from './HeroDevelopmentView';
@@ -6,16 +6,17 @@ export function PanelApp({ controller, identity, Equipment }: { controller: Pane
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   const gate = useSyncExternalStore(identity.subscribe, identity.snapshot);
   const [tab, setTab] = useState<'development' | 'equipment'>('development');
+  const currentTab = useRef(tab); currentTab.current = tab;
   useLayoutEffect(() => { void controller.start(); return () => controller.stop(); }, [controller]);
   useEffect(() => {
     if (!state.canAct) return;
-    const snapshotTimer = setInterval(() => { if (!document.hidden) { void controller.refreshHero(); void controller.refreshClasses(); void controller.refreshBuild(); if (tab === 'equipment') void controller.refreshEquipment(); } }, 8000);
+    const snapshotTimer = setInterval(() => { if (!document.hidden) { void controller.refreshHero(); void controller.refreshClasses(); void controller.refreshBuild(); if (currentTab.current === 'equipment') void controller.refreshEquipment(); } }, 8000);
     const cooldownTimer = setInterval(() => { if (!document.hidden) void controller.refreshBuffs(); }, 2500);
     const ticker = setInterval(controller.tick, 1000);
-    const visible = () => { if (!document.hidden) { void controller.refresh(); if (tab === 'equipment') void controller.refreshEquipment(); } };
+    const visible = () => { if (!document.hidden) { void controller.refresh(); if (currentTab.current === 'equipment') void controller.refreshEquipment(); } };
     document.addEventListener('visibilitychange', visible);
     return () => { clearInterval(snapshotTimer); clearInterval(cooldownTimer); clearInterval(ticker); document.removeEventListener('visibilitychange', visible); };
-  }, [controller, state.canAct, tab]);
+  }, [controller, state.canAct]);
   return <main className="panel-layout"><header className="panel-brand"><span className="panel-brand-mark">S</span><div><strong>ShedLink</strong><span>Герой Bannerlord</span></div></header>
     {gate.status !== 'ready' && <section className="panel-card"><p className="panel-eyebrow">ВХОД ЧЕРЕЗ TWITCH</p><h1>Подключите свою личность</h1><p role="status">{gate.message}</p>
       {gate.canShare && <button type="button" disabled={gate.status === 'resolving' || gate.shareRequested} onClick={() => identity.requestShare()}>Поделиться Twitch ID</button>}

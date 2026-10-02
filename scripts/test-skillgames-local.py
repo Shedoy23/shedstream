@@ -37,7 +37,12 @@ class LiveLocalHarnessTests(unittest.IsolatedAsyncioTestCase):
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app,client=('127.0.0.1',5000)),base_url='http://127.0.0.1:4180') as client:
                 identity = await client.get('/local-identity?player=alice')
                 self.assertEqual(identity.status_code,200,identity.text)
+                assert identity.json()['userId'].startswith('U'), 'Local helper must exercise opaque Twitch identity, not bypass new-user onboarding'
                 headers = {'X-Twitch-JWT':identity.json()['token']}
+                self.assertEqual((await client.get('/api/skillgames/state',headers=headers)).status_code,401)
+                resolved = await client.post('/api/user/resolve-twitch-token',json={'token':identity.json()['token'],'opaque_id':identity.json()['userId']})
+                self.assertEqual(resolved.status_code,200,resolved.text)
+                self.assertEqual(resolved.json()['login'],'alice')
                 state = await client.get('/api/skillgames/state',headers=headers)
                 self.assertEqual(state.status_code,200,state.text)
                 self.assertEqual(len(state.json()['catalog']),2)

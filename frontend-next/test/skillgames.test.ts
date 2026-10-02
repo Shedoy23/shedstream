@@ -99,3 +99,18 @@ describe('skillgame integration boundary regressions', () => {
     expect(() => parseSnapshot({ ...resumed, active_session: { ...session, rules: { ...catalog[0], game_type: 'battleship' } } })).toThrow();
   });
 });
+
+describe('skillgame network deadlines', () => {
+  it('turns a hung mutation into a safely retryable uncertain command', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetcher = vi.fn().mockImplementation(() => new Promise<Response>(() => {}));
+      const transport = new HttpSkillgameTransport('', auth(), fetcher, () => 'network-request');
+      const pending = transport.mutate('queue', {}).catch(error => error);
+      await vi.advanceTimersByTimeAsync(20000);
+      expect(transport.hasUncertain()).toBe(true);
+      expect(await pending).toBeInstanceOf(UnknownMutationError);
+      expect(fetcher.mock.calls[0][1].signal.aborted).toBe(true);
+    } finally { vi.useRealTimers(); }
+  });
+});

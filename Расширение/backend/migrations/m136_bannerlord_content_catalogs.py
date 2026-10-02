@@ -1,7 +1,7 @@
 """Game-owned content snapshots, including explicitly empty catalogs."""
 async def apply(conn):
     await conn.execute('CREATE TABLE IF NOT EXISTS migrations_applied (name TEXT PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
-    name = 'M134.bannerlord_content_catalogs'
+    name = 'M136.bannerlord_content_catalogs'  # 02.10: was M134, renumbered to avoid clash with m134_ui_usage (skill-minigames)
     if await (await conn.execute('SELECT 1 FROM migrations_applied WHERE name=?', (name,))).fetchone():
         return
     await conn.execute('''CREATE TABLE IF NOT EXISTS bannerlord_content_catalogs (

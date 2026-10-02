@@ -18,8 +18,9 @@ interface RequestTrace { url: string; method: string | undefined; headers: [stri
 const authOne = { token: 'private-token-alice', channelId: 'channel-a', userId: 'viewer-a' };
 const drains: (() => void)[] = [];
 // A handler-emitted fixture (generate-responses.py -> routes.ui_usage), not a
-// made-up successful response. Collector semantics use status, never JSON.
-const reply = (status = 401) => new Response(JSON.stringify(fixtures.responses.usage_unauthorized), { status });
+// made-up successful response. Other failure statuses are bodyless transport
+// fault injection; collector semantics use status, never JSON.
+const reply = (status = 401) => new Response(status === 401 ? JSON.stringify(fixtures.responses.usage_unauthorized) : status === 200 ? JSON.stringify(fixtures.responses.usage_ok) : null, { status });
 function pair(surface: 'mobile' | 'desktop' = 'desktop') {
   const oldTrace: RequestTrace[] = [], nextTrace: RequestTrace[] = [];
   const fetcher = (trace: RequestTrace[]) => vi.fn((async (url: RequestInfo | URL, init: RequestInit = {}) => {
@@ -137,4 +138,23 @@ describe('legacy panel usage collector parity', () => {
     p.next.stop(); p.next.trackAction('bannerlord:hero.add_focus'); document.dispatchEvent(new Event('visibilitychange')); await vi.advanceTimersByTimeAsync(300000);
     expect(p.nextFetch).toHaveBeenCalledTimes(1); expect(storage).not.toHaveBeenCalled();
   });
+});
+
+it('an old in-flight completion cannot clear the new token queue or send it with the old JWT', async () => {
+  const p = pair(); let finishOld!: (value: Response) => void, finishNext!: (value: Response) => void;
+  p.oldFetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finishOld = resolve; }));
+  p.nextFetch.mockImplementationOnce(() => new Promise<Response>(resolve => { finishNext = resolve; }));
+  p.both(u => u.trackPanel('bannerlord')); await vi.advanceTimersByTimeAsync(30000);
+  p.token('second-viewer-token', 'viewer-b'); p.both(u => { u.trackPanel('bannerlord'); u.trackAction('bannerlord:hero.add_focus'); });
+  await p.old.flush(); await p.next.flush(); expect(p.oldFetch).toHaveBeenCalledTimes(1); expect(p.nextFetch).toHaveBeenCalledTimes(1);
+  finishOld(reply(200)); finishNext(reply(200)); await vi.advanceTimersByTimeAsync(30000);
+  expect(p.oldFetch).toHaveBeenCalledTimes(2); expect(p.nextFetch).toHaveBeenCalledTimes(2);
+  expect(normalize(p.nextTrace)).toEqual(normalize(p.oldTrace));
+  expect(p.nextTrace[0].headers).toContainEqual(['x-twitch-jwt', 'second-viewer-token']);
+  expect(events(p.nextTrace)).toEqual([{ kind: 'panel_view', feature: 'bannerlord:panel', count: 1 }, { kind: 'action_attempt', feature: 'bannerlord:hero.add_focus', count: 1 }]);
+});
+it('a scope change cannot retain queued telemetry even if a host accidentally reuses a token', async () => {
+  const p = pair(); p.next.trackAction('bannerlord:hero.add_focus'); p.auth.authorize({ ...authOne, channelId: 'different-channel' });
+  await p.next.flush(); expect(p.nextTrace).toEqual([]);
+  p.next.trackPanel('bannerlord'); await p.next.flush(); expect(events(p.nextTrace)).toEqual([{ kind: 'panel_view', feature: 'bannerlord:panel', count: 1 }]);
 });

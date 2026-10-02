@@ -1,6 +1,6 @@
 import { diplomacyAllowed, diplomacyOwner, type DiplomacyReply } from './diplomacy';
 import { kingdomAllowed, kingdomOwner } from './kingdom';
-import { clanInfo, kingdomInfo, partyAllowed, partyOwner, type PartyOrdersReply } from './party';
+import { clanInfo, partyAllowed, partyOwner, type PartyOrdersReply } from './party';
 import { TwitchAuthStore } from '../auth';
 import type { PanelUsage } from './usage';
 import type { IdentityBootstrap } from '../skillgames/identity';
@@ -108,7 +108,7 @@ export class PanelController {
       if (this.equipmentPreload.hero === undefined) this.equipmentPreload.hero = heroContext(hero);
       else if (this.equipmentPreload.hero !== heroContext(hero)) this.discardEquipmentPreload();
     }
-    if (kingdomOwner(hero) !== kingdomOwner(this.state.hero)) { this.applied.diplomacy = this.issued.diplomacy = (this.issued.diplomacy || 0) + 1; this.state = { ...this.state, diplomacy: null }; }
+    if (kingdomOwner(hero) !== kingdomOwner(this.state.hero)) { this.applied.diplomacy = this.issued.diplomacy = (this.issued.diplomacy || 0) + 1; }
     if (partyOwner(hero) !== partyOwner(this.state.hero)) { this.applied.party = this.issued.party = (this.issued.party || 0) + 1; this.state = { ...this.state, partyOrders: null }; }
     return { hero, refundNotices: this.refundNotices(hero), optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance || this.stanceRefused(hero) ? null : this.state.optimisticStance };
   }).then(applied => { if (applied) this.refreshVisibleParty(); });
@@ -118,9 +118,9 @@ export class PanelController {
     if(!this.state.hero?.hero?.is_alive||!clanInfo(this.state.hero)?.is_leader)return Promise.resolve();
     const context=kingdomOwner(this.state.hero),token=this.auth.current()?.token;
     return this.load<DiplomacyReply>('diplomacy','/api/bannerlord/kingdom-state',diplomacy=>{
-      // Never combine a different realm's state with this hero's target catalog.
-      const realm=kingdomInfo(this.state.hero)?.id;
-      if(diplomacy.has_hero&&diplomacy.kingdom_id&&realm&&diplomacy.kingdom_id!==realm)return {};
+      // Retain the fresh observation even when hero-state has not caught up.
+      // Both cards quarantine this visible disagreement until the sources agree.
+      // Dropping it would leave the old ruler's privileges actionable.
       return {diplomacy};
     },()=>context===kingdomOwner(this.state.hero)&&token===this.auth.current()?.token);
   };

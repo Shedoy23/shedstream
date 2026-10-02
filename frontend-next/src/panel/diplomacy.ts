@@ -1,6 +1,6 @@
 import { validPrice, type PanelState } from './contracts';
 import { clanInfo, kingdomInfo } from './party';
-import { kingdomOwner } from './kingdom';
+import { kingdomConflicted, kingdomOwner } from './kingdom';
 export interface PolicyStatus { policy_id:string; policy_name?:string; status?:string; [key:string]:unknown }
 export interface DiplomacyReply { success:boolean; has_hero:boolean; kingdom_id?:string|null; kingdom_name?:string|null; is_king?:boolean; is_clan_leader?:boolean; kingdom_tax_pct?:number; policies_enacted?:PolicyStatus[]; policies_pending?:PolicyStatus[]; [key:string]:unknown }
 // Existing curated legacy catalog: the server does not export policy options or
@@ -37,7 +37,7 @@ export function diplomacyLabel(s:PanelState,type:string){const price=diplomacyPr
 export const proposalTargets=(s:PanelState,peace:boolean)=>{const all=kingdomInfo(s.hero)?.all_kingdoms;return Array.isArray(all)?all.filter((k):k is NonNullable<typeof k>=>!!k&&!!k.at_war===peace):[];};
 export function diplomacyAllowed(s:PanelState,type:string,data:Record<string,unknown>={},now=Date.now()){
   const d=s.diplomacy,ki=kingdomInfo(s.hero);
-  if(!s.canAct||s.mutationBlocked||!s.hero?.has_hero||!s.hero.hero?.is_alive||!clanInfo(s.hero)?.is_leader||!d?.has_hero||!d.kingdom_id||!ki?.id||d.kingdom_id!==ki.id)return false;
+  if(!s.canAct||s.mutationBlocked||kingdomConflicted(s)||!s.hero?.has_hero||!s.hero.hero?.is_alive||!clanInfo(s.hero)?.is_leader||!d?.has_hero||!d.kingdom_id||!ki?.id||d.kingdom_id!==ki.id)return false;
   if(type!=='kingdom.set_tax_rate'&&diplomacyPrice(s,type)===null)return false;
   const lead=!!(d.is_king||d.is_clan_leader);
   switch(type){

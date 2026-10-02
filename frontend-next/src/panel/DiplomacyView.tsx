@@ -3,6 +3,7 @@ import type { PanelController } from './controller';
 import { actionKey } from './contracts';
 import { diplomacyAllowed, diplomacyOwner, diplomacyPrice, diplomacyLabel, policies, proposalTargets } from './diplomacy';
 import { kingdomInfo } from './party';
+import { kingdomConflicted } from './kingdom';
 const countdown=(rem:number)=>rem>=60?`⏳ ${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`:`⏳ ${rem}с`;
 export function DiplomacyView({controller,active}:{controller:PanelController;active:boolean}){
   const s=useSyncExternalStore(controller.subscribe,controller.snapshot),d=s.diplomacy;
@@ -20,6 +21,7 @@ export function DiplomacyView({controller,active}:{controller:PanelController;ac
   const propose=(peaceful:boolean)=>{const data=proposalData(peaceful);if(!data.target_kingdom_id)return;perform(peaceful?'kingdom.propose_peace':'kingdom.propose_war',data);};
   const proposalButton=(peaceful:boolean)=>{const type=peaceful?'kingdom.propose_peace':'kingdom.propose_war',seconds=Math.max(0,Math.ceil(((s.cooldowns[type]||0)-s.now)/1000));return <button type="button" id={peaceful?'bnr-peace-vote-propose':'bnr-war-propose'} data-bnr-cd={type} disabled={!allowed(type,proposalData(peaceful))} onClick={()=>propose(peaceful)}>{seconds>0?countdown(seconds):`${peaceful?'🕊':'⚔'} Предложить (${diplomacyLabel(s,type)})`}</button>;};
   if(!d?.has_hero)return <div id="bnr-diplo-slot"/>;
+  if(kingdomConflicted(s))return <div id="bnr-diplo-slot"><p role="alert" className="panel-error">Данные королевства ещё не согласованы. Действия недоступны до обновления героя и политики.</p></div>;
   if(!d.kingdom_id)return <div id="bnr-diplo-slot"><p>🏛 Политика kingdom'а доступна когда герой вступит в королевство</p></div>;
   const canEnact=!!(d.is_king||d.is_clan_leader),enacted=new Set(d.policies_enacted?.map(p=>p.policy_id)),pending=new Set(d.policies_pending?.map(p=>p.policy_id));
   const missingQuotes=[...(canEnact?['hero.enact_policy']:[]),...(d.is_king?['hero.make_peace']:[]),...(canEnact&&warTargets.length?['kingdom.propose_war']:[]),...(canEnact&&peaceTargets.length?['kingdom.propose_peace']:[])].some(type=>diplomacyPrice(s,type)===null);

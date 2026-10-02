@@ -246,3 +246,26 @@ it('a local pre-fetch request construction error cannot imply server acceptance 
   expect(fetcher).not.toHaveBeenCalled(); expect(transport.mutationBlock()).toBeNull();
   expect((await transport.action('hero.add_attribute', { attribute_key: 'Vigor', amount: 1 }))?.success).toBe(true);
 });
+
+it('matches legacy JWT ownership for a successful action tail after same-viewer token refresh', async () => {
+  vi.useFakeTimers(); const s = setup(); await s.start();
+  const equipment = vi.fn(); s.controller.registerEquipmentRefresh(equipment);
+  await s.controller.action('hero.add_focus', { skill_key: 'OneHanded', amount: 1 }, { tail: 'hero' });
+  s.authorize({ ...authValue, token: 'rotated-after-success' }); await flush();
+  expect(s.controller.ready()).toBe(true); s.trace.length = 0; equipment.mockClear();
+  await vi.advanceTimersByTimeAsync(3500); await flush();
+  expect(s.trace).toEqual([]); expect(equipment).not.toHaveBeenCalled(); s.controller.stop();
+});
+it('late old-JWT acceptance refreshes same-viewer balance but cannot create wrapper cooldown or hero tail', async () => {
+  vi.useFakeTimers(); const waiting = deferred<Response>();
+  const s = setup({ '/api/bannerlord/action': waiting.promise }); await s.start();
+  const equipment = vi.fn(); s.controller.registerEquipmentRefresh(equipment);
+  const action = s.controller.action('hero.add_focus', { skill_key: 'OneHanded', amount: 1 }, { tail: 'hero' });
+  s.authorize({ ...authValue, token: 'rotated-before-success' }); await flush(); s.trace.length = 0;
+  waiting.resolve(response({ ...f.focus_success.response, cooldown_applied_s: 37 })); await action; await flush();
+  expect(s.trace.map(r => r.path)).toEqual(['/api/viewer/stats/alice','/api/user/level/alice','/api/duel/list']);
+  expect(s.trace.every(r => r.token === 'rotated-before-success')).toBe(true);
+  expect(s.controller.cooldown('hero.add_focus')).toBe(0); s.trace.length = 0;
+  await vi.advanceTimersByTimeAsync(3500); await flush();
+  expect(s.trace).toEqual([]); expect(equipment).not.toHaveBeenCalled(); s.controller.stop();
+});

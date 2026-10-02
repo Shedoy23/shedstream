@@ -19,7 +19,7 @@ it('unchanged legacy writes after stop; owned Preact read cannot repopulate stop
 });
 it('ignored pre-identity hero completion cannot launch a fresh party read for a new owner',async()=>{
   const p=await partyPair(),pending=deferred<LegacyJson>();p.fixtures.hero=()=>pending.promise;const a=p.controller.refreshHero();p.fixtures.hero=r.hero_party;
-  await act(async()=>{p.authorize({token:'other-owner',channelId:'channel-a',userId:'opaque-other'});await flush();});const before=p.trace.length;pending.resolve(r.hero_army_leader);await act(async()=>{await a;await flush();});expect(p.trace.slice(before)).toEqual([]);
+  await act(async()=>{p.authorize({token:'other-owner',channelId:'channel-a',userId:'opaque-other'});await flush();});await act(flush);expect(p.controller.snapshot().loading).toBe(false);const before=p.trace.length;pending.resolve(r.hero_army_leader);await act(async()=>{await a;await flush();});expect(p.trace.slice(before)).toEqual([]);
 });
 for(const [hero,q] of [[r.hero_army_leader,'[data-bnr-action="army_disband"]'],[r.hero_clan_member,'.bnr-locked-leave'],[r.hero_party,'.bnr-clan-leave']] as const)it(`${q} original confirmation cannot authorize changed observable viewer`,async()=>{
   const p=await partyPair({hero});await click(p,q);const yes=button(p,'#confirm-dyn-yes');expect(yes).not.toBeNull();await act(async()=>{p.authorize({token:'other-owner',channelId:'channel-a',userId:'opaque-other'});yes.click();await flush();});expect(posts(p)).toHaveLength(0);expect(p.ui.queryByRole('dialog')).toBeNull();

@@ -240,13 +240,14 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     try { vm.runInContext(source, context, { filename: file }); }
     catch (error) { throw recordFailure(new Error(`${file}: ${String(error)}`)); }
   }
+  const partyMarker = (fixtures.hero as { hero?: { clan_info?: { is_leader?: boolean } } })?.hero?.clan_info?.is_leader ? 'bnr-dynasty-built' : 'bnr-dynasty-locked';
   document.body.innerHTML = equipmentOnly
     ? '<main id="bannerlord-content"><div id="bnr-equipment-shop"></div></main>'
     : `<main id="bannerlord-content">
     ${options.combatHost ? '<button class="bnr-tab-btn" data-bnr-tab="combat">Боевые действия</button>' : ''}
     ${options.panelLifecycle ? '<button class="bnr-tab-btn" data-bnr-tab="hero">Развитие</button><button class="bnr-tab-btn" data-bnr-tab="inventory">Снаряжение</button>' : ''}
     ${options.combatHost ? '<section class="bnr-tab-pane" data-bnr-pane="combat"><div id="bnr-battle-banner-slot"></div><div id="bnr-combat-stance-slot"></div><div id="bnr-buff-hud"></div><div id="bnr-detachment-slot"></div><div id="bnr-summon-slot" data-bnr-ui-section="summon"></div><div id="bnr-active-powers-slot" data-bnr-ui-section="active_powers"></div><div id="bnr-build-choice-slot" data-bnr-ui-section="weapon_choice"></div></section>' : ''}
-    ${options.partyHost ? '<button class="bnr-tab-btn" data-bnr-tab="dynasty">Клан, отряд и армия</button><section class="bnr-tab-pane" data-bnr-pane="dynasty"><div id="bnr-dynasty-locked-actions"></div><details data-bnr-details="dyn-clan" open><summary>🏰 Клан</summary><div id="bnr-clan-mgmt-slot"></div></details><div id="bnr-party-orders-slot"></div><div id="bnr-army-slot"></div></section>' : ''}
+    ${options.partyHost ? '<button class="bnr-tab-btn" data-bnr-tab="dynasty">Клан, отряд и армия</button><section id="bnr-pane-dynasty-body" class="bnr-tab-pane" data-bnr-pane="dynasty"><div id="' + partyMarker + '"></div><div id="bnr-dynasty-locked-actions"></div><details data-bnr-details="dyn-clan" open><summary>🏰 Клан</summary><div id="bnr-clan-mgmt-slot"></div></details><div id="bnr-party-orders-slot"></div><div id="bnr-army-slot"></div></section>' : ''}
     <div id="hero-body"></div>
     <section id="bnr-pane-hero-body" class="bnr-tab-pane active" data-bnr-pane="hero">
       <div id="bnr-pane-hero-stats"></div>

@@ -2,7 +2,8 @@
 
 Generation accepts only boards with a replayable deduction certificate. Beginner
 uses visible zero/full constraints; advanced must first defeat that solver, then
-be completely solved by strict-subset subtraction. Neither solver guesses or
+be completely solved by strict-subset subtraction. A first flood that already
+wins is rejected: every accepted round requires a post-start deduction. Neither solver guesses or
 uses hidden information to choose a move. Layout access is limited to simulating
 a safe reveal. Counts (5/7) are initial product defaults, not balance findings.
 
@@ -189,10 +190,14 @@ def initialize(first_cell, tier='beginner', rng=None, *, limits=None):
     rng = SystemRandom() if rng is None else rng
     eligible = sorted(_ALL - _NEIGHBORS[first_cell] - {first_cell})
     mine_count = TIERS[tier]['mine_count']
+    rejected_trivial = 0
     for attempt in range(1, limits.max_attempts + 1):
         budget.spend()
         mines = frozenset(rng.sample(eligible, mine_count))
         certificate = _certify(mines, first_cell, False, budget)
+        if certificate is not None and certificate['solver_steps'] == 0:
+            rejected_trivial += 1
+            continue
         if tier == 'advanced':
             if certificate is not None:
                 continue
@@ -214,7 +219,8 @@ def initialize(first_cell, tier='beginner', rng=None, *, limits=None):
             'flags': [],
             'status': 'won' if len(opened) == ROWS * COLS - mine_count else 'active',
             'certification': certificate,
-            'generation': {'attempts': attempt, 'work': budget.work},
+            'generation': {'attempts': attempt, 'work': budget.work,
+                           'rejected_trivial': rejected_trivial},
         }
     raise GenerationError('generation_attempt_budget_exhausted')
 

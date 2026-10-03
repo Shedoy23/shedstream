@@ -1,0 +1,95 @@
+{
+  "previous_my_hero_equipment": {
+    "head": {
+      "item_id": "helmet_A",
+      "item_name": "Visible helmet A",
+      "tier": 3,
+      "item_value": null,
+      "weight": null,
+      "stats": {},
+      "quality": "fine"
+    }
+  },
+  "fresh_my_hero_equipment": {
+    "head": {
+      "item_id": "helmet_B",
+      "item_name": "Actual helmet B",
+      "tier": 0,
+      "item_value": 0,
+      "weight": null,
+      "stats": null,
+      "quality": null
+    }
+  },
+  "equipment_inventory": [
+    {
+      "source": "equipped",
+      "slot": "head",
+      "owned_id": "equipped|head",
+      "item_id": "helmet_B",
+      "name": "Actual helmet B",
+      "quality": null,
+      "modifier_id": "",
+      "quality_rank": 0,
+      "reforge_options": [
+        {
+          "rank": 1,
+          "modifier_id": "fine_B"
+        }
+      ]
+    }
+  ],
+  "equipment_keys": [
+    "success",
+    "items",
+    "inventory",
+    "party_inventory",
+    "tiers",
+    "hero_level",
+    "gold",
+    "has_hero",
+    "ready",
+    "pending",
+    "can_manage",
+    "reason",
+    "message"
+  ],
+  "request": {
+    "action_type": "hero.reforge_quality",
+    "data": {
+      "slot": "head",
+      "client_action_id": "review-mismatch-head"
+    }
+  },
+  "response": {
+    "success": true,
+    "action_id": "44c0883883e6473781ea36616a1d5f4a",
+    "charged": 20000,
+    "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
+    "perk": "viewer",
+    "perk_price_mult": 1.0,
+    "cooldown_applied_s": 0
+  },
+  "balance_before": 100000,
+  "balance_after": 80000,
+  "queued": {
+    "slot": "head",
+    "client_action_id": "review-mismatch-head",
+    "_user_role": "viewer",
+    "price": 20000,
+    "reward_boost": 1.0,
+    "_perk_label": "viewer",
+    "_reforge": {
+      "save_id": "save-a",
+      "hero_id": "test_hero_alice",
+      "session_id": "session-a",
+      "slot": "head",
+      "item_id": "helmet_B",
+      "expected_modifier": "",
+      "modifier_id": "fine_B",
+      "rank": 1
+    },
+    "initiated_by": "alice",
+    "target": "alice"
+  }
+}

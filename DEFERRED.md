@@ -1,3 +1,9 @@
+## 03.10 — финальная кузница: пределы frontend-only защиты
+
+- Наблюдаемое расхождение hero/equipment-shop по item_id/quality закрыто в новом UI; неизменённый старый UI сохраняет риск. Невидимая смена между GET и POST и одинаковая session-смена не закрываются без изменения DTO/совместимого серверного expected-target контракта. Разблокирует отдельное согласование backend, сейчас он неизменён.
+- Malformed truthy hero flags/quality types — robustness-граница, не подтверждённый дефект реальных handlers. При будущем строгом parser сначала реальные response shapes и hostile-payload red tests.
+- Настоящий турнир и прочие остатки перечислены в итоговом panel-отчёте. Кузница закончена локально, новый широкий scope этой поставкой не начат.
+
 ## 03.10 — Preact panel: оставшиеся release gates и CI test-harness
 
 - Общее server-state согласие не атомарно с POST: observed realm/role disagreement теперь закрывает зависимые kingdom/army/order действия, но невидимую смену той же формы без session ID frontend не обнаружит. Сервер/мод остаются авторитетом

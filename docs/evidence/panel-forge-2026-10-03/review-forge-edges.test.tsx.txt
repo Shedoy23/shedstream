@@ -1,0 +1,21 @@
+import { act } from '@testing-library/preact';
+import { expect, it } from 'vitest';
+import { forgePair, r, toggle, posts, flush } from './panel-forge-support';
+const selector='.bnr-reforge-btn[data-slot="head"]';
+it('review: a missing forge-only quote can be retried without identity reset',async()=>{
+ const p=await forgePair({config:{...r.config,reforge_price:null}}); await toggle(p,'inv-forge');
+ expect((p.ui.container.querySelector(selector) as HTMLButtonElement).disabled).toBe(true);
+ p.fixtures.config=r.config;
+ const before=p.trace.filter(q=>q.path.endsWith('/config')).length;
+ await act(async()=>{(p.ui.container.querySelector('#bnr-forge-price-retry') as HTMLButtonElement).click();await flush();});
+ expect(p.trace.filter(q=>q.path.endsWith('/config')).length).toBeGreaterThan(before);
+ expect((p.ui.container.querySelector(selector) as HTMLButtonElement).disabled).toBe(false);
+});
+it('review: newer equipment shop observation invalidates stale forge item',async()=>{
+ const p=await forgePair();await toggle(p,'inv-forge');
+ p.fixtures.equipment={...r.equipment_forge,inventory:r.equipment_forge.inventory.map(x=>x.slot==='head'?{...x,item_id:'replacement_head',name:'Replacement helmet'}:x)};
+ await p.tab('hero');await p.tab('inventory');
+ const row=p.ui.container.querySelector('[data-forge-slot="head"]')!;expect(row.textContent).toContain('Fixture head');
+ await p.click(selector);expect(p.old.trace.filter(q=>q.path.endsWith('/action'))).toHaveLength(1);
+ expect(posts(p)).toHaveLength(0);
+});

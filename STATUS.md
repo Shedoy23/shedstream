@@ -1,3 +1,13 @@
+## 03.10.2026 — финальный локальный Preact-кандидат с кузницей
+
+Runtime c00bf91, tests/fixtures04a011e:937unit/DOM+2freshHTTP,17legacy,type/build/lints exit0.
+Кузница целиком:54cases+6independent probes,16mutations red→green; устранён наблюдаемый target mismatch.
+Mobile initial230996raw/60804gzip; minify:false, maps/лицензии сохранены.
+GitHub panel58c2e4f содержит только первый checkpoint; новое локально, публикация остановлена.
+Турнир/остальные Hero/Dynasty/общая оболочка/RimWorld/ShedColony ещё не перенесены.
+Браузер318px/телефон/HostedTest/игра не проверены; backend/legacy/mod/OBS/ZIP прежние.
+Merge/deploy/submission нет. [Итог и локальные доказательства](docs/PANEL_PREACT_RESULT_2026-10-03.md).
+
 ## 03.10.2026 — локальная Preact панель: королевство, политика, безопасные отказы API
 
 Checkpoint `ac22deaf1235b6c428db6877edaee083bcf2c6c9`: 883 unit/DOM, 2 свежих HTTP, 17 legacy gates; type/build/lints exit 0.

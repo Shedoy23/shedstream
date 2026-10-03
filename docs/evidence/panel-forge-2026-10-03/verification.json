@@ -1,0 +1,280 @@
+{
+  "source_and_portable_probe_commit": "0d43d442db082d3a7006a975d7246bddb9186966",
+  "tested_commit": "04a011e48f53221f95b9bb8e33706d54bd2ace88",
+  "runtime_reviewed_commit": "c00bf91196820d8a7478ab59bd35a79555e6fb39",
+  "runtime_unchanged_since_review": true,
+  "unit_dom_passed": 937,
+  "unit_explicit_live_skips": 2,
+  "fresh_http_passed": 2,
+  "forge_unit_dom": 54,
+  "independent_extra_probes": 6,
+  "legacy_gate_files": 17,
+  "mutation_cases": 16,
+  "mutation_exit_codes": {
+    "mutated": 1,
+    "restored": 0
+  },
+  "mutation_source_commit": "04a011e48f53221f95b9bb8e33706d54bd2ace88",
+  "gate_exit_codes": {
+    "unit": 0,
+    "fresh_http": 0,
+    "typecheck_build_checkbuild": 0,
+    "legacy_lint_globals": 0,
+    "consistency_with_pyflakes": 0,
+    "fixture_generation": 0,
+    "cashier_proof": 0,
+    "mutations": 0
+  },
+  "max_workers": 2,
+  "panel_mobile_initial": {
+    "raw": 230996,
+    "gzip9": 60804
+  },
+  "protected_source_diff_base": "8a40391b397ba15526179e6de10830fdb912b16c",
+  "protected_source_diff_empty": [
+    "Расширение/frontend",
+    "Расширение/backend",
+    "BannerlordLink",
+    "BannerlordAutopilot",
+    "RimLink"
+  ],
+  "published_skillgames_sha": "ccd1489486dc1703c60487bf2faa00f290cd109b",
+  "published_panel_sha": "58c2e4f9fc0a74303931b7eb335144ed1439706a",
+  "publication_status": "All later panel work local only. No further GitHub writes after denial; no CI for local final SHA.",
+  "not_verified": [
+    "browser",
+    "318 px visuals",
+    "phone",
+    "Twitch Hosted Test",
+    "actual Twitch authentication",
+    "CDN compression / 3-second load",
+    "real game effects"
+  ],
+  "evidence_format": "Only trailing blank EOF lines normalized; capture and committed hashes retained. Test log clock is executor local time UTC-04; report date is 2026-10-03 UTC.",
+  "evidence_sha256": {
+    "final-tests.log": {
+      "capture_sha256": "509ae9901b23b8ed3857b393c24b1ec1d1efdffb5998c2a583fecdc483742296",
+      "committed_sha256": "509ae9901b23b8ed3857b393c24b1ec1d1efdffb5998c2a583fecdc483742296"
+    },
+    "final-build.log": {
+      "capture_sha256": "a4896b2ae8c56520ed890fec2973d0aabfb36fc993f4153bd6edcaf84032ad6c",
+      "committed_sha256": "a4896b2ae8c56520ed890fec2973d0aabfb36fc993f4153bd6edcaf84032ad6c"
+    },
+    "final-legacy.log": {
+      "capture_sha256": "9d341c75cffda27cec5f8d42528d160a155955e2add8fc397ccae0eba799746f",
+      "committed_sha256": "9d341c75cffda27cec5f8d42528d160a155955e2add8fc397ccae0eba799746f"
+    },
+    "final-consistency.log": {
+      "capture_sha256": "050949e2aaa930f592fdf2040cbb2ee970b3d74807402e1334644a4a9c3946ed",
+      "committed_sha256": "050949e2aaa930f592fdf2040cbb2ee970b3d74807402e1334644a4a9c3946ed"
+    },
+    "final-live-http.log": {
+      "capture_sha256": "96e83b74a3894e61402c823de208a481b18ad0b88cc253d4f5d714be6d00838e",
+      "committed_sha256": "96e83b74a3894e61402c823de208a481b18ad0b88cc253d4f5d714be6d00838e"
+    },
+    "mobile-sizes.json": {
+      "capture_sha256": "1ee1e9db55e602d22fcb497e21e906c577ea2c5bb143af4a628af330d29c911e",
+      "committed_sha256": "1ee1e9db55e602d22fcb497e21e906c577ea2c5bb143af4a628af330d29c911e"
+    },
+    "observation-red.log": {
+      "capture_sha256": "f3082eedf67482bf5d97f5ea410d638ca17c92e0de07b532e187a90794e6f082",
+      "committed_sha256": "1c5d3f90babb0e4b24092d34c8093efc4f33a91314a7204dfe12f7d79308e33c"
+    },
+    "observation-green.log": {
+      "capture_sha256": "bd47bd9b087bcb46612298e43adfa922ef7bc86410888c1d0b2ef9260f35f48c",
+      "committed_sha256": "bd47bd9b087bcb46612298e43adfa922ef7bc86410888c1d0b2ef9260f35f48c"
+    },
+    "quote-retry-red.log": {
+      "capture_sha256": "d87bfe766d7f4cd758f40be59373f15f0cc597dde61d6429bd7b1ae6b97f8a6b",
+      "committed_sha256": "a073cc8dfe8e09b9f2085e7d9fd35bf2b6322c3339a199570a4056430ce76747"
+    },
+    "initial-forge-red.log": {
+      "capture_sha256": "4097e66ac72c3f94e45298f10c59c320dcbbfced817f74062acad12f86d07c8b",
+      "committed_sha256": "3a8f5f78df74629653c13d52f9a753fd96df181699d3e4ecc72fca8880c41032"
+    },
+    "fixture-generation.log": {
+      "capture_sha256": "6788617e809e0e2c269a5d11beb8e3e259c471773139d5ba69b48394da167035",
+      "committed_sha256": "6788617e809e0e2c269a5d11beb8e3e259c471773139d5ba69b48394da167035"
+    },
+    "cashier-proof.json": {
+      "capture_sha256": "944fcbcae31bdc381ee02d77f3f42f6df41aa753bc29dc9c3285fdf848ab83da",
+      "committed_sha256": "04558e8a37f29f1ac39dc0a66fc00045f477a63194de457a5f822f3deac47372"
+    },
+    "cashier-proof.log": {
+      "capture_sha256": "a9c36c64442de0eb48e35c5759b1cf1659391c417e20e8cf7a279b1e9b22aee0",
+      "committed_sha256": "a9c36c64442de0eb48e35c5759b1cf1659391c417e20e8cf7a279b1e9b22aee0"
+    },
+    "mutations.log": {
+      "capture_sha256": "2c7035041bea6cc2065ef20dc1495723cf786fa851b719943b42551f23bf14a9",
+      "committed_sha256": "2c7035041bea6cc2065ef20dc1495723cf786fa851b719943b42551f23bf14a9"
+    },
+    "mutation-diagnostic-first-run.log": {
+      "capture_sha256": "50433e5cedae02a1983f75585bdce2583b76d0f99518d71d780cd2c6a7d195dc",
+      "committed_sha256": "50433e5cedae02a1983f75585bdce2583b76d0f99518d71d780cd2c6a7d195dc"
+    },
+    "alive-hero-initial-survivor.log": {
+      "capture_sha256": "6ab321e744a24deb689dbfe9c0227e8d1ec88177313e63d5044829f472663b8e",
+      "committed_sha256": "ae524ebd081e1b6de624dcc302117d9025131c6589330a658b47788ec192da0e"
+    },
+    "review-tests.log": {
+      "capture_sha256": "58b7ad7cfcc7bea96b3359de1d45d54b5bd4493fe90e77d9add1ab4cf4b5adfa",
+      "committed_sha256": "58b7ad7cfcc7bea96b3359de1d45d54b5bd4493fe90e77d9add1ab4cf4b5adfa"
+    },
+    "review-build.log": {
+      "capture_sha256": "6b828e49466308ea16b52a4636055811547f127c7442dc3e571b1b54b706c4dd",
+      "committed_sha256": "6b828e49466308ea16b52a4636055811547f127c7442dc3e571b1b54b706c4dd"
+    },
+    "review-legacy.log": {
+      "capture_sha256": "9518f43cc74c426a7ca279efe0d7c9df84e6315b54d2d928d12915e59925d195",
+      "committed_sha256": "9518f43cc74c426a7ca279efe0d7c9df84e6315b54d2d928d12915e59925d195"
+    },
+    "review-original-probes.log": {
+      "capture_sha256": "5a22f685ce04ee92d3a3526572c7a32daa6bb7316d73e489bb06dfe3a4aebd6e",
+      "committed_sha256": "5a22f685ce04ee92d3a3526572c7a32daa6bb7316d73e489bb06dfe3a4aebd6e"
+    },
+    "review-extra-probes.log": {
+      "capture_sha256": "039fa736a27944d759efac9998af8a68c9377cce44b258f12c88161778451383",
+      "committed_sha256": "79ed5fc79cd491ff3706297cff0c4581271764e95746f846d2f3988a710eda81"
+    },
+    "review-forge-edges.test.tsx.txt": {
+      "capture_sha256": "ae28c84a8256af15513f426e789acffd808ef466acc8679ad8138519b0648b62",
+      "committed_sha256": "ae28c84a8256af15513f426e789acffd808ef466acc8679ad8138519b0648b62"
+    },
+    "review-forge-observation-edges.test.tsx.txt": {
+      "capture_sha256": "b6687c628005ebf68be8fdc82ebf56ed17d57e89f3e3f5be2b487006f62d53c7",
+      "committed_sha256": "b6687c628005ebf68be8fdc82ebf56ed17d57e89f3e3f5be2b487006f62d53c7"
+    },
+    "mutations/observed-quality-red.log": {
+      "capture_sha256": "efdc019a56a09706a532b391b935a532249dc3d0e26f44df2d4e4042f3f1c406",
+      "committed_sha256": "e00a94d7401659a7c8e7e5c49f79d40c1666b264e1f1533668e62e9c513e44ea"
+    },
+    "mutations/observation-admission-restored.log": {
+      "capture_sha256": "a30faafbcb10bee09cfa402470c3cd35e8185137fd6214c952f2d2d7e52075c9",
+      "committed_sha256": "1ebc49c3f7671a51631ec335ee6426f235b6d27485362b51864118b33c20bb5e"
+    },
+    "mutations/active-inventory-red.log": {
+      "capture_sha256": "e507703dd3defb2042cec409d66f9ad2539dcc870ba3e9fe2676ef624c8dc76b",
+      "committed_sha256": "91f1debd844668818675cc7c272d9715259195396de5df7cbbee639a4930e437"
+    },
+    "mutations/alive-hero-restored.log": {
+      "capture_sha256": "e0437cbfc604cf15a2c4ff83182af7c0060e3f08e405337815477595d68a08b0",
+      "committed_sha256": "e0437cbfc604cf15a2c4ff83182af7c0060e3f08e405337815477595d68a08b0"
+    },
+    "mutations/local-tail-owner-restored.log": {
+      "capture_sha256": "c737bb97e17e9b1a17730dc4a8e92005cd4a543165f9f8599f11054f8fd73101",
+      "committed_sha256": "aecc5351ced5fe83a1408e47fe03780aa5637b0fb39470f93f5b6dd98721c81e"
+    },
+    "mutations/client-action-id-red.log": {
+      "capture_sha256": "4f3e87831feb36b02a9d0919c15b4e2026f12740c18919f4cd380d33a184a4df",
+      "committed_sha256": "5ffbc8a2cce975c787c498e2976207632c3fad7286ae1a70b7f4b971f5c74dec"
+    },
+    "mutations/item-quote-context-restored.log": {
+      "capture_sha256": "dd98cfa0577e3d4f6b3659845b4584ea205643a7bd7aca142fcedfba6f6673ab",
+      "committed_sha256": "647070ab158931965571bb31369d681be1f6ad3cb1216ff2de0c4c6babddd61a"
+    },
+    "mutations/action-type-red.log": {
+      "capture_sha256": "b186c785cbc55c1fa3d7af3653544789bed576d561c1d0e7b2fbf77108c9b480",
+      "committed_sha256": "e3d58573c51793ebc3745c1ce27eb83a64e777d5efd8273a0371b5b4048a7b65"
+    },
+    "mutations/local-tail-owner-red.log": {
+      "capture_sha256": "a2b5115105b8afcb77143f6ab5ec57ac68863ec2cf478294237fe3d5a2f0891c",
+      "committed_sha256": "fb369fad09dd0435d820de651950a1ad8275a3b85f2d8140171f9969f5ab37a3"
+    },
+    "mutations/observed-item-id-red.log": {
+      "capture_sha256": "5cc97297c764058e09925bd7a226463dae50ab2612f1f0d5073718276ee7ebe0",
+      "committed_sha256": "3a649bc5cd4731c2982e221e1161ae06811c3ecbd6cd181169b82cc7d6ce8389"
+    },
+    "mutations/client-action-id-restored.log": {
+      "capture_sha256": "cda53882435d98a843f7f2f3773cc09e09872ce9a540f324f568d9cd08e101e9",
+      "committed_sha256": "16d875eb9c731b97290b4e3aba6ba56829b250d82bcfa0b8478ce00299883a3b"
+    },
+    "mutations/forge-usage-red.log": {
+      "capture_sha256": "5aaf725dad28d0fdcbe9aca0d436588bf446ef4eb6997e9291b5f773ae41f3e2",
+      "committed_sha256": "7e4b9ddf5fcb536928d8da3e4dbac7b3fd2ef0be626462373344bfb77c19bbdc"
+    },
+    "mutations/numeric-quote-restored.log": {
+      "capture_sha256": "f161a643f4678b9687449abb2115eb79d6929be4aed37b89153ff23fe279da6a",
+      "committed_sha256": "2efadd1f833b4f5025f6abb6a74ad9315c6de3808b26b52a8f396321f5e97436"
+    },
+    "mutations/slot-restored.log": {
+      "capture_sha256": "8df8dca31f94e537984c56640346d123d8cc20e238b95b99563cf9b5dce54a91",
+      "committed_sha256": "ece99bb6050050b3c21e2f4f8d0d86715fecd911c467092ba88c4f5f111960a0"
+    },
+    "mutations/summary.json": {
+      "capture_sha256": "790ba8a69f9eb572be7888613422316308091db01a35720db812ab78deea2ffe",
+      "committed_sha256": "790ba8a69f9eb572be7888613422316308091db01a35720db812ab78deea2ffe"
+    },
+    "mutations/observed-slot-gate-restored.log": {
+      "capture_sha256": "b38a8b610524ff8bc79e89cf1fa98606efc40f64805d6150349b62034542ddc0",
+      "committed_sha256": "b38a8b610524ff8bc79e89cf1fa98606efc40f64805d6150349b62034542ddc0"
+    },
+    "mutations/slot-red.log": {
+      "capture_sha256": "1b1a026a931d57ff13cbe401fb92776c6e028052c03ad8094d734696de8b8966",
+      "committed_sha256": "63e11bcf02771532d23b8af108dfd5eeb2ee43efa520a549af1ecb8dc37acf1a"
+    },
+    "mutations/action-type-restored.log": {
+      "capture_sha256": "dc7a9a279581804b07b477a232f6ae60c0197ca7cd8918dbe80b26a148354b96",
+      "committed_sha256": "70becb03662f254e9d3ca3c495c503263fd8b818cb87b0656a0caf33f01fd4da"
+    },
+    "mutations/hero-read-quarantine-red.log": {
+      "capture_sha256": "cef2743530c0ae576c99ffd18fa197aeac52d69072c6a217eb34401d9e26edd3",
+      "committed_sha256": "102b01c7e96e00a0d0b91ed5cd49620e1a15c2ad2e17b24723d9aeaf60c6b846"
+    },
+    "mutations/observed-quality-restored.log": {
+      "capture_sha256": "c191dd3fe36dfbb32472793befde3bf057566e3e74185e801f9edcd384dc046b",
+      "committed_sha256": "1c66494167b4ada16608ab73a21a908cb934639e46d022cb43a3e2c169ac6eb6"
+    },
+    "mutations/local-hero-tail-restored.log": {
+      "capture_sha256": "0500498dc9e659bdfd684176e9f356ddc2f5117dfa5b1c36f56432b516a5f5f3",
+      "committed_sha256": "7e46895bbe2d423c0a8590f03066259ba84edda7544be19a2d0588d51fd3246c"
+    },
+    "mutations/active-inventory-restored.log": {
+      "capture_sha256": "6b884becf7aab57b7d8306b016e0e46277cf80116ce1e73c6af3125b8ec22872",
+      "committed_sha256": "32286074b9a4aae18e27c86faf2f93c724eb73176970f41d48e4433442525855"
+    },
+    "mutations/forge-usage-restored.log": {
+      "capture_sha256": "9031750dfd1a8cb083460da731820f1a603c2c7e2731c3039576eb303aad5fc2",
+      "committed_sha256": "9031750dfd1a8cb083460da731820f1a603c2c7e2731c3039576eb303aad5fc2"
+    },
+    "mutations/numeric-quote-red.log": {
+      "capture_sha256": "5510dff1ceed14ac50b905ba255827e34a1b5edf22154659715e3c816627ec66",
+      "committed_sha256": "5510dff1ceed14ac50b905ba255827e34a1b5edf22154659715e3c816627ec66"
+    },
+    "mutations/item-quote-context-red.log": {
+      "capture_sha256": "4739b9efe5bd1b0fd385cdf9981f81301404d21a96bef30bff1a12f6b7adcaf8",
+      "committed_sha256": "4739b9efe5bd1b0fd385cdf9981f81301404d21a96bef30bff1a12f6b7adcaf8"
+    },
+    "mutations/alive-hero-red.log": {
+      "capture_sha256": "3baf92ed27fc85395428c115f73b6bca432f5871afcebf442a00346e42073de6",
+      "committed_sha256": "93a8f9e9d8367864dc58404527099561958ef89ef188dd3206e0b69537350303"
+    },
+    "mutations/observed-item-id-restored.log": {
+      "capture_sha256": "9e33b75c102c39fce567cfb80162b286941ad8c369874a7fff72c8eadc10d232",
+      "committed_sha256": "9e33b75c102c39fce567cfb80162b286941ad8c369874a7fff72c8eadc10d232"
+    },
+    "mutations/observed-slot-gate-red.log": {
+      "capture_sha256": "f30aa765508060e30689f9b0c71a8b6731327def14c75559a92b479a037c27fe",
+      "committed_sha256": "f25bbbf6a9c30792ea9708da9e233f836ce0c0e09cebf1ed2dafd2d18c92e895"
+    },
+    "mutations/observation-admission-red.log": {
+      "capture_sha256": "2712195dd6299e542b99859fc71545b165b2b986b8bcd87ff2d075e04fe3371e",
+      "committed_sha256": "45df7798945362801a3ab5e3ed1a03cc32edd10575871d512799356030ab3c3e"
+    },
+    "mutations/observation-retention-restored.log": {
+      "capture_sha256": "fd9c47fbc8ac59b643c5fcddd170ac43ff7ae3dd13ebbe48f6fcf3d9eebb5bfa",
+      "committed_sha256": "7bbec5229754c01481cbeb9a4b12e01140545fd645c90cc82d18f3ec8ca491be"
+    },
+    "mutations/observation-retention-red.log": {
+      "capture_sha256": "57eda0bad84826c881b0282b46bec819b78fc854407caf0c421de0dbbceffbd8",
+      "committed_sha256": "57eda0bad84826c881b0282b46bec819b78fc854407caf0c421de0dbbceffbd8"
+    },
+    "mutations/hero-read-quarantine-restored.log": {
+      "capture_sha256": "3611a541419fdd81a7ed493f1fd3a13299d5d3dbb3f745f3d117ffe77052376a",
+      "committed_sha256": "fa079a29eb01634c8a175308ae2eab90241ac1a63281e6a3345f6a754acbb292"
+    },
+    "mutations/local-hero-tail-red.log": {
+      "capture_sha256": "ae75ab157c39993cd1d975ae12fcfaf481cb463cdfb08c4db5c13efaf06f14aa",
+      "committed_sha256": "ae75ab157c39993cd1d975ae12fcfaf481cb463cdfb08c4db5c13efaf06f14aa"
+    }
+  }
+}

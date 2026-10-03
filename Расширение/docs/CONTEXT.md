@@ -1,3 +1,12 @@
+## 03.10.2026: локальный кандидат панели Preact с кузницей
+
+К прежним проверенным развитию/снаряжению/бою/свите/клану/отряду/армии/королевству/политике
+добавлена полная кузница. 937unit/DOM+2HTTP,17legacy gates,type/build/lints exit0;
+54forge cases+6review probes,16mutations. Mobile230996raw/60804gzip. Runtime c00bf91.
+Новый код локальный: remote panel58c2e4f старее; публикация остановлена, merge/deploy нет.
+Браузер/телефон/HostedTest/игровые эффекты не проверены; остальные scope открыты.
+[Итог](../../docs/PANEL_PREACT_RESULT_2026-10-03.md), [кузница](../../docs/PANEL_FORGE_PARITY_2026-10-03.md).
+
 ## 03.10.2026: кандидат Preact мини-игр
 
 `frontend-next` в `feature/skillgames-preact` использует exact Preact 11 и общий compat/TS

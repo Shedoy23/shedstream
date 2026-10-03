@@ -1,6 +1,53 @@
 # Панель Preact: результат ночной работы 03.10.2026
 
-## Текущий проверенный локальный результат: королевство, политика и отказы API
+## Финальный локальный checkpoint: добавлена полная кузница
+
+На неизменённом после независимого review runtime **c00bf91**, финальные tests/fixtures
+**04a011e**: **937 unit/DOM passed +2 explicit live skips**, отдельно **2/2 fresh HTTP**,
+**17/17 legacy gate files**, typecheck/build/check-build/ESLint/globals/consistency exit0.
+Кузница: **54 owner cases +6 independent probes**, **16 mutation red→green**.
+[Полный forge-отчёт](PANEL_FORGE_PARITY_2026-10-03.md) и
+[финальные команды/хеши/логи](evidence/panel-forge-2026-10-03/verification.json).
+
+| Область | Результат | Граница |
+|---|---|---|
+| Развитие героя | Перенесено, request parity | Focus/attributes/classes/specialization/starter; не весь Hero |
+| Магазин/инвентарь | Перенесено, request parity | EquipmentShop; legacy fallback отдельно |
+| Бой | Перенесён, request parity | Приказы/стойки/призывы/активки/HUD/поздние отказы; без турнира |
+| Свита/клановый вход/отряд/армия | Перенесено, request parity | Найм/тренировка/create/join/leave/6 orders/army; не вся Dynasty |
+| Королевство/политика | Перенесено, request parity | Lifecycle, NPC-вассал,12законов,мир/дань/4налога/предложения |
+| Кузница | Перенесена полностью | Старые10слотов,серверная цена,reforge wire/tails,без возвращения smith_item |
+| Общий host перечисленного | Перенесён выбранный scope | Tabs/polls/identity/JWT/balance tails/usage; не вся оболочка |
+| Настоящий турнир | Не перенесён | Исследование/fixtures есть; synthetic tournament.html его не заменяет |
+| Остальной Hero/Dynasty | Не перенесён | Создание героя,daily,пол,конвертеры,achievements,семья/наследники/вассалы/upgrades/владения/ransom |
+| Общее, RimWorld, ShedColony | Не перенесено | Кейсы/квесты/промо/голосования/статистика и отдельные game protocols |
+| OBS | Вне задания | Не изменён |
+
+Исправлена подтверждённая опасная ситуация кузницы: на экране старая вещь A, но уже
+принятый inventory показывает B и slot-only касса улучшит B. Только спорный forge-слот
+закрыт до согласования item_id/quality; остальная панель продолжает работать.
+Невидимая GET→POST гонка/одинаковая session-смена без DTO ID не объявляются решёнными.
+Также есть явное восстановление пропавшей forge quote. Все безопасные расхождения
+со старым UI и пределы доказательств перечислены в отдельном отчёте.
+
+Initial mobile graph **230996 raw /60804 gzip-9 bytes**. Не входят Helper/API/maps;
+CDN/timing не измерены, минификация отключена. Старый frontend/backend/моды/OBS/ZIP
+побайтно прежние относительно базы миграции **8a40391**.
+
+**Локальный пакет новее GitHub.** Последние read-only проверенные remote heads:
+`feature/skillgames-preact` **ccd1489486dc1703c60487bf2faa00f290cd109b** (CI success),
+`feature/panel-preact` **58c2e4f9fc0a74303931b7eb335144ed1439706a** (первый321-test checkpoint,
+CI success после одного повтора). Все последующие panel-изменения локальные:
+после запрета/единственного повтора публикация остановлена до уточнения пользователя.
+Нового GitHub CI на локальный финальный SHA нет; merge/deploy/submission не было.
+
+**Браузер/318px/телефон/Hosted Test/реальная игра не проверены.** DOM, настоящая
+временная касса и HTTP мини-игр не заменяют эти gates. Владельцу/Claude нужны review
+локального пакета, разрешённая браузерная проверка и отдельное решение о публикации.
+
+Ниже сохранены прежние checkpoints с их собственными SHA и числами.
+
+## Предыдущий checkpoint: королевство, политика и отказы API
 
 Исходный checkpoint **ac22deaf1235b6c428db6877edaee083bcf2c6c9**, tree
 `332b3058da714c271ea354bb3f92af39b26b2ad0`: **883 unit/DOM passed**, затем отдельно

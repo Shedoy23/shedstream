@@ -1,0 +1,24 @@
+import { act } from '@testing-library/preact';
+import { expect, it } from 'vitest';
+import { forgePair, r, toggle, posts, flush } from './panel-forge-support';
+const selector='.bnr-reforge-btn[data-slot="head"]';
+const changed={...r.equipment_forge,inventory:r.equipment_forge.inventory.map(x=>x.slot==='head'?{...x,item_id:'replacement_head',quality:'fine'}:x)};
+const hero={...r.hero_forge,equipment:{...r.hero_forge.equipment,head:{...r.hero_forge.equipment.head,item_id:'replacement_head',quality:'fine'}}};
+const click=async(p:Awaited<ReturnType<typeof forgePair>>)=>{await act(async()=>{(p.ui.container.querySelector(selector) as HTMLButtonElement).click();await flush();});};
+it('review: hero changes first, only agreement after equipment refresh restores forge',async()=>{
+ const p=await forgePair();await toggle(p,'inv-forge');p.fixtures.hero=hero;
+ await act(async()=>{await p.controller.refreshHero();await flush();});await click(p);expect(posts(p)).toHaveLength(0);
+ p.fixtures.equipment=changed;await act(async()=>{await p.controller.refreshEquipment();await flush();});await click(p);expect(posts(p)).toHaveLength(1);
+});
+for(const kind of ['failed','not-ready'] as const)it(`review: accepted conflict survives ${kind} inventory refresh`,async()=>{
+ const p=await forgePair();await toggle(p,'inv-forge');p.fixtures.equipment=changed;
+ await act(async()=>{await p.controller.refreshEquipment();await flush();});
+ p.fixtures.equipment=kind==='failed'?{success:false,message:'unavailable'}:{...r.equipment_forge,ready:false};
+ await act(async()=>{await p.controller.refreshEquipment();await flush();});await click(p);expect(posts(p)).toHaveLength(0);
+ p.fixtures.hero=hero;await act(async()=>{await p.controller.refreshHero();await flush();});await click(p);expect(posts(p)).toHaveLength(1);
+});
+it('review: same-viewer JWT refresh cannot erase accepted inventory conflict',async()=>{
+ const p=await forgePair();await toggle(p,'inv-forge');p.fixtures.equipment=changed;
+ await act(async()=>{await p.controller.refreshEquipment();p.authorize({token:'new-token',userId:'opaque-alice',channelId:'channel-a'});await flush();});await click(p);expect(posts(p)).toHaveLength(0);
+ expect(p.controller.snapshot().forgeEquipment?.slots.head.item).toBe('replacement_head');
+});

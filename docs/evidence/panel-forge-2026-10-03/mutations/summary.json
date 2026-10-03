@@ -1,0 +1,114 @@
+[
+  {
+    "mutation": "slot",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "9ef0720defe36fd6e7810d3817d88941c486f875cfda7a1c7695217326267217"
+  },
+  {
+    "mutation": "action-type",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "9ef0720defe36fd6e7810d3817d88941c486f875cfda7a1c7695217326267217"
+  },
+  {
+    "mutation": "client-action-id",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "a09d3bc530a70a9cd1ca23e3f140602bc7cd9bbdc89d329e0acb2f13f2e2a89a"
+  },
+  {
+    "mutation": "local-hero-tail",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "9ef0720defe36fd6e7810d3817d88941c486f875cfda7a1c7695217326267217"
+  },
+  {
+    "mutation": "item-quote-context",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "f7e83ef1358736afc9086a014e6c4ce78c8b573e5eb277a1ff53805144a0518a"
+  },
+  {
+    "mutation": "numeric-quote",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "f7e83ef1358736afc9086a014e6c4ce78c8b573e5eb277a1ff53805144a0518a"
+  },
+  {
+    "mutation": "alive-hero",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "f7e83ef1358736afc9086a014e6c4ce78c8b573e5eb277a1ff53805144a0518a"
+  },
+  {
+    "mutation": "hero-read-quarantine",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "f7e83ef1358736afc9086a014e6c4ce78c8b573e5eb277a1ff53805144a0518a"
+  },
+  {
+    "mutation": "active-inventory",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "9ef0720defe36fd6e7810d3817d88941c486f875cfda7a1c7695217326267217"
+  },
+  {
+    "mutation": "local-tail-owner",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "9ef0720defe36fd6e7810d3817d88941c486f875cfda7a1c7695217326267217"
+  },
+  {
+    "mutation": "forge-usage",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "5ffc297eaa779086b1f88f954dcdf95892719b7cce8b3c7c56a839779fa48fd3"
+  },
+  {
+    "mutation": "observed-slot-gate",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "f7e83ef1358736afc9086a014e6c4ce78c8b573e5eb277a1ff53805144a0518a"
+  },
+  {
+    "mutation": "observed-item-id",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "f7e83ef1358736afc9086a014e6c4ce78c8b573e5eb277a1ff53805144a0518a"
+  },
+  {
+    "mutation": "observed-quality",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "f7e83ef1358736afc9086a014e6c4ce78c8b573e5eb277a1ff53805144a0518a"
+  },
+  {
+    "mutation": "observation-admission",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "15bbe4164af929f4d53ba608b08e1f3158f331f8fe1700b6c0b1f0782f673820"
+  },
+  {
+    "mutation": "observation-retention",
+    "mutation_exit": 1,
+    "restored_exit": 0,
+    "exact_own_restore": true,
+    "source_sha256": "9ef0720defe36fd6e7810d3817d88941c486f875cfda7a1c7695217326267217"
+  }
+]

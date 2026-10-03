@@ -75,7 +75,7 @@ internal static partial class Program
             relief.Party.MapFaction = castle.MapFaction;
             relief.MemberRoster.AddToCounts(new CharacterObject { Name = "страж", StringId = "guard" }, 30);
             MobileParty.All.Add(relief);
-            for (int h = 0; h < 7; h++) HourlyTick(b);
+            for (int h = 0; h < 7; h++) { CampaignTime.TestHours++; HourlyTick(b); } // 03.10: shortfall grace needs game time
             Check(LogCount("прекращаем цель «Замок Астер»") + LogCount("«Замок Астер» больше не предложена") >= 1, "защитников стало больше предела — отказались");
             Check(MobileParty.MainParty.TargetSettlement != castle, "отказались — к этой крепости больше не идём");
             MobileParty.All.Remove(relief);

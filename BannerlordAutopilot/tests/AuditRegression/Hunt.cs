@@ -103,7 +103,7 @@ internal static partial class Program
         Try("охота: цель на миг быстрее нас — погоню не бросаем", () =>
         {
             var (b, enemy) = HuntWorld(men: 100);
-            var bandits = HuntTarget("грабители", 20, 4, enemy, lord: false, speed: 6f);
+            var bandits = HuntTarget("грабители", 20, 4, enemy, lord: true, speed: 6f);
             Scores((AiBehavior.PatrolAroundPoint, new Settlement { Name = "Устокол" }, 2.25f));
             CampaignTime.TestHours = 0; HourlyTick(b);
             Check(MobileParty.MainParty.TargetParty == bandits, "погоня начата, пока цель рядом");
@@ -117,7 +117,7 @@ internal static partial class Program
         Try("охота: цель надолго вне досягаемости — погоня отпускается", () =>
         {
             var (b, enemy) = HuntWorld(men: 100);
-            var bandits = HuntTarget("грабители", 20, 4, enemy, lord: false, speed: 6f);
+            var bandits = HuntTarget("грабители", 20, 4, enemy, lord: true, speed: 6f);
             Scores((AiBehavior.PatrolAroundPoint, new Settlement { Name = "Устокол" }, 2.25f));
             CampaignTime.TestHours = 0; HourlyTick(b);
             bandits.Position = new CampaignVec2 { X = 8 };
@@ -128,7 +128,7 @@ internal static partial class Program
         foreach (float speed in new[] { 5f, 6f })
         Try("chase: close moving target without progress times out " + speed, () => {
             var (b, enemy)=HuntWorld(men:100);
-            var target=HuntTarget("undogоняемый",20,4,enemy,lord:false,speed:speed);
+            var target=HuntTarget("undogоняемый",20,4,enemy,lord:true,speed:speed);
             Scores((AiBehavior.PatrolAroundPoint,new Settlement { Name="Устокол" },2.25f));
             CampaignTime.TestHours=0; HourlyTick(b);
             for(int h=1;h<=8;h++) { CampaignTime.TestHours=h; HourlyTick(b); }
@@ -136,14 +136,19 @@ internal static partial class Program
             CampaignTime.TestHours=9; HourlyTick(b);
             Check(MobileParty.MainParty.TargetParty!=target || MobileParty.MainParty.DefaultBehavior!=AiBehavior.EngageParty,
                 "failed close interception is not immediately selected again " + speed);
+            // 03.10: a faster party that only paused is not catchable and the dropped
+            // chase is not retried for a day (was: a pause released the cooldown at once).
             target.IsMoving=false;
             CampaignTime.TestHours=10; HourlyTick(b);
+            Check(MobileParty.MainParty.TargetParty!=target || MobileParty.MainParty.DefaultBehavior!=AiBehavior.EngageParty,
+                "paused faster target stays skipped during the 24 h cooldown " + speed);
+            CampaignTime.TestHours=40; HourlyTick(b);
             Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.EngageParty && MobileParty.MainParty.TargetParty==target,
-                "stationary target releases chase cooldown " + speed);
+                "after the cooldown a near paused target is chased again " + speed);
         });
         Try("chase: cumulative closing distance permits faster near interception", () => {
             var (b, enemy)=HuntWorld(men:100);
-            var target=HuntTarget("перехват",20,4,enemy,lord:false,speed:6f);
+            var target=HuntTarget("перехват",20,4,enemy,lord:true,speed:6f);
             CampaignTime.TestHours=0; HourlyTick(b);
             for(int h=1;h<=10;h++) {
                 target.Position=new CampaignVec2 { X=4f-h*.12f };
@@ -154,7 +159,7 @@ internal static partial class Program
         });
         Try("chase: invisible target cannot hold the party", () => {
             var (b, enemy)=HuntWorld(men:100);
-            var target=HuntTarget("скрывшийся",20,4,enemy,lord:false,speed:6f);
+            var target=HuntTarget("скрывшийся",20,4,enemy,lord:true,speed:6f);
             Scores((AiBehavior.PatrolAroundPoint,new Settlement { Name="Устокол" },2.25f));
             CampaignTime.TestHours=0; HourlyTick(b); target.IsVisible=false;
             CampaignTime.TestHours=6; HourlyTick(b);
@@ -163,7 +168,7 @@ internal static partial class Program
         foreach(string failure in new[] { "timeout", "invisible", "inactive" })
         Try("chase: cancel movement without alternatives " + failure, () => {
             var (b, enemy)=HuntWorld(men:100);
-            var target=HuntTarget("без вариантов",20,4,enemy,lord:false,speed:6f);
+            var target=HuntTarget("без вариантов",20,4,enemy,lord:true,speed:6f);
             CampaignTime.TestHours=0; HourlyTick(b);
             for(int h=1;h<=8;h++) { CampaignTime.TestHours=h; HourlyTick(b); }
             Check(MobileParty.MainParty.DefaultBehavior==AiBehavior.Hold,
@@ -173,7 +178,7 @@ internal static partial class Program
         foreach(string state in new[] { "faster", "stationary", "engaged" })
         Try("chase generic " + route + " " + state, () => {
             var (b, enemy)=HuntWorld(men:100);
-            var target=HuntTarget("generic",20,15,enemy,lord:false,speed:6f);
+            var target=HuntTarget("generic",20,15,enemy,lord:true,speed:6f);
             MobileParty.All.Remove(target); // Force the native proposal path, not custom hunt.
             if(state=="stationary") target.IsMoving=false;
             if(state=="engaged") target.MapEvent=new MapEvent();
@@ -184,18 +189,42 @@ internal static partial class Program
             } else Scores((AiBehavior.EngageParty,target,3.5f));
             CampaignTime.TestHours=0; HourlyTick(b);
             bool chasing=MobileParty.MainParty.DefaultBehavior==AiBehavior.EngageParty && MobileParty.MainParty.TargetParty==target;
-            Check(chasing==(state!="faster"), "generic route respects chase feasibility " + route + " " + state);
+            // 03.10: only an engaged (in battle) faster party is catchable; a paused one is not.
+            Check(chasing==(state=="engaged"), "generic route respects chase feasibility " + route + " " + state);
         });
         Try("охота: цель ушла в поселение — погоню не держим", () =>
         {
             var (b, enemy) = HuntWorld(men: 100);
-            var bandits = HuntTarget("грабители", 20, 4, enemy, lord: false, speed: 6f);
+            var bandits = HuntTarget("грабители", 20, 4, enemy, lord: true, speed: 6f);
             Scores((AiBehavior.PatrolAroundPoint, new Settlement { Name = "Устокол" }, 2.25f));
             CampaignTime.TestHours = 0; HourlyTick(b);
             bandits.Position = new CampaignVec2 { X = 8 };
             bandits.CurrentSettlement = new Settlement { Name = "Укрытие" };
             CampaignTime.TestHours = 1; HourlyTick(b);
             Check(LogCount("продолжаем погоню") == 0, "ушедшую в поселение цель не держим");
+        });
+        // 03.10, владелец: «так высоко ценит бой с грабителями».
+        foreach (var (distance, coming, expect) in new[] { (5f, false, false), (2f, false, true), (8f, true, true) })
+        Try("охота: бандиты в " + distance + (coming ? ", идут на нас" : "") + " — " + (expect ? "бьём" : "не отвлекаемся"), () =>
+        {
+            var (b, enemy) = HuntWorld(men: 100);
+            var bandits = HuntTarget("грабители", 15, distance, enemy, lord: false, speed: 3f);
+            if (coming) bandits.TargetParty = MobileParty.MainParty;
+            HourlyTick(b);
+            Check((MobileParty.MainParty.TargetParty == bandits) == expect, "ждали " + expect + ": " + MobileParty.MainParty.DefaultBehavior);
+        });
+        Try("охота: поездку за добровольцами лорд рядом не сбивает", () =>
+        {
+            var (b, castle, village) = SiegeVsRecruitWorld(50);
+            HourlyTick(b);
+            Check(MobileParty.MainParty.TargetSettlement == village, "60/100 — едем набирать: " + MobileParty.MainParty.TargetSettlement?.Name);
+            var lord = HuntTarget("лорд", 30, 6, castle.MapFaction, speed: 3f);
+            CampaignTime.TestHours = 1; HourlyTick(b);
+            Check(MobileParty.MainParty.TargetParty != lord && MobileParty.MainParty.TargetSettlement == village,
+                "поездка за добровольцами продолжается: " + MobileParty.MainParty.DefaultBehavior);
+            lord.TargetParty = MobileParty.MainParty;
+            CampaignTime.TestHours = 2; HourlyTick(b);
+            Check(MobileParty.MainParty.TargetParty == lord, "враг сам идёт на нас — бьёмся");
         });
         Try("охота: цель вне радиуса не трогаем", () =>
         {
@@ -235,16 +264,19 @@ internal static partial class Program
             HourlyTick(b);
             Check(MobileParty.MainParty.TargetSettlement==village, "60/100 — едем за добровольцами");
         });
-        Try("по дороге на осаду бьём врага рядом, но с маршрута далеко не сворачиваем", () =>
+        // 03.10, владелец: «сбивается с цели» — по дороге на крепость с маршрута не
+        // сворачиваем вовсе; бьёмся, только если враг сам идёт на нас.
+        Try("по дороге на осаду не сворачиваем, кроме врага, идущего на нас", () =>
         {
-            foreach (var (distance, expect) in new[] { (8f, true), (20f, false) })
+            foreach (var (distance, coming, expect) in new[] { (8f, false, false), (8f, true, true), (20f, true, false) })
             {
                 var (b, enemy) = HuntWorld(men: 100);
                 var castle = new Settlement { Name="Цель осады", IsCastle=true, MapFaction=enemy, Position=new CampaignVec2 { X=90 } };
                 var main = MobileParty.MainParty; main.TargetSettlement = castle; main.DefaultBehavior = AiBehavior.BesiegeSettlement;
                 var lord = HuntTarget("лорд", 60, distance, enemy);
+                if (coming) lord.TargetParty = main;
                 HourlyTick(b);
-                Check((main.TargetParty == lord) == expect, "враг в " + distance + " по дороге на осаду: ждали " + expect);
+                Check((main.TargetParty == lord) == expect, "враг в " + distance + (coming ? ", идёт на нас" : "") + " по дороге на осаду: ждали " + expect);
             }
         });
     }

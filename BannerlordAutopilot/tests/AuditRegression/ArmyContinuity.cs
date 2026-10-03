@@ -56,7 +56,7 @@ internal static partial class Program
             ArmyCall(w.Pilot,"ApplyDecision",MobileParty.MainParty,
                 new AIBehaviorData(w.Castle,AiBehavior.BesiegeSettlement,MobileParty.NavigationType.Default,false,false,false),9f);
             w.Castle.Militia=defense;
-            HourlyTick(w.Pilot);
+            HourlyTick(w.Pilot); CampaignTime.TestHours+=3.5; HourlyTick(w.Pilot); // 03.10: past the shortfall grace
             Check((MobileParty.MainParty.TargetSettlement==w.Castle && MobileParty.MainParty.IsMoving)==(defense==105),
                 "march continues above x1.1, cancels below x1.1");
         });

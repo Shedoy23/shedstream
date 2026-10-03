@@ -40,6 +40,16 @@ namespace BannerlordAutopilot
         private MobileParty _chaseProgressTarget;
         private float _chaseBestDistance;
         private const float ChaseProgressDistance = .5f;
+        /// <summary>03.10, владелец: «так высоко ценит бой с грабителями». За 4,7 ч стрима
+        /// 46 из 90 нападений охоты — на бандитов при перевесе до x77, 32 погони брошены как
+        /// бесполезные. Бандитов трогаем только вплотную или когда они идут на нас.</summary>
+        internal const float BanditNearDistance = 3f;
+        /// <summary>03.10: брошенную погоню не повторяем сутки (было 6 ч. — на ускорении это
+        /// секунды, и та же цель бралась снова: цикл «охота → бросили → снова охота»).</summary>
+        internal const float ChaseCooldownHours = 24f;
+        /// <summary>Куда сейчас едем набирать (ставит ветка «ПОПОЛНЕНИЕ»), чтобы охота не
+        /// сбивала поездку за добровольцами.</summary>
+        private Settlement _recruitingAt;
         private readonly Dictionary<MobileParty, double> _chaseCooldown = new Dictionary<MobileParty, double>();
 
         internal void ResetChase()
@@ -65,8 +75,10 @@ namespace BannerlordAutopilot
             if (!target.IsActive || !target.IsVisible) return "цель неактивна или скрылась из виду";
             double now = CampaignTime.Now.ToHours;
             float distance = (float)Math.Sqrt(party.Position.DistanceSquared(target.Position));
-            // A stopped, engaged or slower party can actually be caught again.
-            if (!target.IsMoving || target.MapEvent != null || target.Speed < party.Speed)
+            // An engaged or slower party can actually be caught again. 03.10: a faster
+            // party that merely paused is NOT catchable — it rode off again and the
+            // chase was dropped as useless (lots of «расстояние не сокращается» on stream).
+            if (target.MapEvent != null || target.Speed < party.Speed)
             {
                 _chaseCooldown.Remove(target);
                 if (_chaseProgressTarget == target) {
@@ -91,11 +103,11 @@ namespace BannerlordAutopilot
                     _huntConfirmedHours = now;
                 }
                 if (now - _huntConfirmedHours <= HuntHoldHours) return null;
-                _chaseCooldown[target] = now + HuntHoldHours;
+                _chaseCooldown[target] = now + ChaseCooldownHours;
                 AutopilotLog.Write("ОХОТА: прекращаем погоню за «" + target.Name
                     + "» — расстояние не сокращается 6 ч.; скорость цели "
                     + target.Speed.ToString("F2", CultureInfo.InvariantCulture) + ", наша "
-                    + party.Speed.ToString("F2", CultureInfo.InvariantCulture) + "; повтор через 6 ч.");
+                    + party.Speed.ToString("F2", CultureInfo.InvariantCulture) + "; повтор не раньше чем через 24 ч.");
                 return "цель не медленнее нас, за 6 ч. не сблизились";
             }
             return distance > HuntCatchDistance ? "цель не медленнее нас и далеко для перехвата" : null;
@@ -127,6 +139,7 @@ namespace BannerlordAutopilot
             float radius = HuntRadiusFor(party);
             float ours = party.Party.EstimatedStrength;
             if (!(ours > 0f)) return false;
+            string errand = HuntErrand(party);
 
             MobileParty best = null;
             float bestScore = 0f, bestRatio = 0f, bestDistance = 0f, bestTheirs = 0f;
@@ -146,6 +159,11 @@ namespace BannerlordAutopilot
                     || !party.MapFaction.IsAtWarWith(enemy.MapFaction)) continue;
                 float distance = (float)Math.Sqrt(party.Position.DistanceSquared(enemy.Position));
                 if (distance > radius) continue;
+                bool comingAtUs = enemy.TargetParty == party;
+                // 03.10: занятый делом (набор, поход на крепость) отряд не сворачивает ради
+                // охоты — только если враг сам идёт на нас.
+                if (errand != null && !comingAtUs) continue;
+                if (enemy.IsBandit && !army && distance > BanditNearDistance && !comingAtUs) continue;
                 if (ChaseRejectedReason(party, enemy) != null) continue;
                 if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil
                     && ReferenceEquals(enemy, _stuckTarget)) continue;
@@ -195,6 +213,16 @@ namespace BannerlordAutopilot
         /// бою и в радиусе охоты, но не дольше HuntHoldHours после подтверждения.</summary>
         private float HuntRadiusFor(MobileParty party)
             => _preparingCampaign || HeadingToSiegeTarget(party) ? HuntRadiusOnCampaign : HuntRadius;
+
+        /// <summary>Чем отряд занят так, что охота его не сбивает (null — свободен).
+        /// 03.10, владелец: цель сменилась 215 раз за 4,7 ч, 87 раз — из-за охоты.</summary>
+        private string HuntErrand(MobileParty party)
+        {
+            if (HeadingToSiegeTarget(party)) return "идём на крепость";
+            if (_recruitingAt != null && party.DefaultBehavior == AiBehavior.GoToSettlement
+                && party.TargetSettlement == _recruitingAt && NeedsRecruitment(party)) return "едем за добровольцами";
+            return null;
+        }
 
         internal bool HoldsChase(MobileParty party, float radius)
         {

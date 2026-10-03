@@ -162,7 +162,7 @@ internal static partial class Program
             Enable(b); HourlyTick(b);
             Check(SiegeTarget(b)==castle && MobileParty.MainParty.TargetSettlement==castle,
                 "слабый замок сначала выбран");
-            castle.Militia=10; for(int hour=0; hour<6; hour++) HourlyTick(b);
+            castle.Militia=10; for(int hour=0; hour<6; hour++) { CampaignTime.TestHours++; HourlyTick(b); } // 03.10: shortfall grace needs game time
             Check(AutopilotLog.Lines.Any(l => l.Contains("ПОХОД: прекращаем цель «Пограничный замок»")
                 && l.Contains("защитники 10.0 — нужен перевес x1.1, надо 11.0")
                 ),

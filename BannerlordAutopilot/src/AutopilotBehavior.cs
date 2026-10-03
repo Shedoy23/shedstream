@@ -2160,6 +2160,7 @@ namespace BannerlordAutopilot
                         Settlement recruitAt = FindRecruitmentTarget(party);
                         if (recruitAt != null)
                         {
+                            _recruitingAt = recruitAt;
                             var recruitDecision = new AIBehaviorData(recruitAt, AiBehavior.GoToSettlement,
                                 MobileParty.NavigationType.Default, false, false, false);
                             if (!IsSameDecision(recruitDecision, party))
@@ -2761,6 +2762,10 @@ namespace BannerlordAutopilot
 
         /// <summary>Идём брать эту крепость — ванильным осадным приказом или
         /// поездкой к ней: партию игрока двигает только вторая.</summary>
+        /// <summary>Начало отказа «не хватает сил на осаду»: по нему поход терпит нехватку
+        /// SiegeShortfallGraceHours, а не бросает цель с одного замера.</summary>
+        internal const string SiegeShortfallPrefix = "защитники ";
+
         private bool HeadingToSiegeTarget(MobileParty party)
         {
             return party.TargetSettlement != null
@@ -2890,7 +2895,7 @@ namespace BannerlordAutopilot
                     if (data.WillGatherArmy && siegeParty.Army == null)
                         attackers += AffordableArmyMembers(siegeParty).Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
                     return SiegeStrengthEnough(attackers, defenders, ratio) ? null
-                        : "защитники " + defenders.ToString("F1", CultureInfo.InvariantCulture) + " — нужен перевес x"
+                        : SiegeShortfallPrefix + defenders.ToString("F1", CultureInfo.InvariantCulture) + " — нужен перевес x"
                           + ratio.ToString("0.#", CultureInfo.InvariantCulture);
                 case AiBehavior.DefendSettlement:
                     if (!FriendlySiege(data.Party as Settlement, MobileParty.MainParty)) return "нет дружественной осады";

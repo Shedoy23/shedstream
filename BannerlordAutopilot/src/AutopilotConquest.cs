@@ -886,7 +886,7 @@ namespace BannerlordAutopilot
             var allies = party.Army == null ? AffordableArmyMembers(party) : new List<MobileParty>();
             float assembled = own + allies.Sum(p => Math.Max(0f, p.Party.EstimatedStrength));
             if (allies.Count > 0 && SiegeStrengthEnough(assembled, defenders, ratio)) return null;
-            return "защитники " + defenders.ToString("F1", CultureInfo.InvariantCulture)
+            return SiegeShortfallPrefix + defenders.ToString("F1", CultureInfo.InvariantCulture)
                 + " — нужен перевес x" + ratio.ToString("0.#", CultureInfo.InvariantCulture)
                 + ", надо " + (defenders * ratio).ToString("F1", CultureInfo.InvariantCulture)
                 + " (наша сила " + own.ToString("F1", CultureInfo.InvariantCulture)

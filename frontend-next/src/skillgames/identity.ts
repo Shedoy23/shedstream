@@ -39,6 +39,18 @@ export class IdentityBootstrap {
     this.publish({ login: undefined, status: 'resolving', message: 'Проверяем связь Twitch с игровым сервером…', shareRequested: false });
     try {
       if (!authorization.token || !authorization.userId || !authorization.channelId) throw new Error('Twitch не передал необходимые данные авторизации');
+      // 03.10, dev preview only (helper from devAuth.ts, never inside Twitch): the server's
+      // resolver verifies Twitch-signed tokens only, our dev token is signed by the server's dev
+      // key. Like the old panel's DEV PREVIEW MODE, the login comes from ?dev_user=; every API
+      // call still sends the dev token, which the server verifies itself.
+      if (this.helper?.environment === 'dev') {
+        const devLogin = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('dev_user') : null;
+        if (devLogin && devLogin.trim()) {
+          this.auth.authorize(this.latest);
+          this.publish({ login: devLogin.trim(), status: 'ready', message: 'Dev-просмотр вне Twitch', shareRequested: false });
+          return;
+        }
+      }
       let hint: string | null = null;
       if (this.options.panelProtocol) {
         try { const encoded = authorization.token.split('.')[1]; const value = JSON.parse(atob(encoded + '='.repeat((4 - encoded.length % 4) % 4))).user_id; if (value) hint = String(value).replace(/^U/, ''); } catch { /* Malformed hints never authorize. */ }

@@ -7,7 +7,7 @@ Twitch ZIP, production и релизный упаковщик не меняют�
 
 - `panel-extension.html`, `panel-mobile.html`: отдельный Preact-кандидат подэкранов
   развития героя Bannerlord, магазина/инвентаря, боевых действий (без турниров),
-  свиты, клана, отряда, армии, королевства и политики.
+  свиты, клана, отряда, армии, королевства, политики и кузницы.
   Это ещё не вся старая панель; фактический published/local scope указан в
   `docs/PANEL_PREACT_RESULT_2026-10-03.md`.
   Парные входы одинаковы, используют прежний Twitch resolver и тот же проверяемый
@@ -25,8 +25,10 @@ Twitch ZIP, production и релизный упаковщик не меняют�
 авторизации. Он не переключается автоматически в demo и не подставляет токен.
 URL-параметр не может задать API origin или JWT. Для настоящего Twitch CDN
 EBS задаётся при сборке через `VITE_SKILLGAME_EBS_ORIGIN`; тот же origin попадает
-в CSP трёх игровых входов. Нужны согласованная внешняя конфигурация Twitch,
-CORS выбранного EBS и обычный Local/Hosted Test → Review → owner-approved Release. Публикация не выполнялась.
+в CSP трёх игровых и двух panel-входов. Нужны согласованная внешняя конфигурация Twitch,
+CORS выбранного EBS и обычный Local/Hosted Test → Review → owner-approved Release.
+Актуальная панельная сборка остаётся локальной после остановки публикации;
+раньше опубликованные SHA и CI перечислены в итоговом отчёте. Merge/deploy не было.
 
 Для локального ASGI-стенда родительский runner отдаёт те же собранные ассеты,
 настоящие routes, временную SQLite и тестовый Helper. Только этот helper имеет
@@ -40,7 +42,7 @@ Node.js 22.12+ (здесь Node 24.19.0), npm:
 ```sh
 python -m pip install -r frontend-next/requirements-contract-tests.txt
 npm --prefix frontend-next ci
-npm --prefix frontend-next test
+npm --prefix frontend-next test -- --maxWorkers=2
 npm --prefix frontend-next run build
 npm --prefix frontend-next run preview
 ```

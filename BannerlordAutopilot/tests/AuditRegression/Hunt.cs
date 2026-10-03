@@ -211,10 +211,23 @@ internal static partial class Program
         Try("охота: бандиты в " + distance + (coming ? ", идут на нас" : "") + " — " + (expect ? "бьём" : "не отвлекаемся"), () =>
         {
             var (b, enemy) = HuntWorld(men: 100);
+            // Занят дорогой в город (не стоит и не патрулирует) — бандиты не отвлекают.
+            MobileParty.MainParty.DefaultBehavior = AiBehavior.GoToSettlement;
+            MobileParty.MainParty.TargetSettlement = new Settlement { Name = "Город по делу", IsTown = true, MapFaction = MobileParty.MainParty.MapFaction, Position = new CampaignVec2 { X = 60 } };
             var bandits = HuntTarget("грабители", 15, distance, enemy, lord: false, speed: 3f);
             if (coming) bandits.TargetParty = MobileParty.MainParty;
             HourlyTick(b);
             Check((MobileParty.MainParty.TargetParty == bandits) == expect, "ждали " + expect + ": " + MobileParty.MainParty.DefaultBehavior);
+        });
+        // 03.10, владелец: «если ему нечего делать — пусть гоняет бандитов».
+        foreach (var behavior in new[] { AiBehavior.Hold, AiBehavior.PatrolAroundPoint })
+        Try("охота: свободный отряд (" + behavior + ") гоняет бандитов по всему радиусу", () =>
+        {
+            var (b, enemy) = HuntWorld(men: 100);
+            MobileParty.MainParty.DefaultBehavior = behavior;
+            var bandits = HuntTarget("грабители", 15, 12, enemy, lord: false, speed: 3f);
+            HourlyTick(b);
+            Check(MobileParty.MainParty.TargetParty == bandits, "свободен — бьём бандитов в 12: " + MobileParty.MainParty.DefaultBehavior);
         });
         Try("охота: поездку за добровольцами лорд рядом не сбивает", () =>
         {

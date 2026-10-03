@@ -42,7 +42,8 @@ namespace BannerlordAutopilot
         private const float ChaseProgressDistance = .5f;
         /// <summary>03.10, владелец: «так высоко ценит бой с грабителями». За 4,7 ч стрима
         /// 46 из 90 нападений охоты — на бандитов при перевесе до x77, 32 погони брошены как
-        /// бесполезные. Бандитов трогаем только вплотную или когда они идут на нас.</summary>
+        /// бесполезные. Бандитов трогаем только вплотную, когда они идут на нас, или когда
+        /// отряду нечего делать (стоит/патрулирует).</summary>
         internal const float BanditNearDistance = 3f;
         /// <summary>03.10: брошенную погоню не повторяем сутки (было 6 ч. — на ускорении это
         /// секунды, и та же цель бралась снова: цикл «охота → бросили → снова охота»).</summary>
@@ -140,6 +141,9 @@ namespace BannerlordAutopilot
             float ours = party.Party.EstimatedStrength;
             if (!(ours > 0f)) return false;
             string errand = HuntErrand(party);
+            // Свободен: стоит или патрулирует без дела — тогда и бандиты годятся.
+            bool idle = errand == null && (party.DefaultBehavior == AiBehavior.Hold
+                || party.DefaultBehavior == AiBehavior.PatrolAroundPoint || party.DefaultBehavior == AiBehavior.None);
 
             MobileParty best = null;
             float bestScore = 0f, bestRatio = 0f, bestDistance = 0f, bestTheirs = 0f;
@@ -163,7 +167,8 @@ namespace BannerlordAutopilot
                 // 03.10: занятый делом (набор, поход на крепость) отряд не сворачивает ради
                 // охоты — только если враг сам идёт на нас.
                 if (errand != null && !comingAtUs) continue;
-                if (enemy.IsBandit && !army && distance > BanditNearDistance && !comingAtUs) continue;
+                // 03.10, владелец: «а если ему нечего делать — пусть гоняет бандитов».
+                if (enemy.IsBandit && !army && distance > BanditNearDistance && !comingAtUs && !idle) continue;
                 if (ChaseRejectedReason(party, enemy) != null) continue;
                 if (_stuckTarget != null && CampaignTime.Now.ToHours < _stuckTargetUntil
                     && ReferenceEquals(enemy, _stuckTarget)) continue;

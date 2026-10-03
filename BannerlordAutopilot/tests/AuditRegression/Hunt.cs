@@ -136,6 +136,9 @@ internal static partial class Program
             CampaignTime.TestHours=9; HourlyTick(b);
             Check(MobileParty.MainParty.TargetParty!=target || MobileParty.MainParty.DefaultBehavior!=AiBehavior.EngageParty,
                 "failed close interception is not immediately selected again " + speed);
+            CampaignTime.TestHours=20; HourlyTick(b);
+            Check(MobileParty.MainParty.TargetParty!=target || MobileParty.MainParty.DefaultBehavior!=AiBehavior.EngageParty,
+                "dropped chase is not retried 12 h later (cooldown is a day, not 6 h) " + speed);
             // 03.10: a faster party that only paused is not catchable and the dropped
             // chase is not retried for a day (was: a pause released the cooldown at once).
             target.IsMoving=false;

@@ -28,7 +28,8 @@ class Program {
  Test("foot charge gives up distant cavalry",()=>{Enemy(2,40,true,true);b.Charge(a);Check(X()==0,"chasing distant cavalry");});
  Test("invalid siege order preserves existing charge",()=>{Enemy(2,15);b.Charge(a);int calls=a.ScriptCalls;Check(!b.Gate(a),"accepted non siege gate");Check(X()==15&&a.ScriptCalls==calls&&b.IsDetached(a),"changed existing command");m.CurrentTime=1;b.OnMissionTick(1);Check(X()==15,"prior charge no longer running");});
  Test("charge gives up stalled nearby cavalry",()=>{Enemy(2,10,true,true);b.Charge(a);Check(X()==10,"nearby cavalry should be eligible");m.CurrentTime=5;b.OnMissionTick(5);Check(X()==0,"stalled cavalry pursuit was not abandoned");});
- Test("charge releases movement for melee contact",()=>{Enemy(2,3);b.Charge(a);Check(a.Scripted==null,"still forcing movement in melee contact");});
+ Test("foot charge stays on its enemy in melee contact, free to stop and strike",()=>{Enemy(2,3);b.Charge(a);Check(Status()=="engaged","not engaged");Check(a.Scripted!=null&&X()==3&&a.LastFlags==Agent.AIScriptedFrameFlags.None,"infantry released in contact (formation pulls it back - 03.10 oscillation)");});
+ Test("mounted charge releases movement for melee contact",()=>{a.MountAgent=new Agent{IsHuman=false};Enemy(2,3);b.Charge(a);Check(a.Scripted==null,"rider still forced in contact");});
  Test("charge cannot engage through obstruction",()=>{Enemy(2,3);m.Scene.BlockLos=true;b.Charge(a);Check(a.Scripted!=null,"released into melee despite blocked contact");});
  Test("charge reselects dead target",()=>{var e=Enemy(2,12);Enemy(3,18);b.Charge(a);e.Active=false;m.CurrentTime=1;b.OnMissionTick(1);Check(X()==18,"dead target retained");});
  Test("mounted charge keeps original nearest target policy",()=>{a.MountAgent=new Agent{IsHuman=false};Enemy(2,8,true,true);Enemy(3,15);b.Charge(a);Check(X()==8,"mounted charge changed by infantry policy");});

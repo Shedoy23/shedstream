@@ -554,7 +554,17 @@ namespace BannerlordLink.Behaviors
             if (st.Status != status)
                 BannerlordLinkModule.Log($"[DET] CHARGE phase={status} agent={agent.Index} target={enemy.Index} mounted_target={enemy.MountAgent != null} distance={dist:F1}");
             st.Status = status;
-            if (st.ChargeEngaged) agent.DisableScriptedMovement();
+            if (st.ChargeEngaged && !onFoot) agent.DisableScriptedMovement();
+            else if (st.ChargeEngaged)
+            {
+                // 03.10, владелец: «подбегает, не ударив отбегает метров на 5, снова».
+                // Лог: 385 переходов «в упор → снова сближаемся» с той же целью за вечер,
+                // отпускали на ~7 м — сразу за порогом 6 м. Гипотеза (в логе причина не видна):
+                // отпущенного пехотинца штатный ИИ ведёт обратно к его строю. Держим его на
+                // враге, но без NeverSlowDown — он останавливается и бьёт, а строй не утаскивает.
+                var contact = enemy.GetWorldPosition();
+                agent.SetScriptedPosition(ref contact, false, Agent.AIScriptedFrameFlags.None);
+            }
             else
             {
                 var pos = enemy.GetWorldPosition();

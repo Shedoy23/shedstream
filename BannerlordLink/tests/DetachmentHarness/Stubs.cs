@@ -4,6 +4,7 @@ using System.Linq;
 using Newtonsoft.Json.Linq;
 namespace TaleWorlds.Core { public class BasicCharacterObject {} public enum BattleSideEnum { None = -1, Defender, Attacker } }
 namespace TaleWorlds.Library {
+ public class MBReadOnlyList<T>:List<T>{} public class MBList<T>:MBReadOnlyList<T>{}
  public struct Vec2 { public float x,y; public Vec2(float x,float y){this.x=x;this.y=y;} public float LengthSquared=>x*x+y*y; public float Length=>(float)Math.Sqrt(LengthSquared); public static Vec2 operator +(Vec2 a,Vec2 b)=>new(a.x+b.x,a.y+b.y); public static Vec2 operator -(Vec2 a,Vec2 b)=>new(a.x-b.x,a.y-b.y); public static Vec2 operator *(Vec2 a,float b)=>new(a.x*b,a.y*b); }
  public struct Vec3 { public float x,y,z; public Vec3(float x,float y,float z=0){this.x=x;this.y=y;this.z=z;} public Vec2 AsVec2=>new(x,y); public float LengthSquared=>x*x+y*y+z*z; public float Length=>(float)Math.Sqrt(LengthSquared); public float Distance(Vec3 b)=>(this-b).Length; public static Vec3 operator -(Vec3 a,Vec3 b)=>new(a.x-b.x,a.y-b.y,a.z-b.z); }
 }
@@ -21,13 +22,17 @@ namespace TaleWorlds.MountAndBlade {
  public class MissionBehavior { public Mission Mission=>Mission.Current; public virtual MissionBehaviorType BehaviorType=>MissionBehaviorType.Other; public virtual void OnBehaviorInitialize(){} protected virtual void OnEndMission(){} public virtual void OnAgentDeleted(Agent a){} public virtual void OnMissionTick(float dt){} }
  public class Mission { public static Mission Current; public float CurrentTime; public bool IsSiegeBattle; public Scene Scene=new(); public List<Agent> Agents=new(); public List<MissionBehavior> MissionBehaviors=new(); public List<MissionObject> ActiveMissionObjects=new(); public T GetMissionBehavior<T>() where T:class=>MissionBehaviors.OfType<T>().FirstOrDefault(); }
  public class Team { public BattleSideEnum Side=BattleSideEnum.Attacker; }
- public class Formation { public int Index; }
+ public interface IDetachment { void RemoveAgent(Agent a); }
+ public interface IFormationUnit { int FormationFileIndex { get; } int FormationRankIndex { get; } }
+ public class Formation { public int Index; public int Joins,Leaves,Detaches,Attaches; public bool ThrowDetach; public void JoinDetachment(IDetachment d){Joins++;} public void LeaveDetachment(IDetachment d){Leaves++;} public void DetachUnit(Agent a,bool loose){if(ThrowDetach)throw new Exception("detach failure");Detaches++;} public void AttachUnit(Agent a){Attaches++;} }
  public class MissionObject { public GameEntity GameEntity=new(); }
  public class SiegeLadder:MissionObject { public enum LadderState { OnLand, OnWall } public LadderState State; }
  public class SiegeTower:MissionObject { public bool HasArrivedAtTarget; }
  public class CastleGate:MissionObject { public const string OuterGateTag="outer_gate"; public const string InnerGateTag="inner_gate"; public bool IsGateOpen; public WorldFrame MiddleFrame, DefenseWaitFrame;
   public static CastleGate At(float x,bool outer,bool open){var s=Mission.Current.Scene;var g=new CastleGate{IsGateOpen=open};g.GameEntity.Tags.Add(outer?OuterGateTag:InnerGateTag);g.MiddleFrame.Origin=new WorldPosition(s,new UIntPtr(1),new Vec3(x,0),false);g.DefenseWaitFrame.Origin=new WorldPosition(s,new UIntPtr(1),new Vec3(x-5,0),false);Mission.Current.ActiveMissionObjects.Add(g);return g;} }
- public class Agent {
+ public class Agent : IFormationUnit {
+  public IDetachment Detachment; public float DetachmentWeightSet; public void SetDetachmentWeight(float w){DetachmentWeightSet=w;}
+  public int FileIndex=0,RankIndex=0; int IFormationUnit.FormationFileIndex=>FileIndex; int IFormationUnit.FormationRankIndex=>RankIndex;
   public enum ControllerType { AI,Player,None } public enum AIScriptedFrameFlags { None=0,NeverSlowDown=1 } public static Agent Main;
   public int Index; public bool Active=true,IsHuman=true,IsRangedCached; public Agent MountAgent; public Vec3 Position; public Team Team; public Formation Formation; public ControllerType Controller=ControllerType.AI; public bool IsAIControlled=>Controller==ControllerType.AI; public BasicCharacterObject Character; public float MaximumMissileRange=40;
   public bool ThrowScript,ThrowDisable,ThrowCombat,ThrowTarget,ThrowCombatOnce; public int ScriptCalls,DisableCalls,ScriptFailuresRemaining; public WorldPosition? Scripted; public AIScriptedFrameFlags LastFlags; public Func<Vec3,float> Path;

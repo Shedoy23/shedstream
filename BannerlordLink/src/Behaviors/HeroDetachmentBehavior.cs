@@ -157,6 +157,7 @@ namespace BannerlordLink.Behaviors
         {
             base.OnEndMission();
             _states.Clear();
+            ViewerDetachment.Reset();
             FullSpeedAgents.Clear();
             // 2026-06-01 FIX — обнуляем static ТОЛЬКО если это мы. Иначе
             // OnEndMission старой/overlapping миссии затирал Instance живого
@@ -168,6 +169,7 @@ namespace BannerlordLink.Behaviors
         {
             base.OnAgentDeleted(affectedAgent);
             if (affectedAgent == null) return;
+            SafeRehook(affectedAgent, alive: false);
             _states.TryRemove(affectedAgent.Index, out _);
             FullSpeedAgents.TryRemove(affectedAgent.Index, out _);
         }
@@ -202,6 +204,7 @@ namespace BannerlordLink.Behaviors
                     catch { _states.TryRemove(st.Agent?.Index ?? -1, out _); FullSpeedAgents.TryRemove(st.Agent?.Index ?? -1, out _); continue; }
                     if (!active)
                     {
+                        SafeRehook(st.Agent, alive: false);
                         _states.TryRemove(st.Agent.Index, out _);
                         FullSpeedAgents.TryRemove(st.Agent.Index, out _);
                         continue;
@@ -237,6 +240,7 @@ namespace BannerlordLink.Behaviors
                 agent.DisableScriptedMovement();
                 agent.DisableScriptedCombatMovement();
                 agent.SetAutomaticTargetSelection(true);
+                SafeRehook(agent, alive: true);
                 _states.TryRemove(agent.Index, out _);
                 FullSpeedAgents.TryRemove(agent.Index, out _);
                 BannerlordLinkModule.Log($"[DET] ATTACH agent={agent.Index} -> AI control");
@@ -387,6 +391,10 @@ namespace BannerlordLink.Behaviors
                     NextReissueAt = Mission.CurrentTime + REISSUE_INTERVAL
                 };
                 ReissueOrder(st);
+                // 03.10: «за строем» — в сетку строя; любой другой приказ — вне сетки, иначе
+                // строй тянет бойца на его место и спорит с приказом («Вблизи» отходил).
+                if (order == DetachOrder.Follow) SafeRehook(agent, alive: true);
+                else SafeUnhook(agent);
                 _states[agent.Index] = st;
                 if (_firstDetachAt < 0) _firstDetachAt = Mission.CurrentTime;
                 BannerlordLinkModule.Log($"[DET] {order.ToString().ToUpperInvariant()} agent={agent.Index} status={st.Status}");
@@ -435,6 +443,24 @@ namespace BannerlordLink.Behaviors
         }
 
         public bool IsDetached(Agent agent) => agent != null && _states.ContainsKey(agent.Index);
+
+        /// <summary>Вывод из сетки строя — улучшение, а не условие приказа: при сбое приказ
+        /// работает по-старому (scripted), сбой пишется в журнал.</summary>
+        private static void SafeUnhook(Agent agent)
+        {
+            try
+            {
+                bool hooked = ViewerDetachment.Unhook(agent);
+                BannerlordLinkModule.Log($"[DET] formation unhook agent={agent.Index} -> {(hooked ? "out of formation grid" : "no formation")}");
+            }
+            catch (Exception ex) { BannerlordLinkModule.Log($"[DET] formation unhook FAILED agent={agent.Index}: {ex.GetType().Name}: {ex.Message}"); }
+        }
+
+        private static void SafeRehook(Agent agent, bool alive)
+        {
+            try { if (ViewerDetachment.IsHooked(agent)) ViewerDetachment.Rehook(agent, alive); }
+            catch (Exception ex) { BannerlordLinkModule.Log($"[DET] formation rehook FAILED agent={agent?.Index}: {ex.GetType().Name}: {ex.Message}"); }
+        }
 
         public string GetOrderStatus(Agent agent)
         {

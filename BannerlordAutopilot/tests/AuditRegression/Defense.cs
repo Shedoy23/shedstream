@@ -49,13 +49,36 @@ internal static partial class Program
             Check(MobileParty.MainParty.TargetSettlement==near,"на ходу не мечемся между двумя осадами");
             near.IsUnderSiege=false; HourlyTick(b);
             Check(MobileParty.MainParty.TargetSettlement==far,"снятую осаду заменяет другая актуальная");
-            Clan.PlayerClan.Fiefs.Clear(); HourlyTick(b);
+            // 03.10: замок королевства тоже спасаем — «утрата» = переход к другой фракции.
+            Clan.PlayerClan.Fiefs.Clear(); far.MapFaction=new TestFaction(); near.MapFaction=far.MapFaction; HourlyTick(b);
             Check(!MobileParty.MainParty.IsMoving && MobileParty.MainParty.DefaultBehavior==AiBehavior.Hold,"утраченная своя цель не оставляет старый приказ движения");
         });
-        Try("свои только, не всё королевство", () => {
+        // 03.10, владелец: «все замки, но до которых успеет дойти; странно видеть, как он проходит мимо
+        // замка, который забирают». Крепость королевства (не своего клана) — если дойдём за сутки.
+        foreach (var (x, wounded, expect) in new[] { (10f, false, true), (5000f, false, false), (10f, true, false) })
+        Try("крепость королевства в осаде: в " + x + (wounded ? ", герой ранен" : "") + " — " + (expect ? "спасаем" : "нет"), () => {
             var b=Fresh(); ConquestWorld(wounded:0);
-            var ally=new Settlement {IsCastle=true,IsUnderSiege=true,MapFaction=MobileParty.MainParty.MapFaction}; Settlement.All.Add(ally);
-            Enable(b); HourlyTick(b); Check(MobileParty.MainParty.TargetSettlement!=ally,"чужой клан не становится срочным своим владением");
+            var ally=new Settlement {Name="Замок королевства",IsCastle=true,IsUnderSiege=true,MapFaction=MobileParty.MainParty.MapFaction,Position=new CampaignVec2 {X=x}}; Settlement.All.Add(ally);
+            if (wounded) Hero.MainHero.IsWounded=true;
+            Enable(b); HourlyTick(b);
+            Check((MobileParty.MainParty.TargetSettlement==ally)==expect,"ждали " + expect + ": " + MobileParty.MainParty.TargetSettlement?.Name);
+            if (expect) Check(LogCount("крепость королевства")>=1,"причина в журнале");
+        });
+        foreach (int besiegers in new[] { 5, 500 })
+        Try("крепость королевства: осаждающих " + besiegers + " — " + (besiegers < 100 ? "спасаем" : "не по силам"), () => {
+            var b=Fresh(); ConquestWorld(wounded:0);
+            var ally=new Settlement {Name="Замок королевства",IsCastle=true,IsUnderSiege=true,MapFaction=MobileParty.MainParty.MapFaction,Position=new CampaignVec2 {X=10}}; Settlement.All.Add(ally);
+            var enemy=new TestFaction(); var camp=new MobileParty { Name="Осаждающие", IsLordParty=true, MapFaction=enemy }; camp.Party.MapFaction=enemy;
+            camp.MemberRoster.AddToCounts(new CharacterObject { Tier = 4 }, besiegers); MobileParty.All.Add(camp);
+            var siege=new SiegeEvent { BesiegedSettlement=ally }; siege.BesiegerCamp.LeaderParty=camp; ally.SiegeEvent=siege; camp.BesiegerCamp=siege.BesiegerCamp;
+            Enable(b); HourlyTick(b);
+            Check((MobileParty.MainParty.TargetSettlement==ally)==(besiegers<100),"осаждающих " + besiegers + ": " + MobileParty.MainParty.TargetSettlement?.Name);
+        });
+        Try("свой осаждённый феод важнее крепости королевства", () => {
+            var b=Fresh(); ConquestWorld(wounded:0);
+            var ally=new Settlement {Name="Замок королевства",IsCastle=true,IsUnderSiege=true,MapFaction=MobileParty.MainParty.MapFaction,Position=new CampaignVec2 {X=3}}; Settlement.All.Add(ally);
+            var own=OwnSiege(x:30); Enable(b); HourlyTick(b);
+            Check(MobileParty.MainParty.TargetSettlement==own,"свой дальше, но первым: " + MobileParty.MainParty.TargetSettlement?.Name);
         });
         Try("F10 и следование чужой армии", () => {
             var b=Fresh(); ConquestWorld(wounded:0); var own=OwnSiege(); Enable(b,AutopilotBehavior.Mode.Observe); HourlyTick(b);
@@ -82,7 +105,7 @@ internal static partial class Program
         });
         Try("право владения меняется перед выходом из отдыха", () => {
             var b=Fresh(); ConquestWorld(wounded:5); var own=OwnSiege(); Enable(b); b.PollState();
-            ArriveTown(); b.PollState(); HourlyTick(b); Clan.PlayerClan.Fiefs.Clear(); b.PollState();
+            ArriveTown(); b.PollState(); HourlyTick(b); Clan.PlayerClan.Fiefs.Clear(); own.MapFaction=new TestFaction(); b.PollState();
             Check(MobileParty.MainParty.TargetSettlement!=own,"отложенный срочный приказ повторно проверяет владение перед выходом");
         });
         foreach (bool sally in new[]{false,true}) Try("помощь осаждённому феоду в наружном бою", () => {

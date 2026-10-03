@@ -318,6 +318,8 @@ namespace BannerlordAutopilot
         public override void RegisterEvents()
         {
             Instance = this;
+            // Память «у города нет денег» — часы ЭТОЙ кампании; другой сейв её не наследует.
+            EquipmentAndTrade.BrokeUntil.Clear();
             CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
             CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(this, OnGameLoadFinished);
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, RegisterBanditGatherDialog);
@@ -2899,7 +2901,7 @@ namespace BannerlordAutopilot
                           + ratio.ToString("0.#", CultureInfo.InvariantCulture);
                 case AiBehavior.DefendSettlement:
                     if (!FriendlySiege(data.Party as Settlement, MobileParty.MainParty)) return "нет дружественной осады";
-                    if (data.Party == _defenseTarget && !OwnFort(data.Party as Settlement)) return "срочная цель обороны больше не принадлежит нашему клану";
+                    if (data.Party == _defenseTarget && !DefendableFort(data.Party as Settlement, MobileParty.MainParty)) return "срочная цель обороны больше не наша или не по силам";
                     return OwnFort(data.Party as Settlement) ? DefenseReadiness(MobileParty.MainParty) : null;
                 case AiBehavior.GoToSettlement:
                     if (!(data.Party is Settlement settlement))

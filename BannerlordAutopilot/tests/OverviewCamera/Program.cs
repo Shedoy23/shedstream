@@ -8,14 +8,14 @@ using TaleWorlds.MountAndBlade;
 int checks=0,failures=0;
 void Check(bool ok,string name){checks++;if(!ok)failures++;Console.WriteLine((ok?"PASS ":"FAIL ")+name);}
 var rig=new BattleOverviewRig();
-Check(rig.Pitch==40,"default angle is a gentler 40 degrees");
+Check(rig.Pitch==30,"default angle is a lower, more cinematic 30 degrees");
 var points=new List<BattleOverviewRig.Point>();
 for(int i=0;i<30;i++)points.Add(new BattleOverviewRig.Point(i%5,i/5,10,i%2==0));
 points.Add(new BattleOverviewRig.Point(1000,1000,0,false));
 rig.Focus(points);rig.Step(.016f);
 Check(rig.Ready && rig.X<10 && rig.Y<10,"one fleeing cavalryman cannot pull camera away from main fight");
-Check(Math.Abs(rig.CameraZ-90)<.01f,"default camera is 80m above highest local fighter");
-rig.Zoom(100);Check(rig.Height==45,"minimum overview height");
+Check(Math.Abs(rig.CameraZ-60)<.01f,"default camera is 50m above highest local fighter");
+rig.Zoom(100);Check(rig.Height==20,"minimum overview height");
 rig.Zoom(-100);Check(rig.Height==180,"maximum overview height");
 rig.Rotate(1,1000);Check(rig.Pitch==80,"pitch never reaches vertical singularity");
 rig.Focus(new[]{new BattleOverviewRig.Point(300,0,0,true)});float before=rig.X;
@@ -31,7 +31,15 @@ for(int i=0;i<100;i++)arrivals.Add(new BattleOverviewRig.Point(300+i%3,0,0,false
 for(int i=0;i<10;i++){stable.Focus(i%2==0?arrivals:center);stable.Step(.1f);}
 Check(stable.X<10,"brief reinforcement waves do not steal focus");
 for(int i=0;i<14;i++){stable.Focus(arrivals);stable.Step(.1f);}
+Check(stable.X<10,"seven seconds of a bigger fight elsewhere is not enough to hop");
+for(int i=0;i<8;i++){stable.Focus(arrivals);stable.Step(.1f);}
 Check(stable.X>10,"sustained dominant group eventually receives focus");
+var sway=new BattleOverviewRig();
+var swayA=new List<BattleOverviewRig.Point>();var swayB=new List<BattleOverviewRig.Point>();
+for(int i=0;i<20;i++){swayA.Add(new BattleOverviewRig.Point(i%3-4,0,0,i%2==0));swayB.Add(new BattleOverviewRig.Point(i%3+4,0,0,i%2==0));}
+sway.Focus(swayA);float swayStart=sway.X;
+for(int i=0;i<20;i++){sway.Focus(i%2==0?swayB:swayA);sway.Step(.5f);}
+Check(Math.Abs(sway.X-swayStart)<.01f,"a melee breathing 8m left-right does not sway the camera");
 var emptyRig=new BattleOverviewRig();emptyRig.Focus(center);
 emptyRig.Focus(new[]{new BattleOverviewRig.Point(500,0,0,true)});emptyRig.Step(.1f);
 Check(emptyRig.X>1,"empty old battlefield releases focus promptly");
@@ -39,8 +47,8 @@ Check(emptyRig.X>1,"empty old battlefield releases focus promptly");
 BattleOverviewCamera Make(){AutopilotBehavior.Instance.CurrentMode=AutopilotBehavior.Mode.Apply;InformationManager.Inquiry=false;var v=new BattleOverviewCamera{Mission=new Mission{CameraIsFirstPerson=true}};v.Mission.Agents.Add(new Agent{Position=new Vec3(0,0,10)});return v;}
 var view=Make();
 Check(view.UpdateOverridenCamera(.016f) && !view.Mission.CameraIsFirstPerson,"overview owns rendering, disables first person");
-Check(view.MissionScreen.CombatCamera.Frame.origin.z==90,"real view applies high camera geometry");
-Check(view.Mission.CameraUpdates==1 && view.Mission.CameraFrame.origin.z==90,"native mission receives the rendered camera frame");
+Check(view.MissionScreen.CombatCamera.Frame.origin.z==60,"real view applies high camera geometry");
+Check(view.Mission.CameraUpdates==1 && view.Mission.CameraFrame.origin.z==60,"native mission receives the rendered camera frame");
 Check(view.MissionScreen.CombatCamera.Near==0.1f && view.MissionScreen.CombatCamera.Far==12500f,"overview initializes native clipping range");
 Check(Math.Abs(view.MissionScreen.CombatCamera.Fov-65f*(float)Math.PI/180f)<.001f,"overview initializes field of view");
 view.MissionScreen.CombatCamera.Near=1000;
@@ -49,7 +57,7 @@ Check(view.Mission.CameraUpdates==2 && view.MissionScreen.CombatCamera.Near==0.1
 view.Mission.MainAgent=null;
 Check(view.UpdateOverridenCamera(.016f),"overview continues without main hero");
 view.Mission.Scene.Ground=200;
-view.UpdateOverridenCamera(.016f);Check(view.MissionScreen.CombatCamera.Frame.origin.z>=212,"camera stays above hillside beneath it");
+view.UpdateOverridenCamera(.016f);Check(view.MissionScreen.CombatCamera.Frame.origin.z>=208 && view.MissionScreen.CombatCamera.Frame.origin.z<209,"camera stays 8m above hillside beneath it");
 view.Input.Toggle=true;view.OnMissionScreenTick(.016f);
 Check(!view.UpdateOverridenCamera(.016f) && view.Mission.CameraIsFirstPerson,"F9 returns previous native view");
 view.Input.Toggle=true;view.OnMissionScreenTick(.016f);Check(view.UpdateOverridenCamera(.016f),"F9 resumes overview");

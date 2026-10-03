@@ -66,13 +66,13 @@ namespace BannerlordAutopilot
                     _previousFirstPerson = Mission.CameraIsFirstPerson;
                     Mission.CameraIsFirstPerson = false;
                     _owned = true;
-                    AutopilotLog.Write("КАМЕРА: обзор сверху, высота 80 м; колесо — высота, средняя кнопка — поворот, F9 — герой");
+                    AutopilotLog.Write("КАМЕРА: обзор сверху, высота 50 м, наклон 30°; колесо — высота, средняя кнопка — поворот, F9 — герой");
                 }
                 _rig.Step(dt);
                 var target = new Vec3(_rig.X, _rig.Y, _rig.Z);
                 var location = new Vec3(_rig.CameraX, _rig.CameraY, _rig.CameraZ);
                 // A hillside behind the fight must not swallow the camera.
-                location.z = Math.Max(location.z, Mission.Scene.GetGroundHeightAtPosition(location) + 12f);
+                location.z = Math.Max(location.z, Mission.Scene.GetGroundHeightAtPosition(location) + 8f);
                 // Returning true skips MissionScreen.UpdateCamera completely, including
                 // projection and the native mission camera used for visual updates.
                 MissionScreen.CombatCamera.SetFovVertical(65f * (float)Math.PI / 180f,

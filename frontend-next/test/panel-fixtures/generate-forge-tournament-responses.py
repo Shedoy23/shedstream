@@ -96,7 +96,8 @@ async def main():
             for slot,quality in zip(slots,qualities):
                 stats={'hp':450,'body':10} if slot=='weapon1' else {}
                 await adapter._on_equipment_changed(CHANNEL_ID,env('hero.equipment_changed',{'username':'alice','slot':slot,'item_id':'fixture_'+slot,'item_name':'Fixture '+slot,'quality':quality,'tier':3,'item_value':1000,'weight':1.25,'stats':stats}))
-                rank={None:0,'common':0,'poor':-2,'inferior':-1,'fine':1,'masterwork':2,'legendary':3}[quality]
+                # ReforgeQuality.Rank in the mod maps both lower-quality labels to 0.
+                rank={None:0,'common':0,'poor':0,'inferior':0,'fine':1,'masterwork':2,'legendary':3}[quality]
                 inventory.append({'source':'equipped','slot':slot,'owned_id':'equipped|'+slot,'item_id':'fixture_'+slot,'name':'Fixture '+slot,'quality':quality,'tier':3,'item_value':1000,'weight':1.25,'stats':stats,'modifier_id':quality,'quality_rank':rank,'reforge_options':[] if slot=='horse' else [{'rank':i,'modifier_id':'fixture_rank'+str(i)} for i in [1,2,3]]})
             seq=0
             async def snapshot(items=inventory,state={}):

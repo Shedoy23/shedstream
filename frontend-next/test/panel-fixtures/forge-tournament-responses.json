@@ -1,7 +1,7 @@
 {
   "provenance": {
     "repository": "/workspace/scratch/f566ddb2e035/panel-preact-implementation",
-    "head": "eec667d18e304da5d3c7c0621caad5c3251b23cb",
+    "head": "92f729769b77bc47e339b177244af78991a96ffc",
     "database": "isolated temporary SQLite + current main.run_migrations()",
     "handlers": "real public route functions, real BannerlordAdapter events and equipment/queue snapshot handlers",
     "auth": "require_jwt_user test stub; real JWT verification not exercised",
@@ -243,7 +243,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "5d3a34d050b9441586faa4f6821763a1",
+        "action_id": "2844d179cae346728c4cee6d0e6f9d29",
         "charged": 0,
         "message": "⚔️ Action hero.join_tournament в очереди (0💎 списано)",
         "perk": "viewer",
@@ -430,7 +430,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "9b8738161b7a42989d9da856cd6fee37",
+        "action_id": "287f6f55a0cb492a816f4ee3ebb33706",
         "charged": 0,
         "message": "⚔️ Action hero.join_tournament в очереди (0💎 списано)",
         "perk": "viewer",
@@ -497,7 +497,7 @@
           "carol"
         ],
         "last_winner": null,
-        "started_at": "2026-10-02 23:01:36"
+        "started_at": "2026-10-03 00:27:44"
       },
       "in_queue": false,
       "my_prediction": null,
@@ -562,7 +562,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "d470efb4bf1a41dba12d380f08b3c52a",
+        "action_id": "2efac05ecc2440c2b5ff825f0e56ceff",
         "charged": 0,
         "message": "⚔️ Action tournament.predict в очереди (0💎 списано)",
         "perk": "viewer",
@@ -595,7 +595,7 @@
           "carol"
         ],
         "last_winner": null,
-        "started_at": "2026-10-02 23:01:36"
+        "started_at": "2026-10-03 00:27:44"
       },
       "in_queue": false,
       "my_prediction": {
@@ -651,7 +651,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "bc5929d1187a4d8d99db1f44801061de",
+        "action_id": "a8f082f3f95b4bd19726111f8b6b83e9",
         "charged": 0,
         "message": "⚔️ Action tournament.predict в очереди (0💎 списано)",
         "perk": "viewer",
@@ -674,7 +674,7 @@
           "carol"
         ],
         "last_winner": null,
-        "started_at": "2026-10-02 23:01:36"
+        "started_at": "2026-10-03 00:27:44"
       },
       "in_queue": false,
       "my_prediction": null,
@@ -694,7 +694,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "3198224556634bc59521fd85ee0d63f2",
+        "action_id": "189dfeeec955430e94ea206f9110d861",
         "charged": 0,
         "message": "⚔️ Action tournament.predict в очереди (0💎 списано)",
         "perk": "viewer",
@@ -803,7 +803,7 @@
           "carol"
         ],
         "last_winner": "bobby",
-        "started_at": "2026-10-02 23:01:36"
+        "started_at": "2026-10-03 00:27:44"
       },
       "in_queue": false,
       "my_prediction": null,
@@ -823,7 +823,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "b33a327f0b9b440c8cbe97e3b5af4c7a",
+        "action_id": "c858ceb5fb1641b8bf24368f6b218806",
         "charged": 0,
         "message": "⚔️ Action hero.join_tournament в очереди (0💎 списано)",
         "perk": "viewer",
@@ -875,8 +875,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 23:01:36",
-        "last_sync": "2026-10-02 23:01:36",
+        "adopted_at": "2026-10-03 00:27:44",
+        "last_sync": "2026-10-03 00:27:44",
         "level": 1,
         "clan_name": null,
         "kingdom_name": null,
@@ -1139,7 +1139,7 @@
           "weight": 1.25,
           "stats": {},
           "modifier_id": "poor",
-          "quality_rank": -2,
+          "quality_rank": 0,
           "reforge_options": [
             {
               "rank": 1,
@@ -1167,7 +1167,7 @@
           "weight": 1.25,
           "stats": {},
           "modifier_id": "inferior",
-          "quality_rank": -1,
+          "quality_rank": 0,
           "reforge_options": [
             {
               "rank": 1,
@@ -1365,8 +1365,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 23:01:36",
-        "last_sync": "2026-10-02 23:01:36",
+        "adopted_at": "2026-10-03 00:27:44",
+        "last_sync": "2026-10-03 00:27:44",
         "level": 1,
         "clan_name": null,
         "kingdom_name": null,
@@ -1510,8 +1510,8 @@
         "is_prisoner": false,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 23:01:36",
-        "last_sync": "2026-10-02 23:01:36",
+        "adopted_at": "2026-10-03 00:27:44",
+        "last_sync": "2026-10-03 00:27:44",
         "level": 1,
         "clan_name": null,
         "kingdom_name": null,
@@ -1698,7 +1698,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "1b5dddd0d285449784e9bf611c347948",
+        "action_id": "8be038ea9fc441dfa2f75f26b3431232",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -1763,7 +1763,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "c6cfa3365dad4d67b51a7af03bd63bfe",
+        "action_id": "7fdd029720a74850b64f0c241bbef1bb",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -1809,7 +1809,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "7d485d8e6c714caf9da7c32b4e5b62c1",
+        "action_id": "087a4b6492a64f0eb4d0db05ac5cd712",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -1975,7 +1975,7 @@
           "weight": 1.25,
           "stats": {},
           "modifier_id": "poor",
-          "quality_rank": -2,
+          "quality_rank": 0,
           "reforge_options": [
             {
               "rank": 1,
@@ -2003,7 +2003,7 @@
           "weight": 1.25,
           "stats": {},
           "modifier_id": "inferior",
-          "quality_rank": -1,
+          "quality_rank": 0,
           "reforge_options": [
             {
               "rank": 1,
@@ -2199,7 +2199,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "1480a66b17b047738cff9747e8122623",
+        "action_id": "ae20456defd84177b13312c733176bbd",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -2322,8 +2322,8 @@
         "is_prisoner": true,
         "gold": 500000,
         "location": null,
-        "adopted_at": "2026-10-02 23:01:36",
-        "last_sync": "2026-10-02 23:01:36",
+        "adopted_at": "2026-10-03 00:27:44",
+        "last_sync": "2026-10-03 00:27:44",
         "level": 1,
         "clan_name": null,
         "kingdom_name": null,
@@ -2465,7 +2465,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "2863902b13bd4df98bede0e8ed31fe9d",
+        "action_id": "5c90f793125a4896ab42d29e8a17dcea",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -2510,7 +2510,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "afd995cdfd9c4f7f95129a8892ac0408",
+        "action_id": "1cbb7c5cb4614079923ea0e543c2472d",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -2555,7 +2555,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "b37c1e5fdb364408aacad4c06d630051",
+        "action_id": "9a3b69fbede34db1ad49a2c103734d26",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -2600,7 +2600,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "9cf21e6fec144e239549c55743e3584b",
+        "action_id": "604c4ce8c81040c4a6bd3e017d8f3407",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -2645,7 +2645,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "b3edade44cf6411ba42d807ecfba78f9",
+        "action_id": "dea97178b3264d17b6be66c64d0f92ef",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -2690,7 +2690,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "f3cc15d9dbea4112ba7c274e812e06a1",
+        "action_id": "0055db54264241de99d8e714a1702a5f",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -2735,7 +2735,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "ef6b9e76b6684ec3bb8a19460223a51b",
+        "action_id": "c4cad150fed0483c93cd84def898faa8",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -2780,7 +2780,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "ac31a5abd13142a4b5812a374fa3f140",
+        "action_id": "4e9bb082c0544eb5abfd1f5d017e509d",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",
@@ -2825,7 +2825,7 @@
       },
       "response": {
         "success": true,
-        "action_id": "31db66295bd845a98d4a1cf7e2a9c701",
+        "action_id": "fec33efb0d82413393e8dc63e5a6ce35",
         "charged": 20000,
         "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)",
         "perk": "viewer",

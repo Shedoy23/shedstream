@@ -1,6 +1,6 @@
 <!-- Local integration update 2026-09-30 -->
 
-## 03.10 21:39:56 — вылет на карте `Army.IsAnotherEnemyBesiegingTarget`: ИСПРАВЛЕНО, НЕ УСТАНОВЛЕНО
+## 03.10 21:39:56 — вылет на карте `Army.IsAnotherEnemyBesiegingTarget`: ИСПРАВЛЕНО, УСТАНОВЛЕНО (`7d5af25d`)
 
 Дамп (`crashes/2026-10-03_16.40.06`, `scripts/triage-crash.ps1`): NRE в ванильном `Army.HourlyTick` — только
 для армий, которые ведёт НЕ игрок: лидер «осаждает», а `Army.AiBehaviorObject` пуст. Ваниль такую пару не

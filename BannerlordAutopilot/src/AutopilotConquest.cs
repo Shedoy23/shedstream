@@ -640,9 +640,12 @@ namespace BannerlordAutopilot
             if (target == null || party == null) return "нет цели";
             string invalid = OffensiveSiegeRejection(target, party);
             if (invalid != null) return invalid;
-            var homes = Clan.PlayerClan?.Fiefs.Select(f => f?.Settlement)
-                .Where(s => s != null && (s.IsTown || s.IsCastle) && s.MapFaction == party.MapFaction).Distinct().ToList()
-                ?? new List<Settlement>();
+            // 03.10, владелец («почему не идёт в осады», ответ «да»): граница — от ВСЕХ крепостей нашего
+            // королевства, а не только своего клана. У клана был один город далеко от фронта: все 7
+            // вражеских крепостей отсекались «по географии» (52 раза за вечер), осад не было вовсе.
+            var homes = Settlement.All
+                .Where(s => s != null && (s.IsTown || s.IsCastle) && party.MapFaction != null && s.MapFaction == party.MapFaction)
+                .Distinct().ToList();
             if (homes.Count == 0)
             {
                 float distance = party.Position.DistanceSquared(target.Position);

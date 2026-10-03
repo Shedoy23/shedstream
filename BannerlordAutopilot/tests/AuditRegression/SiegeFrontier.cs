@@ -114,9 +114,18 @@ internal static partial class Program
             kingdom.Enemies.Clear();
             Check(FrontierRejection(target) != null, "affiliation's current peace rejects former target");
         });
+        // 03.10, владелец: граница от всех крепостей королевства. Вечером у клана был один город далеко
+        // от фронта, а рядом с врагом стояли крепости кланов королевства — осад не было вовсе.
+        Try("frontier counts kingdom fortresses, not only the player's clan", () => {
+            var target = FrontierWorld(250);
+            Check(FrontierRejection(target) != null, "only the far clan fief: rejected by radius");
+            FrontierFort(MobileParty.MainParty.MapFaction, 200, "kingdom_ally_fort");
+            Check(FrontierRejection(target) == null, "kingdom fortress 50 away from the target makes it a frontier fort");
+        });
         Try("frontier with no valid home uses party radius without top-three quota", () => {
             var target = FrontierWorld(100);
-            Clan.PlayerClan.Fiefs.Clear();
+            // «Нет дома» теперь = у королевства нет ни одной крепости.
+            Clan.PlayerClan.Fiefs.Clear(); Settlement.All.RemoveAll(s => s.StringId == "home_fief");
             foreach (float x in new[] { 10f, 20f, 30f }) FrontierFort(target.MapFaction, x);
             Check(FrontierRejection(target) == null, "no-home radius 100 ignores quota as before");
             target.Position = new CampaignVec2 { X = 101 };

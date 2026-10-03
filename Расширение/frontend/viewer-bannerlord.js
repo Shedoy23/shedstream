@@ -1256,23 +1256,42 @@ function loadBannerlordProgression() {
         const keyAttr = type === 'focus' ? 'data-skill' : 'data-attr';
         return `<button class="small-btn bnr-prog-${type === 'focus' ? 'focus' : 'attr'}-btn"
             ${keyAttr}="${escapeHtml(entry.id)}" ${valid ? '' : 'disabled'}
-            title="${escapeHtml(reason || `+1 · ${cost}`)}">${type === 'focus' ? '🎯' : '💪'}+ ${escapeHtml(cost)}</button>
+            title="${escapeHtml(reason || `+1 · ${cost}`)}">${type === 'focus' ? '🎯' : '💪'}${valid ? '+ ' + escapeHtml(cost) : ''}</button>
             ${reason ? `<small style="color:var(--muted);">${escapeHtml(reason)}</small>` : ''}`;
     };
-    const skillRows = skills.map(s => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:4px;font-size:11px;">
-        <span style="flex:1;">${escapeHtml(_bnrContentName('skills', s.id))}</span>
-        <span title="${escapeHtml(limits(s.focus_limit, s.native_focus_limit))}">F${escapeHtml(displayNumber(s.focus))}</span>
-        <strong>${escapeHtml(displayNumber(s.level))}</strong>
+    // 03.10, владелец: атрибут — заголовок группы, под ним его навыки (как было до 0.0.6).
+    // Связь берётся из игры (s.attribute), если мод её пришлёт; иначе — ванильная таблица;
+    // навык, которого в ней нет (моды), уходит в «Прочее», а не пропадает.
+    const vanillaAttr = {onehanded:'vigor', twohanded:'vigor', polearm:'vigor', bow:'control', crossbow:'control',
+        throwing:'control', riding:'endurance', athletics:'endurance', crafting:'endurance', scouting:'cunning',
+        tactics:'cunning', roguery:'cunning', charm:'social', leadership:'social', trade:'social',
+        steward:'intelligence', medicine:'intelligence', engineering:'intelligence'};
+    const attrIcons = {vigor:'💪', control:'🎯', endurance:'⛰️', cunning:'🦊', social:'💬', intelligence:'📚'};
+    const key = id => String(id || '').toLowerCase();
+    const skillAttr = s => key(typeof s.attribute === 'string' && s.attribute ? s.attribute : vanillaAttr[key(s.id)]);
+    const dots = (value, max) => Number.isSafeInteger(value) && Number.isSafeInteger(max) && max > 0 && max <= 20
+        ? '●'.repeat(Math.min(value, max)) + '○'.repeat(Math.max(max - value, 0)) : '';
+    const stars = (value, max) => Number.isSafeInteger(value) && Number.isSafeInteger(max) && max > 0 && max <= 10
+        ? '★'.repeat(Math.min(value, max)) + '☆'.repeat(Math.max(max - value, 0)) : `F${displayNumber(value)}`;
+    const skillRow = s => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:5px 8px 5px 18px;font-size:11px;border-top:1px solid rgba(255,255,255,0.05);">
+        <span style="flex:1;min-width:90px;">└ ${escapeHtml(_bnrContentName('skills', s.id))}</span>
+        <span style="color:#fbbf24;letter-spacing:1px;" title="${escapeHtml(['Фокус ' + displayNumber(s.focus), limits(s.focus_limit, s.native_focus_limit)].filter(Boolean).join(' · '))}">${escapeHtml(stars(s.focus, s.native_focus_limit))}</span>
+        <strong style="min-width:28px;text-align:right;">${escapeHtml(displayNumber(s.level))}</strong>
         ${renderOffer(s, 'focus', s.focus, s.focus_options, focusPurchases)}
-    </div>`).join('');
-    const attributeRows = attributes.map(a => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:4px;font-size:11px;">
-        <span style="flex:1;color:#93c5fd;">${escapeHtml(_bnrContentName('attributes', a.id))}</span>
-        <strong title="${escapeHtml(limits(a.limit, a.native_limit))}">${escapeHtml(displayNumber(a.value))}</strong>
+    </div>`;
+    const attrHeader = a => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;font-size:12px;background:rgba(255,255,255,0.04);border-radius:6px;margin-top:6px;">
+        <span style="flex:1;min-width:90px;font-weight:700;color:#fbbf24;">${attrIcons[key(a.id)] || '◆'} ${escapeHtml(_bnrContentName('attributes', a.id))}</span>
+        <span style="color:var(--muted);letter-spacing:1px;font-size:10px;">${escapeHtml(dots(a.value, a.native_limit))}</span>
+        <strong style="color:#4ade80;" title="${escapeHtml(limits(a.limit, a.native_limit))}">${escapeHtml(displayNumber(a.value))}${Number.isSafeInteger(a.native_limit) ? '/' + a.native_limit : ''}</strong>
         ${renderOffer(a, 'attribute', a.value, a.options, attributePurchases)}
-    </div>`).join('');
+    </div>`;
+    const known = new Set(attributes.map(a => key(a.id)));
+    const groups = attributes.map(a => attrHeader(a) + skills.filter(s => skillAttr(s) === key(a.id)).map(skillRow).join(''));
+    const orphans = skills.filter(s => !known.has(skillAttr(s)));
+    if (orphans.length) groups.push(`<div style="padding:6px 8px;font-size:12px;font-weight:700;color:var(--muted);margin-top:6px;">Прочее</div>` + orphans.map(skillRow).join(''));
     // Context participates in repaint/rebind even when values and prices are equal.
     const html = `<div data-bnr-progression-context="${escapeHtml(JSON.stringify(context))}" data-bnr-progression-actor-version="${_bnrProgressionActorVersion}">
-        ${attributeRows}${skillRows}${attributeRows || skillRows ? '' : '<div>Игра не передала навыки и атрибуты.</div>'}
+        ${groups.length ? `<div style="font-size:10px;color:var(--muted);padding:2px 8px;">💪 Атрибут поднимает предел трёх навыков · 🎯 фокус ускоряет рост навыка</div>${groups.join('')}` : '<div>Игра не передала навыки и атрибуты.</div>'}
     </div>`;
     if (!_smartInnerHTML(slot, html)) return;
     const bind = (selector, key, action, purchases) => slot.querySelectorAll(selector).forEach(btn => {

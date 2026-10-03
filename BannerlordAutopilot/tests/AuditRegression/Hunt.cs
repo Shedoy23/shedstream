@@ -229,6 +229,19 @@ internal static partial class Program
             CampaignTime.TestHours = 2; HourlyTick(b);
             Check(MobileParty.MainParty.TargetParty == lord, "враг сам идёт на нас — бьёмся");
         });
+        // 03.10, стрим: «защищать осаждённый феод» сбивалось охотой через секунду.
+        foreach (var (lordTarget, coming) in new[] { ("грабители", false), ("лорд", false), ("лорд", true) })
+        Try("оборона замка: " + lordTarget + (coming ? " идёт на нас" : " рядом") + " — " + (coming ? "бьём" : "не отвлекаемся"), () =>
+        {
+            var (b, enemy) = HuntWorld(men: 100);
+            var main = MobileParty.MainParty;
+            var fort = new Settlement { Name = "Свой замок", IsCastle = true, MapFaction = main.MapFaction, Position = new CampaignVec2 { X = 40 } };
+            main.TargetSettlement = fort; main.DefaultBehavior = AiBehavior.DefendSettlement;
+            var target = HuntTarget(lordTarget, 30, lordTarget == "лорд" ? 6 : 2, enemy, lord: lordTarget == "лорд", speed: 3f);
+            if (coming) target.TargetParty = main;
+            HourlyTick(b);
+            Check((main.TargetParty == target) == coming, "ждали " + coming + ": " + main.DefaultBehavior + " → " + main.TargetParty?.Name);
+        });
         Try("охота: цель вне радиуса не трогаем", () =>
         {
             var (b, enemy) = HuntWorld(men: 100);

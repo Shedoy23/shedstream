@@ -219,6 +219,10 @@ namespace BannerlordAutopilot
         private string HuntErrand(MobileParty party)
         {
             if (HeadingToSiegeTarget(party)) return "идём на крепость";
+            // 03.10, владелец: «приказ защищать осаждённый феод сбрасывается, проёбываем
+            // замки» — в логе DefendSettlement, и через секунду «ОХОТА: атакуем» грабителей
+            // в 17 ед. Осаждающих бьёт сама оборона; охота её не перебивает.
+            if (party.DefaultBehavior == AiBehavior.DefendSettlement && party.TargetSettlement != null) return "защищаем крепость";
             if (_recruitingAt != null && party.DefaultBehavior == AiBehavior.GoToSettlement
                 && party.TargetSettlement == _recruitingAt && NeedsRecruitment(party)) return "едем за добровольцами";
             return null;

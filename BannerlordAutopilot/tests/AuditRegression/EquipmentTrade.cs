@@ -100,16 +100,24 @@ internal static partial class Program
             }
         });
         // 26.09, владелец: перегруз от еды (запас 460 дней, вес x5) — лишнюю еду продаём.
-        Try("лишняя еда продаётся, запас на 20 дней и все виды остаются", () => {
+        Try("лишняя еда продаётся, запас на 50 дней и все виды остаются", () => {
             Fresh(); var w = MakeWorld(prisoners: false); var p = MobileParty.MainParty;
             var tracker = new TestViewTracker(); Campaign.Current.Behaviors.Add(tracker);
             var meat = new ItemObject { Name="мясо", StringId="meat", IsFood=true, TestPrice=3 };
             p.FoodChange = -10; p.ItemRoster.TestAdd(w.Grain, 900); p.ItemRoster.TestAdd(meat, 100);
             int gold = Hero.MainHero.Gold;
             EquipmentAndTrade.Sell(p, w.Place);
-            Check(p.ItemRoster.TotalFood == 200, "осталось еды ровно на 20 дней: " + p.ItemRoster.TotalFood);
+            Check(p.ItemRoster.TotalFood == 500, "осталось еды ровно на 50 дней (владелец 03.10): " + p.ItemRoster.TotalFood);
             Check(p.ItemRoster.TestCount(w.Grain) > 0 && p.ItemRoster.TestCount(meat) > 0, "оба вида еды сохранились");
-            Check(Hero.MainHero.Gold > gold && LogCount("лишней еды 800") == 1, "продано 800 лишних, деньги получены");
+            Check(Hero.MainHero.Gold > gold && LogCount("лишней еды 500") == 1, "продано 500 лишних, деньги получены");
+        });
+        // 03.10 23:26: продажа держала 20 дней, покупка докупала до 30 — продали/купили по кругу каждые 5 с.
+        Try("запас после покупки до 30 дней не продаётся", () => {
+            Fresh(); var w = MakeWorld(prisoners: false); var p = MobileParty.MainParty;
+            Campaign.Current.Behaviors.Add(new TestViewTracker());
+            p.FoodChange = -10; p.ItemRoster.TestAdd(w.Grain, 300);
+            EquipmentAndTrade.Sell(p, w.Place);
+            Check(p.ItemRoster.TotalFood == 300 && LogCount("лишней еды 0") == 1, "30 дней запаса проданы: " + p.ItemRoster.TotalFood);
         });
         Try("еды мало — не продаём ни крошки", () => {
             Fresh(); var w = MakeWorld(prisoners: false); var p = MobileParty.MainParty;

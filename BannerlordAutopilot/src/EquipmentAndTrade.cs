@@ -97,14 +97,25 @@ namespace BannerlordAutopilot
         /// дорос до 460 дней, вес 41–47 тыс. при грузоподъёмности 9 тыс., и разгрузка
         /// ходила по кругу, продавая пару вещей. Держим запас на столько дней, лишнее
         /// продаём (для похода нужно 7 — PreparationNeeded).</summary>
-        internal const float FoodKeepDays = 20f;
+        internal const float FoodKeepDaysBase = 50f; // 03.10, владелец: «продавать выше 50 дней, докупать до 30»
 
         internal static int FoodSurplus(MobileParty party)
         {
             float perDay = -party.FoodChange;
             if (float.IsNaN(perDay) || float.IsInfinity(perDay) || perDay <= 0) return 0;
-            int keep = (int)Math.Ceiling(perDay * FoodKeepDays);
+            int keep = (int)Math.Ceiling(perDay * FoodKeepDays());
             return Math.Max(0, party.ItemRoster.TotalFood - keep);
+        }
+
+        /// <summary>03.10, 23:26: в Лагете каждые 5 с «продано лишней еды 39–47», затем «КУПЛЕНО
+        /// 56–81» — продажа держала 20 дней, а покупка (ванильная модель) докупает до 30 дней в
+        /// городе: продали дёшево, купили дороже, по кругу. Держим не меньше цели покупки + 2 дня.</summary>
+        internal static float FoodKeepDays()
+        {
+            float town = 0f;
+            try { town = Campaign.Current?.Models?.PartyFoodBuyingModel?.MinimumDaysFoodToLastWhileBuyingFoodFromTown ?? 0f; }
+            catch { }
+            return Math.Max(FoodKeepDaysBase, town + 2f);
         }
 
         /// <summary>26.09, владелец: «разрешить ему вьючных лошадей чуть держать, не получая
@@ -202,7 +213,7 @@ namespace BannerlordAutopilot
             }
             if (earned >= 1000) Thoughts.Say("sold", settlement.StringId, earned, settlement.Name);
             AutopilotLog.Write("ПРОДАЖА: вещей " + sold + " (из них торговых товаров " + goodsSold + ", лишней еды " + foodSold + "), получено " + earned
-                + " динаров; осталось без полной оплаты " + unpaid + "; еды оставлено на " + FoodKeepDays.ToString("F0")
+                + " динаров; осталось без полной оплаты " + unpaid + "; еды оставлено на " + FoodKeepDays().ToString("F0")
                 + " дней, закреплённые и квестовые сохранены");
         }
 

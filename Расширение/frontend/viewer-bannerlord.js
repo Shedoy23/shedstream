@@ -4431,7 +4431,7 @@ async function _renderForgeInline() {
             ? '<span style="font-size:10px;color:var(--dim);flex:0 0 auto;">—</span>'
             : !nextQ
             ? '<span title="Уже максимальное качество (Легендарное)" style="font-size:10px;color:#fbbf24;font-weight:700;flex:0 0 auto;white-space:nowrap;">✦ макс</span>'
-            : `<button class="extra-btn bnr-reforge-btn" data-slot="${x.s}"
+            : `<button class="extra-btn bnr-reforge-btn" data-slot="${x.s}" data-item="${escapeHtml(it.item_id)}"
                     title="Поднять «${escapeHtml(it.item_name || it.item_id)}» на одну ступень → ${nextQ.label} за ${REFORGE_PRICE}💎. На потолке → крустики вернутся."
                     style="font-size:11px;padding:5px 10px;background:#2a1a0a;color:${nextQ.color};font-weight:700;white-space:nowrap;flex:0 0 auto;">
                 ⚒ → ${nextQ.icon} ${nextQ.label}
@@ -4457,7 +4457,8 @@ async function _renderForgeInline() {
         ${rows}`;
     slot.querySelectorAll('.bnr-reforge-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            await _bannerlordBuyAction('hero.reforge_quality', { slot: btn.dataset.slot });
+            // 03.10: называем вещь, которую зритель видел — сервер откажет до списания, если слот сменился.
+            await _bannerlordBuyAction('hero.reforge_quality', { slot: btn.dataset.slot, expected_item_id: btn.dataset.item });
             // Keep an already-open forge panel in sync. The action is applied by
             // the mod's poll loop, so refresh after that window and re-render the
             // panel from the new equipment snapshot.

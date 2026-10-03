@@ -15,6 +15,11 @@ changes = [
     ('active-inventory', 'controller.ts', '!this.forgeActive || ', '', 'safety', 'same-task navigation fences'),
     ('local-tail-owner', 'controller.ts', 'const owns = this.captureRequestOwner();', 'const owns = () => true;', 'safety', 'successful local and generic delayed tails are fenced after token|pending POST completion after token'),
     ('forge-usage', 'ForgeView.tsx', "'bannerlord:details.inv-forge'", "'bannerlord:details.forge'", 'parity', 'initially closed'),
+    ('observed-slot-gate', 'forge.ts', '!forgeDisagreement(state, slot)', 'true', 'observation', 'newer equipped item disagreement'),
+    ('observed-item-id', 'forge.ts', 'heroItem.item_id !== shopItem.item', 'false', 'observation', 'newer equipped item disagreement'),
+    ('observed-quality', 'forge.ts', 'observedQuality(heroItem.quality) !== shopItem.quality', 'false', 'observation', 'newer equipped quality disagreement'),
+    ('observation-admission', 'EquipmentView.tsx', 'controller.observeForgeEquipment(result, identity, hero);', '', 'observation', 'newer equipped item disagreement'),
+    ('observation-retention', 'controller.ts', 'heroContext(hero) === heroContext(this.state.hero) ? this.state.forgeEquipment : null', 'null', 'observation', 'newer equipped item disagreement'),
 ]
 rows = []
 for name, file, before, after, suite, pattern in changes:

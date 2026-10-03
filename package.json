@@ -24,7 +24,8 @@
   "homepage": "https://github.com/Shedoy23/shedstream#readme",
   "devDependencies": {
     "eslint": "^10.9.0",
-    "globals": "^17.11.0"
+    "globals": "^17.11.0",
+    "linkedom": "0.18.12"
   },
   "private": true
 }

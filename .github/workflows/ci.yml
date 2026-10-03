@@ -102,6 +102,11 @@ jobs:
       # написания (нашла внешняя проверка). Список, который надо не забыть
       # дополнить, — это тот же класс, что спящий линтер: выглядит настроенным,
       # но не держит. Цикл подхватывает новые файлы сам.
+      # 03.10: гейт счётчиков импортирует linkedom; локально он лежал в node_modules
+      # случайно, в CI пакетов не было — гейт падал на импорте. Ставим строго по lockfile.
+      - name: Install frontend gate deps (npm ci)
+        run: npm ci --no-audit --no-fund
+
       - name: Frontend behaviour gates (all scripts/test-frontend-*.mjs)
         shell: bash
         run: |

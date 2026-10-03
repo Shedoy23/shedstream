@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { TwitchAuthStore } from '../auth';
+import { devHelperFromLocation } from '../devAuth';
 import { IdentityBootstrap, type IdentityHelper } from '../skillgames/identity';
 import { configuredApiOrigin } from '../skillgames/origin';
 import { PanelController } from './controller';
@@ -14,6 +15,7 @@ const identity = new IdentityBootstrap(auth, configuredApiOrigin);
 const usage = new PanelUsage({ auth, identity, baseUrl: configuredApiOrigin, surface: /panel-mobile\.html$/.test(location.pathname) ? 'mobile' : 'desktop' });
 const controller = new PanelController(new HttpPanelTransport(configuredApiOrigin, auth), auth, identity, Date.now, usage);
 if (window.Twitch?.ext) identity.attach(window.Twitch.ext);
+else { const dev = devHelperFromLocation(location.search, false); if (dev) identity.attach(dev); }
 const root = document.getElementById('panel-root');
 if (!root) throw new Error('Panel root is missing');
 createRoot(root).render(<PanelApp controller={controller} identity={identity} Equipment={EquipmentView} combat party />);

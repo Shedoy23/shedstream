@@ -14,6 +14,16 @@ async def validate_tx(conn, channel_id, username, data):
     item=next((r for r in ctx['inventory'] if r.get('slot')==slot and r.get('source')=='equipped'),None)
     if not item or not item.get('reforge_options'):
         return {'success':False,'message':'Для перековки обнови мод и дождись снимка надетого предмета.'}
+    # 03.10 (находка Астры, доказано на кассе): панель шлёт только слот; если вещь в слоте
+    # сменилась после того, как зритель открыл кузницу, улучшилась бы НОВАЯ вещь.
+    # Панель, знающая, что показывала, присылает её — несовпадение = отказ до списания.
+    # Панель 0.0.5 поля не шлёт: для неё поведение прежнее.
+    expected_item=data.get('expected_item_id')
+    expected_rank=data.get('expected_quality_rank')
+    if (expected_item is not None and expected_item!=item['item_id']) or \
+       (expected_rank is not None and expected_rank!=int(item.get('quality_rank') or 0)):
+        return {'success':False,'reason':'reforge_item_changed',
+                'message':'В этом слоте уже другая вещь или другое качество. Обнови кузницу и выбери снова — крустики не списаны.'}
     key=(channel_id,ctx['save_id'],ctx['hero'][0],username,slot,item['item_id'])
     row=await (await conn.execute("SELECT MAX(rank) FROM bannerlord_reforge_rights WHERE channel_id=? AND save_id=? AND hero_id=? AND username=? AND slot=? AND item_id=? AND state IN ('pending','active')",key)).fetchone()
     current=int(item.get('quality_rank') or 0)

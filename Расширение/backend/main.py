@@ -305,6 +305,12 @@ if FRONTEND_PATH and os.path.exists(FRONTEND_PATH):
     _downloads_path = os.path.join(FRONTEND_PATH, "downloads")
     if os.path.isdir(_downloads_path):
         app.mount("/downloads", StaticFiles(directory=_downloads_path), name="downloads")
+    # 03.10: новая панель (Preact, frontend-next/dist) для проверки владельцем вне Twitch:
+    # /frontend/next/panel-extension.html?dev_jwt=... Зрители её не видят — Twitch отдаёт
+    # панель со своего CDN. Папку кладут руками (scp dist), выкладка её не трогает.
+    _next_path = os.path.join(FRONTEND_PATH, "next")
+    if os.path.isdir(_next_path):
+        app.mount("/frontend/next", StaticFiles(directory=_next_path), name="frontend-next")
         print(f"✅ Downloads подключены: {_downloads_path}")
     # Sprint 5.28: pet-assets/ mount для PixelLab PNG-спрайтов character'а
     # (kimono + underwear × 8 directions). pet-stage.js загружает их по

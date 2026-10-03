@@ -306,6 +306,14 @@ internal static partial class Program
             AutopilotBehavior.SiegesSinceResupply = 2;
             AutopilotBehavior.NoteResupply(new Settlement { Name="Деревня", IsVillage=true });
             Check(AutopilotBehavior.SiegesSinceResupply==2, "деревня серию не закрывает");
+            AutopilotBehavior.SiegesSinceResupply = 0;
+            var taken = new Settlement { Name="Роти", StringId="town_roti", IsTown=true };
+            AutopilotBehavior.TestNoteCapture(taken);
+            AutopilotBehavior.NoteResupply(taken);
+            Check(AutopilotBehavior.SiegesSinceResupply==1, "только что взятый город серию не закрывает (04.10: «Роти»)");
+            CampaignTime.TestHours += 25;
+            AutopilotBehavior.NoteResupply(taken);
+            Check(AutopilotBehavior.SiegesSinceResupply==0, "через сутки тот же город — уже пополнение");
         });
         Try("при 60% сначала набор, осада подождёт", () =>
         {

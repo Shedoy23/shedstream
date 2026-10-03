@@ -416,13 +416,17 @@ namespace BannerlordAutopilot
         internal const int MaxSiegesWithoutResupply = 3;
         internal static int SiegesSinceResupply;
         private static string _lastCountedCapture;
+        private static string _lastCapturedId;
+        private static double _lastCapturedAt;
 
         /// <summary>Взятие крепости (меню «поселение взято») — +1 к серии; одна крепость — один раз.</summary>
+        internal static void TestNoteCapture(Settlement place) => NoteCapture(place);
         private static void NoteCapture(Settlement place)
         {
             string key = (place?.StringId ?? "?") + "@" + Math.Floor(CampaignTime.Now.ToHours / 24);
             if (key == _lastCountedCapture) return;
             _lastCountedCapture = key;
+            _lastCapturedId = place?.StringId; _lastCapturedAt = CampaignTime.Now.ToHours;
             SiegesSinceResupply++;
             AutopilotLog.Write("ПОХОД: взята крепость «" + place?.Name + "»; осад подряд без пополнения " + SiegesSinceResupply
                 + "/" + MaxSiegesWithoutResupply);
@@ -432,6 +436,8 @@ namespace BannerlordAutopilot
         internal static void NoteResupply(Settlement place)
         {
             if (place == null || !place.IsTown || SiegesSinceResupply == 0) return;
+            // 04.10, журнал: только что взятый город тут же «закрывал серию» — это не отдых, а та же осада.
+            if (place.StringId == _lastCapturedId && CampaignTime.Now.ToHours - _lastCapturedAt < 24) return;
             AutopilotLog.Write("ПОХОД: пополнение в «" + place.Name + "» — серия из " + SiegesSinceResupply + " осад закрыта");
             SiegesSinceResupply = 0;
         }

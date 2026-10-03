@@ -1,0 +1,43 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-forge-safety.test.tsx -t same-task navigation fences --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/preact-verification/c00bf91-mutations/frontend-next
+
+stdout | test/panel-forge-safety.test.tsx > forge same-task navigation fences a saved inventory callback before Preact disables it
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-safety.test.tsx (27 tests | 1 failed | 26 skipped) 540ms
+   × forge same-task navigation fences a saved inventory callback before Preact disables it 538ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge same-task navigation fences a saved inventory callback before Preact disables it
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-safety.test.tsx:119:135
+    117| it('forge same-task navigation fences a saved inventory callback befor…
+    118|   const p = await forgePair(); await toggle(p, 'inv-forge'); const but…
+    119|   await act(async () => { p.ui.getByRole('button', { name: 'Развитие' …
+       |                                                                                                                                       ^
+    120| });
+    121|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 26 skipped (27)
+   Start at  20:30:01
+   Duration  1.52s (tests 38%, environment 32%, transform 20%, import 10%)

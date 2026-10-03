@@ -1,0 +1,282 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedstream-tooling@1.0.0 lint:js
+> eslint "Расширение/frontend"
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedstream-tooling@1.0.0 globals:selftest
+> node scripts/frontend-globals.mjs --self-test
+
+файлов оболочки: 23, имён собрано: 1588
+самопроверка пройдена: все контрольные имена найдены
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedstream-tooling@1.0.0 test:frontend
+> node scripts/run-frontend-tests.mjs
+
+
+=== test-frontend-action-lock.mjs
+  OK   стороны призыва не делят один замок
+  OK   повторный клик по той же кнопке замком ловится
+  OK   разные предметы в одном действии не мешают друг другу
+  OK   client_action_id в ключ не входит
+  OK   ключ замка собирается с параметрами действия
+  OK   заблокированный клик показывает объяснение
+
+ВСЁ ЗЕЛЁНОЕ
+
+=== test-frontend-auth-init.mjs
+  OK   детектор ловит объявление ниже присваивания
+  OK   правильный порядок детектор не трогает
+  OK   колбэк onAuthorized найден
+  OK   в колбэке нет присваиваний переменным, объявленным ниже
+
+ВСЁ ЗЕЛЁНОЕ
+
+=== test-frontend-bannerlord-details-dom.mjs
+PASS post-render details: vas-create
+PASS post-render details: ws-buy
+PASS post-render details: caravan-buy
+PASS post-render details: party-order
+PASS post-render details: diplo-policy
+PASS post-render details: diplo-peace
+PASS post-render details: kingdom-create
+PASS post-render details: kingdom-join
+PASS post-render details: locked-create
+PASS post-render details: locked-join
+PASS post-render details: retinue
+PASS post-render section: workshops
+PASS post-render section: caravans
+PASS post-render section: fiefs
+PASS post-render section: partyorders
+PASS post-render section: diplomacy
+PASS post-render section: army
+PASS changed async data rebinds new nodes and retains collapsed section
+PASS retinue replacement binds new closed details without hero structural repaint
+PASS inactive outer integration tab blocks dynasty HTTP and visible callback refreshes entry
+PASS hidden viewer panel blocks dynasty HTTP and panel restore callback refreshes
+21/21 passed
+
+=== test-frontend-bannerlord-diplomacy-cooldowns.mjs
+PASS war: ordinary refusal never invents a 300s cooldown
+PASS war: network error never invents a 300s cooldown
+PASS war: success without cooldown never invents a 300s cooldown
+PASS war: accepted uses server duration and existing absolute clock
+PASS war: cooldown refusal uses server duration and existing absolute clock
+PASS peace: ordinary refusal never invents a 300s cooldown
+PASS peace: network error never invents a 300s cooldown
+PASS peace: success without cooldown never invents a 300s cooldown
+PASS peace: accepted uses server duration and existing absolute clock
+PASS peace: cooldown refusal uses server duration and existing absolute clock
+PASS initial server cooldown survives diplomacy repaint and expires without stale disabled state
+PASS server poll replaces local deadline and can clear it
+PASS pre-action poll cannot clear newer accepted action cooldown
+PASS pre-action poll cannot clear newer cooldown refusal cooldown
+PASS newest buff request wins reversed responses
+PASS overlapping slow polls still apply completed snapshots without starvation
+PASS buff response is ignored after stop
+PASS buff response is ignored after token
+18/18 passed
+
+=== test-frontend-bannerlord-economic-config.mjs
+PASS hero.create_clan: absent config disables the real control and direct action
+PASS hero.create_clan: invalid price null cannot send
+PASS hero.create_clan: invalid price "" cannot send
+PASS hero.create_clan: invalid price " " cannot send
+PASS hero.create_clan: invalid price true cannot send
+PASS hero.create_clan: invalid price -1 cannot send
+PASS hero.create_clan: invalid price null cannot send
+PASS hero.create_clan: invalid price "12345" cannot send
+PASS hero.create_clan: explicit server zero remains a valid quote
+PASS hero.create_clan: failed retry keeps the purchase closed; retry recovers in place
+PASS hero.create_kingdom: absent config disables the real control and direct action
+PASS hero.create_kingdom: invalid price null cannot send
+PASS hero.create_kingdom: invalid price "" cannot send
+PASS hero.create_kingdom: invalid price " " cannot send
+PASS hero.create_kingdom: invalid price true cannot send
+PASS hero.create_kingdom: invalid price -1 cannot send
+PASS hero.create_kingdom: invalid price null cannot send
+PASS hero.create_kingdom: invalid price "12345" cannot send
+PASS hero.create_kingdom: explicit server zero remains a valid quote
+PASS hero.create_kingdom: failed retry keeps the purchase closed; retry recovers in place
+PASS hero.create_vassal_clan: absent config disables the real control and direct action
+PASS hero.create_vassal_clan: invalid price null cannot send
+PASS hero.create_vassal_clan: invalid price "" cannot send
+PASS hero.create_vassal_clan: invalid price " " cannot send
+PASS hero.create_vassal_clan: invalid price true cannot send
+PASS hero.create_vassal_clan: invalid price -1 cannot send
+PASS hero.create_vassal_clan: invalid price null cannot send
+PASS hero.create_vassal_clan: invalid price "12345" cannot send
+PASS hero.create_vassal_clan: explicit server zero remains a valid quote
+PASS hero.create_vassal_clan: failed retry keeps the purchase closed; retry recovers in place
+PASS hero.recruit_vassal_clan: absent config disables the real control and direct action
+PASS hero.recruit_vassal_clan: invalid price null cannot send
+PASS hero.recruit_vassal_clan: invalid price "" cannot send
+PASS hero.recruit_vassal_clan: invalid price " " cannot send
+PASS hero.recruit_vassal_clan: invalid price true cannot send
+PASS hero.recruit_vassal_clan: invalid price -1 cannot send
+PASS hero.recruit_vassal_clan: invalid price null cannot send
+PASS hero.recruit_vassal_clan: invalid price "12345" cannot send
+PASS hero.recruit_vassal_clan: explicit server zero remains a valid quote
+PASS hero.recruit_vassal_clan: failed retry keeps the purchase closed; retry recovers in place
+PASS hero.create_clan: Enter cannot bypass missing price or discard typed name
+PASS hero.create_kingdom: Enter cannot bypass missing price or discard typed name
+PASS vassal crustic metadata is required independently and both server amounts are shown
+PASS one missing quote does not block another action or dynamic/free actions
+PASS late config after stop cannot enable old controls or beat retry
+PASS late config after token cannot enable old controls or beat retry
+PASS same-context config requests are single-flight
+PASS network failure clears the loader and an actual retry can recover
+PASS json failure clears the loader and an actual retry can recover
+PASS retry during loading deduplicates but a renewed token gets a new owner
+PASS late config after stop alone stays unknown and retryable
+PASS late config after token alone stays unknown and retryable
+PASS a valid quote becoming unavailable immediately closes open-form purchase without erasing input
+PASS changed price while recruit confirmation is open requires a fresh confirmation
+PASS recruit confirmation cannot survive stop
+PASS recruit confirmation cannot survive token
+PASS recruit confirmation cannot survive error
+PASS legacy fallback callers remain compatible and missing strict gold is not zero
+58/58 passed
+
+=== test-frontend-bannerlord-lifecycle.mjs
+PASS hero recovers identical data after server error
+PASS hero recovers identical data after network error
+PASS hero newest request wins reversed responses
+PASS old hero failure cannot replace fresh success
+PASS hero response after stop does not render or start dynasty work
+PASS stop/restart rejects the previous hero lifecycle
+PASS old authenticated hero response is ignored after token change
+PASS hidden dynasty makes no sub-loader fanout; opening loads every summary
+PASS hidden document and nonleader do not start leader requests
+PASS same hero returns after missing DOM replacement
+PASS same hero returns after dead DOM replacement
+PASS shared action refresh rejects stopped lifecycle (pending)
+PASS shared action refresh rejects stopped lifecycle (scheduled)
+PASS shared action cooldown ignores late callback after stop
+PASS shared action cooldown ignores late callback after token
+15/15 passed
+
+=== test-frontend-bannerlord-price-tooltip.mjs
+  OK   форматтер сохраняет цену в крустиках
+  OK   подсказка показывает цену действия
+  OK   подсказка не называет платное действие бесплатным
+  OK   null action price использует fallback
+  OK   пустая action price использует fallback
+  OK   явная нулевая action price сохраняется
+  OK   null hero gold использует fallback
+  OK   явная нулевая hero gold сохраняется
+
+ВСЁ ЗЕЛЁНОЕ
+
+=== test-frontend-bannerlord-rename-dom.mjs
+PASS rename cancel exits editor and can reopen
+PASS rename unchanged exits editor and can reopen
+PASS rename success closes editor, refreshes echoed name and stays reusable
+PASS failed mutation false preserves edit and allows retry
+PASS failed mutation null preserves edit and allows retry
+PASS failed mutation {"success":false,"message":"Denied"} preserves edit and allows retry
+PASS thrown mutation preserves edit, reports error, and can cancel
+PASS pending rename ignores repeated submission and poll preserves input
+PASS invalid names do not submit or close editor
+PASS vassal read failure keeps the last good UI
+PASS old vassal request does not overwrite a newer result
+PASS stop invalidates pending rename and restart can load a fresh editor
+PASS stop invalidates pending vassal read
+PASS accepted rename timer cannot refresh after stop
+PASS poll begun before editing cannot erase an empty-list edit
+PASS dynasty HTTP fanout is deferred but opening preserves real summaries
+PASS JWT refresh keeps cached rename handler alive (poll=false)
+PASS JWT refresh keeps cached rename handler alive (poll=true)
+PASS open editor survives JWT refresh: cancel
+PASS open editor survives JWT refresh: unchanged
+PASS open editor survives JWT refresh: submit
+PASS token rotation during pending rename fences old success and reloads
+PASS token rotation during pending rename fences old failure and reloads
+PASS token rotation during pending rename fences old throw and reloads
+PASS changed user cannot submit old form and can bind a fresh one
+PASS changed channel cannot submit old form and can bind a fresh one
+PASS changed identity fences old pending result without erasing new editor
+PASS JWT refresh during a vassal read drops old response and new read recovers
+28/28 passed
+
+=== test-frontend-bannerlord-slow-poll.mjs
+PASS real 8s hero polling keeps rendering each successful 9s response
+PASS real visible dynasty dispatch keeps rendering successful overlapping 9s pairs
+PASS hero reversed completed results still favor the newer request
+PASS vassal reversed completed results still favor the newer request
+PASS new hero failure fences older success, next slow success can recover
+PASS enter then cancel editor still invalidates pre-edit reads
+PASS accepted action fences pre-action hero reads until fresh reload
+PASS accepted action fences pre-action vassal reads until fresh reload
+8/8 passed
+
+=== test-frontend-boot.mjs
+  OK   харнесс видит ошибку выполнения
+  OK   стартовый обработчик панели найден и вызван
+  OK   панель загружается при синхронном onAuthorized
+  OK   получив токен, панель идёт опознаваться
+  OK   панель загружается и без Twitch-хелпера
+
+ВСЁ ЗЕЛЁНОЕ
+
+=== test-frontend-cases-open-all.mjs
+  OK   кнопка снова доступна после отказа
+  OK   исходная подпись восстановлена после отказа
+
+=== test-frontend-core-prices.mjs
+  OK   null и пустая строка не превращаются в ноль
+  OK   явный серверный ноль сохраняется
+  OK   нет отдельной константы цены TTS
+  OK   модалка получает цену из core config
+  OK   гейт баланса использует серверную цену
+  OK   подтверждение показывает серверную цену
+  OK   лимит TTS приходит из core config
+  OK   нет отдельной константы лимита TTS
+
+ВСЁ ЗЕЛЁНОЕ
+
+=== test-frontend-rimworld-prices.mjs
+  OK   без ответа сервера рисуются запасные числа
+  OK   цена лечения приходит с сервера
+  OK   цена воскрешения приходит с сервера
+  OK   цена создания пешки приходит с сервера
+  OK   битую цену подменяет запасная
+  OK   null и пустая цена используют fallback, явный ноль сохраняется
+  OK   удаление черты использует серверную цену
+  OK   удаление гена использует серверную цену
+  OK   гейт создания пешки использует серверную цену
+  OK   подтверждение создания пешки использует серверную цену
+  OK   поздний конфиг перерисовывает пешку
+  OK   в pawn.js нет числовых цен
+  OK   у кнопок ShedColony цена не вписана числом
+
+ВСЁ ЗЕЛЁНОЕ
+
+=== test-frontend-state-race.mjs
+  OK   ответы в обратном порядке: побеждает свежий баланс, а не старый
+  OK   старый «unauthorized» после восстановления входа не гасит панель
+
+ВСЁ ЗЕЛЁНОЕ
+
+=== test-frontend-usage-wiring.mjs
+PASS count attempts including duplicate guard, without recording action data
+PASS telemetry exception does not prevent the original request
+PASS real tab changes count once; restored/current tabs are not opens
+PASS both future shells load one usage collector before action dispatcher
+PASS Bannerlord tabs/details count user transitions, not restore or render
+PASS offscreen panel has no exposure; real reopen refreshes visible game
+PASS visible refresh stays owned by the active registered game
+7/7 usage wiring cases passed
+
+=== test-frontend-usage.mjs
+PASS: explicit hooks only, aggregate counts, bounded batches, retry dedupe, auth-bound queue, no private payload
+
+=== test-viewer-auth-recovery.mjs
+PASS identity recovery refreshes balance, income, quests, cases and role
+PASS reauthorization removes prompt and refreshes state immediately
+PASS declined identity share leaves login retry usable despite old login
+PASS statistics tab bypasses cached personal responses
+
+17/17 frontend gate files passed

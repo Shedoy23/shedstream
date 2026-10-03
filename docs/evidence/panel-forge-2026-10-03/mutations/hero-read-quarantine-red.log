@@ -1,0 +1,43 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-forge-safety.test.tsx -t failed hero read quarantines --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/preact-verification/c00bf91-mutations/frontend-next
+
+stdout | test/panel-forge-safety.test.tsx > forge failed hero read quarantines the retained equipment until a successful fresh snapshot
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-safety.test.tsx (27 tests | 1 failed | 26 skipped) 468ms
+   × forge failed hero read quarantines the retained equipment until a successful fresh snapshot 466ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge failed hero read quarantines the retained equipment until a successful fresh snapshot
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-safety.test.tsx:79:113
+     77| it('forge failed hero read quarantines the retained equipment until a …
+     78|   const p = await forgePair(); await toggle(p, 'inv-forge'); p.fixture…
+     79|   await act(async () => { await p.controller.refreshHero(); await flus…
+       |                                                                                                                 ^
+     80|   expect(p.ui.container.textContent).toContain('fixture hero unavailab…
+     81|   await act(async () => { await p.controller.refreshHero(); await flus…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 26 skipped (27)
+   Start at  20:29:57
+   Duration  1.45s (tests 35%, environment 35%, transform 20%, import 10%)

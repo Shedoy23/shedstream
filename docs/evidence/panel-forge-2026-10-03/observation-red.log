@@ -1,0 +1,140 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-forge-observation.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-forge-observation.test.tsx > forge newer equipped item disagreement blocks only its stale slot until accepted sources reconcile
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-observation.test.tsx > forge newer equipped quality disagreement blocks only its stale slot until accepted sources reconcile
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-observation.test.tsx > forge missing equipped slot is a contradiction, while the one-based equipment tier does not conflict
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-observation.test.tsx > forge accepted equipped disagreement invalidates a saved button before Preact commits
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-observation.test.tsx > forge stale equipment request from a replaced hero cannot clear the current observed disagreement
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-observation.test.tsx > forge a previous viewer equipment observation cannot quarantine the next viewer
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-observation.test.tsx (6 tests | 6 failed) 1173ms
+   × forge newer equipped item disagreement blocks only its stale slot until accepted sources reconcile 493ms
+   × forge newer equipped quality disagreement blocks only its stale slot until accepted sources reconcile 167ms
+   × forge missing equipped slot is a contradiction, while the one-based equipment tier does not conflict 129ms
+   × forge accepted equipped disagreement invalidates a saved button before Preact commits 122ms
+   × forge stale equipment request from a replaced hero cannot clear the current observed disagreement 130ms
+   × forge a previous viewer equipment observation cannot quarantine the next viewer 131ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-forge-observation.test.tsx > forge newer equipped item disagreement blocks only its stale slot until accepted sources reconcile
+ FAIL  test/panel-forge-observation.test.tsx > forge newer equipped quality disagreement blocks only its stale slot until accepted sources reconcile
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-observation.test.tsx:11:36
+      9|   const p = await forgePair(); await toggle(p, 'inv-forge'); p.fixture…
+     10|   await act(async () => { await p.controller.refreshEquipment(); await…
+     11|   await click(p); expect(posts(p)).toHaveLength(0);
+       |                                    ^
+     12|   expect(p.ui.container.querySelector('[data-forge-slot="head"]')?.tex…
+     13|   expect((p.ui.container.querySelector('.bnr-reforge-btn[data-slot="bo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  test/panel-forge-observation.test.tsx > forge missing equipped slot is a contradiction, while the one-based equipment tier does not conflict
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-observation.test.tsx:23:118
+     21|   const p = await forgePair(); await toggle(p, 'inv-forge'); expect((p…
+     22|   p.fixtures.equipment = { ...r.equipment_forge, inventory: r.equipmen…
+     23|   await act(async () => { await p.controller.refreshEquipment(); await…
+       |                                                                                                                      ^
+     24| });
+     25| it('forge accepted equipped disagreement invalidates a saved button be…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  test/panel-forge-observation.test.tsx > forge accepted equipped disagreement invalidates a saved button before Preact commits
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-observation.test.tsx:28:118
+     26|   const p = await forgePair(); await toggle(p, 'inv-forge'); const but…
+     27|   p.fixtures.equipment = changed({ item_id: 'replacement_head' });
+     28|   await act(async () => { await p.controller.refreshEquipment(); butto…
+       |                                                                                                                      ^
+     29| });
+     30| it('forge stale equipment request from a replaced hero cannot clear th…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  test/panel-forge-observation.test.tsx > forge stale equipment request from a replaced hero cannot clear the current observed disagreement
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-observation.test.tsx:37:128
+     35|   await act(async () => { await p.controller.refreshHero(); await flus…
+     36|   await act(async () => { await flush(); });
+     37|   await act(async () => { stale.resolve(r.equipment_forge); await pend…
+       |                                                                                                                                ^
+     38|   expect(p.ui.container.querySelector('[data-forge-slot="head"]')?.tex…
+     39| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  test/panel-forge-observation.test.tsx > forge a previous viewer equipment observation cannot quarantine the next viewer
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-observation.test.tsx:42:118
+     40| it('forge a previous viewer equipment observation cannot quarantine th…
+     41|   const p = await forgePair(); await toggle(p, 'inv-forge'); p.fixture…
+     42|   await act(async () => { await p.controller.refreshEquipment(); await…
+       |                                                                                                                      ^
+     43|   p.fixtures.equipment = r.equipment_forge;
+     44|   await act(async () => { p.authorize({ token: 'other-viewer', userId:…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed (6)
+   Start at  19:39:58
+   Duration  2.26s (tests 55%, environment 23%, transform 15%, import 7%)

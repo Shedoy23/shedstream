@@ -1,0 +1,69 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-forge-safety.test.tsx -t malformed/missing quote --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/preact-verification/c00bf91-mutations/frontend-next
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote null never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote 20000 never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote not-a-price never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote -1 never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote NaN never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-safety.test.tsx (27 tests | 5 failed | 22 skipped) 936ms
+   × forge malformed/missing quote null never admits a paid click 418ms
+   × forge malformed/missing quote 20000 never admits a paid click 153ms
+   × forge malformed/missing quote not-a-price never admits a paid click 125ms
+   × forge malformed/missing quote -1 never admits a paid click 119ms
+   × forge malformed/missing quote NaN never admits a paid click 119ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote null never admits a paid click
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote 20000 never admits a paid click
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote not-a-price never admits a paid click
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote -1 never admits a paid click
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote NaN never admits a paid click
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-safety.test.tsx:30:20
+     28| for (const price of [null, '20000', 'not-a-price', -1, Number.NaN]) it…
+     29|   const p = await forgePair({ config: { ...r.config, reforge_price: pr…
+     30|   expect(posts(p)).toHaveLength(0); expect(p.ui.container.querySelecto…
+       |                    ^
+     31| });
+     32| it('forge quote replacement invalidates a stale rendered click before …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 22 skipped (27)
+   Start at  20:29:49
+   Duration  1.88s (tests 53%, environment 25%, transform 15%, import 7%)
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

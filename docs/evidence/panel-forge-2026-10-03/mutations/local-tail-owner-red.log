@@ -1,0 +1,66 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-forge-safety.test.tsx -t successful local and generic delayed tails are fenced after token|pending POST completion after token --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/preact-verification/c00bf91-mutations/frontend-next
+
+stdout | test/panel-forge-safety.test.tsx > forge successful local and generic delayed tails are fenced after token
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge pending POST completion after token owns no delayed hero continuation
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-safety.test.tsx (27 tests | 2 failed | 25 skipped) 611ms
+   × forge successful local and generic delayed tails are fenced after token 462ms
+   × forge pending POST completion after token owns no delayed hero continuation 147ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge successful local and generic delayed tails are fenced after token
+AssertionError: expected [ { method: 'GET', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-safety.test.tsx:57:81
+     55|   });
+     56|   const afterIdentity = p.trace.length; await act(async () => { await …
+     57|   expect(p.trace.slice(afterIdentity).filter(q => q.path.endsWith('/my…
+       |                                                                                 ^
+     58|   expect(posts(p)).toHaveLength(1); expect(before).toBeGreaterThan(0);
+     59| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge pending POST completion after token owns no delayed hero continuation
+AssertionError: expected [ { method: 'GET', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-safety.test.tsx:94:74
+     92|   const before = p.trace.length;
+     93|   await act(async () => { waiting.resolve(r.reforge.response); await f…
+     94|   expect(p.trace.slice(before).filter(q => q.path.endsWith('/my-hero')…
+       |                                                                          ^
+     95| });
+     96| for (const login of ['testuser', 'U123456789']) it(`forge rejected vie…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 25 skipped (27)
+   Start at  20:30:05
+   Duration  1.59s (tests 41%, environment 31%, transform 18%, import 9%)

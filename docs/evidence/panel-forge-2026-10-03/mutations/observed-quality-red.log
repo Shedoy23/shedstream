@@ -1,0 +1,43 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-forge-observation.test.tsx -t newer equipped quality disagreement --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/preact-verification/c00bf91-mutations/frontend-next
+
+stdout | test/panel-forge-observation.test.tsx > forge newer equipped quality disagreement blocks only its stale slot until accepted sources reconcile
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-observation.test.tsx (6 tests | 1 failed | 5 skipped) 497ms
+   × forge newer equipped quality disagreement blocks only its stale slot until accepted sources reconcile 495ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-forge-observation.test.tsx > forge newer equipped quality disagreement blocks only its stale slot until accepted sources reconcile
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-forge-observation.test.tsx:11:36
+      9|   const p = await forgePair(); await toggle(p, 'inv-forge'); p.fixture…
+     10|   await act(async () => { await p.controller.refreshEquipment(); await…
+     11|   await click(p); expect(posts(p)).toHaveLength(0);
+       |                                    ^
+     12|   expect(p.ui.container.querySelector('[data-forge-slot="head"]')?.tex…
+     13|   expect((p.ui.container.querySelector('.bnr-reforge-btn[data-slot="bo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 skipped (6)
+   Start at  20:30:22
+   Duration  1.67s (environment 34%, tests 32%, transform 23%, import 10%)

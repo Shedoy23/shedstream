@@ -1,0 +1,45 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-forge-parity.test.tsx -t forge head real control --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/preact-verification/c00bf91-mutations/frontend-next
+
+stdout | test/panel-forge-parity.test.tsx > forge head real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-parity.test.tsx (21 tests | 1 failed | 20 skipped) 426ms
+   × forge head real control exact wire, usage and complete successful/refused double-hero tail 424ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-forge-parity.test.tsx > forge head real control exact wire, usage and complete successful/refused double-hero tail
+AssertionError: expected [ 'slot' ] to deeply equal [ 'client_action_id', 'slot' ]
+
+- Expected
++ Received
+
+  [
+-   "client_action_id",
+    "slot",
+  ]
+
+ ❯ test/panel-forge-parity.test.tsx:23:36
+     21|   expect(posts(p)).toHaveLength(1); expect(p.ui.queryByRole('dialog'))…
+     22|   const data = (posts(p)[0].body as { data: Record<string, unknown> })…
+     23|   expect(Object.keys(data).sort()).toEqual(['client_action_id', 'slot'…
+       |                                    ^
+     24|   await p.advance(3500); p.check();
+     25|   expect(p.trace.slice(initial).filter(q => q.path.endsWith('/my-hero'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 20 skipped (21)
+   Start at  20:29:37
+   Duration  1.40s (environment 36%, tests 33%, transform 21%, import 10%)

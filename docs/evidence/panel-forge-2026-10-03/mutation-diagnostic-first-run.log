@@ -1,0 +1,11 @@
+slot RED1 RESTORED0
+action-type RED1 RESTORED0
+client-action-id RED1 RESTORED0
+local-hero-tail RED1 RESTORED0
+item-quote-context RED1 RESTORED0
+numeric-quote RED1 RESTORED0
+Traceback (most recent call last):
+  File "/workspace/scratch/f566ddb2e035/panel-preact-implementation/../preact-verification/c00bf91-mutations/frontend-next/scripts/check-forge-mutations.py", line 30, in <module>
+    assert red.returncode == 1, (name, red.returncode)
+           ^^^^^^^^^^^^^^^^^^^
+AssertionError: ('alive-hero', 0)

@@ -1,0 +1,305 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-forge-parity.test.tsx test/panel-forge-safety.test.tsx --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/panel-preact-implementation/frontend-next
+
+stdout | test/panel-forge-parity.test.tsx > full forge is the saved inventory disclosure, initially closed, with all inherited slots and qualities
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge repaints accepted equipment quality despite identical hero header and rejects a stale pre-render item control
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge weapon0 real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge dead hero removes controls and rejects the prior DOM callback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge weapon1 real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge absent hero removes controls and rejects the prior DOM callback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge weapon2 real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote null never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge head real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote 20000 never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge body real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote not-a-price never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge leg real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote -1 never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge gloves real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge malformed/missing quote NaN never admits a paid click
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge cape real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge quote replacement invalidates a stale rendered click before Preact can commit
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge horse real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_unsynced preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge same-frame duplicate locks one slot but distinct slots remain independent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_bad_slot preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge unknown write blocks new slots, survives same-viewer JWT refresh and never auto-retries
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_best preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge successful local and generic delayed tails are fenced after stop
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge successful local and generic delayed tails are fenced after identity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_pending_right preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_poor preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge successful local and generic delayed tails are fenced after token
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge idle same-viewer token refresh preserves disclosure and next action uses current token
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_no_hero preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-safety.test.tsx > forge hidden inventory cannot dispatch a retained control
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-safety.test.tsx (16 tests | 16 failed) 2440ms
+   × forge repaints accepted equipment quality despite identical hero header and rejects a stale pre-render item control 474ms
+   × forge dead hero removes controls and rejects the prior DOM callback 171ms
+   × forge absent hero removes controls and rejects the prior DOM callback 158ms
+   × forge malformed/missing quote null never admits a paid click 159ms
+   × forge malformed/missing quote 20000 never admits a paid click 124ms
+   × forge malformed/missing quote not-a-price never admits a paid click 152ms
+   × forge malformed/missing quote -1 never admits a paid click 126ms
+   × forge malformed/missing quote NaN never admits a paid click 122ms
+   × forge quote replacement invalidates a stale rendered click before Preact can commit 150ms
+   × forge same-frame duplicate locks one slot but distinct slots remain independent 139ms
+   × forge unknown write blocks new slots, survives same-viewer JWT refresh and never auto-retries 111ms
+   × forge successful local and generic delayed tails are fenced after stop 157ms
+   × forge successful local and generic delayed tails are fenced after identity 102ms
+   × forge successful local and generic delayed tails are fenced after token 105ms
+   × forge idle same-viewer token refresh preserves disclosure and next action uses current token 95ms
+   × forge hidden inventory cannot dispatch a retained control 94ms
+stdout | test/panel-forge-parity.test.tsx > forge reads its independent server quote without changing the wire or adding a prisoner restriction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge empty slots keep all ten rows and no actions
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge disclosure persists across tab changes, hero header rewrite and ordinary polls, recording only open transitions
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-parity.test.tsx (19 tests | 19 failed) 2593ms
+   × full forge is the saved inventory disclosure, initially closed, with all inherited slots and qualities 407ms
+   × forge weapon0 real control exact wire, usage and complete successful/refused double-hero tail 139ms
+   × forge weapon1 real control exact wire, usage and complete successful/refused double-hero tail 153ms
+   × forge weapon2 real control exact wire, usage and complete successful/refused double-hero tail 162ms
+   × forge head real control exact wire, usage and complete successful/refused double-hero tail 141ms
+   × forge body real control exact wire, usage and complete successful/refused double-hero tail 124ms
+   × forge leg real control exact wire, usage and complete successful/refused double-hero tail 139ms
+   × forge gloves real control exact wire, usage and complete successful/refused double-hero tail 122ms
+   × forge cape real control exact wire, usage and complete successful/refused double-hero tail 128ms
+   × forge horse real control exact wire, usage and complete successful/refused double-hero tail 142ms
+   × forge real refusal reforge_unsynced preserves server text and the owned read tail 115ms
+   × forge real refusal reforge_bad_slot preserves server text and the owned read tail 110ms
+   × forge real refusal reforge_best preserves server text and the owned read tail 157ms
+   × forge real refusal reforge_pending_right preserves server text and the owned read tail 103ms
+   × forge real refusal reforge_poor preserves server text and the owned read tail 92ms
+   × forge real refusal reforge_no_hero preserves server text and the owned read tail 88ms
+   × forge reads its independent server quote without changing the wire or adding a prisoner restriction 99ms
+   × forge empty slots keep all ten rows and no actions 80ms
+   × forge disclosure persists across tab changes, hero header rewrite and ordinary polls, recording only open transitions 90ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 35 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-forge-parity.test.tsx > full forge is the saved inventory disclosure, initially closed, with all inherited slots and qualities
+AssertionError: expected null not to be null
+ ❯ test/panel-forge-parity.test.tsx:8:78
+      6| it('full forge is the saved inventory disclosure, initially closed, wi…
+      7|   const p = await forgePair();
+      8|   expect(p.ui.container.querySelector('[data-bnr-details="inv-forge"]'…
+       |                                                                              ^
+      9|   expect((p.ui.container.querySelector('[data-bnr-details="inv-forge"]…
+     10|   const before = p.trace.length; await toggle(p, 'inv-forge'); expect(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/35]⎯
+
+ FAIL  test/panel-forge-parity.test.tsx > forge weapon0 real control exact wire, usage and complete successful/refused double-hero tail
+ FAIL  test/panel-forge-parity.test.tsx > forge weapon1 real control exact wire, usage and complete successful/refused double-hero tail
+ FAIL  test/panel-forge-parity.test.tsx > forge weapon2 real control exact wire, usage and complete successful/refused double-hero tail
+ FAIL  test/panel-forge-parity.test.tsx > forge head real control exact wire, usage and complete successful/refused double-hero tail
+ FAIL  test/panel-forge-parity.test.tsx > forge body real control exact wire, usage and complete successful/refused double-hero tail
+ FAIL  test/panel-forge-parity.test.tsx > forge leg real control exact wire, usage and complete successful/refused double-hero tail
+ FAIL  test/panel-forge-parity.test.tsx > forge gloves real control exact wire, usage and complete successful/refused double-hero tail
+ FAIL  test/panel-forge-parity.test.tsx > forge cape real control exact wire, usage and complete successful/refused double-hero tail
+ FAIL  test/panel-forge-parity.test.tsx > forge horse real control exact wire, usage and complete successful/refused double-hero tail
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-parity.test.tsx:19:38
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/35]⎯
+
+ FAIL  test/panel-forge-parity.test.tsx > forge real refusal reforge_unsynced preserves server text and the owned read tail
+ FAIL  test/panel-forge-parity.test.tsx > forge real refusal reforge_bad_slot preserves server text and the owned read tail
+ FAIL  test/panel-forge-parity.test.tsx > forge real refusal reforge_best preserves server text and the owned read tail
+ FAIL  test/panel-forge-parity.test.tsx > forge real refusal reforge_pending_right preserves server text and the owned read tail
+ FAIL  test/panel-forge-parity.test.tsx > forge real refusal reforge_poor preserves server text and the owned read tail
+ FAIL  test/panel-forge-parity.test.tsx > forge real refusal reforge_no_hero preserves server text and the owned read tail
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-parity.test.tsx:29:88
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/35]⎯
+
+ FAIL  test/panel-forge-parity.test.tsx > forge reads its independent server quote without changing the wire or adding a prisoner restriction
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-parity.test.tsx:34:147
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/35]⎯
+
+ FAIL  test/panel-forge-parity.test.tsx > forge empty slots keep all ten rows and no actions
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-parity.test.tsx:39:82
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/35]⎯
+
+ FAIL  test/panel-forge-parity.test.tsx > forge disclosure persists across tab changes, hero header rewrite and ordinary polls, recording only open transitions
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-parity.test.tsx:44:38
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/35]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge repaints accepted equipment quality despite identical hero header and rejects a stale pre-render item control
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-safety.test.tsx:8:38
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/35]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge dead hero removes controls and rejects the prior DOM callback
+ FAIL  test/panel-forge-safety.test.tsx > forge absent hero removes controls and rejects the prior DOM callback
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-safety.test.tsx:15:38
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/35]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote null never admits a paid click
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote 20000 never admits a paid click
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote not-a-price never admits a paid click
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote -1 never admits a paid click
+ FAIL  test/panel-forge-safety.test.tsx > forge malformed/missing quote NaN never admits a paid click
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-safety.test.tsx:20:87
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/35]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge quote replacement invalidates a stale rendered click before Preact can commit
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-safety.test.tsx:24:38
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/35]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge same-frame duplicate locks one slot but distinct slots remain independent
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-safety.test.tsx:30:111
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/35]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge unknown write blocks new slots, survives same-viewer JWT refresh and never auto-retries
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-safety.test.tsx:35:70
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/35]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge successful local and generic delayed tails are fenced after stop
+ FAIL  test/panel-forge-safety.test.tsx > forge successful local and generic delayed tails are fenced after identity
+ FAIL  test/panel-forge-safety.test.tsx > forge successful local and generic delayed tails are fenced after token
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-safety.test.tsx:41:38
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/35]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge idle same-viewer token refresh preserves disclosure and next action uses current token
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-safety.test.tsx:52:38
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/35]⎯
+
+ FAIL  test/panel-forge-safety.test.tsx > forge hidden inventory cannot dispatch a retained control
+AssertionError: expected null not to be null
+ ❯ toggle test/panel-party-support.tsx:11:172
+
+ ❯ test/panel-forge-safety.test.tsx:58:38
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/35]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  35 failed (35)
+   Start at  19:01:48
+   Duration  3.65s (tests 73%, environment 15%, transform 8%, import 4%)

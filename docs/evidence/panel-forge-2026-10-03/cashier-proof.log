@@ -1,0 +1,258 @@
+/workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/backend/routes/streamer.py:593: SyntaxWarning: invalid escape sequence '\/'
+  module_js=json.dumps(module_raw).replace("</", "<\/"),
+  Route: / -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/index.html (exists: True)
+  Route: /index.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/index.html (exists: True)
+  Route: /extension.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/extension.html (exists: True)
+  Route: /overlay.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/overlay.html (exists: True)
+  Route: /mobile.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/mobile.html (exists: True)
+  Route: /config.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/config.html (exists: True)
+  Route: /config.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/config.js (exists: True)
+  Route: /viewer.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer.js (exists: True)
+  Route: /viewer.css -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer.css (exists: True)
+  Route: /pawn.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/pawn.js (exists: True)
+  Route: /shop.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/shop.js (exists: True)
+  Route: /family.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/family.js (exists: True)
+  Route: /duels.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/duels.js (exists: True)
+  Route: /xenotype.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/xenotype.js (exists: True)
+  Route: /cases.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/cases.js (exists: True)
+  Route: /tictactoe.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/tictactoe.js (exists: True)
+  Route: /dice.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/dice.js (exists: True)
+  Route: /guilds.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/guilds.js (exists: True)
+  Route: /voting.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/voting.js (exists: True)
+  Route: /pets.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/pets.js (exists: True)
+  Route: /pet-stage.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/pet-stage.js (exists: True)
+  Route: /pet-layout.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/pet-layout.js (exists: True)
+  Route: /realtime.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/realtime.js (exists: True)
+  Route: /tugofwar.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/tugofwar.js (exists: True)
+  Route: /privacy.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/privacy.html (exists: True)
+  Route: /terms.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/terms.html (exists: True)
+  Route: /robots.txt -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/robots.txt (exists: True)
+  Route: /frontend/extension.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/extension.html (exists: True)
+  Route: /frontend/overlay.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/overlay.html (exists: True)
+  Route: /frontend/mobile.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/mobile.html (exists: True)
+  Route: /frontend/config.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/config.html (exists: True)
+  Route: /frontend/config.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/config.js (exists: True)
+  Route: /frontend/viewer.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer.js (exists: True)
+  Route: /frontend/viewer.css -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer.css (exists: True)
+  Route: /frontend/pawn.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/pawn.js (exists: True)
+  Route: /frontend/shop.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/shop.js (exists: True)
+  Route: /frontend/family.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/family.js (exists: True)
+  Route: /frontend/duels.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/duels.js (exists: True)
+  Route: /frontend/xenotype.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/xenotype.js (exists: True)
+  Route: /frontend/cases.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/cases.js (exists: True)
+  Route: /frontend/tictactoe.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/tictactoe.js (exists: True)
+  Route: /frontend/dice.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/dice.js (exists: True)
+  Route: /frontend/guilds.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/guilds.js (exists: True)
+  Route: /frontend/voting.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/voting.js (exists: True)
+  Route: /frontend/pets.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/pets.js (exists: True)
+  Route: /frontend/pet-stage.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/pet-stage.js (exists: True)
+  Route: /frontend/pet-layout.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/pet-layout.js (exists: True)
+  Route: /frontend/realtime.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/realtime.js (exists: True)
+  Route: /frontend/tugofwar.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/tugofwar.js (exists: True)
+  Route: /frontend/privacy.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/privacy.html (exists: True)
+  Route: /frontend/terms.html -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/terms.html (exists: True)
+  Route: /viewer-rimworld.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-rimworld.js (exists: True)
+  Route: /frontend/viewer-rimworld.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-rimworld.js (exists: True)
+  Route: /viewer-bannerlord.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-bannerlord.js (exists: True)
+  Route: /frontend/viewer-bannerlord.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-bannerlord.js (exists: True)
+  Route: /viewer-usage.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-usage.js (exists: True)
+  Route: /frontend/viewer-usage.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-usage.js (exists: True)
+  Route: /viewer-bannerlord-ui-config.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-bannerlord-ui-config.js (exists: True)
+  Route: /frontend/viewer-bannerlord-ui-config.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-bannerlord-ui-config.js (exists: True)
+  Route: /viewer-registry.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-registry.js (exists: True)
+  Route: /frontend/viewer-registry.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-registry.js (exists: True)
+  Route: /viewer-actions.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-actions.js (exists: True)
+  Route: /frontend/viewer-actions.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-actions.js (exists: True)
+  Route: /viewer-shedcolony.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-shedcolony.js (exists: True)
+  Route: /frontend/viewer-shedcolony.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-shedcolony.js (exists: True)
+  Route: /viewer-bannerlord-builds.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-bannerlord-builds.js (exists: True)
+  Route: /frontend/viewer-bannerlord-builds.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-bannerlord-builds.js (exists: True)
+  Route: /viewer-bannerlord-equipment.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-bannerlord-equipment.js (exists: True)
+  Route: /frontend/viewer-bannerlord-equipment.js -> /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend/viewer-bannerlord-equipment.js (exists: True)
+✅ Extension routes registered (base: /workspace/scratch/f566ddb2e035/panel-preact-implementation/Расширение/frontend)
+2026-10-02 20:30:23 [INFO] rimlink.bot: BotCore инициализирован
+2026-10-02 20:30:23 [INFO] db_pool: Инициализация DBPool для /tmp/forge-review-db-jiqeyf2u/fixture.db (min=2, max=10)
+2026-10-02 20:30:23 [INFO] db_pool: DBPool инициализирован. Соединений: 2
+✅ Migration: hediff_def добавлен в rimworld_pawn_hediffs
+✅ Migration: part_def добавлен в rimworld_pawn_hediffs
+✅ Migration: is_paired добавлен в rimworld_pawn_hediffs
+✅ Migration: is_left добавлен в rimworld_pawn_hediffs
+✅ Migration: streak_rewards + channel_points_log созданы
+✅ Migration: skill_name локализация исправлена
+✅ M1: channel_id → drops
+✅ M1: channel_id → marriages
+✅ M1: channel_id → marriage_proposals
+✅ M1: channel_id → activity_stats
+✅ M1: channel_id → chat_stats
+⏭️  M1: пропуск market_listings (таблица не существует)
+✅ M1: channel_id → rimworld_colonists
+✅ M1: channel_id → rimworld_skills
+⏭️  M1: пропуск pending_duels (таблица не существует)
+✅ M1: recreated viewers (channel_id в PK/UNIQUE)
+✅ M1: recreated inventory (channel_id в PK/UNIQUE)
+✅ M1: recreated quests (channel_id в PK/UNIQUE)
+✅ M1: создана новая craft_stats (без миграции данных)
+✅ M1: создана новая casino_settings (без миграции данных)
+✅ M1: создана новая free_spins_daily (без миграции данных)
+✅ M1: recreated promocodes (channel_id в PK/UNIQUE)
+✅ M1: recreated promo_uses (channel_id в PK/UNIQUE)
+✅ M1: recreated streak_rewards (channel_id в PK/UNIQUE)
+✅ M1: recreated channel_points_log (channel_id в PK/UNIQUE)
+✅ M1: purchase_counters → rimworld_purchase_counters (pawn-scoped)
+✅ M1: композитных индексов добавлено: 5 (skipped 2)
+✅ M1: multi-tenant schema migration complete
+✅ M4: channels table created
+⚠️  M4: TWITCH_BROADCASTER_ID или TWITCH_CHANNEL_NAME не заданы — backfill пропущен. Регистрация через /streamer OAuth (M4.3).
+✅ M5: module_actions table + indexes created
+✅ M6: module_catalogs table + index created
+⏭  M7: activity_stats.active_clicks already absent
+⏭  M7: activity_stats.active_moves already absent
+⏭  M8: pending_duels.amount already absent
+✅ M8: dropped marriages.family_balance
+✅ M8: dropped table casino_settings
+✅ M8: dropped table free_spins_daily
+✅ M8: dropped table craft_stats
+✅ M8: dropped table market_listings
+✅ M8: deleted obsolete achievements (first_casino, first_craft)
+✅ M8: compliance_cleanup completed
+✅ M9: cases + case_triggers_fired tables created
+✅ M10: pending_duels (legacy) dropped — replaced by match_queue
+✅ M10: matchmaking base ready
+✅ M11: guilds + members + skills + contributions created
+✅ M12: voting tables created (templates + events + options + bids + pool_counters)
+✅ M13: pets tables created + catalog seeded (5 items)
+✅ M14: bannerlord tables created (18 skill_keys, 6 attributes, 10 equipment slots)
+✅ M15: bannerlord_classes seeded (13 classes) + hero_class table
+✅ M16: bannerlord_class_powers seeded (33 entries)
+✅ M17: eventsub_seen table created (dedupe + TTL index)
+✅ M18: armor_bypass_pct→ignore_armor_pct fixup + 4 active powers seeded
+M19: bannerlord_heroes extended (level, clan_name, kingdom_name)
+M20: bannerlord_heroes.gear_tier added (default 0)
+M21: bannerlord_equipment extended (tier, item_value, weight, stats_json)
+M22: bannerlord_channel_state created (save-switch tracking)
+M23: bannerlord_retinue created (BLT-style свита)
+M24: bannerlord_tournament_queue + _state created
+M25: bannerlord_tournament_bets created (viewer betting)
+M26: bannerlord_skills.focus column added
+M27: clan_info_json + kingdom_info_json columns added
+M28: bannerlord_retinue.is_elite column added
+✅ M29: pet_catalog rebuild + 6 slots + svg_path column + scarf→body
+✅ M30: pets catalog +12 items (total → 20)
+✅ M31: deprecated 4 misfit pet items
+✅ M32: hard-deleted 4 misfit pet items (catalog + inventory + equipped + purchases)
+✅ M33: tts_messages table created
+✅ M34: tts_messages.audio_data BLOB + drained legacy pending
+✅ M35: clan upgrades tables + seeded 10 upgrades для 1 channel(s)
+✅ M36: bannerlord_heroes + is_female + family_info_json
+✅ M37: pets clean-slate (wipe pets/equipped/inventory/purchases + catalog rebuild with mythic rarity + png_path column)
+M38: bannerlord_heroes.iteration column added (default=1)
+M39: bannerlord_user_stats + bannerlord_achievements_unlocked tables created
+M40: bannerlord_custom_items table created
+M41: bannerlord_auctions + bannerlord_auction_bids tables created
+M42: bannerlord_boosty_subscribers table created
+M43: bannerlord_heroes.is_wounded column added
+M44: class actives added — 6/6 rows inserted (rest already existed)
+M45: bannerlord_daily_claims table created
+M46: module_actions.client_action_id column added
+M46: idx_module_actions_client_id partial unique index created
+M47: bannerlord_heroes.tournament_wins column added
+M48: bannerlord_heirs table created
+M48: idx_bannerlord_heirs_parent created
+M49: bannerlord_marriage_proposals table created
+M49: indexes created
+M50: character effects seeded — 5/5 new rows
+M51: custom_items stats columns added (damage_bonus/armor_bonus/weight_factor/speed_factor)
+M52: bannerlord_vassals table created
+M52: indexes created
+M53: bannerlord_party_orders table created
+M53: indexes created
+M54: bannerlord_heroes extended с kingdom_id/is_king/captured/...
+M54: bannerlord_policy_requests created
+M54: bannerlord_peace_offers created
+M54: bannerlord_ransom_pool created
+M55: bannerlord_workshops created с indexes
+M56: bannerlord_fiefs created
+M57: bannerlord_caravans created
+M57: bannerlord_caravan_rescue_pool created
+M58: bannerlord_inheritance_log created
+M59: bannerlord_heroes.kingdom_tax_pct added
+M60: bannerlord_custom_items.source/claimed added
+M61: combat powers (lifesteal/iron-skin/cleave) — 16/16 rows inserted (rest already existed)
+M62: ranged combat powers (archer/crossbow/horse_archer/camel_archer) — 6/6 rows inserted (rest already existed)
+M63: explosive_arrows (archer/crossbow/horse_archer/camel_archer) — 4/4 rows inserted (rest already existed)
+M64: ranged loadout (archer/crossbow/horse_archer/camel_archer) — 7/7 catalog rows updated (1H + 2nd quiver)
+M65: power boost — scaled rage/lifesteal/ironskin/explosive/poison + hp_multiplier(tanky ×1.4) + heavy-ranged explosive_arrows
+M66: bannerlord_heroes.party_info_json added
+M67: melee balance (dmg_reduction/move_speed/stagger/cleave) — 17/17 rows inserted (rest already existed)
+M68: stagger_immunity raised to BLT level — 7 rows updated
+M69: combat AI (ai_combat_pct) — 13/13 rows inserted
+M70: bannerlord_heroes.combat_stance column added
+M71: HP rebalance (heavy-ranged down, berserk up) — 3 rows updated
+M72: feature_usage table created (+0 backfilled rows)
+M73: bug_reports table created
+M74: channel_greet_settings table created
+M75: watch_streaks table created
+M76: bannerlord_caravan_rescue_pool table dropped
+M77: bannerlord_equipment extended (quality)
+M78: cleave → active (5/5 rows inserted; passive cleave_chance_pct removed)
+M79: class balance pass — 17 upserts, 1 deletes + legacy infantry cleanup
+M80: class overhaul — 12 catalog rows, 6 remaps, 6 deprecated, 30 power rows for 5 new classes
+M81: dropped disarm_burst power rows (weak active, owner-removed)
+M82: baseline 5% lifesteal → 6 classes (insert-if-absent)
+M83: shedcolony_colony_link + shedcolony_colonist_state created
+M84: shedcolony_capacity + shedcolony_capacity_meta created
+M85: shedcolony_colonist_state.state_json added
+✅ M86: pets catalog re-seeded (19 items, крустики-pricing)
+✅ M87: pets shop = PNG skins only (2 skins, emoji deprecated)
+✅ M88: voting_proposals + voting_events.allow_proposals (Народный выбор игры)
+✅ M89: stream_attendance.first_seen_at (server-time gate для стрик-награды)
+M90: shedcolony_targets created
+M91: shedcolony_world created
+M92: classes v2 — 6 активных класса, 13 remap-правил, 6 deprecated, 12 power-строк, 6 лишних активок снято
+M93: classes v2 balance — 6 пассивок подогнано (берсерк вниз после брони, конный лучник и арбалетчик вверх)
+M94: ассасин возвращён в ростер (7 классов), активки: rage, retribution_toggle + heal_burst (глобальный)
+M95: пассивки — 7 строк подогнано, 4 вампиризмов снято (берсерк стал топом, не изменившись)
+M96: bannerlord_policy_requests.action_id добавлена
+✅ M97: shop_catalog создана с channel_id (старой не было)
+✅ M97: rimworld_event_catalog создана с channel_id (старой не было)
+✅ M97: purchase_counters создана с channel_id (старой не было)
+✅ M97: rimworld_heal_cooldowns создана с channel_id (старой не было)
+✅ M97: RimWorld-таблицы привязаны к каналу
+✅ M98: защита от двойного клика готова
+✅ M99: колонка approved добавлена, существующих каналов одобрено: 0
+✅ M99: ворота для стримеров готовы (новые каналы — «ожидает»)
+✅ M100: active_module добавлен в feature_usage (старые строки остаются с NULL — контекст не сохранялся)
+✅ M100: метрика теперь помнит, какая игра была в эфире
+✅ M101: action_id добавлен в bannerlord_peace_offers (старые строки с NULL — их разберёт сторож по возрасту)
+✅ M101: заявка на мир теперь закрывается по итогу своего действия
+✅ M102: tts_messages получил поля модерации
+✅ M102: модерация озвучки — блок-лист и скрытие сообщений
+✅ M103: причина отказа теперь доезжает до зрителя (viewer_notices)
+✅ M104: удалены пустые таблицы без читателей: rimworld_purchase_counters
+✅ M105: выплаты за сезон мини-игр теперь оставляют след
+✅ M106: дочерние таблицы пешек привязаны к channel_id (5 таблиц)
+✅ M107: tts_messages получил отметку об одобрении
+✅ M107: гейт одобрения озвучки включён для 0 канал(ов)
+✅ M108: module_actions получил отдельный ACK receipt
+✅ M109: module_last_seen table created
+✅ M110: Manager pairing and revocable credential ledger created
+✅ M111: Manager sessions bound to approved module scope
+✅ M112: Manager diagnostic action ledger created
+✅ M113: onboarding funnel events table created
+✅ M114: автосообщения стали per-channel
+✅ M115: у автосообщений появились свои таймеры
+✅ M116: учёт взаимодействия и бонус-потолок чата
+✅ M117: учёт источников дохода зрителя
+✅ M118: журнал движения крустиков (списания и возвраты тоже)
+✅ M119: аварийная пауза интеграции (channels.actions_paused)
+M121: shedcolony_catalog_check created
+M122: twitch_login_map created
+M123: bannerlord_heroes.state_ts added
+M124: shop_catalog.tooltip added
+✅ Migrations complete
+2026-10-02 20:30:24 [INFO] rimlink.bannerlord: [BNR-ACTION enter] ch=98319857 user=@alice role=viewer action=hero.reforge_quality client_id=review-misma
+2026-10-02 20:30:24 [INFO] rimlink.bannerlord: [bannerlord PERK RESOLVED] ch=98319857 user=alice action=hero.reforge_quality role=viewer price=20000×1.00 reward×1.00
+2026-10-02 20:30:24 [INFO] rimlink.bannerlord: [bannerlord ENQUEUE] action_id=44c0883883e6473781ea36616a1d5f4a action=hero.reforge_quality user=alice ch=98319857 price=20000
+STALE_CLIENT_TARGET_CONFIRMED {"previous_my_hero_equipment": {"head": {"item_id": "helmet_A", "item_name": "Visible helmet A", "tier": 3, "item_value": null, "weight": null, "stats": {}, "quality": "fine"}}, "fresh_my_hero_equipment": {"head": {"item_id": "helmet_B", "item_name": "Actual helmet B", "tier": 0, "item_value": 0, "weight": null, "stats": null, "quality": null}}, "equipment_inventory": [{"source": "equipped", "slot": "head", "owned_id": "equipped|head", "item_id": "helmet_B", "name": "Actual helmet B", "quality": null, "modifier_id": "", "quality_rank": 0, "reforge_options": [{"rank": 1, "modifier_id": "fine_B"}]}], "equipment_keys": ["success", "items", "inventory", "party_inventory", "tiers", "hero_level", "gold", "has_hero", "ready", "pending", "can_manage", "reason", "message"], "request": {"action_type": "hero.reforge_quality", "data": {"slot": "head", "client_action_id": "review-mismatch-head"}}, "response": {"success": true, "action_id": "44c0883883e6473781ea36616a1d5f4a", "charged": 20000, "message": "⚔️ Action hero.reforge_quality в очереди (20000💎 списано)", "perk": "viewer", "perk_price_mult": 1.0, "cooldown_applied_s": 0}, "balance_before": 100000, "balance_after": 80000, "queued": {"slot": "head", "client_action_id": "review-mismatch-head", "_user_role": "viewer", "price": 20000, "reward_boost": 1.0, "_perk_label": "viewer", "_reforge": {"save_id": "save-a", "hero_id": "test_hero_alice", "session_id": "session-a", "slot": "head", "item_id": "helmet_B", "expected_modifier": "", "modifier_id": "fine_B", "rank": 1}, "initiated_by": "alice", "target": "alice"}}
+2026-10-02 20:30:24 [INFO] db_pool: Закрытие DBPool...
+2026-10-02 20:30:24 [INFO] db_pool: DBPool закрыт

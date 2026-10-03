@@ -1,0 +1,53 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run test/panel-forge-parity.test.tsx -t initially closed --maxWorkers=2
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/preact-verification/c00bf91-mutations/frontend-next
+
+stdout | test/panel-forge-parity.test.tsx > full forge is the saved inventory disclosure, initially closed, with all inherited slots and qualities
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-forge-parity.test.tsx (21 tests | 1 failed | 20 skipped) 653ms
+   × full forge is the saved inventory disclosure, initially closed, with all inherited slots and qualities 651ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-forge-parity.test.tsx > full forge is the saved inventory disclosure, initially closed, with all inherited slots and qualities
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(50) ] to deeply equal [ { method: 'GET', …(6) }, …(50) ]
+
+- Expected
++ Received
+
+@@ -443,15 +443,10 @@
+          {
+            "count": 1,
+            "feature": "bannerlord:panel",
+            "kind": "panel_view",
+          },
+-         {
+-           "count": 1,
+-           "feature": "bannerlord:details.inv-forge",
+-           "kind": "section_open",
+-         },
+        ],
+        "surface": "desktop",
+      },
+      "cache": null,
+      "contentType": "application/json",
+
+ ❯ Object.check test/panel-combat-support.tsx:65:189
+
+ ❯ test/panel-forge-parity.test.tsx:16:29
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 20 skipped (21)
+   Start at  20:30:09
+   Duration  1.67s (tests 42%, environment 30%, transform 19%, import 9%)

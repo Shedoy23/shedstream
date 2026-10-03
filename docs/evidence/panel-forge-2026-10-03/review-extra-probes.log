@@ -1,0 +1,16 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> shedlink-preact-pilot@0.0.0 test
+> vitest run --maxWorkers=2 test/review-forge-observation-edges.test.tsx
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 /workspace/scratch/f566ddb2e035/preact-verification/review-c00bf91/frontend-next
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  20:24:42
+   Duration  2.46s (tests 45%, environment 28%, transform 19%, import 7%)

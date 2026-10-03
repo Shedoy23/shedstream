@@ -19,7 +19,9 @@ it('forge repaints accepted equipment quality despite identical hero header and 
 for (const [name, hero] of [['dead', r.hero_forge_dead], ['absent', r.hero_absent]] as const) it(`forge ${name} hero removes controls and rejects the prior DOM callback`, async () => {
   // The real dead fixture follows the upgraded snapshot; isolate death from
   // unrelated quality changes so the alive guard is actually exercised.
-  const p = await forgePair({ hero: name === 'dead' ? r.hero_forge_upgraded : r.hero_forge }); await toggle(p, 'inv-forge'); const button = p.ui.container.querySelector(head) as HTMLButtonElement;
+  const equipment = name === 'dead' ? { ...r.equipment_forge, inventory: r.equipment_forge.inventory.map(item => item.slot === 'head' ? { ...item, quality: 'fine', modifier_id: 'fixture_rank1' } : item) } : r.equipment_forge;
+  const p = await forgePair({ hero: name === 'dead' ? r.hero_forge_upgraded : r.hero_forge, equipment }); await toggle(p, 'inv-forge'); const button = p.ui.container.querySelector(head) as HTMLButtonElement;
+  expect(button.disabled).toBe(false);
   p.fixtures.hero = hero; await act(async () => { await p.controller.refreshHero(); button.click(); await flush(); });
   expect(posts(p)).toHaveLength(0); expect(p.ui.container.querySelector('.bnr-reforge-btn')).toBeNull();
 });

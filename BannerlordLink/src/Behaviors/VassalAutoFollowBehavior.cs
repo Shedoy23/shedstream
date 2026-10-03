@@ -219,6 +219,12 @@ namespace BannerlordLink.Behaviors
                             // Already correct — nothing to do.
                             continue;
                         }
+                        if (!ShouldFollowNow(detail, vassal.Kingdom, oldKingdom))
+                        {
+                            BannerlordLinkModule.Log(
+                                $"[VassalAutoFollow] {vassal.Name}: королевство распускается — вассала переведёт сама игра");
+                            continue;
+                        }
 
                         // Force vassal to follow master kingdom.
                         if (vassal.Kingdom != null)
@@ -267,6 +273,18 @@ namespace BannerlordLink.Behaviors
                     $"[VassalAutoFollow] OnClanChangedKingdom error: {ex.Message}");
             }
         }
+
+        /// <summary>03.10 22:30:42 — вылет `ChangeKingdomAction.ApplyInternal` (NRE) при роспуске
+        /// королевства: `FactionDiscontinuationCampaignBehavior.DiscontinueKingdom` обходит снимок
+        /// кланов королевства и каждому делает LeaveByKingdomDestruction. Господин уходил первым,
+        /// мы тут же снимали его вассалов (`ClanLeaveKingdom`), а когда обход доходил до вассала,
+        /// `clan.Kingdom` уже был null → `kingdom.FactionsAtWarWith` падал. Вассала из того же
+        /// распускаемого королевства не трогаем — игра переведёт его в этом же обходе.</summary>
+        internal static bool ShouldFollowNow(ChangeKingdomAction.ChangeKingdomActionDetail detail,
+            Kingdom vassalKingdom, Kingdom oldKingdom)
+            => BannerlordLink.Util.VassalFollowPolicy.ShouldFollowNow(
+                detail == ChangeKingdomAction.ChangeKingdomActionDetail.LeaveByKingdomDestruction,
+                vassalKingdom != null && vassalKingdom == oldKingdom);
 
         private void OnWarDeclared(
             IFaction faction1, IFaction faction2,

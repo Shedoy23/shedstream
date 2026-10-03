@@ -248,7 +248,12 @@ function _bnrBindDetailsPersistence() {
         const key = el.getAttribute('data-bnr-details');
         if (!key || el.dataset.bnrBound === '1') return;
         el.dataset.bnrBound = '1';
+        let usageWasOpen = el.open;
         el.addEventListener('toggle', () => {
+            if (el.open && !usageWasOpen) {
+                try { ShedLink.usage?.trackSection('bannerlord:details.' + key); } catch (e) {}
+            }
+            usageWasOpen = el.open;
             if (el.open) _bannerlordDetailsOpen.add(key);
             else _bannerlordDetailsOpen.delete(key);
         });
@@ -568,7 +573,12 @@ function _bindBnrInnerTabs() {
     document.querySelectorAll('.bnr-tab-btn').forEach(btn => {
         if (btn.dataset.bnrBound) return;  // idempotent
         btn.dataset.bnrBound = '1';
-        btn.addEventListener('click', () => _setBnrInnerTab(btn.dataset.bnrTab));
+        btn.addEventListener('click', () => {
+            if (!btn.classList.contains('active')) {
+                try { ShedLink.usage?.trackSection('bannerlord:tab.' + btn.dataset.bnrTab); } catch (e) {}
+            }
+            _setBnrInnerTab(btn.dataset.bnrTab);
+        });
     });
     // Restore tab из last session. Sprint 5.32 (revised): default = combat.
     let saved = 'combat';
@@ -2068,8 +2078,13 @@ function _bnrBindSectionToggle() {
     document.querySelectorAll('[data-bnr-section]').forEach(el => {
         if (el.dataset.bnrSecBound === '1') return;
         el.dataset.bnrSecBound = '1';
+        let usageWasOpen = el.open;
         el.addEventListener('toggle', () => {
             const k = el.getAttribute('data-bnr-section');
+            if (el.open && !usageWasOpen) {
+                try { ShedLink.usage?.trackSection('bannerlord:section.' + k); } catch (e) {}
+            }
+            usageWasOpen = el.open;
             if (el.open) _bnrSectionCollapsed.delete(k);
             else _bnrSectionCollapsed.add(k);
         });

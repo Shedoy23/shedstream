@@ -38,6 +38,30 @@ internal static partial class Program
             w.Place.TestGold=9;
             Check(EquipmentAndTrade.FindUnloadingTown(p,s=>true)==null,"no unloading trip when merchant cannot pay even one log");
         });
+        // 03.10, владелец: «пытается продать в городе, где у города нет денег» (Ортисия: продано 0 трижды).
+        Try("unloading picks the town that can actually pay, not the nearest almost-broke one", () => {
+            Fresh(); EquipmentAndTrade.BrokeUntil.Clear(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;
+            Campaign.Current.Behaviors.Add(new TestViewTracker());
+            var hardwood=new ItemObject { StringId="hardwood", ItemType=ItemObject.ItemTypeEnum.Goods, TestPrice=10 };
+            p.ItemRoster.TestAdd(hardwood,1000); p.TotalWeightCarried=p.InventoryCapacity;
+            var poor=new Settlement { Name="Бедный", IsTown=true, MapFaction=p.MapFaction, Position=new CampaignVec2 { X=1 }, TestGold=100 };
+            var rich=new Settlement { Name="Богатый", IsTown=true, MapFaction=p.MapFaction, Position=new CampaignVec2 { X=60 }, TestGold=100000 };
+            Settlement.All.Add(poor); Settlement.All.Add(rich);
+            Check(EquipmentAndTrade.FindUnloadingTown(p,s=>true)==rich, "near town with 100 gold must not win over a town that can buy the load");
+        });
+        Try("a fruitless sale at a broke town keeps it off the unloading list for 3 days", () => {
+            Fresh(); EquipmentAndTrade.BrokeUntil.Clear(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;
+            Campaign.Current.Behaviors.Add(new TestViewTracker()); Settlement.All.Add(w.Place);
+            var hardwood=new ItemObject { StringId="hardwood", ItemType=ItemObject.ItemTypeEnum.Goods, TestPrice=10 };
+            p.ItemRoster.TestAdd(hardwood,600); p.TotalWeightCarried=p.InventoryCapacity;
+            CampaignTime.TestHours=1000; w.Place.TestGold=5;
+            EquipmentAndTrade.Sell(p,w.Place);
+            Check(p.ItemRoster.TestCount(hardwood)==600 && LogCount("нет денег на наш товар")==1, "nothing sold, broke town noted");
+            w.Place.TestGold=100000;
+            Check(EquipmentAndTrade.FindUnloadingTown(p,s=>true)==null, "broke town chosen again right after a fruitless sale");
+            CampaignTime.TestHours=1000+73;
+            Check(EquipmentAndTrade.FindUnloadingTown(p,s=>true)==w.Place, "town usable again after 3 days");
+        });
         foreach (string condition in new[] { "full", "room", "food", "locked", "observe", "no_cash" })
         Try("sell trip " + condition, () => {
             var b=Fresh(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;

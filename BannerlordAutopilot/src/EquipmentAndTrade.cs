@@ -192,6 +192,14 @@ namespace BannerlordAutopilot
                 surplus--; foodSold++; sold++; earned += price;
             }
             BuyPackAnimals(party, settlement, town);
+            // 03.10, владелец: «пытается продать в городе, где у города нет денег». Ортисия трижды:
+            // продано 0, «без полной оплаты 3540». Город с пустой казной — не цель разгрузки 3 дня.
+            if (sold == 0 && unpaid > 0 && settlement.IsTown)
+            {
+                BrokeUntil[settlement.StringId] = CampaignTime.Now.ToHours + BrokeTownHours;
+                AutopilotLog.Write("ПРОДАЖА: у «" + settlement.Name + "» нет денег на наш товар (казна "
+                    + settlement.SettlementComponent.Gold + ") — для разгрузки не выбираем " + (BrokeTownHours / 24) + " дн.");
+            }
             if (earned >= 1000) Thoughts.Say("sold", settlement.StringId, earned, settlement.Name);
             AutopilotLog.Write("ПРОДАЖА: вещей " + sold + " (из них торговых товаров " + goodsSold + ", лишней еды " + foodSold + "), получено " + earned
                 + " динаров; осталось без полной оплаты " + unpaid + "; еды оставлено на " + FoodKeepDays.ToString("F0")
@@ -235,6 +243,13 @@ namespace BannerlordAutopilot
                     + " (место в табуне " + HerdRoom(party) + ")" + (stop != null && bought < need ? "; стоп: " + stop : ""));
         }
 
+        /// <summary>Минимум, который город должен суметь заплатить, чтобы ехать к нему разгружаться
+        /// (или вся стоимость груза, если она меньше).</summary>
+        internal const long MinUnloadPayout = 5000;
+        internal const double BrokeTownHours = 72;
+        /// <summary>Города, где продажа не дала ничего из-за пустой казны: StringId → до какого часа.</summary>
+        internal static readonly Dictionary<string, double> BrokeUntil = new Dictionary<string, double>(StringComparer.Ordinal);
+
         internal static Settlement FindUnloadingTown(MobileParty party, Func<Settlement, bool> eligible)
         {
             // A small margin avoids leaving the next loot screen with no room for one item.
@@ -244,17 +259,19 @@ namespace BannerlordAutopilot
             HashSet<string> locks = InventoryLocks();
             if (locks == null) return null;
             Settlement nearest = null;
-            float distance = float.MaxValue;
+            float bestScore = 0f;
+            double now = CampaignTime.Now.ToHours;
             foreach (Settlement town in Settlement.All)
             {
+                if (town?.StringId != null && BrokeUntil.TryGetValue(town.StringId, out double until) && now < until) continue;
                 if (!town.IsTown || town.IsUnderSiege || town.MapFaction == null || party.MapFaction == null
                     || party.MapFaction.IsAtWarWith(town.MapFaction) || !eligible(town)
                     || !Campaign.Current.Models.SettlementAccessModel.CanMainHeroDoSettlementAction(town,
                         SettlementAccessModel.SettlementAction.Trade, out bool disabled, out _) || disabled) continue;
-                float next = party.Position.DistanceSquared(town.Position);
-                if (next >= distance) continue;
-                bool canSell = false;
+                // Сколько город реально заплатит: меньшее из стоимости продаваемого и его казны.
+                // Раньше хватало ОДНОЙ вещи по карману — и выбирался ближайший почти пустой город.
                 bool foodSurplus = FoodSurplus(party) > 0;
+                long value = 0;
                 for (int i = 0; i < party.ItemRoster.Count; i++)
                 {
                     ItemRosterElement entry = party.ItemRoster.GetElementCopyAtIndex(i);
@@ -262,9 +279,13 @@ namespace BannerlordAutopilot
                     if (Protected(entry.EquipmentElement, locks)
                         && !(foodSurplus && SellableFood(entry.EquipmentElement, locks))) continue;
                     int price = town.Town.GetItemPrice(entry.EquipmentElement, party, true);
-                    if (price > 0 && price <= town.SettlementComponent.Gold) { canSell = true; break; }
+                    if (price > 0) value += (long)price * entry.Amount;
                 }
-                if (canSell) { nearest = town; distance = next; }
+                long absorb = Math.Min(value, Math.Max(0, town.SettlementComponent.Gold));
+                if (value <= 0 || absorb < Math.Min(value, MinUnloadPayout)) continue;
+                float distance = (float)Math.Sqrt(Math.Max(0f, party.Position.DistanceSquared(town.Position)));
+                float score = absorb / (1f + distance / 20f);
+                if (score > bestScore) { nearest = town; bestScore = score; }
             }
             return nearest;
         }

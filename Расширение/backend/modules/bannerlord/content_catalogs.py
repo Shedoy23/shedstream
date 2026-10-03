@@ -1,7 +1,7 @@
 """Validated runtime metadata. Identity, commerce and execution stay separate."""
 import json
 
-CATALOG_TYPES = ('cultures', 'policies', 'skills', 'attributes')
+CATALOG_TYPES = ('cultures', 'policies', 'skills', 'attributes', 'workshop_types')
 _IDENTITY_FIELDS = ('save_id', 'equipment_session_id', 'content_catalog_seq')
 
 

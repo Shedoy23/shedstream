@@ -12,6 +12,9 @@ namespace TaleWorlds.CampaignSystem {
  public class CharacterObject { public CultureObject Culture; public Occupation Occupation; }
  public class PolicyObject : PropertyObject { public Text SecondaryEffects; public static List<PolicyObject> All = new List<PolicyObject>(); }
 }
+namespace TaleWorlds.CampaignSystem.Settlements.Workshops {
+ public class WorkshopType : TaleWorlds.Core.PropertyObject { public static List<WorkshopType> All = new List<WorkshopType>(); }
+}
 namespace TaleWorlds.ObjectSystem {
  public class MBObjectManager {
   public static MBObjectManager Instance = new MBObjectManager();

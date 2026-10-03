@@ -56,7 +56,8 @@ async def run(db):
     await publish(seq=True)  # bool is not a sequence number
     await publish(seq=3, entries=[{'id': 'partial'}, {'id': ''}])
     assert (await route.bannerlord_content_catalogs(request))['cultures']['entries'] == []
-    for kind in ('policies', 'skills', 'attributes'):
+    # 03.10: workshop types come from the game too (the old panel hard-coded ten ids).
+    for kind in ('policies', 'skills', 'attributes', 'workshop_types'):
         await publish(kind=kind, entries=[dict(id='Custom.ID', name='Localized', description='Metadata')])
         assert (await route.bannerlord_content_catalogs(request))[kind]['entries'][0]['id'] == 'Custom.ID'
     # A disabled culture must be revalidated before charge, even in the same session.
@@ -80,7 +81,7 @@ async def run(db):
     assert await _get_points(db, CHANNEL_ID, 'carol') == before
     assert not await sql("SELECT 1 FROM module_actions WHERE channel_id=? AND type='hero.create'", (CHANNEL_ID,))
     state = await route.bannerlord_content_catalogs(request)
-    assert all(not state[k]['available'] for k in ('cultures', 'policies', 'skills', 'attributes'))
+    assert all(not state[k]['available'] for k in ('cultures', 'policies', 'skills', 'attributes', 'workshop_types'))
     # A new nonce may restart sequence at 1; old nonce cannot overwrite it.
     await publish(seq=1, equipment_session_id='session-b')
     await publish(seq=100, entries=[], equipment_session_id='session-a')

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Settlements.Workshops;
 using TaleWorlds.Core;
 using TaleWorlds.ObjectSystem;
 
@@ -75,8 +76,13 @@ namespace BannerlordLink.Util
             var attributes = new JArray(MBObjectManager.Instance.GetObjectTypeList<CharacterAttribute>()
                 .Where(a => a != null && !string.IsNullOrEmpty(a.StringId))
                 .Select(a => Entry(a.StringId, a.Name?.ToString(), a.Description?.ToString())));
+            // 03.10: типы мастерских — из игры, а не списком в панели (старая держала
+            // 10 id в коде; моды добавляют свои). Покупка по-прежнему разрешает id в WorkshopHandlers.
+            var workshopTypes = new JArray(WorkshopType.All
+                .Where(w => w != null && !string.IsNullOrEmpty(w.StringId))
+                .Select(w => Entry(w.StringId, w.Name?.ToString(), w.Description?.ToString())));
             var result = new List<string>();
-            foreach (var catalog in new[] { ("cultures", cultures), ("policies", policies), ("skills", skills), ("attributes", attributes) })
+            foreach (var catalog in new[] { ("cultures", cultures), ("policies", policies), ("skills", skills), ("attributes", attributes), ("workshop_types", workshopTypes) })
                 result.Add(new JObject { ["catalog"] = catalog.Item1, ["save_id"] = saveId,
                     ["equipment_session_id"] = sessionId, ["catalog_seq"] = sequence,
                     ["entries"] = catalog.Item2 }.ToString(Formatting.None));

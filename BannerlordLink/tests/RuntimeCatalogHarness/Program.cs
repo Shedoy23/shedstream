@@ -47,8 +47,9 @@ class Program {
   PolicyObject.All.Add(new PolicyObject{StringId="mod_law",Name="Закон мода",Description="Правило",SecondaryEffects="Эффект"});
   PolicyObject.All.Add(new PolicyObject{StringId="p1",Name="Короткий ID"});
   PolicyObject.All.Add(new PolicyObject{StringId=" Mod.Policy ",Name="Точный ID закона"});
+  TaleWorlds.CampaignSystem.Settlements.Workshops.WorkshopType.All.Add(new TaleWorlds.CampaignSystem.Settlements.Workshops.WorkshopType{StringId="mod_alchemy",Name="Алхимия",Description="Из мода"});
   var payloads=RuntimeGameCatalogs.Build("save1","session1",1).Select(JObject.Parse).ToList();
-  Check(payloads.Count==4 && payloads.All(x=>(string)x["save_id"]=="save1"&&(string)x["equipment_session_id"]=="session1"&&(long)x["catalog_seq"]==1),"All catalogs have same session and revision");
+  Check(payloads.Count==5 && payloads.All(x=>(string)x["save_id"]=="save1"&&(string)x["equipment_session_id"]=="session1"&&(long)x["catalog_seq"]==1),"All catalogs have same session and revision");
   var cultures=(JArray)payloads.Single(x=>(string)x["catalog"]=="cultures")["entries"];
   Check((string)cultures[0]["name"]=="Север мода"&&(bool)cultures[0]["available"],"Catalog uses game name and same creation availability");
   Check(!(bool)cultures[1]["available"]&&(string)cultures[1]["unavailable_reason"]=="culture_no_wanderer_templates","Unavailable entry stays visible with reason");
@@ -59,6 +60,7 @@ class Program {
   CheckOpaqueRequestWiring("DiplomacyHandlers.cs","policyId","policy_id");
   Check((string)payloads.Single(x=>(string)x["catalog"]=="skills")["entries"][0]["id"]=="magic","Custom skill preserved");
   Check((string)payloads.Single(x=>(string)x["catalog"]=="attributes")["entries"][0]["name"]=="Дух","Custom attribute name preserved");
+  Check((string)payloads.Single(x=>(string)x["catalog"]=="workshop_types")["entries"][0]["id"]=="mod_alchemy"&&(string)payloads.Single(x=>(string)x["catalog"]=="workshop_types")["entries"][0]["name"]=="Алхимия","Workshop types come from the game, custom type preserved");
   PolicyObject.All.Clear();
   Check(((JArray)RuntimeGameCatalogs.Build("save1","session1",2).Select(JObject.Parse).Single(x=>(string)x["catalog"]=="policies")["entries"]).Count==0,"Empty snapshot published, not skipped");
   Check(RuntimeGameCatalogs.ValidateSession(null,null,"save1","session1")==null,"Legacy unspecified identity accepted");

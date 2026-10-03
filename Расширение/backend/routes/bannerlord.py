@@ -1610,6 +1610,13 @@ async def bannerlord_content_catalogs(request: Request):
         await conn.execute('BEGIN')
         result = await read_catalogs(conn, channel_id)
         await conn.rollback()
+    # 03.10, жалоба зрителя: панель показывала 10 серых культур (бандиты, культуры DLC без
+    # странников-образцов) с причиной только во всплывающей подсказке. Зрителю показываем
+    # только те, из которых игра реально создаст героя; validate_create по-прежнему видит
+    # полный каталог и отказывает понятной причиной на скрытую.
+    cultures = result.get('cultures')
+    if cultures and cultures.get('available'):
+        cultures['entries'] = [c for c in cultures['entries'] if c.get('available') is not False]
     return result
 
 

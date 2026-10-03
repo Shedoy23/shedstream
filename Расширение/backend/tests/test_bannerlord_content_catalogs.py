@@ -41,7 +41,8 @@ async def run(db):
     route.require_jwt_user = lambda request: ('carol', CHANNEL_ID)
     request = _make_anon_request()
     state = await route.bannerlord_content_catalogs(request)
-    assert state['cultures']['available'] and len(state['cultures']['entries']) == 2
+    # 03.10: the panel gets only cultures the game can create; the hidden one is still refused below.
+    assert state['cultures']['available'] and [c['id'] for c in state['cultures']['entries']] == ['Mod.Culture-X'], state
     for value, reason in [('mod.culture-x', 'culture_not_found'), ('NoTemplate', 'culture_unavailable')]:
         result = await route._prepare_action('carol', CHANNEL_ID, 'hero.create', {'culture': value})
         assert result['reason'] == reason, result
@@ -83,7 +84,7 @@ async def run(db):
     # A new nonce may restart sequence at 1; old nonce cannot overwrite it.
     await publish(seq=1, equipment_session_id='session-b')
     await publish(seq=100, entries=[], equipment_session_id='session-a')
-    assert len((await route.bannerlord_content_catalogs(request))['cultures']['entries']) == 2
+    assert len((await route.bannerlord_content_catalogs(request))['cultures']['entries']) == 1
     # The displayed session must not silently retarget the same culture ID in a newer session.
     stale = {'culture': 'Mod.Culture-X', 'content_context': dict(save_id='save-a', equipment_session_id='session-a')}
     result = await route._prepare_action('carol', CHANNEL_ID, 'hero.create', stale)

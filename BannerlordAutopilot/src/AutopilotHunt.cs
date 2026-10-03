@@ -28,7 +28,7 @@ namespace BannerlordAutopilot
         /// «рядом можно навалять — навалять», но с маршрута далеко не сворачиваем.</summary>
         private const float HuntRadiusOnCampaign = 10f;
         /// <summary>С какого заполнения на войне осада важнее набора до 90%.</summary>
-        internal const float SiegeOverRecruitFill = .7f;
+        internal const float SiegeOverRecruitFill = OffensiveMinFill; // 03.10: было .7 — шли в осаду недобранными
         private string _siegeOverRecruitKey;
         /// <summary>Быстрее нас и дальше этого — не догнать, не гонимся.</summary>
         private const float HuntCatchDistance = 5f;
@@ -141,6 +141,10 @@ namespace BannerlordAutopilot
             float ours = party.Party.EstimatedStrength;
             if (!(ours > 0f)) return false;
             string errand = HuntErrand(party);
+            // 03.10: недобранный отряд (< 85%) сам в бой не лезет — только если враг идёт на нас.
+            int sizeLimit = party.Party.PartySizeLimit;
+            if (errand == null && sizeLimit > 0 && party.Party.NumberOfAllMembers < sizeLimit * OffensiveMinFill)
+                errand = "отряд недобран — сначала набор";
             // Свободен: стоит или патрулирует без дела — тогда и бандиты годятся.
             bool idle = errand == null && (party.DefaultBehavior == AiBehavior.Hold
                 || party.DefaultBehavior == AiBehavior.PatrolAroundPoint || party.DefaultBehavior == AiBehavior.None);

@@ -279,13 +279,33 @@ internal static partial class Program
 
     static void SiegePriorityTests()
     {
-        Try("на войне при 75% осада важнее набора до 90%", () =>
+        // 03.10, владелец: «через чур боевой» — порог осады поднят с 70% до 85%.
+        Try("на войне при 88% осада важнее набора до 90%", () =>
         {
-            var (b, castle, _) = SiegeVsRecruitWorld(65);
+            var (b, castle, _) = SiegeVsRecruitWorld(78);
             HourlyTick(b);
             Check(MobileParty.MainParty.TargetSettlement==castle && SiegeTarget(b)==castle,
-                "75/100 и крепость по силам — идём на осаду: " + MobileParty.MainParty.TargetSettlement?.Name);
+                "88/100 и крепость по силам — идём на осаду: " + MobileParty.MainParty.TargetSettlement?.Name);
             Check(LogCount("осада важнее набора")==1, "причина записана");
+        });
+        Try("при 75% сначала набор (раньше 70% хватало для осады)", () =>
+        {
+            var (b, _, village) = SiegeVsRecruitWorld(65);
+            HourlyTick(b);
+            Check(MobileParty.MainParty.TargetSettlement==village, "75/100 — едем за добровольцами: " + MobileParty.MainParty.TargetSettlement?.Name);
+        });
+        Try("3 взятые крепости подряд — сначала пополнение в городе; обслуживание в городе серию закрывает", () =>
+        {
+            var (b, castle, _) = SiegeVsRecruitWorld(78);
+            AutopilotBehavior.SiegesSinceResupply = AutopilotBehavior.MaxSiegesWithoutResupply;
+            HourlyTick(b);
+            Check(SiegeTarget(b)!=castle && MobileParty.MainParty.TargetSettlement!=castle,
+                "после 3 осад новая осада не начинается: " + MobileParty.MainParty.TargetSettlement?.Name);
+            AutopilotBehavior.NoteResupply(new Settlement { Name="Город", IsTown=true });
+            Check(AutopilotBehavior.SiegesSinceResupply==0, "город закрыл серию");
+            AutopilotBehavior.SiegesSinceResupply = 2;
+            AutopilotBehavior.NoteResupply(new Settlement { Name="Деревня", IsVillage=true });
+            Check(AutopilotBehavior.SiegesSinceResupply==2, "деревня серию не закрывает");
         });
         Try("при 60% сначала набор, осада подождёт", () =>
         {

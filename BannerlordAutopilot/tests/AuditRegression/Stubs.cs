@@ -263,7 +263,7 @@ namespace TaleWorlds.CampaignSystem.Party {
   public bool IsSettlement => Settlement != null;
   public bool IsMobile => MobileParty != null;
   public Hero LeaderHero => MobileParty?.LeaderHero;
-  public int PartySizeLimit { get; set; } = 100;
+  public int PartySizeLimit { get; set; } = 0; // 03.10: 0 = лимит не моделируется (правило 85% заполнения молчит); тесты про заполнение задают его сами
   public int NumberOfAllMembers => MemberRoster.TotalManCount;            // 106163
  }
 }

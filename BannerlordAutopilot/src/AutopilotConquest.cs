@@ -400,7 +400,40 @@ namespace BannerlordAutopilot
             if (Hero.MainHero.Gold < Math.Max(0, party.TotalWage) * 7f) return "золото меньше 7 дней жалования";
             if (total <= 0 || total - wounded < total * .7f) return "боеспособны меньше 70% отряда";
             if (Hero.MainHero.IsWounded) return "герой ранен";
+            // 03.10, владелец: «через чур боевой, почти проебал отряд, надо ловить момент отдыха».
+            // Вечер: 11 осад подряд, 412 → 295 бойцов (убитые, не раненые — проверка 70% молчала).
+            int limit = party.Party.PartySizeLimit;
+            if (limit > 0 && party.Party.NumberOfAllMembers < limit * OffensiveMinFill)
+                return "отряд заполнен меньше " + (OffensiveMinFill * 100).ToString("F0") + "% (" + party.Party.NumberOfAllMembers + "/" + limit + ") — сначала набор";
+            if (SiegesSinceResupply >= MaxSiegesWithoutResupply)
+                return MaxSiegesWithoutResupply + " осады подряд — сначала пополнение в городе";
             return null;
+        }
+
+        /// <summary>Наступление (осада, набег, охота свободного отряда) — только с отрядом не меньше этой доли.</summary>
+        internal const float OffensiveMinFill = .85f;
+        /// <summary>Сколько взятых крепостей подряд без захода в город на обслуживание.</summary>
+        internal const int MaxSiegesWithoutResupply = 3;
+        internal static int SiegesSinceResupply;
+        private static string _lastCountedCapture;
+
+        /// <summary>Взятие крепости (меню «поселение взято») — +1 к серии; одна крепость — один раз.</summary>
+        private static void NoteCapture(Settlement place)
+        {
+            string key = (place?.StringId ?? "?") + "@" + Math.Floor(CampaignTime.Now.ToHours / 24);
+            if (key == _lastCountedCapture) return;
+            _lastCountedCapture = key;
+            SiegesSinceResupply++;
+            AutopilotLog.Write("ПОХОД: взята крепость «" + place?.Name + "»; осад подряд без пополнения " + SiegesSinceResupply
+                + "/" + MaxSiegesWithoutResupply);
+        }
+
+        /// <summary>Обслуживание в городе (набор, еда, продажа) закрывает серию осад.</summary>
+        internal static void NoteResupply(Settlement place)
+        {
+            if (place == null || !place.IsTown || SiegesSinceResupply == 0) return;
+            AutopilotLog.Write("ПОХОД: пополнение в «" + place.Name + "» — серия из " + SiegesSinceResupply + " осад закрыта");
+            SiegesSinceResupply = 0;
         }
 
         /// <summary>25.09, владелец: «сначала качать отряд, нападая на отряды, потом с
@@ -1107,13 +1140,17 @@ namespace BannerlordAutopilot
                 { OperationClick("menu_siege_strategies_break_siege_go_on"); return true; }
                 if (menu == "menu_settlement_taken_player_leader")
                 {
+                    NoteCapture(MobileParty.MainParty?.CurrentSettlement ?? MobileParty.MainParty?.BesiegedSettlement ?? MobileParty.MainParty?.TargetSettlement);
                     OperationClick(MenuDriver.CanInvoke("menu_settlement_taken_show_mercy", out _)
                         ? "menu_settlement_taken_show_mercy" : "menu_settlement_taken_pillage");
                     return true;
                 }
                 if (menu == "menu_settlement_taken_player_army_member" || menu == "menu_settlement_taken_player_participant"
                     || menu == "siege_aftermath_contextual_summary")
-                { OperationClick("menu_settlement_taken_continue"); return true; }
+                {
+                    if (menu != "siege_aftermath_contextual_summary") NoteCapture(MobileParty.MainParty?.CurrentSettlement ?? MobileParty.MainParty?.BesiegedSettlement ?? MobileParty.MainParty?.TargetSettlement);
+                    OperationClick("menu_settlement_taken_continue"); return true;
+                }
             }
             catch (Exception ex) { Disable("наступательная осада: " + ex.GetType().Name + ": " + ex.Message); return true; }
             return false;

@@ -49,7 +49,7 @@ internal static partial class Program
         PlayerEncounter.Current = null; PlayerEncounter.EncounterSettlement = null;
         PlayerEncounter.EncounteredMobileParty = null; PlayerEncounter.Battle = null; PlayerEncounter.EncounteredBattle = null;
         PlayerEncounter.LeaveEncounter = false; PlayerEncounter.LeaveSettlementCalls = 0; PlayerEncounter.FinishCalls = 0;
-        AutopilotBehavior.AutoLeaveSettlement = true; AutopilotLog.Lines.Clear();
+        AutopilotBehavior.AutoLeaveSettlement = true; AutopilotLog.Lines.Clear(); AutopilotBehavior.SiegesSinceResupply = 0;
         CampaignEventDispatcher.NextScores.Clear(); TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.VisitCalls = 0;
         TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.PatrolCalls = 0;
         TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.EngageCalls = 0;

@@ -160,6 +160,7 @@ namespace BannerlordAutopilot
         internal void Run(MobileParty party, Settlement settlement, string trigger)
         {
             _lastPassHours[settlement.StringId] = CampaignTime.Now.ToHours;
+            AutopilotBehavior.NoteResupply(settlement);
             TroopUpgrades.Run(party);
             EquipmentAndTrade.Equip(party);
             EquipmentAndTrade.Sell(party, settlement);

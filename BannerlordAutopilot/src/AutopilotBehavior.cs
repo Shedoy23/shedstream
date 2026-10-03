@@ -320,6 +320,7 @@ namespace BannerlordAutopilot
             Instance = this;
             // Память «у города нет денег» — часы ЭТОЙ кампании; другой сейв её не наследует.
             EquipmentAndTrade.BrokeUntil.Clear();
+            SiegesSinceResupply = 0;
             CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
             CampaignEvents.OnGameLoadFinishedEvent.AddNonSerializedListener(this, OnGameLoadFinished);
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, RegisterBanditGatherDialog);

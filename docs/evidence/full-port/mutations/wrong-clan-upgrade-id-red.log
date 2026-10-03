@@ -1,0 +1,54 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-upgrade-achievement-parity.test.tsx (9 tests | 1 failed | 8 skipped) 1319ms
+   × clan bulk upgrade preserves sorted selected IDs exact JSON and immediate catalog then hero continuations 1317ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  18:58:48
+   Duration  6.34s (environment 37%, import 24%, tests 22%, transform 17%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > clan bulk upgrade preserves sorted selected IDs exact JSON and immediate catalog then hero continuations
+AssertionError: expected [ { method: 'GET', …(7) }, …(20) ] to deeply equal [ { method: 'GET', …(7) }, …(20) ]
+
+- Expected
++ Received
+
+@@ -120,20 +120,19 @@
+      "token": "alice-token",
+    },
+    {
+      "body": {
+        "upgrade_ids": [
+-         "fixture-a",
+-         "fixture-b",
++         "wrong-upgrade",
+        ],
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/clan-upgrades/buy",
+      "query": "",
+-     "rawBody": "{\"upgrade_ids\":[\"fixture-a\",\"fixture-b\"]}",
++     "rawBody": "{\"upgrade_ids\":[\"wrong-upgrade\"]}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": null,
+
+ ❯ check test/panel-hero-support.tsx:61:102
+
+ ❯ Object.finish test/panel-hero-support.tsx:65:131
+ ❯ test/panel-upgrade-achievement-parity.test.tsx:25:343
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

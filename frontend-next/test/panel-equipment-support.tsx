@@ -1,3 +1,4 @@
+import gameFixtures from './panel-fixtures/game-progression-responses.json';
 import { act, fireEvent, render } from '@testing-library/preact';
 import { vi } from 'vitest';
 import { TwitchAuthStore } from '../src/auth';
@@ -11,11 +12,11 @@ export const f = fixtures.responses;
 export const flush = async () => { for (let n = 0; n < 40; n++) await Promise.resolve(); };
 export const response = (body: unknown) => new Response(JSON.stringify(body));
 export const deferred = <T,>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r; }); return { resolve, promise }; };
-export interface Trace { method: string; path: string; body: Record<string, any> | null; token: string; query: string; contentType: string; cache: string | null }
+export interface Trace { method: string; path: string; body: Record<string, any> | null; rawBody: string | null; token: string; query: string; contentType: string; cache: string | null }
 export function equipmentSetup(snapshot: unknown = f.equipment_inventory, actionReply: unknown = f.equipment_buy.response) {
   const trace: Trace[] = [];
   const routes: Record<string, unknown> = {
-    '/api/user/resolve-twitch-token': { login: 'alice' }, '/api/bannerlord/config': f.config,
+    '/api/user/resolve-twitch-token': { login: 'alice' }, '/api/bannerlord/content-catalogs': gameFixtures.responses.catalogs, '/api/bannerlord/progression': gameFixtures.responses.progression, '/api/bannerlord/config': f.config,
     '/api/bannerlord/my-hero': f.hero, '/api/bannerlord/classes': f.classes,
     '/api/bannerlord/build': f.build_ready, '/api/bannerlord/my-buffs': f.buffs,
     '/api/bannerlord/equipment-shop': snapshot, '/api/bannerlord/action': actionReply,
@@ -24,7 +25,7 @@ export function equipmentSetup(snapshot: unknown = f.equipment_inventory, action
   };
   const fetcher = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     const path = String(url); const method = init?.method || 'GET';
-    trace.push({ method, path, body: init?.body ? JSON.parse(String(init.body)) : null, token: new Headers(init?.headers).get('X-Twitch-JWT') || '', query: new URL(path, 'https://example.test').search, contentType: new Headers(init?.headers).get('Content-Type') || '', cache: init?.cache || null });
+    trace.push({ method, path, body: init?.body ? JSON.parse(String(init.body)) : null, rawBody: init?.body == null ? null : String(init.body), token: new Headers(init?.headers).get('X-Twitch-JWT') || '', query: new URL(path, 'https://example.test').search, contentType: new Headers(init?.headers).get('Content-Type') || '', cache: init?.cache || null });
     if (!(path in routes)) throw new Error(`UNMATCHED ${method} ${path}`);
     const body = routes[path]; if (typeof body === 'function') return body();
     return body instanceof Promise ? body : response(body);

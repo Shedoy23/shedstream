@@ -1,0 +1,99 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord whole dynasty opening preserves every child request and minute continuation
+[FE-HEIR] loaded 1 heirs: Взрослый наследник
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord whole dynasty opening preserves every child request and minute continuation
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+[FE-VAS] loaded vassals=1 eligible=1
+
+ ❯ test/panel-game-bootstrap-parity.test.tsx (21 tests | 1 failed | 20 skipped) 2248ms
+   × bannerlord whole dynasty opening preserves every child request and minute continuation 2246ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 20 skipped (21)
+   Start at  18:54:39
+   Duration  8.70s (environment 33%, tests 27%, import 23%, transform 17%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord whole dynasty opening preserves every child request and minute continuation
+AssertionError: expected [ { method: 'GET', …(7) }, …(34) ] to deeply equal [ { method: 'GET', …(7) }, …(34) ]
+
+- Expected
++ Received
+
+@@ -222,51 +222,51 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/heirs",
++     "path": "/api/bannerlord/vassals",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/my-children",
++     "path": "/api/bannerlord/eligible-heirs",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/proposals",
++     "path": "/api/bannerlord/heirs",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/vassals",
++     "path": "/api/bannerlord/my-children",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/eligible-heirs",
++     "path": "/api/bannerlord/proposals",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-game-bootstrap-parity.test.tsx:55:129
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

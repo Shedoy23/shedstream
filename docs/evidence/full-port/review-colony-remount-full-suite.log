@@ -1,0 +1,79 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-usage-host.test.tsx (8 tests | 2 failed) 9204ms
+   × actual PanelApp batches exposures, real transitions and action intent with complete old/new 30s request parity 5089ms
+   × actual hidden-page event flushes once, visibility and rerenders never count additional same-day exposures 517ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-usage-host.test.tsx > actual PanelApp batches exposures, real transitions and action intent with complete old/new 30s request parity
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/panel-usage-host.test.tsx:81:1
+     79| }
+     80|
+     81| it('actual PanelApp batches exposures, real transitions and action int…
+       | ^
+     82|   const p = await pair();
+     83|   await p.tab('hero'); await p.tab('inventory'); await p.tab('inventor…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/panel-usage-host.test.tsx > actual hidden-page event flushes once, visibility and rerenders never count additional same-day exposures
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(7) }, …(6) ] to deeply equal [ { method: 'GET', …(7) }, …(7) ]
+
+- Expected
++ Received
+
+@@ -67,32 +67,6 @@
+      "path": "/api/bannerlord/progression",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+-   {
+-     "body": {
+-       "batch_id": "<generated-batch-id>",
+-       "events": [
+-         {
+-           "count": 1,
+-           "feature": "core:panel",
+-           "kind": "panel_view",
+-         },
+-         {
+-           "count": 1,
+-           "feature": "bannerlord:panel",
+-           "kind": "panel_view",
+-         },
+-       ],
+-       "surface": "desktop",
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "keepalive": true,
+-     "method": "POST",
+-     "path": "/api/viewer/ui-usage",
+-     "query": "",
+-     "rawBody": "{\"batch_id\":\"<generated-batch-id>\",\"surface\":\"desktop\",\"events\":[{\"kind\":\"panel_view\",\"feature\":\"core:panel\",\"count\":1},{\"kind\":\"panel_view\",\"feature\":\"bannerlord:panel\",\"count\":1}]}",
+-     "token": "alice-token",
+-   },
+  ]
+
+ ❯ Object.check test/panel-usage-host.test.tsx:67:189
+
+ ❯ test/panel-usage-host.test.tsx:92:49
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 62 passed | 2 skipped (65)
+      Tests  2 failed | 1249 passed | 2 skipped (1253)
+   Start at  20:58:00
+   Duration  367.04s (tests 71%, environment 20%, import 8%, transform 1%)
+
+    Isolate  65 workers spawned · ~2.56s startup each (spawn + environment, per file)
+             at least ~80.50s faster with isolate: false — reuses workers across files instead of one per file

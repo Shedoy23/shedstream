@@ -1,0 +1,46 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (28 tests | 2 failed) 14250ms
+   × rimworld zero server cooldown never becomes a one second client cooldown 216ms
+   × rimworld shop changed quote cancels the old price confirmation before any debit 394ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld zero server cooldown never becomes a one second client cooldown
+AssertionError: expected 1790942400000 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1790942400000
+
+ ❯ test/panel-rimworld-parity.test.tsx:38:151
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld shop changed quote cancels the old price confirmation before any debit
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ test/panel-rimworld-parity.test.tsx:40:525
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 26 passed (28)
+   Start at  17:37:43
+   Duration  17.98s (tests 81%, environment 11%, import 6%, transform 3%)
+

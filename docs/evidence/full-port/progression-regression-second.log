@@ -1,0 +1,699 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЬУ test/panel-core.test.tsx > keeps only the server-resolved login, clears it during refresh/switch/detach, and ignores old resolver 43ms
+ тЬУ test/panel-core.test.tsx > captures JWT once, adds client_action_id once and deduplicates exact choices only 10ms
+ тЬУ test/panel-core.test.tsx > renders real attributes, all 24 progression controls and server catalog choices 174ms
+ ├Ч test/panel-core.test.tsx > uses exact game attribute quote, immediate read and complete successful delayed tail 924ms
+   тЖТ expected [ '/api/bannerlord/action', тАж(4) ] to deeply equal [ '/api/bannerlord/action', тАж(6) ]
+ тЬУ test/panel-core.test.tsx > fails closed for missing or malformed game prices and preserves legitimate zero 124ms
+ тЬУ test/panel-core.test.tsx > preserves arbitrary refusal, applies server cooldown and stops pre-action polls erasing it 4ms
+ тЬУ test/panel-core.test.tsx > does not starve slow polls or accept reverse-order state 11ms
+ тЬУ test/panel-core.test.tsx > never applies old identity action completion or runs its balance/tail under the new viewer 13ms
+ тЬУ test/panel-core.test.tsx > absent/dead hero has no mutation controls and enabled-but-syncing never falls back to classes 57ms
+ ├Ч test/panel-core.test.tsx > manual refresh recovers missing prices and classes without reloading the document 45ms
+   тЖТ Cannot read properties of null (reading 'disabled')
+ тЬУ test/panel-core.test.tsx > failed new-build refresh removes stale enabled choices without exposing legacy picker 83ms
+ тЬУ test/panel-core.test.tsx > manual refresh recovers malformed focus tiers [] 366ms
+stdout | test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > complete kingdom card is in saved production Dynasty between clan and orders
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute control: exact game ID, quote, context and amount and complete success tail 1935ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-core.test.tsx > manual refresh recovers malformed focus tiers [3] 311ms
+ тЬУ test/panel-core.test.tsx > manual refresh recovers malformed focus tiers {"0":3} 267ms
+ тЬУ test/panel-core.test.tsx > manual refresh recovers malformed focus tiers null 284ms
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute cunning: exact game ID, quote, context and amount and complete success tail 659ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-core.test.tsx > synchronously serializes different specialization and kit buttons within one render frame 105ms
+ тЬУ test/panel-core.test.tsx > a build GET started before acknowledgement cannot release local pending 3ms
+ тЬУ test/panel-core.test.tsx > a 20-second unknown action outcome blocks duplicate and different purchases while reads remain possible 12ms
+ тЬУ test/panel-core.test.tsx > ignores a genuinely reverse-ordered older hero response 13ms
+ тЬУ test/panel-core.test.tsx > accepted action with lost response blocks that identity across token rotation but not another viewer 14ms
+ тЬУ test/panel-core.test.tsx > a definite server refusal is retryable and does not create unknown-outcome blocking 4ms
+ тЬУ test/panel-kingdom-parity.test.tsx > complete kingdom card is in saved production Dynasty between clan and orders 2570ms
+stdout | test/panel-kingdom-parity.test.tsx > create button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute endurance: exact game ID, quote, context and amount and complete success tail 733ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ ├Ч test/panel-usage-host.test.tsx > actual PanelApp batches exposures, real transitions and action intent with complete old/new 30s request parity 3207ms
+   тЖТ complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(46) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(44) ]
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute intelligence: exact game ID, quote, context and amount and complete success tail 579ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-core.test.tsx > unknown-outcome disables visible mutation controls while refresh and another identity stay usable 641ms
+ тЬУ test/panel-core.test.tsx > an already rendered action button cannot dispatch during token identity verification 55ms
+ тЬУ test/panel-core.test.tsx > missing randomUUID uses the inherited action-ID fallback without entering unknown-outcome lock 1ms
+ тЬУ test/panel-core.test.tsx > a local pre-fetch request construction error cannot imply server acceptance or lock later actions 1ms
+ тЬУ test/panel-core.test.tsx > matches legacy JWT ownership for a successful action tail after same-viewer token refresh 25ms
+ тЬУ test/panel-core.test.tsx > late old-JWT acceptance refreshes same-viewer balance but cannot create wrapper cooldown or hero tail 6ms
+ тЬУ test/panel-core.test.tsx > accepted build remains pending across same-viewer JWT rotation and prevents a second choice 9ms
+ тЬУ test/panel-core.test.tsx > unchanged legacy build continuation keeps the same pending guard after JWT rotation 751ms
+ тЬУ test/panel-core.test.tsx > pre-accept build read cannot clear an accepted old-JWT build pending state 14ms
+ тЬУ test/panel-usage-host.test.tsx > actual hidden-page event flushes once, visibility and rerenders never count additional same-day exposures 643ms
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute social: exact game ID, quote, context and amount and complete success tail 492ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-usage-host.test.tsx > an initially hidden authorized PanelApp records no exposure until it becomes visible 440ms
+stderr | test/panel-usage-host.test.tsx > same-task exact-choice duplicate clicks count two attempts while only one action is dispatched
+[buyAction] duplicate-click guarded bannerlord:hero.add_attribute:amount=1&attribute_key=vigor&expected_cost_gold=22&expected_value=2&progression_context=[object Object]
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute vigor: exact game ID, quote, context and amount and complete success tail 488ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-kingdom-parity.test.tsx > create button/Enter false full wire/30s tail/usage parity 1926ms
+ тЬУ test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads 4430ms
+stdout | test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > create button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Engineering: exact key+amount and complete success tail 470ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-usage-host.test.tsx > same-task exact-choice duplicate clicks count two attempts while only one action is dispatched 818ms
+ тЬУ test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails 1036ms
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Medicine: exact key+amount and complete success tail 544ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+stdout | test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-usage-host.test.tsx > the synchronous BnrBuilds family guard suppresses the second click before telemetry dispatch 532ms
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Steward: exact key+amount and complete success tail 394ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-kingdom-parity.test.tsx > create button/Enter true full wire/30s tail/usage parity 1560ms
+stdout | test/panel-kingdom-parity.test.tsx > join button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-usage-host.test.tsx > a hung telemetry request never delays a real action, its result or its refresh tail 605ms
+   тЖТ complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(52) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(50) ]
+ тЬУ test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails 713ms
+stdout | test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Trade: exact key+amount and complete success tail 423ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ ├Ч test/panel-usage-host.test.tsx > telemetry exceptions cannot reject or stall the controller action dispatcher 532ms
+   тЖТ complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(19) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(17) ]
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Leadership: exact key+amount and complete success tail 426ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-usage-host.test.tsx > real Twitch token re-resolution blocks telemetry and discards the old context on authorization 270ms
+ тЬУ test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails 755ms
+stdout | test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Charm: exact key+amount and complete success tail 372ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-kingdom-parity.test.tsx > join button/Enter false full wire/30s tail/usage parity 1258ms
+stdout | test/panel-kingdom-parity.test.tsx > join button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Roguery: exact key+amount and complete success tail 308ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails 609ms
+stdout | test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Tactics: exact key+amount and complete success tail 336ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails 512ms
+stdout | test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Scouting: exact key+amount and complete success tail 332ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-kingdom-parity.test.tsx > join button/Enter true full wire/30s tail/usage parity 1030ms
+stdout | test/panel-kingdom-parity.test.tsx > rebellion button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Crafting: exact key+amount and complete success tail 415ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception 622ms
+stdout | test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Athletics: exact key+amount and complete success tail 361ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail 534ms
+stdout | test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Riding: exact key+amount and complete success tail 417ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-kingdom-parity.test.tsx > rebellion button/Enter false full wire/30s tail/usage parity 1296ms
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Throwing: exact key+amount and complete success tail 388ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+stdout | test/panel-kingdom-parity.test.tsx > rebellion button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails 552ms
+stdout | test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Crossbow: exact key+amount and complete success tail 358ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails 542ms
+stdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Bow: exact key+amount and complete success tail 387ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false 516ms
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Polearm: exact key+amount and complete success tail 371ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+stdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-kingdom-parity.test.tsx > rebellion button/Enter true full wire/30s tail/usage parity 1217ms
+stdout | test/panel-kingdom-parity.test.tsx > leave ruler false has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus TwoHanded: exact key+amount and complete success tail 336ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true 494ms
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus OneHanded: exact key+amount and complete success tail 417ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer false 405ms
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class archer 235ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class assassin 210ms
+ тЬУ test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer true 434ms
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-kingdom-parity.test.tsx > leave ruler false has explicit safety warning and exact action 1267ms
+stdout | test/panel-kingdom-parity.test.tsx > leave ruler true has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class berserk 201ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class crossbow 271ms
+ тЬУ test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false 464ms
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class horse_archer 193ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class knight 195ms
+ тЬУ test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true 470ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class tank 174ms
+stdout | test/panel-party-parity.test.tsx > clan create trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-kingdom-parity.test.tsx > leave ruler true has explicit safety warning and exact action 1264ms
+stdout | test/panel-kingdom-parity.test.tsx > leave vassal false has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > specialization guardian 488ms
+ тЬУ test/panel-party-parity.test.tsx > clan create trim and Enter exact payload 577ms
+stdout | test/panel-party-parity.test.tsx > clan join trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > specialization assault 500ms
+ тЬУ test/panel-party-parity.test.tsx > clan join trim and Enter exact payload 609ms
+stdout | test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > specialization marksman 495ms
+ тЬУ test/panel-kingdom-parity.test.tsx > leave vassal false has explicit safety warning and exact action 1410ms
+stdout | test/panel-kingdom-parity.test.tsx > leave vassal true has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > specialization mobility 627ms
+ тЬУ test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected 894ms
+stdout | test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > starter infantry 485ms
+ тЬУ test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail 672ms
+stdout | test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > starter two_handed 434ms
+ тЬУ test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST 532ms
+stdout | test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-kingdom-parity.test.tsx > leave vassal true has explicit safety warning and exact action 1599ms
+stdout | test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation false and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > starter archer 486ms
+ тЬУ test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check 615ms
+stdout | test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > same-current catalog selections and unavailable kits produce no mutation 451ms
+ тЬУ test/panel-development-parity.test.tsx > pending new-build state never exposes selectable legacy controls 192ms
+ тЬУ test/panel-development-parity.test.tsx > battle new-build state never exposes selectable legacy controls 240ms
+ тЬУ test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation false and 7s queue feedback 1148ms
+ тЬУ test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence 618ms
+stdout | test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation true and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-clan-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > syncing new-build state never exposes selectable legacy controls 103ms
+ тЬУ test/panel-development-parity.test.tsx > preserves money server refusal and exact full request tail 452ms
+ тЬУ test/panel-development-parity.test.tsx > preserves role server refusal and exact full request tail 501ms
+ тЬУ test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-clan-confirm 1206ms
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-j-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > preserves unknown server refusal and exact full request tail 310ms
+ тЬУ test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation true and 7s queue feedback 1286ms
+stdout | test/panel-kingdom-parity.test.tsx > blank create permitted, empty join silent, names preserved across ordinary polling
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > preserves cooldown server refusal and exact full request tail 310ms
+ тЬУ test/panel-kingdom-parity.test.tsx > blank create permitted, empty join silent, names preserved across ordinary polling 641ms
+ ├Ч test/panel-development-parity.test.tsx > shows game prices and legitimate zero regardless of legacy config 353ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+stdout | test/panel-kingdom-parity.test.tsx > real refusal ╨Э╨╡╨┤╨╛╨┐╤Г╤Б╤В╨╕╨╝╤Л╨╡ ╤Б╨╕╨╝╨▓╨╛╨╗╤Л ╨▓ ╨╕╨╝╨╡╨╜╨╕ remains exact
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-j-confirm 919ms
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-party
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-kingdom-parity.test.tsx > real refusal ╨Э╨╡╨┤╨╛╨┐╤Г╤Б╤В╨╕╨╝╤Л╨╡ ╤Б╨╕╨╝╨▓╨╛╨╗╤Л ╨▓ ╨╕╨╝╨╡╨╜╨╕ remains exact 373ms
+stdout | test/panel-kingdom-parity.test.tsx > real refusal ╨Э╤Г╨╢╨╜╨╛ 100,000ЁЯТ░ ╨┤╨╕╨╜╨░╤А╨╛╨▓ (╤Г ╤В╨╡╨▒╤П 0ЁЯТ░). remains exact
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > respects game-provided unavailable purchase offers without assuming vanilla caps 725ms
+ тЬУ test/panel-kingdom-parity.test.tsx > real refusal ╨Э╤Г╨╢╨╜╨╛ 100,000ЁЯТ░ ╨┤╨╕╨╜╨░╤А╨╛╨▓ (╤Г ╤В╨╡╨▒╤П 0ЁЯТ░). remains exact 372ms
+stdout | test/panel-kingdom-parity.test.tsx > rebellion 1/2 stays actionable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > manual refresh uses actual old refresh control and entire selected-host reads 337ms
+ тЬУ test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-party 1023ms
+ тЬУ test/panel-kingdom-parity.test.tsx > rebellion 1/2 stays actionable 515ms
+ тЬУ test/panel-development-parity.test.tsx > same-frame build-family clicks [data-bnr-build-spec="assault"] then [data-bnr-build-spec="marksman"] preserve the actual old single flight 188ms
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_create"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > rebellion 2/2 stays actionable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > same-frame build-family clicks [data-bnr-build-spec="assault"] then [data-bnr-build-starter="infantry"] preserve the actual old single flight 207ms
+ тЬУ test/panel-development-parity.test.tsx > same-frame build-family clicks [data-bnr-build-starter="infantry"] then [data-bnr-build-spec="assault"] preserve the actual old single flight 219ms
+ тЬУ test/panel-kingdom-parity.test.tsx > rebellion 2/2 stays actionable 457ms
+ тЬУ test/panel-development-parity.test.tsx > absent hero has no old or new progression controls 122ms
+stdout | test/panel-kingdom-parity.test.tsx > outer collapsed kingdom retains details state/exposure while polls continue
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > dead hero has no old or new progression controls 115ms
+ тЬУ test/panel-development-parity.test.tsx > claimed starter preserves the old information-only state 172ms
+stderr | test/panel-development-parity.test.tsx > same-frame duplicate progression clicks have the exact old single POST and immediate reads
+[buyAction] duplicate-click guarded bannerlord:hero.add_attribute:amount=1&attribute_key=vigor&expected_cost_gold=22&expected_value=2&progression_context=[object Object]
+
+ тЬУ test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_create"] 961ms
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_disband"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-development-parity.test.tsx > same-frame duplicate progression clicks have the exact old single POST and immediate reads 339ms
+ ├Ч test/panel-development-parity.test.tsx > missing legacy config does not override authoritative game progression quotes 315ms
+   тЖТ full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+ тЬУ test/panel-kingdom-parity.test.tsx > outer collapsed kingdom retains details state/exposure while polls continue 936ms
+stdout | test/panel-kingdom-parity.test.tsx > same viewer idle token refresh leaves create draft and new current-token action usable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-kingdom-parity.test.tsx > same viewer idle token refresh leaves create draft and new current-token action usable 358ms
+ тЬУ test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_disband"] 953ms
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-leave
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-leave 825ms
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm 883ms
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-cancel
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-cancel 957ms
+stdout | test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace 778ms
+
+тОптОптОптОптОптОп Failed Tests 31 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-core.test.tsx > uses exact game attribute quote, immediate read and complete successful delayed tail
+AssertionError: expected [ '/api/bannerlord/action', тАж(4) ] to deeply equal [ '/api/bannerlord/action', тАж(6) ]
+
+- Expected
++ Received
+
+  [
+    "/api/bannerlord/action",
+    "/api/bannerlord/my-hero",
+    "/api/viewer/stats/alice",
+-   "/api/bannerlord/content-catalogs",
+-   "/api/bannerlord/progression",
+    "/api/user/level/alice",
+    "/api/duel/list",
+  ]
+
+ тЭп test/panel-core.test.tsx:71:36
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/31]тОп
+
+ FAIL  test/panel-core.test.tsx > manual refresh recovers missing prices and classes without reloading the document
+TypeError: Cannot read properties of null (reading 'disabled')
+ тЭп test/panel-core.test.tsx:123:60
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/31]тОп
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute control: exact game ID, quote, context and amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute cunning: exact game ID, quote, context and amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute endurance: exact game ID, quote, context and amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute intelligence: exact game ID, quote, context and amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute social: exact game ID, quote, context and amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute vigor: exact game ID, quote, context and amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+
+- Expected
++ Received
+
+@@ -31,10 +31,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.finish test/panel-development-parity.test.tsx:53:246
+
+ тЭп test/panel-development-parity.test.tsx:60:94
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/31]тОп
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Engineering: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Medicine: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Steward: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Trade: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Leadership: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Charm: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Roguery: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Tactics: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Scouting: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Crafting: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Athletics: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Riding: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Throwing: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Crossbow: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Bow: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Polearm: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus TwoHanded: exact key+amount and complete success tail
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus OneHanded: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+
+- Expected
++ Received
+
+@@ -31,10 +31,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.finish test/panel-development-parity.test.tsx:53:246
+
+ тЭп test/panel-development-parity.test.tsx:64:91
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/31]тОп
+
+ FAIL  test/panel-development-parity.test.tsx > shows game prices and legitimate zero regardless of legacy config
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+
+- Expected
++ Received
+
+@@ -31,10 +31,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.finish test/panel-development-parity.test.tsx:53:246
+
+ тЭп test/panel-development-parity.test.tsx:113:71
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/31]тОп
+
+ FAIL  test/panel-development-parity.test.tsx > missing legacy config does not override authoritative game progression quotes
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [ { method: 'POST', тАж(6) }, тАж(10) ] to deeply equal [ { method: 'POST', тАж(6) }, тАж(8) ]
+
+- Expected
++ Received
+
+@@ -31,10 +31,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.finish test/panel-development-parity.test.tsx:53:246
+
+ тЭп test/panel-development-parity.test.tsx:169:3
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/31]тОп
+
+ FAIL  test/panel-usage-host.test.tsx > actual PanelApp batches exposures, real transitions and action intent with complete old/new 30s request parity
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(46) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(44) ]
+
+- Expected
++ Received
+
+@@ -112,10 +112,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.check test/panel-usage-host.test.tsx:64:189
+
+ тЭп test/panel-usage-host.test.tsx:82:71
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/31]тОп
+
+ FAIL  test/panel-usage-host.test.tsx > a hung telemetry request never delays a real action, its result or its refresh tail
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(52) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(50) ]
+
+- Expected
++ Received
+
+@@ -362,10 +362,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.check test/panel-usage-host.test.tsx:64:189
+
+ тЭп test/panel-usage-host.test.tsx:119:28
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[8/31]тОп
+
+ FAIL  test/panel-usage-host.test.tsx > telemetry exceptions cannot reject or stall the controller action dispatcher
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(19) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(17) ]
+
+- Expected
++ Received
+
+@@ -94,10 +94,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.check test/panel-usage-host.test.tsx:64:189
+
+ тЭп test/panel-usage-host.test.tsx:125:28
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[9/31]тОп
+
+
+ Test Files  3 failed | 2 passed (5)
+      Tests  31 failed | 116 passed (147)
+   Start at  13:31:32
+   Duration  33.03s (tests 73%, environment 17%, import 7%, transform 3%)
+

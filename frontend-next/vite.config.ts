@@ -12,12 +12,13 @@ export default defineConfig(({ mode }) => {
     plugins: [preactSourceMaps(), {
       name: 'skillgame-ebs-csp',
       transformIndexHtml(html, context) {
-        if (!apiOrigin || !/(?:^|[/\\])(?:index|extension|mobile|panel-extension|panel-mobile)\.html$/.test(context.filename)) return html;
+        if (/(?:^|[/\\])panel-(?:extension|mobile)\.html$/.test(context.filename)) html = html.replace("img-src 'self';", `img-src 'self' data:${apiOrigin ? ' ' + apiOrigin : ''};`);
+        if (!apiOrigin || !/(?:^|[/\\])(?:index|extension|mobile|panel-extension|panel-mobile|config)\.html$/.test(context.filename)) return html;
         const connect = "connect-src 'self' https://api.twitch.tv";
         if (!html.includes(`${connect};`)) throw new Error('Skillgame CSP connect-src template is missing');
         return html.replace(`${connect};`, `${connect} ${apiOrigin};`);
       },
     }],
-    build: { manifest: true, rollupOptions: { input: ['index.html', 'extension.html', 'mobile.html', 'tournament.html', 'panel-extension.html', 'panel-mobile.html'] }, minify: false, cssMinify: false, sourcemap: true, assetsInlineLimit: 0 },
+    build: { manifest: true, rollupOptions: { input: ['index.html', 'extension.html', 'mobile.html', 'tournament.html', 'panel-extension.html', 'panel-mobile.html', 'config.html'] }, minify: false, cssMinify: false, sourcemap: true, assetsInlineLimit: 0 },
   };
 });

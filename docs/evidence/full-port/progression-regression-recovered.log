@@ -1,0 +1,582 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-diplomacy-safety.test.tsx > old actual reverse completion rolls tax backward, new state stays latest applied
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > actual old party response reversal is reproduced while Preact keeps latest applied result
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > slow healthy party responses are not starved by later issued reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > slow steady reads make progress before newest outstanding read resolves
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > unchanged legacy writes after stop; owned Preact read cannot repopulate stopped host
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > old pending reader repaints after stop while new stopped host stays empty
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > ignored pre-identity hero completion cannot launch a fresh party read for a new owner
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > old [data-policy-id="policy_royal_guard"] local tail uses new JWT after stop, new timer is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > [data-bnr-action="army_disband"] original confirmation cannot authorize changed observable viewer
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > .bnr-locked-leave original confirmation cannot authorize changed observable viewer
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > old #bnr-peace-confirm local tail uses new JWT after stop, new timer is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > .bnr-clan-leave original confirmation cannot authorize changed observable viewer
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > old [data-tax-pct="25"] local tail uses new JWT after stop, new timer is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > army confirmation invalidates changed hero
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > army confirmation invalidates changed clan
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > actual legacy open peace survives accepted role and nested ID change, new draft is invalidated
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > army confirmation invalidates changed army
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross identity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > army confirmation invalidates changed quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross channel
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > same-viewer JWT renewal retains draft and permits a fresh affirmative with current JWT
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > local 1500ms tail cannot follow stop and new JWT; original legacy hole stays measured
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross hero
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > local 2000ms tail cannot follow stop and new JWT; original legacy hole stays measured
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross role
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > same-viewer token changed during pending order cannot schedule old local tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross kingdom
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > read before accepted set cannot resurrect the old order after acknowledgement
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross navigation
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > party error preserves the last confirmed snapshot and text, then retry recovers
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > army member retains inherited disband affordance and real server owns eligibility
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross stop
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > same-viewer idle token refresh preserves peace editor and current-token submit
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > missing clan price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > pending local tail cannot migrate to refreshed JWT
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > missing join price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > scheduled local tail cannot migrate to refreshed JWT
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > missing party price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-party-safety.test.tsx > missing army price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > accepted mutation prevents pre-action state from resurrecting old tax
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > missing order price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: auth required
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > create/join open drafts survive ordinary hero/config polls and Enter uses latest synchronous text
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: Fixture temporarily unavailable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > read network failure preserves current snapshot; subsequent good read recovers
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > unknown-outcome lock crosses order, clan, army and retinue controls
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > read of old token cannot replace newly resolved same-viewer state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > dismiss by backdrop or Escape sends nothing and can reopen with current context
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback null
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > collapsed army and order cards remain collapsed without suppressing active reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback []
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > read-owned clan switch clears previous order and does not preserve stale target draft
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","at_war":false},{"id":"fixture_b","name":"Fixture B","at_war":false}]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > legacy army danger confirmation really sends under changed JWT while new host cancels it
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","name":"Fixture A","at_war":true}]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [null,{"id":"fixture_b","name":"Fixture B","at_war":false},{"id":"fixture_a","at_war":false}]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > blank create is permitted, blank join is silent and sends nothing
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > hidden or unselected Dynasty performs no background kingdom-state reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > real released expired or recruit snapshot null
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > real released expired or recruit snapshot null
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-party-safety.test.tsx > real released expired or recruit snapshot {"id":6,"order_type":"recruit","target_settlement_id":"","target_settlement_name":"","issued_at":"2026-10-02 22:37:43","expires_at":"2026-10-02 23:07:43"}
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration undefined comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > hero leader outside kingdom has no army button but complete own orders
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > nondefault server action/gold quotes change display without adding UI prices to request
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0.5 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > army/clan and order UI cannot dispatch after navigation or unmount, including saved yes handlers
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 2.2 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > double same-frame strategic submission remains one POST and preserves caller telemetry
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 61 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stderr | test/panel-party-safety.test.tsx > double same-frame strategic submission remains one POST and preserves caller telemetry
+[buyAction] duplicate-click guarded bannerlord:hero.party_order_set:order_type=siege&target_settlement_id=fixture_enemy_town&target_settlement_name=Enemy Town (╨│╨╛╤А╨╛╨┤, ~2 ╨┤╨╜)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > ordinary proposal refusal without cooldown does not invent one
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > old buff response cannot erase accepted proposal cooldown, fresh allowed clear restores price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > a scheduled acknowledged order tail cannot move onto a later same-viewer token
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > same-frame duplicate target sends one POST and retains complete tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stderr | test/panel-diplomacy-safety.test.tsx > same-frame duplicate target sends one POST and retains complete tails
+[buyAction] duplicate-click guarded bannerlord:kingdom.propose_war:target_kingdom_id=fixture_neutral&target_kingdom_name=Fixture Neutral
+
+┬╖stdout | test/panel-party-safety.test.tsx > old party read token cannot replace the newly resolved same-viewer state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > config retry restores clan creation price without replacing the typed draft
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > unknown-outcome blocks policy, tax, direct peace and both proposals
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > later identical successful proposal keeps its own full seven-second feedback window
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > actual active siege target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > pending tax POST cannot schedule work after stop and host rebind
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > actual active defend target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > pending war POST cannot schedule work after stop and host rebind
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > actual active raid target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > pending policy POST cannot schedule work after stop and host rebind
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > actual active garrison target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > old realm pending GET cannot apply to accepted new nested kingdom ID
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > actual active patrol target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > proposal selection follows actual second option and exact name on both hosts
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > new hero target editor cannot submit old same-frame values after context changes
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > empty target ID sends zero proposals without invented target
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > changed relation invalidates stale proposal click while current controls remain usable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > unknown cooldown key is not applied to either proposal and short duration expires to fresh label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > independent review: fresh different-realm response quarantines old ruler actions until hero agrees
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > fresh observed state remains quarantined while replacement hero waits for agreeing state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_royal_guard exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_sacred_majesty exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > clan create trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > clan join trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_trial_by_jury exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_imperial_towns exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_noble_retinues exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-clan-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-j-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_lords_privy_council exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-party
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_create"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > policy policy_serfdom exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_disband"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_citizenship exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-leave
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > real policy state pending1/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted1
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-cancel
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute -200
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 20000
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 100.9
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > direct peace has no Enter binding, requires two trimmed characters and keeps polling draft
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-army-kingdom-safety.test.tsx > army affirmative cannot use observed fixture_other_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-army-kingdom-safety.test.tsx > army affirmative cannot use observed fixture_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-army-kingdom-safety.test.tsx > army create saved button and controller admission reject fixture_other_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > army create saved button and controller admission reject fixture_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-army-kingdom-safety.test.tsx > agreement restores army create while previous contradiction sends nothing
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-army-kingdom-safety.test.tsx > agreement does not revive old army affirmative; fresh consent works
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-army-kingdom-safety.test.tsx > unobserved diplomacy does not block previously valid army controls
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > observed kingdom quarantine leaves unrelated retinue recruitment usable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-army-kingdom-safety.test.tsx > already-open order editor cannot submit its old realm target during observed quarantine
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-peace-confirm preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-army-kingdom-safety.test.tsx > quarantine preserves order cancellation and unrelated clan leave controls
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-tax-pct="25"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-war-propose preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > outer collapsed card and inner details preserve telemetry, reads and user state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > no kingdom is informational and genuine nohero clears Politics
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > vassal sees policies/votes but no direct peace or tax
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-parity.test.tsx > unknown active law retains server badge without adding selectable invented policy
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+AssertionError: complete trace differs only by the explicitly corrected recruit placeholder: expected [ { method: 'GET', тАж(7) }, тАж(29) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(29) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп test/panel-party-parity.test.tsx:5:984
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed | 8 passed (9)
+      Tests  1 failed | 351 passed (352)
+   Start at  13:54:35
+   Duration  33.54s (tests 76%, environment 17%, import 6%, transform 1%)
+
+    Isolate  9 workers spawned ┬╖ ~1.35s startup each (spawn + environment, per file)
+             at least ~4.74s faster with isolate: false тАФ reuses workers across files instead of one per file
+

@@ -27,7 +27,15 @@ async def run():
             horse=await route._bannerlord_buy_action_locked(request,'alice',CHANNEL_ID,'hero.reforge_quality',{'slot':'horse','price':0})
             assert not horse.get('success') and 'Коня перековать нельзя' in (horse.get('message') or ''),horse
             assert (await sql("SELECT points FROM viewers WHERE channel_id=? AND username='alice'",(CHANNEL_ID,)))[0][0]==1000000,'horse refusal charged'
-            payload={'slot':'head','price':0,'_reforge':{'rank':3,'hero_id':'victim'}}
+            # 03.10 (находка Астры): панель видела другую вещь в слоте — отказ ДО списания.
+            changed=await route._bannerlord_buy_action_locked(request,'alice',CHANNEL_ID,'hero.reforge_quality',{'slot':'head','price':0,'expected_item_id':'helmet_A'})
+            assert not changed.get('success') and changed.get('reason')=='reforge_item_changed',changed
+            requal=await route._bannerlord_buy_action_locked(request,'alice',CHANNEL_ID,'hero.reforge_quality',{'slot':'head','price':0,'expected_item_id':'hat','expected_quality_rank':2})
+            assert not requal.get('success') and requal.get('reason')=='reforge_item_changed',requal
+            assert (await sql("SELECT points FROM viewers WHERE channel_id=? AND username='alice'",(CHANNEL_ID,)))[0][0]==1000000,'changed-item refusal charged'
+            assert (await sql("SELECT count(*) FROM module_actions WHERE type='hero.reforge_quality'"))[0][0]==0,'changed-item refusal queued'
+            clear_cooldown(CHANNEL_ID,'alice','hero.reforge_quality')
+            payload={'slot':'head','price':0,'expected_item_id':'hat','expected_quality_rank':0,'_reforge':{'rank':3,'hero_id':'victim'}}
             result=await route._bannerlord_buy_action_locked(request,'alice',CHANNEL_ID,'hero.reforge_quality',payload)
             assert result.get('success'),result
             action=result['action_id']

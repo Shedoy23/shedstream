@@ -1,0 +1,12 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 86 skipped (87)
+   Start at  19:09:28
+   Duration  7.21s (environment 30%, tests 27%, import 22%, transform 21%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.

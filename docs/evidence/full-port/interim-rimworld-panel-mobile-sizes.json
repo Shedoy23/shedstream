@@ -1,0 +1,366 @@
+{
+  "method": "Node zlib gzip level 9; decimal bytes; each file separately; portable manifest paths",
+  "files": {
+    "assets/CasesView-itAO46g5.js": {
+      "raw": 4745,
+      "gzip9": 1844
+    },
+    "assets/CasesView-itAO46g5.js.map": {
+      "raw": 7741,
+      "gzip9": 2987
+    },
+    "assets/ColonyView-v_lOmqBt.js": {
+      "raw": 16191,
+      "gzip9": 5092
+    },
+    "assets/ColonyView-v_lOmqBt.js.map": {
+      "raw": 26354,
+      "gzip9": 8342
+    },
+    "assets/CommonView-BFoj2wMo.js": {
+      "raw": 13002,
+      "gzip9": 3890
+    },
+    "assets/CommonView-BFoj2wMo.js.map": {
+      "raw": 17242,
+      "gzip9": 5669
+    },
+    "assets/CommunityGamesView-D5iKO3Jj.js": {
+      "raw": 20013,
+      "gzip9": 5730
+    },
+    "assets/CommunityGamesView-D5iKO3Jj.js.map": {
+      "raw": 31692,
+      "gzip9": 9322
+    },
+    "assets/ConfirmDialog-0muCmxkU.js": {
+      "raw": 1886,
+      "gzip9": 838
+    },
+    "assets/ConfirmDialog-0muCmxkU.js.map": {
+      "raw": 2701,
+      "gzip9": 1255
+    },
+    "assets/GuildsView-Ekf0PFkg.js": {
+      "raw": 11459,
+      "gzip9": 3181
+    },
+    "assets/GuildsView-Ekf0PFkg.js.map": {
+      "raw": 16694,
+      "gzip9": 5114
+    },
+    "assets/PetsView-BK-8HGnV.js": {
+      "raw": 9822,
+      "gzip9": 3182
+    },
+    "assets/PetsView-BK-8HGnV.js.map": {
+      "raw": 15063,
+      "gzip9": 5137
+    },
+    "assets/RimworldView-Dxh7kyWq.js": {
+      "raw": 16546,
+      "gzip9": 4482
+    },
+    "assets/RimworldView-Dxh7kyWq.js.map": {
+      "raw": 21539,
+      "gzip9": 6933
+    },
+    "assets/SocialFamilyView-DW8yLQRB.js": {
+      "raw": 7834,
+      "gzip9": 2624
+    },
+    "assets/SocialFamilyView-DW8yLQRB.js.map": {
+      "raw": 11166,
+      "gzip9": 3954
+    },
+    "assets/StatisticsView-yphamyBl.js": {
+      "raw": 2364,
+      "gzip9": 1000
+    },
+    "assets/StatisticsView-yphamyBl.js.map": {
+      "raw": 3110,
+      "gzip9": 1445
+    },
+    "assets/TournamentPanel-BZI9w71V.css": {
+      "raw": 483,
+      "gzip9": 315
+    },
+    "assets/TournamentPanel-CrnGwmWM.js": {
+      "raw": 5671,
+      "gzip9": 2033
+    },
+    "assets/TournamentPanel-CrnGwmWM.js.map": {
+      "raw": 7606,
+      "gzip9": 2970
+    },
+    "assets/VotingView-BbY9x-h-.js": {
+      "raw": 11492,
+      "gzip9": 3666
+    },
+    "assets/VotingView-BbY9x-h-.js.map": {
+      "raw": 17638,
+      "gzip9": 5822
+    },
+    "assets/auth-CV2p59v7.js": {
+      "raw": 758,
+      "gzip9": 367
+    },
+    "assets/auth-CV2p59v7.js.map": {
+      "raw": 1717,
+      "gzip9": 785
+    },
+    "assets/bannerlord-entry-BCdiOHz4.js": {
+      "raw": 224112,
+      "gzip9": 50153
+    },
+    "assets/bannerlord-entry-BCdiOHz4.js.map": {
+      "raw": 321823,
+      "gzip9": 80230
+    },
+    "assets/bannerlord-entry-Db9qGGtL.css": {
+      "raw": 5444,
+      "gzip9": 1734
+    },
+    "assets/common-DUgbrrgn.css": {
+      "raw": 2826,
+      "gzip9": 1104
+    },
+    "assets/config-BPnW3vJ2.js": {
+      "raw": 5790,
+      "gzip9": 2234
+    },
+    "assets/config-BPnW3vJ2.js.map": {
+      "raw": 8350,
+      "gzip9": 3285
+    },
+    "assets/contracts-CLOA6o65.js": {
+      "raw": 1267,
+      "gzip9": 764
+    },
+    "assets/contracts-CLOA6o65.js.map": {
+      "raw": 6868,
+      "gzip9": 2502
+    },
+    "assets/identity-DwEEfbA5.js": {
+      "raw": 6280,
+      "gzip9": 2384
+    },
+    "assets/identity-DwEEfbA5.js.map": {
+      "raw": 13692,
+      "gzip9": 4898
+    },
+    "assets/jsxRuntime-CV27YSlv.js": {
+      "raw": 27056,
+      "gzip9": 9506
+    },
+    "assets/jsxRuntime-CV27YSlv.js.map": {
+      "raw": 175079,
+      "gzip9": 52829
+    },
+    "assets/main-BJXIP1kg.js": {
+      "raw": 52424,
+      "gzip9": 14144
+    },
+    "assets/main-BJXIP1kg.js.map": {
+      "raw": 83646,
+      "gzip9": 23584
+    },
+    "assets/main-BcDcf8_c.css": {
+      "raw": 7137,
+      "gzip9": 2217
+    },
+    "assets/main-D8c6s0en.js": {
+      "raw": 111033,
+      "gzip9": 28915
+    },
+    "assets/main-D8c6s0en.js.map": {
+      "raw": 194729,
+      "gzip9": 50523
+    },
+    "assets/origin-B6GOuIUI.js": {
+      "raw": 882,
+      "gzip9": 536
+    },
+    "assets/origin-B6GOuIUI.js.map": {
+      "raw": 1785,
+      "gzip9": 986
+    },
+    "assets/style-DmLAWYI3.css": {
+      "raw": 4486,
+      "gzip9": 1616
+    },
+    "assets/tournament-D91d4GCB.js": {
+      "raw": 18134,
+      "gzip9": 5212
+    },
+    "assets/tournament-D91d4GCB.js.map": {
+      "raw": 27997,
+      "gzip9": 8830
+    },
+    "assets/tournament-DXEIGRqF.css": {
+      "raw": 4335,
+      "gzip9": 1516
+    }
+  },
+  "assets_total": {
+    "raw": 1607704,
+    "gzip9": 447681
+  },
+  "runtime_assets_total": {
+    "raw": 593472,
+    "gzip9": 160279
+  },
+  "page": "panel-mobile.html",
+  "initial_files": [
+    "assets/auth-CV2p59v7.js",
+    "assets/contracts-CLOA6o65.js",
+    "assets/identity-DwEEfbA5.js",
+    "assets/jsxRuntime-CV27YSlv.js",
+    "assets/main-D8c6s0en.js",
+    "assets/origin-B6GOuIUI.js",
+    "assets/style-DmLAWYI3.css",
+    "panel-mobile.html"
+  ],
+  "initial_total": {
+    "raw": 152961,
+    "gzip9": 44612
+  },
+  "lazy_chunks": [
+    {
+      "key": "src/colony/ColonyView.tsx",
+      "file": "assets/ColonyView-v_lOmqBt.js",
+      "raw": 16191,
+      "gzip9": 5092,
+      "css": [
+        {
+          "file": "assets/common-DUgbrrgn.css",
+          "raw": 2826,
+          "gzip9": 1104
+        }
+      ]
+    },
+    {
+      "key": "src/common/CasesView.tsx",
+      "file": "assets/CasesView-itAO46g5.js",
+      "raw": 4745,
+      "gzip9": 1844,
+      "css": []
+    },
+    {
+      "key": "src/common/CommonView.tsx",
+      "file": "assets/CommonView-BFoj2wMo.js",
+      "raw": 13002,
+      "gzip9": 3890,
+      "css": [
+        {
+          "file": "assets/common-DUgbrrgn.css",
+          "raw": 2826,
+          "gzip9": 1104
+        }
+      ]
+    },
+    {
+      "key": "src/common/CommunityGamesView.tsx",
+      "file": "assets/CommunityGamesView-D5iKO3Jj.js",
+      "raw": 20013,
+      "gzip9": 5730,
+      "css": []
+    },
+    {
+      "key": "src/common/GuildsView.tsx",
+      "file": "assets/GuildsView-Ekf0PFkg.js",
+      "raw": 11459,
+      "gzip9": 3181,
+      "css": [
+        {
+          "file": "assets/common-DUgbrrgn.css",
+          "raw": 2826,
+          "gzip9": 1104
+        }
+      ]
+    },
+    {
+      "key": "src/common/PetsView.tsx",
+      "file": "assets/PetsView-BK-8HGnV.js",
+      "raw": 9822,
+      "gzip9": 3182,
+      "css": [
+        {
+          "file": "assets/common-DUgbrrgn.css",
+          "raw": 2826,
+          "gzip9": 1104
+        }
+      ]
+    },
+    {
+      "key": "src/common/SocialFamilyView.tsx",
+      "file": "assets/SocialFamilyView-DW8yLQRB.js",
+      "raw": 7834,
+      "gzip9": 2624,
+      "css": []
+    },
+    {
+      "key": "src/common/StatisticsView.tsx",
+      "file": "assets/StatisticsView-yphamyBl.js",
+      "raw": 2364,
+      "gzip9": 1000,
+      "css": []
+    },
+    {
+      "key": "src/common/VotingView.tsx",
+      "file": "assets/VotingView-BbY9x-h-.js",
+      "raw": 11492,
+      "gzip9": 3666,
+      "css": [
+        {
+          "file": "assets/common-DUgbrrgn.css",
+          "raw": 2826,
+          "gzip9": 1104
+        }
+      ]
+    },
+    {
+      "key": "src/common/bannerlord-entry.tsx",
+      "file": "assets/bannerlord-entry-BCdiOHz4.js",
+      "raw": 224112,
+      "gzip9": 50153,
+      "css": [
+        {
+          "file": "assets/bannerlord-entry-Db9qGGtL.css",
+          "raw": 5444,
+          "gzip9": 1734
+        },
+        {
+          "file": "assets/common-DUgbrrgn.css",
+          "raw": 2826,
+          "gzip9": 1104
+        }
+      ]
+    },
+    {
+      "key": "src/panel/TournamentPanel.tsx",
+      "file": "assets/TournamentPanel-CrnGwmWM.js",
+      "raw": 5671,
+      "gzip9": 2033,
+      "css": [
+        {
+          "file": "assets/TournamentPanel-BZI9w71V.css",
+          "raw": 483,
+          "gzip9": 315
+        }
+      ]
+    },
+    {
+      "key": "src/rimworld/RimworldView.tsx",
+      "file": "assets/RimworldView-Dxh7kyWq.js",
+      "raw": 16546,
+      "gzip9": 4482,
+      "css": []
+    }
+  ],
+  "excludes": [
+    "Twitch-hosted Helper script (external and unchanged)",
+    "HTTP API responses",
+    "source maps from initial traffic"
+  ]
+}

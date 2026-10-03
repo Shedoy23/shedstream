@@ -1,0 +1,82 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-policy-catalog.test.tsx > game policy catalog supplies custom IDs/names/descriptions and exact unchanged old action bytes
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-policy-catalog.test.tsx > game policy catalog supplies custom IDs/names/descriptions and exact unchanged old action bytes 1726ms
+   тЖТ expected тАж(12) to have a length of 1 but got 12
+stdout | test/panel-policy-catalog.test.tsx > missing policy catalog has no guessed choices and admits no policy intent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-policy-catalog.test.tsx > missing policy catalog has no guessed choices and admits no policy intent 668ms
+   тЖТ expected тАж(12) to have a length of +0 but got 12
+stdout | test/panel-policy-catalog.test.tsx > changed game policy catalog cancels the paid confirmation for the displayed choice
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-policy-catalog.test.tsx > changed game policy catalog cancels the paid confirmation for the displayed choice 666ms
+   тЖТ Cannot read properties of null (reading 'click')
+
+тОптОптОптОптОптОптОп Failed Tests 3 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-policy-catalog.test.tsx > game policy catalog supplies custom IDs/names/descriptions and exact unchanged old action bytes
+AssertionError: expected тАж(12) to have a length of 1 but got 12
+
+- Expected
++ Received
+
+- 1
++ 12
+
+ тЭп test/panel-policy-catalog.test.tsx:7:68
+      5| it('game policy catalog supplies custom IDs/names/descriptions and exaтАж
+      6|   const p=await kingdomPair({catalogs:g.catalogs});
+      7|   expect(p.ui.container.querySelectorAll('.bnr-diplo-policy-row')).toHтАж
+       |                                                                    ^
+      8|   expect(p.ui.container.querySelector('[data-policy-id="Mod.Policy-X"]тАж
+      9|   await toggle(p,'diplo-policy');
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/3]тОп
+
+ FAIL  test/panel-policy-catalog.test.tsx > missing policy catalog has no guessed choices and admits no policy intent
+AssertionError: expected тАж(12) to have a length of +0 but got 12
+
+- Expected
++ Received
+
+- 0
++ 12
+
+ тЭп test/panel-policy-catalog.test.tsx:21:68
+     19| it('missing policy catalog has no guessed choices and admits no policyтАж
+     20|   const p=await kingdomPair({catalogs:g.catalogs_missing});
+     21|   expect(p.ui.container.querySelectorAll('.bnr-diplo-policy-row')).toHтАж
+       |                                                                    ^
+     22|   expect(await p.controller.diplomacyAction('hero.enact_policy',{policтАж
+     23|   expect(posts(p)).toHaveLength(0);p.check();
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/3]тОп
+
+ FAIL  test/panel-policy-catalog.test.tsx > changed game policy catalog cancels the paid confirmation for the displayed choice
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-policy-catalog.test.tsx:27:87
+     25| it('changed game policy catalog cancels the paid confirmation for the тАж
+     26|   const p=await kingdomPair({catalogs:g.catalogs});await toggle(p,'dipтАж
+     27|   await act(async()=>{(p.ui.container.querySelector('[data-policy-id="тАж
+       |                                                                                       ^
+     28|   expect(p.ui.queryByRole('dialog')).not.toBeNull();
+     29|   p.fixtures.catalogs={...g.catalogs,equipment_session_id:'next-sessioтАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп test/panel-policy-catalog.test.tsx:27:9
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/3]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  13:33:05
+   Duration  10.08s (environment 32%, tests 31%, import 21%, transform 16%)
+

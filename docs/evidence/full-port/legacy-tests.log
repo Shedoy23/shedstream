@@ -1,0 +1,265 @@
+
+=== test-frontend-action-lock.mjs
+  OK   ╤Б╤В╨╛╤А╨╛╨╜╤Л ╨┐╤А╨╕╨╖╤Л╨▓╨░ ╨╜╨╡ ╨┤╨╡╨╗╤П╤В ╨╛╨┤╨╕╨╜ ╨╖╨░╨╝╨╛╨║
+  OK   ╨┐╨╛╨▓╤В╨╛╤А╨╜╤Л╨╣ ╨║╨╗╨╕╨║ ╨┐╨╛ ╤В╨╛╨╣ ╨╢╨╡ ╨║╨╜╨╛╨┐╨║╨╡ ╨╖╨░╨╝╨║╨╛╨╝ ╨╗╨╛╨▓╨╕╤В╤Б╤П
+  OK   ╤А╨░╨╖╨╜╤Л╨╡ ╨┐╤А╨╡╨┤╨╝╨╡╤В╤Л ╨▓ ╨╛╨┤╨╜╨╛╨╝ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╕ ╨╜╨╡ ╨╝╨╡╤И╨░╤О╤В ╨┤╤А╤Г╨│ ╨┤╤А╤Г╨│╤Г
+  OK   client_action_id ╨▓ ╨║╨╗╤О╤З ╨╜╨╡ ╨▓╤Е╨╛╨┤╨╕╤В
+  OK   ╨║╨╗╤О╤З ╨╖╨░╨╝╨║╨░ ╤Б╨╛╨▒╨╕╤А╨░╨╡╤В╤Б╤П ╤Б ╨┐╨░╤А╨░╨╝╨╡╤В╤А╨░╨╝╨╕ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П
+  OK   ╨╖╨░╨▒╨╗╨╛╨║╨╕╤А╨╛╨▓╨░╨╜╨╜╤Л╨╣ ╨║╨╗╨╕╨║ ╨┐╨╛╨║╨░╨╖╤Л╨▓╨░╨╡╤В ╨╛╨▒╤К╤П╤Б╨╜╨╡╨╜╨╕╨╡
+
+╨Т╨б╨Б ╨Ч╨Х╨Ы╨Б╨Э╨Ю╨Х
+
+=== test-frontend-auth-init.mjs
+  OK   ╨┤╨╡╤В╨╡╨║╤В╨╛╤А ╨╗╨╛╨▓╨╕╤В ╨╛╨▒╤К╤П╨▓╨╗╨╡╨╜╨╕╨╡ ╨╜╨╕╨╢╨╡ ╨┐╤А╨╕╤Б╨▓╨░╨╕╨▓╨░╨╜╨╕╤П
+  OK   ╨┐╤А╨░╨▓╨╕╨╗╤М╨╜╤Л╨╣ ╨┐╨╛╤А╤П╨┤╨╛╨║ ╨┤╨╡╤В╨╡╨║╤В╨╛╤А ╨╜╨╡ ╤В╤А╨╛╨│╨░╨╡╤В
+  OK   ╨║╨╛╨╗╨▒╤Н╨║ onAuthorized ╨╜╨░╨╣╨┤╨╡╨╜
+  OK   ╨▓ ╨║╨╛╨╗╨▒╤Н╨║╨╡ ╨╜╨╡╤В ╨┐╤А╨╕╤Б╨▓╨░╨╕╨▓╨░╨╜╨╕╨╣ ╨┐╨╡╤А╨╡╨╝╨╡╨╜╨╜╤Л╨╝, ╨╛╨▒╤К╤П╨▓╨╗╨╡╨╜╨╜╤Л╨╝ ╨╜╨╕╨╢╨╡
+
+╨Т╨б╨Б ╨Ч╨Х╨Ы╨Б╨Э╨Ю╨Х
+
+=== test-frontend-bannerlord-details-dom.mjs
+PASS post-render details: vas-create
+PASS post-render details: ws-buy
+PASS post-render details: caravan-buy
+PASS post-render details: party-order
+PASS post-render details: diplo-policy
+PASS post-render details: diplo-peace
+PASS post-render details: kingdom-create
+PASS post-render details: kingdom-join
+PASS post-render details: locked-create
+PASS post-render details: locked-join
+PASS post-render details: retinue
+PASS post-render section: workshops
+PASS post-render section: caravans
+PASS post-render section: fiefs
+PASS post-render section: partyorders
+PASS post-render section: diplomacy
+PASS post-render section: army
+PASS changed async data rebinds new nodes and retains collapsed section
+PASS retinue replacement binds new closed details without hero structural repaint
+PASS inactive outer integration tab blocks dynasty HTTP and visible callback refreshes entry
+PASS hidden viewer panel blocks dynasty HTTP and panel restore callback refreshes
+21/21 passed
+
+=== test-frontend-bannerlord-diplomacy-cooldowns.mjs
+PASS war: ordinary refusal never invents a 300s cooldown
+PASS war: network error never invents a 300s cooldown
+PASS war: success without cooldown never invents a 300s cooldown
+PASS war: accepted uses server duration and existing absolute clock
+PASS war: cooldown refusal uses server duration and existing absolute clock
+PASS peace: ordinary refusal never invents a 300s cooldown
+PASS peace: network error never invents a 300s cooldown
+PASS peace: success without cooldown never invents a 300s cooldown
+PASS peace: accepted uses server duration and existing absolute clock
+PASS peace: cooldown refusal uses server duration and existing absolute clock
+PASS initial server cooldown survives diplomacy repaint and expires without stale disabled state
+PASS server poll replaces local deadline and can clear it
+PASS pre-action poll cannot clear newer accepted action cooldown
+PASS pre-action poll cannot clear newer cooldown refusal cooldown
+PASS newest buff request wins reversed responses
+PASS overlapping slow polls still apply completed snapshots without starvation
+PASS buff response is ignored after stop
+PASS buff response is ignored after token
+18/18 passed
+
+=== test-frontend-bannerlord-economic-config.mjs
+PASS hero.create_clan: absent config disables the real control and direct action
+PASS hero.create_clan: invalid price null cannot send
+PASS hero.create_clan: invalid price "" cannot send
+PASS hero.create_clan: invalid price " " cannot send
+PASS hero.create_clan: invalid price true cannot send
+PASS hero.create_clan: invalid price -1 cannot send
+PASS hero.create_clan: invalid price null cannot send
+PASS hero.create_clan: invalid price "12345" cannot send
+PASS hero.create_clan: explicit server zero remains a valid quote
+PASS hero.create_clan: failed retry keeps the purchase closed; retry recovers in place
+PASS hero.create_kingdom: absent config disables the real control and direct action
+PASS hero.create_kingdom: invalid price null cannot send
+PASS hero.create_kingdom: invalid price "" cannot send
+PASS hero.create_kingdom: invalid price " " cannot send
+PASS hero.create_kingdom: invalid price true cannot send
+PASS hero.create_kingdom: invalid price -1 cannot send
+PASS hero.create_kingdom: invalid price null cannot send
+PASS hero.create_kingdom: invalid price "12345" cannot send
+PASS hero.create_kingdom: explicit server zero remains a valid quote
+PASS hero.create_kingdom: failed retry keeps the purchase closed; retry recovers in place
+PASS hero.create_vassal_clan: absent config disables the real control and direct action
+PASS hero.create_vassal_clan: invalid price null cannot send
+PASS hero.create_vassal_clan: invalid price "" cannot send
+PASS hero.create_vassal_clan: invalid price " " cannot send
+PASS hero.create_vassal_clan: invalid price true cannot send
+PASS hero.create_vassal_clan: invalid price -1 cannot send
+PASS hero.create_vassal_clan: invalid price null cannot send
+PASS hero.create_vassal_clan: invalid price "12345" cannot send
+PASS hero.create_vassal_clan: explicit server zero remains a valid quote
+PASS hero.create_vassal_clan: failed retry keeps the purchase closed; retry recovers in place
+PASS hero.recruit_vassal_clan: absent config disables the real control and direct action
+PASS hero.recruit_vassal_clan: invalid price null cannot send
+PASS hero.recruit_vassal_clan: invalid price "" cannot send
+PASS hero.recruit_vassal_clan: invalid price " " cannot send
+PASS hero.recruit_vassal_clan: invalid price true cannot send
+PASS hero.recruit_vassal_clan: invalid price -1 cannot send
+PASS hero.recruit_vassal_clan: invalid price null cannot send
+PASS hero.recruit_vassal_clan: invalid price "12345" cannot send
+PASS hero.recruit_vassal_clan: explicit server zero remains a valid quote
+PASS hero.recruit_vassal_clan: failed retry keeps the purchase closed; retry recovers in place
+PASS hero.create_clan: Enter cannot bypass missing price or discard typed name
+PASS hero.create_kingdom: Enter cannot bypass missing price or discard typed name
+PASS vassal crustic metadata is required independently and both server amounts are shown
+PASS one missing quote does not block another action or dynamic/free actions
+PASS late config after stop cannot enable old controls or beat retry
+PASS late config after token cannot enable old controls or beat retry
+PASS same-context config requests are single-flight
+PASS network failure clears the loader and an actual retry can recover
+PASS json failure clears the loader and an actual retry can recover
+PASS retry during loading deduplicates but a renewed token gets a new owner
+PASS late config after stop alone stays unknown and retryable
+PASS late config after token alone stays unknown and retryable
+PASS a valid quote becoming unavailable immediately closes open-form purchase without erasing input
+PASS changed price while recruit confirmation is open requires a fresh confirmation
+PASS recruit confirmation cannot survive stop
+PASS recruit confirmation cannot survive token
+PASS recruit confirmation cannot survive error
+PASS legacy fallback callers remain compatible and missing strict gold is not zero
+58/58 passed
+
+=== test-frontend-bannerlord-lifecycle.mjs
+PASS hero recovers identical data after server error
+PASS hero recovers identical data after network error
+PASS hero newest request wins reversed responses
+PASS old hero failure cannot replace fresh success
+PASS hero response after stop does not render or start dynasty work
+PASS stop/restart rejects the previous hero lifecycle
+PASS old authenticated hero response is ignored after token change
+PASS hidden dynasty makes no sub-loader fanout; opening loads every summary
+PASS hidden document and nonleader do not start leader requests
+PASS same hero returns after missing DOM replacement
+PASS same hero returns after dead DOM replacement
+PASS shared action refresh rejects stopped lifecycle (pending)
+PASS shared action refresh rejects stopped lifecycle (scheduled)
+PASS shared action cooldown ignores late callback after stop
+PASS shared action cooldown ignores late callback after token
+15/15 passed
+
+=== test-frontend-bannerlord-price-tooltip.mjs
+  OK   ╤Д╨╛╤А╨╝╨░╤В╤В╨╡╤А ╤Б╨╛╤Е╤А╨░╨╜╤П╨╡╤В ╤Ж╨╡╨╜╤Г ╨▓ ╨║╤А╤Г╤Б╤В╨╕╨║╨░╤Е
+  OK   ╨┐╨╛╨┤╤Б╨║╨░╨╖╨║╨░ ╨┐╨╛╨║╨░╨╖╤Л╨▓╨░╨╡╤В ╤Ж╨╡╨╜╤Г ╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П
+  OK   ╨┐╨╛╨┤╤Б╨║╨░╨╖╨║╨░ ╨╜╨╡ ╨╜╨░╨╖╤Л╨▓╨░╨╡╤В ╨┐╨╗╨░╤В╨╜╨╛╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡ ╨▒╨╡╤Б╨┐╨╗╨░╤В╨╜╤Л╨╝
+  OK   null action price ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В fallback
+  OK   ╨┐╤Г╤Б╤В╨░╤П action price ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В fallback
+  OK   ╤П╨▓╨╜╨░╤П ╨╜╤Г╨╗╨╡╨▓╨░╤П action price ╤Б╨╛╤Е╤А╨░╨╜╤П╨╡╤В╤Б╤П
+  OK   null hero gold ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В fallback
+  OK   ╤П╨▓╨╜╨░╤П ╨╜╤Г╨╗╨╡╨▓╨░╤П hero gold ╤Б╨╛╤Е╤А╨░╨╜╤П╨╡╤В╤Б╤П
+
+╨Т╨б╨Б ╨Ч╨Х╨Ы╨Б╨Э╨Ю╨Х
+
+=== test-frontend-bannerlord-rename-dom.mjs
+PASS rename cancel exits editor and can reopen
+PASS rename unchanged exits editor and can reopen
+PASS rename success closes editor, refreshes echoed name and stays reusable
+PASS failed mutation false preserves edit and allows retry
+PASS failed mutation null preserves edit and allows retry
+PASS failed mutation {"success":false,"message":"Denied"} preserves edit and allows retry
+PASS thrown mutation preserves edit, reports error, and can cancel
+PASS pending rename ignores repeated submission and poll preserves input
+PASS invalid names do not submit or close editor
+PASS vassal read failure keeps the last good UI
+PASS old vassal request does not overwrite a newer result
+PASS stop invalidates pending rename and restart can load a fresh editor
+PASS stop invalidates pending vassal read
+PASS accepted rename timer cannot refresh after stop
+PASS poll begun before editing cannot erase an empty-list edit
+PASS dynasty HTTP fanout is deferred but opening preserves real summaries
+PASS JWT refresh keeps cached rename handler alive (poll=false)
+PASS JWT refresh keeps cached rename handler alive (poll=true)
+PASS open editor survives JWT refresh: cancel
+PASS open editor survives JWT refresh: unchanged
+PASS open editor survives JWT refresh: submit
+PASS token rotation during pending rename fences old success and reloads
+PASS token rotation during pending rename fences old failure and reloads
+PASS token rotation during pending rename fences old throw and reloads
+PASS changed user cannot submit old form and can bind a fresh one
+PASS changed channel cannot submit old form and can bind a fresh one
+PASS changed identity fences old pending result without erasing new editor
+PASS JWT refresh during a vassal read drops old response and new read recovers
+28/28 passed
+
+=== test-frontend-bannerlord-slow-poll.mjs
+PASS real 8s hero polling keeps rendering each successful 9s response
+PASS real visible dynasty dispatch keeps rendering successful overlapping 9s pairs
+PASS hero reversed completed results still favor the newer request
+PASS vassal reversed completed results still favor the newer request
+PASS new hero failure fences older success, next slow success can recover
+PASS enter then cancel editor still invalidates pre-edit reads
+PASS accepted action fences pre-action hero reads until fresh reload
+PASS accepted action fences pre-action vassal reads until fresh reload
+8/8 passed
+
+=== test-frontend-boot.mjs
+  OK   ╤Е╨░╤А╨╜╨╡╤Б╤Б ╨▓╨╕╨┤╨╕╤В ╨╛╤И╨╕╨▒╨║╤Г ╨▓╤Л╨┐╨╛╨╗╨╜╨╡╨╜╨╕╤П
+  OK   ╤Б╤В╨░╤А╤В╨╛╨▓╤Л╨╣ ╨╛╨▒╤А╨░╨▒╨╛╤В╤З╨╕╨║ ╨┐╨░╨╜╨╡╨╗╨╕ ╨╜╨░╨╣╨┤╨╡╨╜ ╨╕ ╨▓╤Л╨╖╨▓╨░╨╜
+  OK   ╨┐╨░╨╜╨╡╨╗╤М ╨╖╨░╨│╤А╤Г╨╢╨░╨╡╤В╤Б╤П ╨┐╤А╨╕ ╤Б╨╕╨╜╤Е╤А╨╛╨╜╨╜╨╛╨╝ onAuthorized
+  OK   ╨┐╨╛╨╗╤Г╤З╨╕╨▓ ╤В╨╛╨║╨╡╨╜, ╨┐╨░╨╜╨╡╨╗╤М ╨╕╨┤╤С╤В ╨╛╨┐╨╛╨╖╨╜╨░╨▓╨░╤В╤М╤Б╤П
+  OK   ╨┐╨░╨╜╨╡╨╗╤М ╨╖╨░╨│╤А╤Г╨╢╨░╨╡╤В╤Б╤П ╨╕ ╨▒╨╡╨╖ Twitch-╤Е╨╡╨╗╨┐╨╡╤А╨░
+
+╨Т╨б╨Б ╨Ч╨Х╨Ы╨Б╨Э╨Ю╨Х
+
+=== test-frontend-cases-open-all.mjs
+  OK   ╨║╨╜╨╛╨┐╨║╨░ ╤Б╨╜╨╛╨▓╨░ ╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░ ╨┐╨╛╤Б╨╗╨╡ ╨╛╤В╨║╨░╨╖╨░
+  OK   ╨╕╤Б╤Е╨╛╨┤╨╜╨░╤П ╨┐╨╛╨┤╨┐╨╕╤Б╤М ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨░ ╨┐╨╛╤Б╨╗╨╡ ╨╛╤В╨║╨░╨╖╨░
+
+=== test-frontend-core-prices.mjs
+  OK   null ╨╕ ╨┐╤Г╤Б╤В╨░╤П ╤Б╤В╤А╨╛╨║╨░ ╨╜╨╡ ╨┐╤А╨╡╨▓╤А╨░╤Й╨░╤О╤В╤Б╤П ╨▓ ╨╜╨╛╨╗╤М
+  OK   ╤П╨▓╨╜╤Л╨╣ ╤Б╨╡╤А╨▓╨╡╤А╨╜╤Л╨╣ ╨╜╨╛╨╗╤М ╤Б╨╛╤Е╤А╨░╨╜╤П╨╡╤В╤Б╤П
+  OK   ╨╜╨╡╤В ╨╛╤В╨┤╨╡╨╗╤М╨╜╨╛╨╣ ╨║╨╛╨╜╤Б╤В╨░╨╜╤В╤Л ╤Ж╨╡╨╜╤Л TTS
+  OK   ╨╝╨╛╨┤╨░╨╗╨║╨░ ╨┐╨╛╨╗╤Г╤З╨░╨╡╤В ╤Ж╨╡╨╜╤Г ╨╕╨╖ core config
+  OK   ╨│╨╡╨╣╤В ╨▒╨░╨╗╨░╨╜╤Б╨░ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В ╤Б╨╡╤А╨▓╨╡╤А╨╜╤Г╤О ╤Ж╨╡╨╜╤Г
+  OK   ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╨╡ ╨┐╨╛╨║╨░╨╖╤Л╨▓╨░╨╡╤В ╤Б╨╡╤А╨▓╨╡╤А╨╜╤Г╤О ╤Ж╨╡╨╜╤Г
+  OK   ╨╗╨╕╨╝╨╕╤В TTS ╨┐╤А╨╕╤Е╨╛╨┤╨╕╤В ╨╕╨╖ core config
+  OK   ╨╜╨╡╤В ╨╛╤В╨┤╨╡╨╗╤М╨╜╨╛╨╣ ╨║╨╛╨╜╤Б╤В╨░╨╜╤В╤Л ╨╗╨╕╨╝╨╕╤В╨░ TTS
+
+╨Т╨б╨Б ╨Ч╨Х╨Ы╨Б╨Э╨Ю╨Х
+
+=== test-frontend-rimworld-prices.mjs
+  OK   ╨▒╨╡╨╖ ╨╛╤В╨▓╨╡╤В╨░ ╤Б╨╡╤А╨▓╨╡╤А╨░ ╤А╨╕╤Б╤Г╤О╤В╤Б╤П ╨╖╨░╨┐╨░╤Б╨╜╤Л╨╡ ╤З╨╕╤Б╨╗╨░
+  OK   ╤Ж╨╡╨╜╨░ ╨╗╨╡╤З╨╡╨╜╨╕╤П ╨┐╤А╨╕╤Е╨╛╨┤╨╕╤В ╤Б ╤Б╨╡╤А╨▓╨╡╤А╨░
+  OK   ╤Ж╨╡╨╜╨░ ╨▓╨╛╤Б╨║╤А╨╡╤И╨╡╨╜╨╕╤П ╨┐╤А╨╕╤Е╨╛╨┤╨╕╤В ╤Б ╤Б╨╡╤А╨▓╨╡╤А╨░
+  OK   ╤Ж╨╡╨╜╨░ ╤Б╨╛╨╖╨┤╨░╨╜╨╕╤П ╨┐╨╡╤И╨║╨╕ ╨┐╤А╨╕╤Е╨╛╨┤╨╕╤В ╤Б ╤Б╨╡╤А╨▓╨╡╤А╨░
+  OK   ╨▒╨╕╤В╤Г╤О ╤Ж╨╡╨╜╤Г ╨┐╨╛╨┤╨╝╨╡╨╜╤П╨╡╤В ╨╖╨░╨┐╨░╤Б╨╜╨░╤П
+  OK   null ╨╕ ╨┐╤Г╤Б╤В╨░╤П ╤Ж╨╡╨╜╨░ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╤О╤В fallback, ╤П╨▓╨╜╤Л╨╣ ╨╜╨╛╨╗╤М ╤Б╨╛╤Е╤А╨░╨╜╤П╨╡╤В╤Б╤П
+  OK   ╤Г╨┤╨░╨╗╨╡╨╜╨╕╨╡ ╤З╨╡╤А╤В╤Л ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В ╤Б╨╡╤А╨▓╨╡╤А╨╜╤Г╤О ╤Ж╨╡╨╜╤Г
+  OK   ╤Г╨┤╨░╨╗╨╡╨╜╨╕╨╡ ╨│╨╡╨╜╨░ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В ╤Б╨╡╤А╨▓╨╡╤А╨╜╤Г╤О ╤Ж╨╡╨╜╤Г
+  OK   ╨│╨╡╨╣╤В ╤Б╨╛╨╖╨┤╨░╨╜╨╕╤П ╨┐╨╡╤И╨║╨╕ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В ╤Б╨╡╤А╨▓╨╡╤А╨╜╤Г╤О ╤Ж╨╡╨╜╤Г
+  OK   ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╨╡ ╤Б╨╛╨╖╨┤╨░╨╜╨╕╤П ╨┐╨╡╤И╨║╨╕ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В ╤Б╨╡╤А╨▓╨╡╤А╨╜╤Г╤О ╤Ж╨╡╨╜╤Г
+  OK   ╨┐╨╛╨╖╨┤╨╜╨╕╨╣ ╨║╨╛╨╜╤Д╨╕╨│ ╨┐╨╡╤А╨╡╤А╨╕╤Б╨╛╨▓╤Л╨▓╨░╨╡╤В ╨┐╨╡╤И╨║╤Г
+  OK   ╨▓ pawn.js ╨╜╨╡╤В ╤З╨╕╤Б╨╗╨╛╨▓╤Л╤Е ╤Ж╨╡╨╜
+  OK   ╤Г ╨║╨╜╨╛╨┐╨╛╨║ ShedColony ╤Ж╨╡╨╜╨░ ╨╜╨╡ ╨▓╨┐╨╕╤Б╨░╨╜╨░ ╤З╨╕╤Б╨╗╨╛╨╝
+
+╨Т╨б╨Б ╨Ч╨Х╨Ы╨Б╨Э╨Ю╨Х
+
+=== test-frontend-state-race.mjs
+  OK   ╨╛╤В╨▓╨╡╤В╤Л ╨▓ ╨╛╨▒╤А╨░╤В╨╜╨╛╨╝ ╨┐╨╛╤А╤П╨┤╨║╨╡: ╨┐╨╛╨▒╨╡╨╢╨┤╨░╨╡╤В ╤Б╨▓╨╡╨╢╨╕╨╣ ╨▒╨░╨╗╨░╨╜╤Б, ╨░ ╨╜╨╡ ╤Б╤В╨░╤А╤Л╨╣
+  OK   ╤Б╤В╨░╤А╤Л╨╣ ┬лunauthorized┬╗ ╨┐╨╛╤Б╨╗╨╡ ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╤П ╨▓╤Е╨╛╨┤╨░ ╨╜╨╡ ╨│╨░╤Б╨╕╤В ╨┐╨░╨╜╨╡╨╗╤М
+
+╨Т╨б╨Б ╨Ч╨Х╨Ы╨Б╨Э╨Ю╨Х
+
+=== test-frontend-usage-wiring.mjs
+PASS count attempts including duplicate guard, without recording action data
+PASS telemetry exception does not prevent the original request
+PASS real tab changes count once; restored/current tabs are not opens
+PASS both future shells load one usage collector before action dispatcher
+PASS Bannerlord tabs/details count user transitions, not restore or render
+PASS offscreen panel has no exposure; real reopen refreshes visible game
+PASS visible refresh stays owned by the active registered game
+7/7 usage wiring cases passed
+
+=== test-frontend-usage.mjs
+PASS: explicit hooks only, aggregate counts, bounded batches, retry dedupe, auth-bound queue, no private payload
+
+=== test-viewer-auth-recovery.mjs
+PASS identity recovery refreshes balance, income, quests, cases and role
+PASS reauthorization removes prompt and refreshes state immediately
+PASS declined identity share leaves login retry usable despite old login
+PASS statistics tab bypasses cached personal responses
+
+17/17 frontend gate files passed

@@ -1,0 +1,336 @@
+{
+  "browser": "145.0.7632.6",
+  "widths": [
+    1280,
+    375
+  ],
+  "browserSandbox": true,
+  "cspBypass": false,
+  "errors": [
+    "hero overflows viewport 375",
+    "equipment overflows viewport 375",
+    "dynasty overflows viewport 375",
+    "combat overflows viewport 375"
+  ],
+  "blocked": [],
+  "trace": [
+    {
+      "method": "POST",
+      "path": "/api/user/resolve-twitch-token",
+      "query": "",
+      "body": "{\"token\":\"fixture-only\",\"opaque_id\":\"fixture-alice\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/config",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-hero",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/classes",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/build",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/duel/list",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+      "body": "{\"action_type\":\"hero.join_tournament\",\"data\":{\"price\":0,\"client_action_id\":\"a0e9c4f9-1b23-4b51-b41c-3d45186cc109\"}}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/duel/list",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+      "body": "{\"action_type\":\"tournament.predict\",\"data\":{\"target\":\"bobby\",\"client_action_id\":\"de4419c0-2aa2-4b9e-8656-bbf765185b4e\"}}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/duel/list",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/equipment-shop",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/user/resolve-twitch-token",
+      "query": "",
+      "body": "{\"token\":\"fixture-only\",\"opaque_id\":\"fixture-alice\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/config",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-hero",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/classes",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/build",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/duel/list",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+      "body": "{\"action_type\":\"hero.join_tournament\",\"data\":{\"price\":0,\"client_action_id\":\"87583977-914e-4c82-a99a-22c9c646735d\"}}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/duel/list",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+      "body": "{\"action_type\":\"tournament.predict\",\"data\":{\"target\":\"bobby\",\"client_action_id\":\"eedb115d-f311-4509-9afd-d1405c2acf79\"}}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/duel/list",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/equipment-shop",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-hero",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/build",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/equipment-shop",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    }
+  ]
+}

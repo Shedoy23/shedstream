@@ -1,0 +1,60 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > ransom contribution acceptance keeps captured viewer and both continuations
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > ransom contribution acceptance keeps captured viewer and both continuations
+[FE-VAS] loaded vassals=1 eligible=1
+
+ ❯ test/panel-vassal-ransom-parity.test.tsx (11 tests | 1 failed | 10 skipped) 1219ms
+   × ransom contribution acceptance keeps captured viewer and both continuations 1216ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 skipped (11)
+   Start at  18:59:30
+   Duration  5.91s (environment 37%, import 24%, tests 22%, transform 17%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > ransom contribution acceptance keeps captured viewer and both continuations
+AssertionError: expected [ { method: 'GET', …(7) }, …(29) ] to deeply equal [ { method: 'GET', …(7) }, …(29) ]
+
+- Expected
++ Received
+
+@@ -141,20 +141,20 @@
+    },
+    {
+      "body": {
+        "action_type": "hero.pay_ransom",
+        "data": {
+-         "captured_hero": "bob",
++         "captured_hero": "wrong-viewer",
+          "client_action_id": "<generated-id>",
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.pay_ransom\",\"data\":{\"captured_hero\":\"bob\",\"client_action_id\":\"<generated-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.pay_ransom\",\"data\":{\"captured_hero\":\"wrong-viewer\",\"client_action_id\":\"<generated-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": "no-store",
+
+ ❯ check test/panel-hero-support.tsx:61:102
+
+ ❯ Object.finish test/panel-hero-support.tsx:65:131
+ ❯ test/panel-vassal-ransom-parity.test.tsx:34:383
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

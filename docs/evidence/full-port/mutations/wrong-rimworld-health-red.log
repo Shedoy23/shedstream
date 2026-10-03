@@ -1,0 +1,28 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (32 tests | 1 failed | 31 skipped) 1519ms
+   × rimworld whole shell boot preserves startup order duplicate pawn reads five minute traffic and data 1517ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 31 skipped (32)
+   Start at  18:56:38
+   Duration  5.97s (environment 43%, tests 27%, import 20%, transform 10%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld whole shell boot preserves startup order duplicate pawn reads five minute traffic and data
+AssertionError: expected 'Моя пешкаОбновить пешкуАлисаЖива · 0%…' to contain '73%'
+
+Expected: "73%"
+Received: "Моя пешкаОбновить пешкуАлисаЖива · 0% · ДолинаЛечить · 150 💎СнаряжениеМеч поселенца · weapon · 61/100tooltip: Описание мечаquality: excellentdescription: Старый мечweapon_traits: ТочныйОгоньки страстиНейротренерыКсенотипыНавыкиConstruction: 9 · страсть 1  · опыт 137Shooting: 4 · страсть 0  · опыт 0Artistic: 0 · страсть 0 · недоступен · опыт 0ЧертыЗадумчивый: Из наблюдаемого состоянияУдалить черту Задумчивый · 300 💎ГеныСтарый ген · ксеноген · неактивен mod-geneУдалить ген Старый ген · 3000 💎Здоровье и имплантыУшиб · торс · 0.21 Парная рука · левая рука · 0 левая сторона"
+
+ ❯ test/panel-rimworld-parity.test.tsx:18:284
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

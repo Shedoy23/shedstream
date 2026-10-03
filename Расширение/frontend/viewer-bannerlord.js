@@ -41,6 +41,136 @@ let _bannerlordLastRetinue = [];         // last retinue snapshot — repaint б
 let _bannerlordLastHero = null;          // last /my-hero snapshot — для progression modal
 let _bnrOptimisticStance = null;         // 2026-06-10 — оптимистичная боевая стойка до эха мода
 
+// Game-owned metadata. Missing/offline catalogs never synthesize vanilla entries.
+let _bnrContentCatalogs = null;
+let _bnrCatalogRequest = null;
+let _bnrCatalogGeneration = 0;
+function _resetBnrContentCatalogs() {
+    _bnrCatalogGeneration++;
+    _bnrContentCatalogs = null;
+    _bnrCatalogRequest = null;
+    _bnrProgressionSnapshot = null;
+    _bnrProgressionRequest = null;
+    _bnrProgressionActor = null;
+    _bnrProgressionRequestActor = null;
+}
+async function _loadBnrContentCatalogs() {
+    if (_bnrCatalogRequest) return _bnrCatalogRequest;
+    const generation = _bnrCatalogGeneration;
+    const request = (async () => {
+        let data = null;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        try {
+            const response = await fetch(`${API_URL}/api/bannerlord/content-catalogs`, {
+                headers: { 'X-Twitch-JWT': authToken || '' },
+                signal: controller.signal
+            });
+            if (response.ok === false) throw new Error('catalog_request_failed');
+            const payload = await response.json();
+            if (payload && payload.success === true) data = payload;
+        } catch (_) { /* Show unavailable, never retain a previous save's choices. */ }
+        finally { clearTimeout(timeout); }
+        if (generation !== _bnrCatalogGeneration) return null;
+        _bnrContentCatalogs = data;
+        return data;
+    })();
+    _bnrCatalogRequest = request;
+    try { return await request; }
+    finally { if (_bnrCatalogRequest === request) _bnrCatalogRequest = null; }
+}
+function _bnrContentCatalog(kind) {
+    const catalog = _bnrContentCatalogs?.[kind];
+    if (!catalog || catalog.available !== true || !Array.isArray(catalog.entries)) {
+        return {available:false, reason:catalog?.reason || 'Каталог из игры не получен', entries:[]};
+    }
+    const seen = new Set();
+    const entries = catalog.entries.filter(entry => {
+        if (!entry || typeof entry.id !== 'string' || !entry.id || seen.has(entry.id)) return false;
+        seen.add(entry.id);
+        return true;
+    });
+    return {available:true, reason:catalog.reason, entries};
+}
+function _bnrContentName(kind, id) {
+    const entries = _bnrContentCatalog(kind).entries;
+    let entry = entries.find(item => item.id === id);
+    // Legacy /my-hero capitalized six vanilla attribute IDs. Custom IDs stay exact.
+    if (!entry && kind === 'attributes' && ['Vigor','Control','Endurance','Cunning','Social','Intelligence'].includes(id)) {
+        entry = entries.find(item => item.id === id.toLowerCase());
+    }
+    return typeof entry?.name === 'string' && entry.name ? entry.name : id;
+}
+function _bnrDistinctSkills(skills) {
+    // Historical skill.change stored lowercase vanilla IDs. This is migration
+    // compatibility only: no rows are created and custom IDs remain case-sensitive.
+    const vanilla = ['OneHanded','TwoHanded','Polearm','Bow','Crossbow','Throwing',
+        'Athletics','Riding','Crafting','Scouting','Tactics','Roguery',
+        'Charm','Leadership','Trade','Steward','Medicine','Engineering'];
+    const runtimeIds = new Set(_bnrContentCatalog('skills').entries.map(entry => entry.id));
+    const rows = (Array.isArray(skills) ? skills : []).filter(s => s && typeof s.skill_key === 'string');
+    const selected = new Map();
+    for (const row of rows) {
+        const id = row.skill_key;
+        const nativeId = vanilla.find(key => key.toLowerCase() === id.toLowerCase());
+        const declaredAliases = nativeId ? [...runtimeIds].filter(key => key.toLowerCase() === nativeId.toLowerCase()) : [];
+        const key = nativeId && declaredAliases.length < 2 ? nativeId : id;
+        const rank = runtimeIds.has(id) ? 2 : id === nativeId ? 1 : 0;
+        if (!selected.has(key) || rank > selected.get(key).rank) selected.set(key, {row, rank});
+    }
+    return [...selected.values()].map(item => item.row);
+}
+
+// Personal, game-owned progression offers. Never fall back to local tariffs.
+let _bnrProgressionSnapshot = null;
+let _bnrProgressionRequest = null;
+let _bnrProgressionActor = null;
+let _bnrProgressionRequestActor = null;
+let _bnrProgressionActorVersion = 0;
+async function _loadBnrProgression() {
+    const actor = authToken || '';
+    if (_bnrProgressionRequest && _bnrProgressionRequestActor === actor) return _bnrProgressionRequest;
+    if (_bnrProgressionActor !== actor) _bnrProgressionSnapshot = null;
+    const generation = _bnrCatalogGeneration;
+    const request = (async () => {
+        let snapshot = null;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        try {
+            const response = await fetch(`${API_URL}/api/bannerlord/progression`, {
+                headers: { 'X-Twitch-JWT': actor },
+                cache: 'no-store', signal: controller.signal
+            });
+            if (response.ok === false) throw new Error('progression_request_failed');
+            const payload = await response.json();
+            if (payload?.success === true) snapshot = payload;
+        } catch (_) { /* Numeric hero state remains visible; purchases stop. */ }
+        finally { clearTimeout(timeout); }
+        if (generation !== _bnrCatalogGeneration || actor !== (authToken || '')) return null;
+        _bnrProgressionSnapshot = snapshot;
+        if (_bnrProgressionActor !== actor) _bnrProgressionActorVersion++;
+        _bnrProgressionActor = actor;
+        return snapshot;
+    })();
+    _bnrProgressionRequest = request;
+    _bnrProgressionRequestActor = actor;
+    try { return await request; }
+    finally { if (_bnrProgressionRequest === request) _bnrProgressionRequest = null; }
+}
+function _bnrProgressionContext(snapshot) {
+    if (_bnrProgressionActor !== (authToken || '') || snapshot?.ready !== true || !snapshot.progression) return null;
+    const context = snapshot.context;
+    if (!context || !['save_id','equipment_session_id','hero_id'].every(key => typeof context[key] === 'string' && context[key])) return null;
+    return {save_id:context.save_id, equipment_session_id:context.equipment_session_id, hero_id:context.hero_id};
+}
+function _bnrProgressionMoney(value) {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+function _bnrProgressionReason(snapshot) {
+    return snapshot?.pending ? 'Предыдущее действие ещё выполняется'
+        : snapshot?.message || snapshot?.reason || 'Предложения прокачки из игры не получены';
+}
+
 // Sprint 5.5: helper для проверки battle state (для banner / future use).
 function bnrIsInBattle() { return !!(_bannerlordBattle && _bannerlordBattle.in_battle); }
 function bnrCanUseActivePowers() {
@@ -563,10 +693,8 @@ let _bannerlordClassesCache = null;
 
 // ===== Sprint 5.8: Focus / Attribute investments (Hero.Gold cost) =====
 // Перенесено в viewer-bannerlord.js (ROADMAP 2.4, Bannerlord split чанк 2, 2026-06-13).
-// loadBannerlordProgression + консты BNR_SKILLS / BNR_SKILL_LABELS_RU / BNR_ATTRIBUTES /
-// BNR_ATTR_* / BNR_FOCUS_TIER_COSTS / BNR_ATTRIBUTE_COST. Зовётся из _startBannerlordPolling.
-// NB: BNR_SKILL_LABELS_RU используется hero-card НИЖЕ (кросс-файловая ссылка в рантайме,
-// пока hero-card в core; переедет — связь станет внутрифайловой).
+// loadBannerlordProgression показывает только переданные игрой навыки/атрибуты.
+// Цены и доступность покупки приходят в персональном снимке игры.
 
 // Sprint 5.11: общий helper для открытия modal — clan / kingdom management.
 // Содержит варианты create / join / leave в зависимости от текущего state.
@@ -663,6 +791,7 @@ function _stopBannerlordPolling() {
     _bnrRefreshEconomicUi();
     _bannerlordLastHero = null;
     document.getElementById('bnr-vassals-slot')?.replaceChildren();
+    _resetBnrContentCatalogs();
     BnrBuilds.reset();
     BnrEquipmentShop.reset();
     document.getElementById('bnr-summon-slot')?.replaceChildren();
@@ -915,12 +1044,9 @@ async function _hydrateBnrConfig() {
             _bnrCfg = c;
             _bnrCfgState = 'ready';
             if (typeof BnrUiConfig !== 'undefined') BnrUiConfig.update(c.ui);
-            if (Array.isArray(c.focus_tier_costs))         BNR_FOCUS_TIER_COSTS = c.focus_tier_costs;
-            if (typeof c.attribute_cost === 'number')      BNR_ATTRIBUTE_COST   = c.attribute_cost;
             if (Array.isArray(c.recruit_tier_costs))       RETINUE_TIER_DINARS  = c.recruit_tier_costs;
             if (typeof c.recruit_elite_mult === 'number')  RETINUE_ELITE_MULT   = c.recruit_elite_mult;
             if (Array.isArray(c.give_gold_presets))        GIVE_GOLD_OPTIONS    = c.give_gold_presets;
-            if (Array.isArray(c.add_skill_presets))        ADD_SKILL_OPTIONS    = c.add_skill_presets;
             if (c.gear_upgrade_costs && typeof HERO_GOLD_TIER_COSTS !== 'undefined') {
                 HERO_GOLD_TIER_COSTS = c.gear_upgrade_costs;
             }
@@ -1214,167 +1340,94 @@ function _promptBannerlordPredict(target) {
 
 
 // ===== Sprint 5.8: Focus / Attribute investments (Hero.Gold cost) — split чанк 2 (2026-06-13) =====
-// NB: BNR_SKILL_LABELS_RU также используется hero-card в viewer.js (пока в core) —
-// она ссылается на эту консту кросс-файлово в рантайме (top-level const видна всем
-// классическим скриптам). Когда hero-card переедет сюда — связь станет внутрифайловой.
-const BNR_SKILLS = [
-    'OneHanded', 'TwoHanded', 'Polearm', 'Bow', 'Crossbow', 'Throwing',
-    'Athletics', 'Riding', 'Crafting', 'Scouting', 'Tactics', 'Roguery',
-    'Charm', 'Leadership', 'Trade', 'Steward', 'Medicine', 'Engineering',
-];
-const BNR_SKILL_LABELS_RU = {
-    OneHanded: 'Одноручное', TwoHanded: 'Двуручное', Polearm: 'Древковое',
-    Bow: 'Лук', Crossbow: 'Арбалет', Throwing: 'Метательное',
-    Athletics: 'Атлетика', Riding: 'Верховая езда', Crafting: 'Кузнечное',
-    Scouting: 'Разведка', Tactics: 'Тактика', Roguery: 'Бесчестие',
-    Charm: 'Обаяние', Leadership: 'Лидерство', Trade: 'Торговля',
-    Steward: 'Управление', Medicine: 'Медицина', Engineering: 'Инженерия',
-};
-const BNR_ATTRIBUTES = ['Vigor', 'Control', 'Endurance', 'Cunning', 'Social', 'Intelligence'];
-const BNR_ATTR_LABELS_RU = {
-    Vigor: 'Сила', Control: 'Точность',
-    Endurance: 'Выносливость', Cunning: 'Хитрость',
-    Social: 'Социальность', Intelligence: 'Интеллект',
-};
-// Sprint 5.17: vanilla Bannerlord skill→attribute mapping. Атрибут даёт
-// +1 cap к skill за каждое очко (max 30 cap при attr=10).
-const BNR_ATTR_TO_SKILLS = {
-    Vigor:        ['OneHanded', 'TwoHanded', 'Polearm'],
-    Control:      ['Bow', 'Crossbow', 'Throwing'],
-    Endurance:    ['Riding', 'Athletics', 'Crafting'],
-    Cunning:      ['Scouting', 'Tactics', 'Roguery'],
-    Social:       ['Charm', 'Leadership', 'Trade'],
-    Intelligence: ['Steward', 'Medicine', 'Engineering'],
-};
-const BNR_ATTR_ICONS = {
-    Vigor: '💪', Control: '🎯', Endurance: '⛰️',
-    Cunning: '🦊', Social: '💬', Intelligence: '📚',
-};
-let BNR_FOCUS_TIER_COSTS = [30000, 40000, 50000, 60000, 75000];  // thin-front: hydrated from /config
-let BNR_ATTRIBUTE_COST = 50000;                                   // thin-front: hydrated from /config
-
-// Sprint 5.8 → 5.8c: ранее был renderBannerlordProgressionHtml (dropdown в shop)
-// + _bindBannerlordProgression. Удалено в 5.8c — invest-кнопки перенесены
-// внутрь progression-секции (per-row + buttons). См. loadBannerlordProgression.
-
-// Sprint 5.8: Progression modal — отображает все скиллы (level + focus stars)
-// + 6 атрибутов. Открывается по кнопке "🎯 Прогрессия" в hero card.
+// Values are shown even when no current purchase offers are available.
 function loadBannerlordProgression() {
     const slot = document.getElementById('bnr-progression-slot');
     if (!slot) return;
     const data = _bannerlordLastHero;
     if (!data || !data.has_hero) { _smartInnerHTML(slot, ''); return; }
-    const skills = data.skills || [];
-    const attrs = data.attributes || {};
-
-    // Sprint 5.27v: runtime canary — словить contract drift сразу. Если
-    // backend начнёт отдавать другой shape (e.g. изменится capitalization
-    // или ключи), DevTools console сразу покажет проблему вместо тихого
-    // "0/10 везде". Это профилактика для skills/equipment/etc. в будущем.
-    const attrKeys = Object.keys(attrs);
-    if (attrKeys.length > 0 && BNR_ATTRIBUTES.every(k =>
-            attrs[k] === undefined && attrs[k.toLowerCase()] === undefined)) {
-        console.warn('[BNR contract drift] attributes object has keys but ' +
-                     'none match expected:', attrKeys,
-                     'expected one of:', BNR_ATTRIBUTES);
-    }
-
-    // Build skill lookup
-    const skillsByKey = {};
-    for (const s of skills) skillsByKey[s.skill_key] = s;
-
-    // Helper: render одну skill row
-    function _renderSkillRow(key) {
-        const s = skillsByKey[key] || { skill_key: key, level: 0, focus: 0 };
-        const focus = s.focus || 0;
-        const focusStars = '★'.repeat(focus) + '☆'.repeat(5 - focus);
-        const label = BNR_SKILL_LABELS_RU[key] || key;
-        const lvlColor = s.level >= 100 ? '#fbbf24' : (s.level >= 50 ? '#34d399' : '#efeff1');
-        const maxed = focus >= 5;
-        const nextCost = maxed ? 0 : BNR_FOCUS_TIER_COSTS[focus];
-        const btnTitle = maxed
-            ? 'F5 максимум'
-            : `+1 focus в ${label} → F${focus + 1}. Списать ${nextCost.toLocaleString('ru-RU')}💰 динаров.`;
-        return `
-            <div style="display:flex;justify-content:space-between;align-items:center;
-                        padding:3px 6px 3px 14px;font-size:11px;gap:8px;
-                        border-bottom:1px solid rgba(255,255,255,0.05);">
-                <span style="color:#efeff1;flex:1;">└ ${escapeHtml(label)}</span>
-                <span style="color:#fbbf24;font-family:monospace;letter-spacing:1px;">${focusStars}</span>
-                <span style="color:${lvlColor};min-width:30px;text-align:right;
-                             font-family:monospace;font-weight:700;">${s.level || 0}</span>
-                <button class="small-btn bnr-prog-focus-btn"
-                        data-skill="${escapeHtml(key)}"
-                        ${maxed ? 'disabled' : ''}
-                        title="${escapeHtml(btnTitle)}"
-                        style="padding:2px 8px;font-size:11px;background:#3d3d3f;
-                               color:#fbbf24;font-weight:700;
-                               ${maxed ? 'opacity:0.3;cursor:not-allowed;' : ''}">
-                    🎯+
-                </button>
-            </div>`;
-    }
-
-    // Render: attribute header + nested skills (Sprint 5.17 group-by-attribute)
-    // Sprint 5.27u: case-insensitive lookup — backend хранит attribute keys в
-    // lowercase (engine StringId), frontend BNR_ATTRIBUTES в PascalCase.
-    // Без fallback'а на toLowerCase() все viewer'ы видели 0/10 несмотря на
-    // корректные value в БД.
-    const groupedRows = BNR_ATTRIBUTES.map(attrKey => {
-        const val = attrs[attrKey] ?? attrs[attrKey.toLowerCase()] ?? 0;
-        const filled = '●'.repeat(val) + '○'.repeat(10 - val);
-        const attrLabel = BNR_ATTR_LABELS_RU[attrKey] || attrKey;
-        const attrIcon = BNR_ATTR_ICONS[attrKey] || '·';
-        const valColor = val >= 8 ? '#fbbf24' : (val >= 5 ? '#34d399' : '#efeff1');
-        const maxed = val >= 10;
-        const btnTitle = maxed
-            ? '10/10 максимум'
-            : `+1 в ${attrLabel} → ${val + 1}/10. Списать ${BNR_ATTRIBUTE_COST.toLocaleString('ru-RU')}💰 динаров.`;
-
-        const childSkills = (BNR_ATTR_TO_SKILLS[attrKey] || []).map(_renderSkillRow).join('');
-
-        return `
-            <div style="background:rgba(147,197,253,0.06);border-top:1px solid rgba(147,197,253,0.15);
-                        padding:5px 6px;display:flex;justify-content:space-between;
-                        align-items:center;font-size:11px;gap:8px;font-weight:700;">
-                <span style="color:#93c5fd;flex:1;">${attrIcon} ${escapeHtml(attrLabel)}</span>
-                <span style="color:#93c5fd;font-family:monospace;letter-spacing:1px;font-weight:400;">${filled}</span>
-                <span style="color:${valColor};min-width:36px;text-align:right;
-                             font-family:monospace;">${val}/10</span>
-                <button class="small-btn bnr-prog-attr-btn"
-                        data-attr="${escapeHtml(attrKey)}"
-                        ${maxed ? 'disabled' : ''}
-                        title="${escapeHtml(btnTitle)}"
-                        style="padding:2px 8px;font-size:11px;background:#3d3d3f;
-                               color:#93c5fd;font-weight:700;
-                               ${maxed ? 'opacity:0.3;cursor:not-allowed;' : ''}">
-                    💪+
-                </button>
-            </div>
-            ${childSkills}`;
-    }).join('');
-
-    const html = `
-        <div style="font-size:11px;color:#adadb8;margin-bottom:6px;line-height:1.4;">
-            💪 Атрибут (${_fmtK(BNR_ATTRIBUTE_COST)}💰) — cap трёх скиллов · 🎯 Фокус (${_fmtK(Math.min(...BNR_FOCUS_TIER_COSTS))}-${_fmtK(Math.max(...BNR_FOCUS_TIER_COSTS))}💰) — скорость скилла.
-        </div>
-        <div>${groupedRows}</div>`;
-    if (!_smartInnerHTML(slot, html)) return;   // repaint+rebind лишь при изменении
-
-    slot.querySelectorAll('.bnr-prog-focus-btn').forEach(btn => {
-        btn.dataset.bnrCd = 'hero.add_focus';
+    const snapshot = _bnrProgressionSnapshot;
+    const renderedActor = authToken || '';
+    const context = _bnrProgressionContext(snapshot);
+    const game = context ? snapshot.progression : null;
+    const skillStates = _bnrDistinctSkills(data.skills);
+    const attrStates = data.attributes && typeof data.attributes === 'object' && !Array.isArray(data.attributes) ? data.attributes : {};
+    const skills = Array.isArray(game?.skills) ? game.skills.filter(s => s && typeof s.id === 'string')
+        : skillStates.map(s => ({id:s.skill_key, level:s.level, focus:s.focus}));
+    const attributes = Array.isArray(game?.attributes) ? game.attributes.filter(a => a && typeof a.id === 'string')
+        : Object.entries(attrStates).map(([id,value]) => ({id,value}));
+    const displayNumber = value => typeof value === 'number' && Number.isFinite(value) ? String(value) : '—';
+    const limits = (purchase, native) => [
+        typeof purchase === 'number' && Number.isFinite(purchase) ? `Предел покупки: ${purchase}` : '',
+        typeof native === 'number' && Number.isFinite(native) ? `Игровой предел: ${native}` : ''
+    ].filter(Boolean).join(' · ');
+    const focusPurchases = new Map(), attributePurchases = new Map();
+    const renderOffer = (entry, type, value, options, purchases) => {
+        const option = Array.isArray(options) ? options.find(o => o?.amount === 1) : null;
+        const valid = !!context && !snapshot.pending && option?.available === true
+            && _bnrProgressionMoney(option.cost_gold) && Number.isSafeInteger(value);
+        const cost = option && _bnrProgressionMoney(option.cost_gold)
+            ? `${option.cost_gold.toLocaleString('ru-RU')}💰` : '';
+        const reason = !context || snapshot.pending ? _bnrProgressionReason(snapshot)
+            : option?.reason_text || option?.reason || (valid ? '' : 'Нет доступного предложения игры');
+        if (valid) purchases.set(entry.id, {
+            [type === 'focus' ? 'skill_key' : 'attribute_key']: entry.id,
+            amount:1, expected_cost_gold:option.cost_gold, expected_value:value,
+            progression_context:{...context}
+        });
+        const keyAttr = type === 'focus' ? 'data-skill' : 'data-attr';
+        return `<button class="small-btn bnr-prog-${type === 'focus' ? 'focus' : 'attr'}-btn"
+            ${keyAttr}="${escapeHtml(entry.id)}" ${valid ? '' : 'disabled'}
+            title="${escapeHtml(reason || `+1 · ${cost}`)}">${type === 'focus' ? '🎯' : '💪'}${valid ? '+ ' + escapeHtml(cost) : ''}</button>
+            ${reason ? `<small style="color:var(--muted);">${escapeHtml(reason)}</small>` : ''}`;
+    };
+    // 03.10, владелец: атрибут — заголовок группы, под ним его навыки (как было до 0.0.6).
+    // Связь берётся из игры (s.attribute), если мод её пришлёт; иначе — ванильная таблица;
+    // навык, которого в ней нет (моды), уходит в «Прочее», а не пропадает.
+    const vanillaAttr = {onehanded:'vigor', twohanded:'vigor', polearm:'vigor', bow:'control', crossbow:'control',
+        throwing:'control', riding:'endurance', athletics:'endurance', crafting:'endurance', scouting:'cunning',
+        tactics:'cunning', roguery:'cunning', charm:'social', leadership:'social', trade:'social',
+        steward:'intelligence', medicine:'intelligence', engineering:'intelligence'};
+    const attrIcons = {vigor:'💪', control:'🎯', endurance:'⛰️', cunning:'🦊', social:'💬', intelligence:'📚'};
+    const key = id => String(id || '').toLowerCase();
+    const skillAttr = s => key(typeof s.attribute === 'string' && s.attribute ? s.attribute : vanillaAttr[key(s.id)]);
+    const dots = (value, max) => Number.isSafeInteger(value) && Number.isSafeInteger(max) && max > 0 && max <= 20
+        ? '●'.repeat(Math.min(value, max)) + '○'.repeat(Math.max(max - value, 0)) : '';
+    const stars = (value, max) => Number.isSafeInteger(value) && Number.isSafeInteger(max) && max > 0 && max <= 10
+        ? '★'.repeat(Math.min(value, max)) + '☆'.repeat(Math.max(max - value, 0)) : `F${displayNumber(value)}`;
+    const skillRow = s => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:5px 8px 5px 18px;font-size:11px;border-top:1px solid rgba(255,255,255,0.05);">
+        <span style="flex:1;min-width:90px;">└ ${escapeHtml(_bnrContentName('skills', s.id))}</span>
+        <span style="color:#fbbf24;letter-spacing:1px;" title="${escapeHtml(['Фокус ' + displayNumber(s.focus), limits(s.focus_limit, s.native_focus_limit)].filter(Boolean).join(' · '))}">${escapeHtml(stars(s.focus, s.native_focus_limit))}</span>
+        <strong style="min-width:28px;text-align:right;">${escapeHtml(displayNumber(s.level))}</strong>
+        ${renderOffer(s, 'focus', s.focus, s.focus_options, focusPurchases)}
+    </div>`;
+    const attrHeader = a => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;font-size:12px;background:rgba(255,255,255,0.04);border-radius:6px;margin-top:6px;">
+        <span style="flex:1;min-width:90px;font-weight:700;color:#fbbf24;">${attrIcons[key(a.id)] || '◆'} ${escapeHtml(_bnrContentName('attributes', a.id))}</span>
+        <span style="color:var(--muted);letter-spacing:1px;font-size:10px;">${escapeHtml(dots(a.value, a.native_limit))}</span>
+        <strong style="color:#4ade80;" title="${escapeHtml(limits(a.limit, a.native_limit))}">${escapeHtml(displayNumber(a.value))}${Number.isSafeInteger(a.native_limit) ? '/' + a.native_limit : ''}</strong>
+        ${renderOffer(a, 'attribute', a.value, a.options, attributePurchases)}
+    </div>`;
+    const known = new Set(attributes.map(a => key(a.id)));
+    const groups = attributes.map(a => attrHeader(a) + skills.filter(s => skillAttr(s) === key(a.id)).map(skillRow).join(''));
+    const orphans = skills.filter(s => !known.has(skillAttr(s)));
+    if (orphans.length) groups.push(`<div style="padding:6px 8px;font-size:12px;font-weight:700;color:var(--muted);margin-top:6px;">Прочее</div>` + orphans.map(skillRow).join(''));
+    // Context participates in repaint/rebind even when values and prices are equal.
+    const html = `<div data-bnr-progression-context="${escapeHtml(JSON.stringify(context))}" data-bnr-progression-actor-version="${_bnrProgressionActorVersion}">
+        ${groups.length ? `<div style="font-size:10px;color:var(--muted);padding:2px 8px;">💪 Атрибут поднимает предел трёх навыков · 🎯 фокус ускоряет рост навыка</div>${groups.join('')}` : '<div>Игра не передала навыки и атрибуты.</div>'}
+    </div>`;
+    if (!_smartInnerHTML(slot, html)) return;
+    const bind = (selector, key, action, purchases) => slot.querySelectorAll(selector).forEach(btn => {
+        btn.dataset.bnrCd = action;
+        const purchase = purchases.get(btn.getAttribute(key));
         btn.addEventListener('click', () => {
-            _bannerlordBuyAction('hero.add_focus', { skill_key: btn.getAttribute('data-skill'), amount: 1 });
+            if (btn.disabled || !purchase || renderedActor !== (authToken || '')) return;
+            if (!_bnrProgressionContext(_bnrProgressionSnapshot) || _bnrProgressionSnapshot.pending) return;
+            _bannerlordBuyAction(action, purchase);
             if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
         });
     });
-    slot.querySelectorAll('.bnr-prog-attr-btn').forEach(btn => {
-        btn.dataset.bnrCd = 'hero.add_attribute';
-        btn.addEventListener('click', () => {
-            _bannerlordBuyAction('hero.add_attribute', { attribute_key: btn.getAttribute('data-attr'), amount: 1 });
-            if (typeof loadBannerlordHero === 'function') loadBannerlordHero();
-        });
-    });
+    bind('.bnr-prog-focus-btn', 'data-skill', 'hero.add_focus', focusPurchases);
+    bind('.bnr-prog-attr-btn', 'data-attr', 'hero.add_attribute', attributePurchases);
 }
 
 // ===== Workshops (мастерские, пассивный доход) — split чанк 3 (2026-06-13) =====
@@ -2548,36 +2601,12 @@ function _renderPartyOrderInline(currentActive) {
 // policy_land_grands_for_veteran; state_pilgrims не существует → заменён на
 // council_of_the_commons). Без префикса GetObject<PolicyObject> возвращал null —
 // раньше НИ ОДНА политика не срабатывала (panel был скрыт, не замечали).
-const _BNR_POLICIES = [
-    { id: 'policy_forgiveness_of_debts', name: 'Прощение долгов',
-      desc: 'Лояльность всех городов +1, но налоговый доход королевства −10%. Подарок беднякам: народ доволен, казна беднее.' },
-    { id: 'policy_land_grands_for_veteran', name: 'Земля ветеранам',
-      desc: 'Отряды растут за счёт ветеранов и рекрутов (+5 к размеру партии). Милитаристский курс — у лордов больше войск.' },
-    { id: 'policy_precarial_land_tenure', name: 'Условное землевладение',
-      desc: 'Знать (нотабли) получает +5 влияния за каждый фьеф. Усиливает местную элиту, ослабляет центральную власть короля.' },
-    { id: 'policy_royal_guard', name: 'Королевская гвардия',
-      desc: 'Правитель королевства получает +80 кавалерии в личную дружину. Силовая опора трона.' },
-    { id: 'policy_sacred_majesty', name: 'Священное величие',
-      desc: 'Король: +2 влияния в день. Все остальные лидеры кланов: −1 в день. Жёсткая централизация власти у короля.' },
-    { id: 'policy_trial_by_jury', name: 'Суд присяжных',
-      desc: 'Лояльность во всех фьефах +0.5, безопасность +1. Народная справедливость — в городах спокойнее.' },
-    { id: 'policy_imperial_towns', name: 'Имперские города',
-      desc: 'Доход и процветание (prosperity) городов +5%. Города богатеют.' },
-    { id: 'policy_noble_retinues', name: 'Дружины знати',
-      desc: 'Размер отрядов лидеров кланов +20 бойцов. Твои и союзные лорды водят армии крупнее.' },
-    { id: 'policy_lords_privy_council', name: 'Тайный совет лордов',
-      desc: 'Все лидеры кланов королевства: +1 влияния в день. Феодальная децентрализация — власть лордам.' },
-    { id: 'policy_council_of_the_commons', name: 'Совет общин',
-      desc: 'Горожане получают +0.5 влияния в день и +1 к лояльности. Голос простого народа в политике.' },
-    { id: 'policy_serfdom', name: 'Крепостное право',
-      desc: 'Рост деревень (очаги и процветание) +2 в день, доход с деревень +10%. Крестьяне крепче привязаны к земле.' },
-    { id: 'policy_citizenship', name: 'Гражданство',
-      desc: 'Лояльность в городах своей культуры +1. Культурная интеграция — единоверцы держатся крепче.' },
-];
+
 
 async function loadBannerlordDiplomacy() {
     const slot = document.getElementById('bnr-diplo-slot');
     if (!slot) return;
+    const catalogGeneration = _bnrCatalogGeneration;
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/kingdom-state`, {
             headers: { 'X-Twitch-JWT': authToken || '' }
@@ -2592,6 +2621,9 @@ async function loadBannerlordDiplomacy() {
                 </div>`;
             return;
         }
+        await _loadBnrContentCatalogs();
+        if (catalogGeneration !== _bnrCatalogGeneration) return;
+        const policyCatalog = _bnrContentCatalog('policies');
         const canEnact = r.is_king || r.is_clan_leader;
         const canMakePeace = r.is_king;
 
@@ -2642,26 +2674,28 @@ async function loadBannerlordDiplomacy() {
                         Клик по политике = toggle (активна → отозвать). ${_bnrPrice('hero.enact_policy', 1500)}💎 за действие.
                     </div>
                     <div style="display:flex;flex-direction:column;gap:3px;">
-                        ${_BNR_POLICIES.map(p => {
+                        ${policyCatalog.entries.length ? policyCatalog.entries.map(p => {
                             const active = _enactedIds.has(p.id);
                             const pending = _pendingIds.has(p.id);
+                            const blocked = pending || p.available === false;
                             return `
-                            <div class="bnr-diplo-policy-row" data-policy-id="${p.id}"
-                                 data-policy-name="${escapeHtml(p.name)}"
-                                 ${pending ? 'data-policy-pending="1"' : ''}
+                            <div class="bnr-diplo-policy-row" data-policy-id="${escapeHtml(p.id)}"
+                                 data-policy-name="${escapeHtml(p.name || p.id)}"
+                                 ${blocked ? 'data-policy-pending="1"' : ''}
                                  style="background:${active ? '#1a2008' : '#0f0805'};
                                         padding:5px 8px;border-radius:3px;
-                                        cursor:${pending ? 'not-allowed' : 'pointer'};
-                                        ${pending ? 'opacity:0.5;' : ''}
+                                        cursor:${blocked ? 'not-allowed' : 'pointer'};
+                                        ${blocked ? 'opacity:0.5;' : ''}
                                         border:1px solid ${active ? '#4ade80' : '#1a1208'};">
                                 ${active ? '<span style="color:#4ade80;">✓ </span>' : ''}
-                                <strong style="color:#fed7aa;font-size:11px;">${escapeHtml(p.name)}</strong>
+                                <strong style="color:#fed7aa;font-size:11px;">${escapeHtml(p.name || p.id)}</strong>
                                 ${pending ? '<span style="color:#fbbf24;font-size:9px;"> (на обсуждении)</span>' : ''}
                                 <div style="font-size:10px;color:var(--muted);margin-top:2px;">
-                                    ${escapeHtml(p.desc)}
+                                    ${escapeHtml(p.description || '')}
+                                    ${p.available === false ? 'Игра пока не разрешает выбрать этот закон.' : ''}
                                 </div>
                             </div>`;
-                        }).join('')}
+                        }).join('') : `<div>${policyCatalog.available ? 'Игра передала пустой список законов.' : 'Каталог законов пока недоступен. Дождись связи с игрой.'}</div>`}
                     </div>
                 </details>`;
         }
@@ -3634,24 +3668,31 @@ async function loadBannerlordShop() {
     if (!list) return;
     // Currency converters (gold/XP) are always shown above the optional catalog.
     // Sprint 5.10/5.8c: gear-upgrade перенесён в hero card (inline кнопка);
-    // progression — в modal (per-row + buttons). В shop остались только
+    // Progression point offers live in the hero section; XP offers remain here.
     // Random equipment was removed from sale; the optional engine catalog may
     // legitimately be empty.
+    const generation = _bnrCatalogGeneration;
+    const actor = authToken || '';
+    await _loadBnrProgression();
+    if (generation !== _bnrCatalogGeneration || actor !== (authToken || '')) return;
     const currencyBlock = renderBannerlordCurrencyHtml();
+    const xpCount = _bnrProgressionContext(_bnrProgressionSnapshot) && Array.isArray(_bnrProgressionSnapshot.xp_offers)
+        ? _bnrProgressionSnapshot.xp_offers.length : 0;
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/shop`, {
-            headers: { 'X-Twitch-JWT': authToken || '' },
+            headers: { 'X-Twitch-JWT': actor },
         });
         const data = await r.json();
+        if (generation !== _bnrCatalogGeneration || actor !== (authToken || '')) return;
         if (!data.success) {
             list.innerHTML = currencyBlock +
                 `<div class="loading">${escapeHtml(data.message || 'Ошибка')}</div>`;
             _bindBannerlordCurrency();
             return;
         }
-        const items = data.items || [];
-        // 3 give_gold + 3 add_skill = 6 fixed actions.
-        if (cnt) cnt.textContent = items.length + 6;
+        // Progression must only use personal offers, never an unquoted catalog action.
+        const items = (data.items || []).filter(it => !['hero.add_skill','hero.add_focus','hero.add_attribute'].includes(it.action_type || it.entry_id));
+        if (cnt) cnt.textContent = items.length + GIVE_GOLD_OPTIONS.length + xpCount;
         if (items.length === 0) {
             list.innerHTML = currencyBlock;
             _bindBannerlordCurrency();
@@ -3690,6 +3731,7 @@ async function loadBannerlordShop() {
             });
         });
     } catch (e) {
+        if (generation !== _bnrCatalogGeneration || actor !== (authToken || '')) return;
         list.innerHTML = currencyBlock +
             `<div class="loading" style="color:#f87171;">Ошибка сети</div>`;
         _bindBannerlordCurrency();
@@ -4060,7 +4102,7 @@ function _bnrNextQuality(quality) {
 function _renderEquipRow(slot, it, slotIcons) {
     if (!it || !it.item_id) {
         return `<div style="font-size:11px;padding:1px 0;color:var(--dim);">
-            ${slotIcons[slot] || '·'} ${slot}: <em>пусто</em>
+            ${slotIcons[slot] || '·'} ${escapeHtml(slot)}: <em>пусто</em>
         </div>`;
     }
     // Иконка по СОДЕРЖИМОМУ, а не по индексу слота: щит лежит в weapon-слоте и
@@ -4106,10 +4148,20 @@ function _renderEquipRow(slot, it, slotIcons) {
         statsHtml = chunks.join(' ');
     }
 
+    const shown = new Set((isWeapon
+        ? ['swing_dmg','thrust_dmg','swing_spd','length','accuracy','missile_spd','hp','stack']
+        : isArmor ? ['head','body','leg','arm'] : isHorse ? ['speed','charge','maneuver','hp'] : [])
+        .filter(key => stats[key]));
+    if (isWeapon && stats.swing_dmg && stats.swing_type) shown.add('swing_type');
+    if (isWeapon && stats.thrust_dmg && stats.thrust_type) shown.add('thrust_type');
+    const extraStats = Object.entries(stats).filter(([key,value]) => !shown.has(key) && value != null)
+        .map(([key,value]) => `<span>${escapeHtml(key)}: ${escapeHtml(String(typeof value === 'object' ? JSON.stringify(value) : value))}</span>`).join(' ');
+    statsHtml = [statsHtml, extraStats].filter(Boolean).join(' ');
+
     return `<div style="font-size:11px;padding:2px 0;border-bottom:1px solid #2d2d2f;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
             <span><span style="color:#adadb8;">${slotIcon}</span> ${name}${tierBadge}${_bnrQualityBadge(it.quality)}</span>
-            <button class="bnr-discard-btn" data-slot="${slot}" data-item-name="${name}"
+            <button class="bnr-discard-btn" data-slot="${escapeHtml(slot)}" data-item-name="${name}"
                 title="Выбросить — освободить слот"
                 style="flex:none;background:none;border:none;color:var(--dim);cursor:pointer;font-size:11px;padding:0 2px;line-height:1;">❌</button>
         </div>
@@ -4294,11 +4346,7 @@ let GIVE_GOLD_OPTIONS = [
     { crusticov: 5_000,  dinars:  25_000 },
     { crusticov: 20_000, dinars: 100_000 },
 ];
-let ADD_SKILL_OPTIONS = [
-    { crusticov:   500, xp:  50 },
-    { crusticov: 1_000, xp: 100 },
-    { crusticov: 5_000, xp: 500 },
-];
+
 
 function renderBannerlordCurrencyHtml() {
     const goldRows = GIVE_GOLD_OPTIONS.map(o => `
@@ -4310,14 +4358,24 @@ function renderBannerlordCurrencyHtml() {
             <span style="color:#fbbf24;">${_formatBigPrice(o.crusticov)}</span>
         </button>`).join('');
 
-    const xpRows = ADD_SKILL_OPTIONS.map(o => `
-        <button class="extra-btn" data-bnr-skillxp="${o.crusticov}"
-                data-bnr-cost="${o.crusticov},0"
-                title="+${o.xp} XP навыкам героя (с учётом класса)"
+    const snapshot = _bnrProgressionSnapshot;
+    const context = _bnrProgressionContext(snapshot);
+    const offers = context && Array.isArray(snapshot.xp_offers) ? snapshot.xp_offers.filter(o => o && typeof o === 'object') : [];
+    const xpRows = offers.map(o => {
+        const valid = !snapshot.pending && o.available === true && _bnrProgressionMoney(o.price)
+            && _bnrProgressionMoney(o.crusticov) && Number.isSafeInteger(o.xp) && o.xp > 0;
+        const reason = snapshot.pending ? _bnrProgressionReason(snapshot)
+            : o.reason_text || o.reason || (valid ? '' : 'Нет доступного предложения игры');
+        const purchase = {price:o.crusticov, expected_platform_price:o.price, progression_context:{...context}};
+        return `<button class="extra-btn" data-bnr-skillxp="${escapeHtml(String(o.id ?? ''))}"
+                data-bnr-progression-purchase="${escapeHtml(JSON.stringify(purchase))}"
+                ${valid ? '' : 'disabled'} title="${escapeHtml(reason || `+${o.xp} XP`)}"
                 style="font-size:11px;padding:5px;">
-            📚 +${o.xp} XP
-            <span style="color:#fbbf24;">${_formatBigPrice(o.crusticov)}</span>
-        </button>`).join('');
+            📚 +${escapeHtml(String(o.xp ?? '—'))} XP
+            <span style="color:#fbbf24;">${_bnrProgressionMoney(o.price) ? escapeHtml(o.price.toLocaleString('ru-RU') + '💎') : '—'}</span>
+            ${reason ? `<small>${escapeHtml(reason)}</small>` : ''}
+        </button>`;
+    }).join('') || `<div style="font-size:11px;color:var(--muted);">${escapeHtml(context ? 'Нет предложений опыта' : _bnrProgressionReason(snapshot))}</div>`;
 
     return `
         <div style="padding:6px 10px;border-top:1px solid #3d3d3f;margin-top:4px;">
@@ -4342,12 +4400,16 @@ function _bindBannerlordCurrency() {
             _bannerlordBuyAction('player.give_item', { price: crusticov, item_type: 'gold' });
         });
     });
+    const renderedActor = authToken || '';
     document.querySelectorAll('[data-bnr-skillxp]').forEach(btn => {
         btn.dataset.bnrCd = 'hero.add_skill';   // кулдаун на кнопке
         btn.addEventListener('click', () => {
-            const crusticov = parseInt(btn.dataset.bnrSkillxp, 10) || 0;
-            // skill_key пуст → mod выбирает random.
-            _bannerlordBuyAction('hero.add_skill', { price: crusticov });
+            if (btn.disabled || renderedActor !== (authToken || '')) return;
+            if (!_bnrProgressionContext(_bnrProgressionSnapshot) || _bnrProgressionSnapshot.pending) return;
+            let purchase;
+            try { purchase = JSON.parse(btn.dataset.bnrProgressionPurchase); }
+            catch (_) { return; }
+            _bannerlordBuyAction('hero.add_skill', purchase);
         });
     });
 }
@@ -4591,7 +4653,7 @@ async function _renderForgeInline() {
             ? '<span style="font-size:10px;color:var(--dim);flex:0 0 auto;">—</span>'
             : !nextQ
             ? '<span title="Уже максимальное качество (Легендарное)" style="font-size:10px;color:#fbbf24;font-weight:700;flex:0 0 auto;white-space:nowrap;">✦ макс</span>'
-            : `<button class="extra-btn bnr-reforge-btn" data-slot="${x.s}"
+            : `<button class="extra-btn bnr-reforge-btn" data-slot="${x.s}" data-item="${escapeHtml(it.item_id)}"
                     title="Поднять «${escapeHtml(it.item_name || it.item_id)}» на одну ступень → ${nextQ.label} за ${REFORGE_PRICE}💎. На потолке → крустики вернутся."
                     style="font-size:11px;padding:5px 10px;background:#2a1a0a;color:${nextQ.color};font-weight:700;white-space:nowrap;flex:0 0 auto;">
                 ⚒ → ${nextQ.icon} ${nextQ.label}
@@ -4617,7 +4679,8 @@ async function _renderForgeInline() {
         ${rows}`;
     slot.querySelectorAll('.bnr-reforge-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
-            await _bannerlordBuyAction('hero.reforge_quality', { slot: btn.dataset.slot });
+            // 03.10: называем вещь, которую зритель видел — сервер откажет до списания, если слот сменился.
+            await _bannerlordBuyAction('hero.reforge_quality', { slot: btn.dataset.slot, expected_item_id: btn.dataset.item });
             // Keep an already-open forge panel in sync. The action is applied by
             // the mod's poll loop, so refresh after that window and re-render the
             // panel from the new equipment snapshot.
@@ -5291,6 +5354,7 @@ async function loadBannerlordHero() {
     const lifecycle = _bannerlordLifecycle, token = authToken;
     const requestSeq = ++_bnrHeroRequestSeq;
     const isCurrent = () => lifecycle === _bannerlordLifecycle && token === authToken
+        && catalogGeneration === _bnrCatalogGeneration && actor === (authToken || '')
         && requestSeq >= _bnrHeroResponseSeq && document.getElementById('hero-body') === body;
     const showError = message => {
         // Direct error DOM replacement must invalidate both render caches.
@@ -5298,9 +5362,11 @@ async function loadBannerlordHero() {
         delete _smartHtmlCache[body.id];
         body.innerHTML = `<div style="color:#f87171;padding:10px;">${escapeHtml(message)}</div>`;
     };
+    const catalogGeneration = _bnrCatalogGeneration;
+    const actor = authToken || '';
     try {
         const r = await fetch(`${API_URL}/api/bannerlord/my-hero`, {
-            headers: { 'X-Twitch-JWT': authToken || '' },
+            headers: { 'X-Twitch-JWT': actor },
         });
         const data = await r.json();
         if (!isCurrent()) return;
@@ -5309,6 +5375,9 @@ async function loadBannerlordHero() {
             showError(data?.message || 'Ошибка');
             return;
         }
+        if (!data.has_hero) body.innerHTML = '<div>Загрузка культур из игры…</div>';
+        await Promise.all([_loadBnrContentCatalogs(), _loadBnrProgression()]);
+        if (!isCurrent()) return;
         _bannerlordLastHero = data;   // 5.8: cache для progression modal
         _bnrNotifyRefunds(data.recent_refunds);   // 2026-06-10 — тост причины отказа
 
@@ -5400,23 +5469,22 @@ async function loadBannerlordHero() {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
-            const CULTURES = [
-                { key: 'empire',    label: 'Империя',  icon: '🏛️', desc: 'Латифундии, мечи и копья' },
-                { key: 'sturgia',   label: 'Стургия',  icon: '🪓', desc: 'Севера́не, секиры, щиты' },
-                { key: 'vlandia',   label: 'Вландия',  icon: '🛡️', desc: 'Рыцари и арбалетчики' },
-                { key: 'aserai',    label: 'Асерай',   icon: '🐪', desc: 'Пустыня, лёгкая конница' },
-                { key: 'khuzait',   label: 'Хузаит',   icon: '🐎', desc: 'Степные лучники' },
-                { key: 'battania',  label: 'Баттания', icon: '🌲', desc: 'Лесные охотники, луки' },
-            ];
-            const cultureBtns = CULTURES.map(c => `
-                <button class="extra-btn" data-bnr-culture="${c.key}"
-                        title="${escapeHtml(c.desc)}"
-                        style="font-size:12px;padding:6px 8px;display:flex;
-                               flex-direction:column;align-items:center;gap:2px;
-                               min-width:78px;">
-                    <span style="font-size:18px;">${c.icon}</span>
-                    <span>${escapeHtml(c.label)}</span>
-                </button>`).join('');
+            const cultureCatalog = _bnrContentCatalog('cultures');
+            // Bind to the catalog that produced these buttons, never a later poll.
+            const contentContext = cultureCatalog.available ? {
+                content_context: {
+                    save_id: _bnrContentCatalogs.save_id,
+                    equipment_session_id: _bnrContentCatalogs.equipment_session_id
+                }
+            } : {};
+            const canCreate = !cultureCatalog.available || cultureCatalog.entries.some(c => c.available !== false);
+            const cultureBtns = cultureCatalog.entries.map(c => `
+                <button class="extra-btn" data-bnr-culture="${escapeHtml(c.id)}"
+                        ${c.available === false ? 'disabled' : ''}
+                        title="${escapeHtml(c.available === false ? 'Игра пока не позволяет создать героя этой культуры.' : c.description || '')}"
+                        style="font-size:12px;padding:6px 8px;min-width:78px;">
+                    ${escapeHtml(c.name || c.id)}
+                </button>`).join('') || `<div>${cultureCatalog.available ? 'Игра передала пустой список культур.' : 'Каталог культур пока недоступен. Дождись связи с игрой.'}</div>`;
 
             body.innerHTML = `
                 <div style="text-align:center;padding:14px;color:#adadb8;font-size:13px;">
@@ -5434,7 +5502,7 @@ async function loadBannerlordHero() {
                     <div style="margin-top:10px;font-size:10px;color:var(--dim);">
                         Можно доверить выбор игре:
                     </div>
-                    <button class="extra-btn" id="bnr-adopt-random"
+                    <button class="extra-btn" id="bnr-adopt-random" ${canCreate ? '' : 'disabled'}
                             style="margin-top:6px;font-size:11px;padding:4px 12px;">
                         🎭 Пусть выберет игра
                     </button>
@@ -5443,15 +5511,16 @@ async function loadBannerlordHero() {
             // Bind culture-specific buttons
             body.querySelectorAll('[data-bnr-culture]').forEach(btn => {
                 btn.addEventListener('click', () => {
+                    if (btn.disabled) return;
                     const culture = btn.dataset.bnrCulture;
-                    _bannerlordBuyAction('hero.create', { price: 0, culture });
+                    _bannerlordBuyAction('hero.create', { price: 0, culture, ...contentContext });
                 });
             });
             // Random button
             const randomBtn = document.getElementById('bnr-adopt-random');
-            if (randomBtn) {
+            if (randomBtn && canCreate) {
                 randomBtn.addEventListener('click', () =>
-                    _bannerlordBuyAction('hero.create', { price: 0 }));
+                    _bannerlordBuyAction('hero.create', { price: 0, ...contentContext }));
             }
             return;
         }
@@ -5517,10 +5586,10 @@ async function loadBannerlordHero() {
             ? ` <span style="color:#fbbf24;">⛓ в плену</span>` : '';
 
         // Top-5 skills
-        const topSkills = (data.skills || []).slice(0, 5).map(s =>
+        const topSkills = _bnrDistinctSkills(data.skills).slice(0, 5).map(s =>
             `<div style="display:flex;justify-content:space-between;font-size:11px;padding:1px 0;">
-                <span>${escapeHtml(BNR_SKILL_LABELS_RU[s.skill_key] || s.skill_key)}</span>
-                <span style="color:#fbbf24;">${s.level}</span>
+                <span>${escapeHtml(_bnrContentName('skills', s.skill_key))}</span>
+                <span style="color:#fbbf24;">${escapeHtml(String(s.level ?? '—'))}</span>
             </div>`
         ).join('') || '<div style="font-size:11px;color:#adadb8;">Нет данных по скиллам</div>';
 

@@ -1,0 +1,31 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-upgrade-achievement-parity.test.tsx (9 tests | 1 failed | 8 skipped) 946ms
+   × hero achievement progress and unlocked status come from the server catalog 943ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  18:59:02
+   Duration  5.65s (environment 40%, import 25%, tests 18%, transform 17%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > hero achievement progress and unlocked status come from the server catalog
+AssertionError: expected +0 to be 37 // Object.is equality
+
+- Expected
++ Received
+
+- 37
++ 0
+
+ ❯ test/panel-upgrade-achievement-parity.test.tsx:30:348
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

@@ -1,0 +1,2 @@
+[lint][warn] policy-catalog: could not read policy ids from the game assembly -- check skipped, not a frontend problem
+[lint] OK (1 warning(s))

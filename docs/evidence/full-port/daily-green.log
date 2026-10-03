@@ -1,0 +1,25 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero culture creation uses the game catalog and exact complete legacy traffic 406ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero random creation uses the game catalog and exact complete legacy traffic 146ms
+ тЬУ test/panel-daily-parity.test.tsx > daily gold keeps exact POST and immediate status plus 1500ms hero and metadata tails 663ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > random creation remains compatible with a missing catalog and sends no fabricated context 119ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > an available empty culture catalog refuses creation without guessing cultures 86ms
+ тЬУ test/panel-daily-parity.test.tsx > daily xp keeps exact POST and immediate status plus 1500ms hero and metadata tails 200ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation false restores the warning bypassed by old _bnrConfirm 257ms
+ тЬУ test/panel-daily-parity.test.tsx > daily server refusal retains the exact message and both original refresh continuations 196ms
+ тЬУ test/panel-daily-parity.test.tsx > daily status never invents missing reward amounts and an already claimed day has no claim buttons 118ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation true restores the warning bypassed by old _bnrConfirm 104ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > a newly observed living hero invalidates the old respawn confirmation 99ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > a detached culture button cannot use its former catalog session 94ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero creation preserves the current server refusal without a success tail 119ms
+
+ Test Files  2 passed (2)
+      Tests  13 passed (13)
+   Start at  14:09:29
+   Duration  4.72s (environment 38%, tests 30%, import 22%, transform 10%)
+

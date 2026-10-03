@@ -1,0 +1,85 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-game-progression-parity.test.tsx (7 tests | 7 failed) 35108ms
+   × game progression startup preserves every metadata request including no-store 5037ms
+   × game focus uses exact quote/context bytes and every success continuation 5013ms
+   × game attribute uses exact quote/context bytes and every success continuation 5002ms
+   × game metadata keeps custom IDs, zero gold and values above former vanilla caps 5016ms
+   × missing game quotes never use the old config price fallback 5013ms
+   × pending game quotes never use the old config price fallback 5008ms
+   × a changed session while confirming cannot submit the old progression quote 5016ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > game progression startup preserves every metadata request including no-store
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/panel-game-progression-parity.test.tsx:52:1
+     50|   };
+     51| }
+     52| it('game progression startup preserves every metadata request includin…
+       | ^
+     53|   const p = await pair(); p.check();
+     54|   expect(p.trace.filter(r => r.path.endsWith('/progression'))).toMatch…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > game focus uses exact quote/context bytes and every success continuation
+ FAIL  test/panel-game-progression-parity.test.tsx > game attribute uses exact quote/context bytes and every success continuation
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/panel-game-progression-parity.test.tsx:56:52
+     54|   expect(p.trace.filter(r => r.path.endsWith('/progression'))).toMatch…
+     55| });
+     56| for (const kind of ['focus','attribute'] as const) it(`game ${kind} us…
+       |                                                    ^
+     57|   const id = kind === 'focus' ? g.progression.progression.skills[0].id…
+     58|   const selector = kind === 'focus' ? `[data-skill="${id}"]` : `[data-…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > game metadata keeps custom IDs, zero gold and values above former vanilla caps
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/panel-game-progression-parity.test.tsx:66:1
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > missing game quotes never use the old config price fallback
+ FAIL  test/panel-game-progression-parity.test.tsx > pending game quotes never use the old config price fallback
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/panel-game-progression-parity.test.tsx:73:110
+     71|   expect(p.ui.container.querySelector('[data-skill="OneHanded"]')).toB…
+     72| });
+     73| for (const [name,snapshot] of Object.entries({missing:g.progression_mi…
+       |                                                                                                              ^
+     74|   const p = await pair({progression:snapshot}); p.check();
+     75|   const buttons = [...p.ui.container.querySelectorAll<HTMLButtonElemen…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > a changed session while confirming cannot submit the old progression quote
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/panel-game-progression-parity.test.tsx:79:1
+     77|   await act(async () => { buttons.forEach(b => b.click()); await flush…
+     78| });
+     79| it('a changed session while confirming cannot submit the old progressi…
+       | ^
+     80|   const p = await pair(); await p.newClick('[data-skill="OneHanded"]');
+     81|   p.old.fixtures.progression = {...g.progression,context:{...g.progres…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed (7)
+   Start at  13:10:24
+   Duration  42.97s (tests 83%, environment 8%, import 7%, transform 2%)
+

@@ -1,0 +1,36 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-colony-parity.test.tsx (0 test)
+
+тОптОптОптОптОптОп Failed Suites 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-colony-parity.test.tsx [ test/panel-colony-parity.test.tsx ]
+Error: Failed to resolve import "../src/colony/ColonyView" from "test/panel-colony-parity.test.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next/test/panel-colony-parity.test.tsx:5:27
+  3  |  import { readFileSync } from "node:fs";
+  4  |  import { createLegacyHarness, legacyResponses } from "./panel-legacy-harness";
+  5  |  import { ColonyView } from "../src/colony/ColonyView";
+     |                              ^
+  6  |  import { ViewerClient } from "../src/common/client";
+  7  |  import { PanelUsage } from "../src/panel/usage";
+ тЭп TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/node.js:8766:39
+ тЭп TransformPluginContext.error node_modules/vite/dist/node/chunks/node.js:8763:14
+ тЭп normalizeUrl node_modules/vite/dist/node/chunks/node.js:26423:18
+ тЭп node_modules/vite/dist/node/chunks/node.js:26493:30
+ тЭп TransformPluginContext.transform node_modules/vite/dist/node/chunks/node.js:26459:4
+ тЭп EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/node.js:8545:14
+ тЭп loadAndTransform node_modules/vite/dist/node/chunks/node.js:19988:26
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  11:07:56
+   Duration  3.30s (environment 100%)
+

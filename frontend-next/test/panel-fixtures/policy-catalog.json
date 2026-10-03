@@ -1,0 +1,65 @@
+{
+  "provenance": "Explicit synthetic game catalog for the preexisting twelve-choice test matrix; not application fallback data.",
+  "entries": [
+    {
+      "id": "policy_forgiveness_of_debts",
+      "name": "Прощение долгов",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_land_grands_for_veteran",
+      "name": "Земля ветеранам",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_precarial_land_tenure",
+      "name": "Условное землевладение",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_royal_guard",
+      "name": "Королевская гвардия",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_sacred_majesty",
+      "name": "Священное величие",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_trial_by_jury",
+      "name": "Суд присяжных",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_imperial_towns",
+      "name": "Имперские города",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_noble_retinues",
+      "name": "Дружины знати",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_lords_privy_council",
+      "name": "Тайный совет лордов",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_council_of_the_commons",
+      "name": "Совет общин",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_serfdom",
+      "name": "Крепостное право",
+      "description": "Описание политики из игрового каталога"
+    },
+    {
+      "id": "policy_citizenship",
+      "name": "Гражданство",
+      "description": "Описание политики из игрового каталога"
+    }
+  ]
+}

@@ -6,44 +6,48 @@ import type { PanelController } from './controller';
 import { CombatView } from './CombatView';
 import { HeroDevelopmentView } from './HeroDevelopmentView';
 import { ForgeView } from './ForgeView';
-export function PanelApp({ controller, identity, Equipment, combat = false, party = false }: { controller: PanelController; identity: IdentityBootstrap; combat?: boolean; party?: boolean; Equipment?: ComponentType<{ controller: PanelController; active?: boolean }> }) {
+import { HeroAchievementsView } from './HeroAchievementsView';
+import { LegacyInventoryView } from './LegacyInventoryView';
+export function PanelApp({ controller, identity, Equipment, Community, embedded = false, combat = false, party = false, tournament = false, full=false }: { controller: PanelController; identity: IdentityBootstrap; embedded?: boolean; combat?: boolean; party?: boolean; tournament?: boolean; full?:boolean; Community?: ComponentType; Equipment?: ComponentType<{ controller: PanelController; active?: boolean }> }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   const gate = useSyncExternalStore(identity.subscribe, identity.snapshot);
-  const [tab, setTab] = useState<'development' | 'equipment' | 'combat' | 'dynasty'>(() => {
+  const [tab, setTab] = useState<'development' | 'equipment' | 'combat' | 'dynasty' | 'community'>(() => {
     if (!combat) return 'development';
     try { const saved = localStorage.getItem('bnr_active_tab'); if (saved === 'dynasty' && party) return 'dynasty'; if (saved === 'hero') return 'development'; if (saved === 'inventory' && Equipment) return 'equipment'; } catch { /* Storage may be unavailable inside Twitch. */ }
     return 'combat';
   });
   const balanceTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const currentTab = useRef(tab); currentTab.current = tab;
-  useLayoutEffect(() => { controller.setForgeActive(!!Equipment && currentTab.current === 'equipment'); controller.setPartyActive(party && currentTab.current === 'dynasty'); if (combat) controller.enableCombat(); void controller.start({ equipmentFirst: combat && !!Equipment && currentTab.current === 'equipment' }); return () => controller.stop(); }, [controller, combat, party]);
+  useLayoutEffect(() => { controller.setForgeActive(!!Equipment && currentTab.current === 'equipment'); controller.setPartyActive(party && currentTab.current === 'dynasty'); if (full) controller.enableCommerce(); if (combat) controller.enableCombat(); if (tournament) controller.enableTournament(); if(controller.isHosted())return; void controller.start({ equipmentFirst: combat && !!Equipment && currentTab.current === 'equipment' }); return () => controller.stop(); }, [controller, combat, party, tournament, full]);
   useEffect(() => {
-    if (!state.canAct) return;
-    const snapshotTimer = setInterval(() => { if (!document.hidden) { void controller.refreshHero(); void controller.refreshClasses(); void controller.refreshBuild(); if (currentTab.current === 'equipment') void controller.refreshEquipment(); } }, 8000);
+    if (!state.canAct || controller.isHosted()) return;
+    const snapshotTimer = setInterval(() => { if (!document.hidden) { void controller.refreshHero(); void controller.refreshShop(); void controller.refreshStatus(); void controller.refreshClasses(); void controller.refreshBuild(); if (currentTab.current === 'equipment') void controller.refreshEquipment(); } }, 8000);
     const cooldownTimer = setInterval(() => { if (!document.hidden) void controller.refreshBuffs(); }, 2500);
     const battleTimer = combat ? setInterval(() => { if (!document.hidden) void controller.refreshBattle(); }, 2000) : undefined;
+    const tournamentTimer = tournament ? setInterval(() => { if (!document.hidden) void controller.refreshTournament(); }, 3000) : undefined;
     const ticker = setInterval(controller.tick, 1000);
     // Register selected-host pollers before recording its initial exposure,
     // matching the old module setup. Repeated tasks keep normal timer ordering.
     controller.trackVisiblePanels();
     const visible = controller.trackVisiblePanels;
     document.addEventListener('visibilitychange', visible);
-    return () => { clearInterval(snapshotTimer); clearInterval(battleTimer); clearInterval(cooldownTimer); clearInterval(ticker); document.removeEventListener('visibilitychange', visible); };
-  }, [controller, state.canAct, combat]);
+    return () => { clearInterval(snapshotTimer); clearInterval(battleTimer); clearInterval(tournamentTimer); clearInterval(cooldownTimer); clearInterval(ticker); document.removeEventListener('visibilitychange', visible); };
+  }, [controller, state.canAct, combat, tournament]);
   // Shared-shell balance refresh is independent of document visibility and
   // keeps its phase while the same viewer's Twitch token is re-resolved.
   useEffect(() => {
-    if (combat && state.canAct && balanceTimer.current === undefined) balanceTimer.current = setInterval(() => { void controller.refreshBalance(); }, 60000);
-  }, [controller, combat, state.canAct]);
+    if (!embedded && combat && state.canAct && balanceTimer.current === undefined) balanceTimer.current = setInterval(() => { void controller.refreshBalance(); }, 60000);
+  }, [controller, combat, state.canAct, embedded]);
   useEffect(() => () => { clearInterval(balanceTimer.current); balanceTimer.current = undefined; }, [controller, combat]);
   const changeTab = (next: typeof tab) => {
+    if (next === 'community') { currentTab.current = next; controller.setForgeActive(false); controller.setPartyActive(false); setTab(next); return; }
     if (currentTab.current !== next) controller.trackSection(next === 'development' ? 'bannerlord:tab.hero' : next === 'combat' ? 'bannerlord:tab.combat' : next === 'dynasty' ? 'bannerlord:tab.dynasty' : 'bannerlord:tab.inventory');
     else if (next === 'equipment' && tab === next && (!combat || state.hero !== null)) void controller.refreshEquipment();
     if (currentTab.current === 'equipment' && next !== 'equipment') controller.discardEquipmentPreload();
     if (combat) { try { localStorage.setItem('bnr_active_tab', next === 'development' ? 'hero' : next === 'equipment' ? 'inventory' : next === 'dynasty' ? 'dynasty' : 'combat'); } catch { /* Optional tab persistence. */ } }
     currentTab.current = next; controller.setForgeActive(!!Equipment && next === 'equipment'); controller.setPartyActive(party && next === 'dynasty'); setTab(next);
   };
-  return <main className="panel-layout"><header className="panel-brand"><span className="panel-brand-mark">S</span><div><strong>ShedLink</strong><span>Герой Bannerlord</span></div></header>
+  return <main className={embedded ? 'panel-embedded' : 'panel-layout'}>{!embedded && <header className="panel-brand"><span className="panel-brand-mark">S</span><div><strong>ShedLink</strong><span>Герой Bannerlord</span></div></header>}
     {gate.status !== 'ready' && <section className="panel-card"><p className="panel-eyebrow">ВХОД ЧЕРЕЗ TWITCH</p><h1>Подключите свою личность</h1><p role="status">{gate.message}</p>
       {gate.canShare && <button type="button" disabled={gate.status === 'resolving' || gate.shareRequested} onClick={() => identity.requestShare()}>Поделиться Twitch ID</button>}
       {gate.status === 'blocked' && <button type="button" onClick={() => { void identity.retry(); }}>Повторить проверку</button>}
@@ -52,10 +56,11 @@ export function PanelApp({ controller, identity, Equipment, combat = false, part
     <div hidden={gate.status !== 'ready' || !state.canAct}>
       {state.refundNotices.map(notice => <p className="panel-notice" role="alert" key={notice.id}>{notice.message}</p>)}
       {(Equipment || combat) && <nav className="panel-tabs" aria-label="Раздел героя"><button type="button" aria-pressed={tab === 'development'} onClick={() => changeTab('development')}>Развитие</button>{Equipment && <button type="button" aria-pressed={tab === 'equipment'} onClick={() => changeTab('equipment')}>Снаряжение</button>}{combat && <button type="button" aria-pressed={tab === 'combat'} onClick={() => changeTab('combat')}>Боевые действия</button>}{party && <button type="button" aria-pressed={tab === 'dynasty'} onClick={() => changeTab('dynasty')}>Клан, отряд и армия</button>}</nav>}
-      {party && <div hidden={tab !== 'dynasty'}><PartyView key={state.generation + ':' + partyOwner(state.hero)} controller={controller} active={tab === 'dynasty' && state.canAct} /></div>}
-      {combat && <div hidden={tab !== 'combat'}><CombatView controller={controller} /></div>}
-      <div hidden={tab !== 'development'}><HeroDevelopmentView controller={controller} /></div>
-      {Equipment && <div hidden={tab !== 'equipment'}><Equipment key={state.generation} controller={controller} active={tab === 'equipment' && state.canAct && (!combat || state.hero !== null)} /><ForgeView key={'forge:' + state.generation} controller={controller} active={tab === 'equipment' && state.canAct} /></div>}
+      {party && <div hidden={tab !== 'dynasty'}><PartyView key={state.generation + ':' + (controller.isHosted() ? 'hosted' : partyOwner(state.hero))} controller={controller} active={tab === 'dynasty' && state.canAct} full={full} /></div>}
+      {Community && <><button type="button" aria-pressed={tab === 'community'} onClick={() => changeTab('community')}>Сообщество</button>{tab === 'community' && <Community />}</>}
+      {combat && <div hidden={tab !== 'combat'}><CombatView controller={controller} tournament={tournament} /></div>}
+      <div hidden={tab !== 'development'}><HeroDevelopmentView controller={controller} full={full} /></div>
+      {Equipment && <div hidden={tab !== 'equipment'}>{full&&<LegacyInventoryView controller={controller} active={tab==='equipment'&&state.canAct}/>}<Equipment key={state.generation} controller={controller} active={tab === 'equipment' && state.canAct && (!combat || state.hero !== null)} />{full&&<HeroAchievementsView key={'achievements:'+state.generation} controller={controller} active={tab==='equipment'&&state.canAct}/>}<ForgeView key={'forge:' + state.generation} controller={controller} active={tab === 'equipment' && state.canAct} /></div>}
     </div>
   </main>;
 }

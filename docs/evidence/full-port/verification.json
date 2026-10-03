@@ -1,0 +1,51 @@
+{
+  "base": "b2064f4b045025d33d05aaf166ca1694ae0f5475",
+  "task_blob": "386774a49ed159f520040cfc6d93cb34b1887eb4",
+  "runtime_commit": "d724bca",
+  "full_port_complete": false,
+  "completed_slices": [
+    "tournament",
+    "streamer config"
+  ],
+  "suite": {
+    "passed": 957,
+    "skipped": 2,
+    "exit": 0,
+    "workers": 1
+  },
+  "fresh_http": {
+    "passed": 2,
+    "exit": 0
+  },
+  "legacy_gates": {
+    "passed": 17,
+    "exit": 0
+  },
+  "build_exit": 0,
+  "typecheck_exit": 0,
+  "eslint_exit": 0,
+  "globals_exit": 0,
+  "consistency": {
+    "exit": 0,
+    "warnings": [
+      "game policy ids unavailable"
+    ]
+  },
+  "browser": {
+    "version": "145.0.7632.6",
+    "widths": [
+      1280,
+      375
+    ],
+    "screenshots": 14,
+    "sandbox": true,
+    "bypassCSP": false,
+    "errors": 0
+  },
+  "mutations": {
+    "killed": 4,
+    "restored_green": 4
+  },
+  "protected_source_diff": "empty",
+  "published": false
+}

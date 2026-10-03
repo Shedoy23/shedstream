@@ -1,0 +1,56 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-commerce-parity.test.tsx (15 tests | 1 failed | 14 skipped) 1405ms
+   × Bannerlord legacy gear upgrade keeps empty payload and full continuation 1403ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 skipped (15)
+   Start at  18:58:09
+   Duration  6.20s (environment 37%, tests 24%, import 23%, transform 16%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord legacy gear upgrade keeps empty payload and full continuation
+AssertionError: expected [ { method: 'GET', …(7) }, …(19) ] to deeply equal [ { method: 'GET', …(7) }, …(19) ]
+
+- Expected
++ Received
+
+@@ -119,21 +119,21 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": {
+-       "action_type": "hero.upgrade_gear",
++       "action_type": "hero.reequip_gear",
+        "data": {
+          "client_action_id": "<generated-id>",
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.upgrade_gear\",\"data\":{\"client_action_id\":\"<generated-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.reequip_gear\",\"data\":{\"client_action_id\":\"<generated-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": "no-store",
+
+ ❯ check test/panel-hero-support.tsx:61:102
+
+ ❯ Object.finish test/panel-hero-support.tsx:65:131
+ ❯ buy test/panel-commerce-parity.test.tsx:16:150
+ ❯ test/panel-commerce-parity.test.tsx:22:269
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

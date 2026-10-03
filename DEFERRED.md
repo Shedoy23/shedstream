@@ -1,3 +1,134 @@
+## 03.10 — итоговые ограничения полного Preact-кандидата
+
+Актуальные итог/таблица кнопок: docs/PANEL_FULL_PORT_RESULT_2026-10-03.md,
+PANEL_FULL_PORT_COVERAGE_2026-10-03.md и RECONCILIATION. Старые записи ниже
+про «ещё впереди» — история конкретных промежуточных срезов.
+
+- Блокер социальной кнопки accept подтверждён реальным handler: from_user
+  проигнорирован, Bob→Carol. UI не отправляет потенциально неверное принятие.
+- Current RimWorld xenotype/метаболизм и expected context в ряде ручек не
+  публикуются; локальные observed-object guards не заменяют серверный CAS.
+- Точная тренировка свиты/UpgradeTargets не опубликована; inherited приблизительная
+  оценка и tier5/6 eligibility сохранены. Нельзя объявлять её точной game quote
+  для модовых деревьев войск. Самостоятельная правка API/мода запрещена.
+- Whole-shell minute shop gold/XP/catalog/upgrade/reequip/ransom закрыт21/21
+  вместе с предыдущими host сценариями; +1 activity click указан явно.
+- Collapse/restore сохраняет службы и останавливает только скрытые dynasty reads.
+- Старый equipment harness сравнивал parsed JSON, теперь raw bytes. Красный
+  тест сохранён, весь equipment82/82 зелёный; мутация порядка полей результативна.
+- Production/игра/Twitch Hosted Test/физический телефон не проверены; публикации нет.
+## 03.10 — полный игровой host, 9fb9921
+
+- Старый switchTab("rimworld") без проверки active_module читает my-pawn и
+  catalog RimWorld на Bannerlord-канале. Новый UI читает только активную игру.
+  Исключение сравнения ограничено двумя конкретными последовательными GET:
+  тест проверяет целиком method/path/query/body/rawBody/JWT/cache перед удалением
+  этих двух строк; остальные строки и порядок сравниваются полностью.
+- Полные минутные сценарии фокуса/атрибута/закона/Colony-heal подтверждают
+  единственный дополнительный activity click от нового платного подтверждения.
+- Найденные дефекты нового общего host устранены: поздний старт игровых GET,
+  перезапуск фазы Colony-поллинга при JWT refresh, отдельный баланс Bannerlord
+  вместо шапки, лишние dynasty reads вне integration, потеря данных на remount.
+  Сервер, моды и старый frontend при этом не правились.
+- Финальные Twitch Hosted Test/реальная игра/платные действия/production не
+  выполнялись. Полный локальный suite после RimWorld1193 passed/2 skipped;
+  изменения host требуют следующего общего прогона перед сдачей.
+
+## 03.10 — магазин Bannerlord и прежнее снаряжение
+
+- Бесплатная hero.reequip_gear отсутствует в action_prices/config. Реальная route
+  принудительно ставит price0; реальная фикстура подтверждает charged0. Кнопка
+  пересборки сохранена без выдуманного ценника. Upgrade использует только
+  gear_upgrade_costs сервера, а прежние кнопки скрыты при equipment_shop_ready.
+- Gold presets и optional shop catalog не получают fallback-цен/каталогов.
+  Персональный XP использует progression context и expected_platform_price;
+  устаревшие progression-действия из общего каталога исключены как в старой панели.
+- Подтверждения покупок и пересборки добавляют клики; полный game activity parity
+  ещё впереди. Выбранный shop/status host уже сравнивает весь стартовый трафик,
+  включая отдельный progression GET до каталога, и все generic action tails.
+
+## 03.10 — улучшения клана и достижения
+
+- API каталога не публикует cap пакета. Старый UI блокирует более 10, новый не
+  копирует скрытую константу: серверный отказ «Максимум 10» показан после запроса.
+  Исключение явно проверено полным trace: ровно один дополнительный POST, без
+  хвостов на отказе. Обычные пакеты сохраняют exact JSON/headers/cache/order.
+- Старый рендер падает на gold_cost:null; новый показывает «Цена не получена» и
+  не даёт выбрать строку. Это тест повреждённого ответа, не утверждение, что
+  текущий сервер отдаёт null. В штатной фикстуре цены сериализованы реальным API.
+- Pending улучшение обозначено ожиданием игры вместо старого «Владеешь»; gold
+  берётся уже за вычетом pending из API. Цена и доступность повторно проверяются
+  локально перед подтверждением, но route buy не принимает expected-price/context;
+  атомарную смену каталога после подтверждения нельзя закрыть только фронтендом.
+
+## 03.10 — вассалы и выкуп
+
+- Viewer API вассалов не публикует max_vassals. Старый UI скрывает создание при
+  literal5 и обещает фиксированные 25% дохода. Новый показывает фактический
+  income_share_pct, предлагает доступных наследников и оставляет проверку лимита
+  серверу. Отличие видимости при пяти кланах проверено отдельным тестом; никаких
+  дополнительных запросов при просмотре. Серверный отказ не обходит и не меняет.
+- Создание/переименование вассала и взнос выкупа требуют настоящего подтверждения.
+  Его дополнительные клики войдут в финальную full-game activity проверку. Raw
+  payload и все 1200/1500/2000/3500ms хвосты выбранного host сохранены.
+- В API нет expected-clan/capture CAS. Локальный guard следит за показанным ID,
+  сессией игры и пленителем, но атомарную смену между подтверждением и серверным
+  исполнением гарантировать не может. Сервер/мод в этой части не изменялись.
+
+## 03.10 — взрослые дети и предложения
+
+- Старый _famProposeMarriage показывает цену из config, но отправляет literal
+  price:100. Новый запрос отправляет ту цену, которую получил и подтвердил зритель.
+  При rebalanced137 отличается только этот JSON scalar; тест сохраняет и сверяет
+  весь прочий трафик и сырые тела, включая чтение username=bob и 1500/3500ms хвосты.
+- Старые rename/looks используют window.prompt, cancel/propose вызывают заглушку
+  _bnrConfirm. Новый UI даёт доступные формы и настоящие подтверждения платных
+  действий/отзыва. Дополнительные клики должны входить в итоговый full-game activity
+  parity; проверенный выбранный host не объявляется полным bootstrap.
+- Дети и предложения выбираются по фактическим hero_id/proposal_id; исчезновение
+  объекта после нового чтения закрывает форму. Запрос изменения внешности означает
+  постановку в очередь; валидность кода внешности в реальной игре не проверялась.
+
+## 03.10 — контракт профиля героя
+
+- Предел детей MAX_ALIVE_CHILDREN сервер передаёт модовой заявке, но не включает в
+  viewer config/my-hero. Новый UI не копирует старое число 5: при живом супруге,
+  наличии клана и подтверждённой цене разрешает заявку, предупреждая о проверке
+  лимита игрой. На пяти детях старый UI блокировал клик; новый честно показывает
+  принятие заявки, не обещает ребёнка. Отличие и реальный ответ очереди покрыты тестом.
+  Для показа заранее точного лимита потребуется отдельная backend-задача, здесь он
+  не отображается. Сервер и мод самостоятельно не исправлялись.
+- hero.divorce в config не имеет цены; обработчик безусловно задаёт gold=0, price=0.
+  UI сохраняет опасное подтверждение и показывает кнопку без выдуманного quote.
+- hero.set_gender/marry/make_baby не имеют expected_price/expected_spouse CAS в API.
+  Подмена супруга/цен/контекста до отправки снимает диалог локально, но это не замена
+  атомарной серверной проверки. Запросы сохраняют оригинальные тела.
+
+## 03.10 — срез a056e77
+
+Daily завершён; full suite 1063 passed / 2 skipped, exit0, Chromium60 снимков.
+Остальные разделы ниже остаются в работе. Для мастерских/караванов подтверждён
+дефект старого UI: запасные цены/лимиты и статичный список типов нельзя переносить.
+Новый UI обязан использовать config, max_workshops/max_caravans и workshop_types.
+Продажа именует ID объекта, но backend не принимает ожидаемую игровую сессию/тип:
+локальное отсечение устаревшей карточки не является серверным CAS. Backend не меняем.
+
+## 03.10 — full-port после разрешённого progression merge
+
+- Культуры и workshop_types присутствуют в импортированном `1682ebf`; старые каталоговые блокеры ниже исторические. Культура/случайное создание/возрождение реализованы и проверены в браузере, покупка мастерской ещё в работе.
+- Полный порт ещё не завершён: daily, остаток Bannerlord/династия/магазины, общие игры/семья, RimWorld и полный интегрированный boot. Не принимать локальные ZIP/отчёты старых срезов за итог.
+- Новый hero refresh не ждёт медленный kingdom-state. В выбранном Dynasty harness точно описана перестановка одного начального content-catalogs GET с соседним stats GET; строки и сырые тела сохранены. Проверки зависшего ответа и общего трафика есть. Полный game bootstrap остаётся отдельной задачей.
+- Старый `_bnrConfirm` пропускает предупреждение о возрождении; новый показывает и отменяет действие. Новые подтверждения progression/policies/respawn добавляют реальный клик; полный activity-тест этих подтверждений ещё впереди.
+- В imported main.py лог Downloads ошибочно вложен под наличие frontend-next; найдено при merge-аудите, самостоятельная серверная правка запрещена и не выполнена.
+
+## Предыдущие ограничения исходной базы (исторические)
+
+- На принятой базе b206 нет динамических cultures для выбора hero.create. В progression cd125a5 существует /api/bannerlord/content-catalogs с ingestion/storage/validation. Нельзя самовольно переносить backend/mod. Случайное создание не заблокировано. Каталог workshop types отсутствует и в проверенной progression; это блокирует только выбор типа при покупке, не список/продажу.
+- Закрыты турнир/config/cases/pets/ShedColony/основной runtime/statistics/profile/guilds; голосования, общие игры, семья/остаток Bannerlord, RimWorld/shop и интегрированный полный game boot продолжаются. [Живая таблица](docs/PANEL_FULL_PORT_COVERAGE_2026-10-03.md). Это не финальная сдача.
+- API pet unequip и guild contribute/upgrade/leave/disband адресует текущий slot/membership, без expected_item_id/guild_id. Локальная проверка наблюдаемого объекта не закрывает невидимую серверную гонку. TTS/pet/guild цены также не сверяются с expected_price в POST. Сервер не правился.
+- Старый guild UI использует voting_min_pledge как минимум вклада, хотя backend проверяет собственный GUILD_MIN_CONTRIBUTE; новый не копирует посторонний лимит. Старый streak UI выдумывает следующую награду формулой; новый показывает только серверные данные.
+- Подтверждения платных действий добавляют реальный activity.active_clicks. Разница +1 проверена полным minute trace для TTS/guild create, причина записана в коммитах, запросы не фильтруются.
+- Настоящие игра/Twitch Hosted Test/CDN timing/физический телефон не проверены; 375px Chromium на этом ПК проверен. Старые size/suite отчёты не считать итогом текущего HEAD.
 ## 03.10 — финальная кузница: пределы frontend-only защиты
 
 - Наблюдаемое расхождение hero/equipment-shop по item_id/quality закрыто в новом UI; неизменённый старый UI сохраняет риск. Невидимая смена между GET и POST и одинаковая session-смена не закрываются без изменения DTO/совместимого серверного expected-target контракта. Разблокирует отдельное согласование backend, сейчас он неизменён.
@@ -52,6 +183,130 @@ HTTP-сценария не доказывают визуальную игру/31
 на телефоне 318 px; 4) на Windows тесты мини-игр не дочищают временную базу (код Астры,
 предположительно не дожидаются задач генерации поля при закрытии сервиса; на Linux не проявляется);
 5) решатели/сговор игроков сервер не исключает.
+## 03.10 — культуры героя: ГОТОВО, ЖДЁТ ВЫКАТА после эфира (Claude)
+
+Жалоба зрителя «не все фракции выбираются». Игра шлёт 16 культур, доступно 6 (Вландия, Баттания,
+Стургия, Хузаиты, Империя, Асераи); 10 серых: бандиты, «Кальрадская» и культуры DLC Норды/Дарши/
+Ваккен — у них в игре нет странников-образцов (`culture_no_wanderer_templates`), причина была только
+во всплывающей подсказке. Решение владельца — вариант А: сервер отдаёт панели только доступные
+(`routes/bannerlord.py`, `bannerlord_content_catalogs`), создание героя по-прежнему проверяет полный
+каталог. Тест + мутант. **Выкат: `deploy.ps1 -Backend` после эфира** (рестарт ~7 с; во время эфира
+владелец запретил). Отложено (вариант Б): мод создаёт героя Нордов/Дарши/Ваккен из образца другой
+культуры с подменой культуры — только если зрители попросят именно их.
+
+## 03.10 — решение владельца: 0.0.8 на Review НЕ отправлять, ждать Preact-версию
+
+Мотив: тестеры (Testing Account Allowlist) уже сидят на 0.0.8 в Hosted Test — защита кузницы и
+счётчики у них работают (11 зрителей за первый час); 0.0.5 Twitch так и не ответил, публично её нет.
+Моё возражение («зрители на 0.0.5 без защиты кузницы, счётчики без данных») снято: исходил из
+неверного факта. **Если Twitch одобрит 0.0.5 — НЕ нажимать Release:** она старше 0.0.8 и без
+`expected_item_id` в кузнице. Разблокирует отправку: готовая и проверенная Preact-версия
+(`docs/TASK_ASTRA_PREACT_FULL_PORT_2026-10-03.md`); 0.0.8 — запасной вариант, если Preact затянется.
+
+## 03.10 — прокачка проверена в игре целиком (Claude)
+
+Через панель 0.0.8 (Hosted Test): фокус «Обаяние» 40 000💰 — применён (#92415); атрибут «Энергия»
+50 000💰 — в сцене честный отказ `in_mission` без списания (#92418), на карте мира — применён, мод
+прислал `hero.attribute_changed` до подтверждения (#92423, 4→5). XP и фокус — 02.10. **Прокачку
+считать проверенной.** Кузница через 0.0.8 — тоже: запрос пришёл с `expected_item_id: steppe_bow`, одно списание −10 000💎 (скидка стримера), мод: «Степной лук» Common → Fine (`balanced_bow`), право перековки `active` (#92554). **0.0.8 готова к Review.**
+
+## 03.10 — лог-проверка после выкатов: мод тянет улучшения клана без канала (Claude)
+
+Утром ошибок нет ни на сервере, ни в журнале мода. Единственная находка: мод вызывает
+`GET /api/bannerlord/clan-upgrades/all-owners` без `channel_id` и без токена — сервер подставляет канал
+по умолчанию (`channel-default`, `routes/bannerlord.py` ~3534, 3558), 5 раз за 02–03.10. При одном
+канале безвредно; **со вторым стримером его мод получит улучшения клана ЧУЖОГО канала.** Чинить: мод
+шлёт module-token, ручка берёт канал из токена (как `/v1/module/...`). Разблокирует: перед
+подключением второго стримера — обязательно. Прочее в логах — известное: бот не модератор на тестовом
+`qa_moderation`, 502 на минуту выката, разовый тайм-аут Telegram, 404 PubSub «Client not found» (1 раз).
+
+## 03.10 — 0.0.7 вместо 0.0.6: счётчики нажатий (Claude)
+
+Счётчики Астры лежали только в ветке мини-игр, в 0.0.6 их не было. Перенесены одни счётчики
+(сервер `ui_usage` + M134, `viewer-usage.js`, вызовы во вкладках/разделах/действиях, учёт только
+видимой панели); остальные её правки панели остались в `feature/skill-minigames`. Гейты:
+`test_ui_usage.py`, `test-frontend-usage-wiring.mjs` (мутант: снятый счётчик действия — красный).
+Сервер выкачен, M134 на проде. **Политика конфиденциальности** говорила «данные только для игры» —
+дописан абзац про счётчики (имя + число, 90 дней), выложен один `privacy.html` (бэкап
+`/root/privacy.html.bak-20261003`). Отчёт по данным: `scripts/ui-usage-report.py`.
+**Решение «что свернуть» — не раньше 2–3 стримов с 0.0.7** (правило «пользователь ОДИН»: ноль ≠ не
+нужно). **Устарело:** `deploy.ps1 -Frontend` всё ещё заблокирован «кандидатом 0.0.5»
+(`$FrontendReviewOpen`) — снять, когда 0.0.7 выйдет в Release, иначе сайт отстаёт от Twitch.
+
+## 03.10 — вес старой панели у предела Twitch (Claude)
+
+0.0.6: архив 951 КБ, мобильная загрузка ~905 КБ сырых / ~245 КБ gzip при пределе §3.2 в 1 МБ.
+Решение: **в старую панель новых механик не добавлять**; следующая крупная версия — новая
+панель (`frontend-next`, 61 КБ gzip) после переноса недостающих разделов и проверки владельцем.
+Разблокирует: перенос турнира/династии/общих разделов/RimWorld/ShedColony в новую панель.
+
+## 03.10 — Preact: проверка ночной работы Астры (Claude)
+
+Пакет `shedstream-preact-review-424b5f7.zip` → локальная ветка `review/preact-20261003` (HEAD
+`424b5f79`, 139 коммитов от `8a40391`, совпало). Перепроверено мной: 937 тестов прошли (2 пропуска —
+живые сетевые), сборка зелёная, React заменён на Preact 11; вес (gzip-9, первая загрузка):
+мини-игры 28 КБ (было ~126), новая панель 61 КБ (покрывает Bannerlord: развитие, магазин, бой,
+свита, клан, отряд/армия, королевство/законы, кузница). Старая мобильная панель для сравнения —
+905 КБ сырых / 245 КБ gzip. Старую панель, сервер, мод Астра не трогала (проверено diff'ом).
+Не перенесено: турнир, остальной герой/династия, общие разделы, RimWorld, ShedColony.
+Не проверено: браузер глазами, телефон, Twitch Hosted Test, игра. GitHub: её поздние коммиты
+НЕ запушены (публикация была отклонена) — ждём решения владельца.
+
+**Находка Астры, касается ТЕКУЩЕЙ панели на проде — кузница.** Панель шлёт только слот; если вещь
+в слоте сменилась после того, как зритель открыл экран, касса улучшит НОВУЮ вещь и спишет 20 000💎
+(доказано на временной кассе). Новая панель блокирует такой клик, старая (0.0.5) — нет. Правильная
+защита — на сервере: принимать от клиента ожидаемый `item_id`/качество и отказывать при
+несовпадении (старая панель поле не шлёт — для неё остаётся как есть). Разблокирует: решение
+сделать серверную проверку.
+
+**Сделано 03.10 и выкачено на прод:** сервер принимает `expected_item_id`/`expected_quality_rank` и
+отказывает до списания (`reforge_item_changed`); тест + мутант (без проверки списывало 20 000 —
+тест красный). Новая панель шлёт `expected_item_id` (ранг не шлёт: она знает только название
+качества, угадывать ранг = ложные отказы). **Остаётся:** панель 0.0.5 поле не шлёт — для зрителей на
+Twitch риск закроется только выпуском новой панели.
+
+**Новая панель для проверки владельцем:** `https://shedoy23.ru/frontend/next/panel-extension.html`
+(и `panel-mobile.html`) + свои `?dev_jwt=...&dev_user=...`. Папка `frontend/next` на проде кладётся
+РУКАМИ (tar `frontend-next/dist` → scp), `deploy.ps1` её не трогает; монтируется при старте —
+после замены нужен рестарт. Сборка из ветки `feature/panel-preact-dev` (Астра + dev-вход + кузница).
+
+## 02.10 — прокачка от игры (0.0.6) перенесена в `feature/game-progression` (Claude)
+
+14 коммитов Астры поверх каталогов: цену и лимиты фокуса/атрибутов/опыта называет мод, сервер
+перепроверяет котировку перед списанием. Миграция переименована в `M137.bannerlord_progression`
+(m135 занят skillgames). Конфликт в `AddSkillXpHandler` решён в пользу Астры: её `XpCandidates/XpReason`
+покрывают мою защиту 30.09 (потолок 330, фактор фокуса). **Найдено и исправлено:** новый путь
+закрывал панели 0.0.5 все три покупки (она не шлёт `progression_context` и котировок) — теперь без
+контекста сервер берёт котировку из снимка игры, мод сверяет её с игрой
+(`tests/test_progression_legacy_client.py`, 5/5, мутант красный). Добавлены тексты отказов
+`skill_xp_outcome_unknown`, `progression_outcome_unknown`. Проверено: мод собран, все стенды
+(вкл. прокачку 48/48), 138 тестов сервера, 11 тестов фронта. **Выложено 02.10 ~23:03 по слову
+владельца:** сервер `deploy.ps1 -Backend` (M137 применена), мод `65905302` (откат
+`D:/shedlink-build/dll-rollback/20261002-link-progression`). Ждёт: проба в игре — купить фокус,
+атрибут и опыт через ТЕКУЩУЮ панель 0.0.5, сверить деньги и эффект.
+**Проба 02.10:** фокус ✅ (2→3, −50 000💰 ровно по котировке), опыт ✅ (платный и дейлик). Атрибут ❌:
+три нажатия, сервер отказал `progression_option_not_found` — панель 0.0.5 шлёт `Vigor`, игра зовёт
+`vigor`. Исправлено (совпадение без регистра только для старой панели и только однозначное),
+выложено ~23:20; ждёт повторной покупки атрибута. Урок: тест совместимости писался на выдуманных
+id с одинаковым регистром — фикстуры старого клиента брать из НАСТОЯЩЕГО его кода (zip 0.0.5).
+Решение владельца 02.10: мини-игры — ОТДЕЛЬНОЙ подачей в Twitch после каталогов и прокачки.
+
+## 02.10 — каталоги из игры (0.0.6) перенесены в ветку `feature/runtime-catalogs` (Claude)
+
+19 коммитов Астры (`1228eeda`..`e2045b83`) поверх `live/2026-10-02`: мод отдаёт культуры, законы,
+предметы, названия навыков/атрибутов; сервер хранит, панель показывает без ручных списков.
+Проверено: мод собран, 30/30 стендов, 137/137 тестов сервера (вкл. старый фронт 0.0.5), тест фронта
+каталогов, линтер. **Не проверено в игре** (стенды на заглушках). Ждёт: 1) прогон в игре — ставим мод
+и сервер вместе; 2) релиз фронта в Twitch (правки `viewer-bannerlord.js`, метки 202610021200).
+Прокачка от игры (следующие 14 коммитов) — отдельным шагом, нужна совместимость со старым фронтом.
+**02.10 ~22:40 выложено:** сервер полным `deploy.ps1 -Backend` (первый полный выкат после сведения,
+проверка расхождений чистая), миграция переименована в `M136.bannerlord_content_catalogs` (m134 занят
+`ui_usage` в мини-играх), применена на проде; мод `3b83b7b9` в игре (откат
+`D:/shedlink-build/dll-rollback/20261002-link-catalogs`). **Проверено в игре 02.10 ~22:46:** после
+загрузки сейва мод отправил каталоги без ошибок, на проде: культур 16 (6 доступны, 10 — бандиты и
+служебные — `available:false`, `culture_no_wanderer_templates`), законов 32, навыков 18, атрибутов 6,
+названия и описания русские из игры. Ждёт только релиза фронта в Twitch — зрители увидят каталоги
+(и правильные тексты законов, багрепорт #59) с новой панелью; #59 закрыть после релиза.
 
 ## 02.10 — работа над 0.0.6 живёт в ветке `version/0.0.6` на GitHub (Claude)
 
@@ -3855,3 +4110,139 @@ milestone. Выполненный пункт удаляется: история 
 Удалять старые игры и совместимость пока НЕ разрешено. Удаление возможно
 после нового решения владельца и завершения перехода старого CDN-клиента.
 В эту работу не входит push, PR, deploy или публикация ZIP.
+
+## 03.10.2026 — legacy inventory target and commerce closure
+Удаление hero.discard_item принимает только slot. Новый UI подтверждает имя и весь
+наблюдаемый предмет, отменяет подтверждение при его замене, но без server expected_item_id
+гонка между POST и исполнением неустранима. Сервер/legacy не изменены. Сохранены
+локальные hero GET через1200/3500ms сверх generic3500ms: настоящая raw parity проверка
+поймала их отсутствие. Hero summary показывает наблюдаемые броню, культуру, место,
+турнирные победы; неизвестные mod stats вещей не отбрасываются. Результат queued —
+заявка, не выполненное игровое действие. Платное подтверждение магазина/gear добавляет
+клик; полный игровой activity parity ещё предстоит (selected-host не доказывает его).
+
+## 03.10.2026 — mini-game wire differences and server target limits
+RPS/TTT/канат перенесены с реальными очередями/раундами, season данными и таймерами.
+Tug legacy читает q.in_queue||q.queued, но API возвращает status='queued'. Новый UI
+показывает фактическую очередь: отдельный тест проверяет одинаковый HTTP и различие
+кнопки. В legacy накопленные taps уходят через1000ms даже после закрытия окна;
+новый UI отменяет ещё не отправленный batch. Тест доказывает ровно отсутствующие
+POST pull+два GET, остальной трафик не фильтруется. Причина — taps API не принимает
+room_id: отложенный batch мог бы попасть в новую, не показанную комнату. Локальная
+защита не закрывает атомарную серверную гонку, нужен отдельный server contract change.
+TTT/RPS move имеют room_id, но не expected_round: stale-round CAS также отсутствует.
+Правила/призы/лимиты из ответов, старые fallback1100/45сек/10сек не скопированы.
+Старые приглашения /duel/create/accept из UI давно удалены самим legacy, переносить
+недоступную форму не стали; bot compatibility endpoints не изменялись.
+
+## BLOCKER 03.10.2026 — social marriage accept ignores the clicked proposer
+Confirmed by actual routes/marriage.py marriage_accept on disposable DB:
+frontend-next/test/panel-fixtures/social-family-responses.json accept_wrong_target:
+POST {username:alice,from_user:bob} succeeds with status.partner=carol (latest row).
+Handler never reads JSON body, SELECTs ORDER BY created_at DESC LIMIT1 instead.
+New SocialFamilyView stops only accept, explains unavailable selected-person check;
+proposal/reject/status/divorce are independent and ported. To unblock, backend must
+honour selected from_user or stable proposal ID in the same transaction and reject
+replacement. No backend/legacy fix authorized or made. Snapshot can change between
+read and POST even with one proposal, so merely hiding all but latest is insufficient.
+Divorce similarly lacks expected partner/marriage ID; local quote/partner guard only,
+atomic identity contract requires separate backend task. Price is core/config, no500 fallback.
+
+## 03.10 — explicit social-family select label
+Chromium exact getByLabel failed with a wrapped select whose accessible label
+included option text. DOM dump is social-family-browser-debug.log; separate
+label htmlFor/id fixes native browser selection. JSdom exact label test stayed
+green, so former file label-red.log was renamed label-jsdom-green.log honestly.
+Targeted Chromium regression created6 screenshots, exit0; full run follows.
+
+## 03.10 — RimWorld pawn slice and precise legacy differences
+RimWorld controller starts synchronously when core stats selects the module, so
+all six initial GETs precede level/duel tails exactly; UI stays lazy. Duplicate
+pawn read after config and both cooldown reads retained. JWT refresh keeps phase.
+13 pawn tests +15 shell tests pass; type/build/CSP/maps pass. Browser/mutations next.
+Old pawn.js replaces my-pawn-card.innerHTML and deletes #refresh-pawn-btn. New UI
+retains manual refresh; explicit test proves old button absent and exactly two
+additional GETs (pawn, cooldown) on new click, no hidden trace filtering.
+Old heal success invents900s locally; server response publishes no duration. New
+UI says checking until unchanged3s pawn poll returns real cooldown; test137s.
+API pawn lacks stable pawn generation ID and xenotype identity. Local guards use
+observed world/name/alive/selected trait degree or gene def; atomic replacement
+race cannot be solved by frontend. Current xenotype will be shown unknown.
+Fixture generation initially left a background achievement task on main.bot's
+uninitialized local DB. Fixed generator to stub main.bot and explicitly set channel
+context; clean run30responses exit0. No production or game server contacted.
+
+## 03.10 — RimWorld complete action contracts
+Shop item/implant/neurotrainer/passion upgrade now require payment confirmation;
+legacy sent immediately. Full minute tests compare all raw requests and explicitly
+add exactly1 confirmation click to activity. No extra POST/GET or header normalization.
+Xenotype keeps item_def AND def_name; trait/gene keep expected_price and immediate
+personal catalog reload after balance start. Passion/remove-trait retain2s skills
+reload; pawn polls3/6/9/12s, spawn5/10/15/20s. Item/implant/neuro/event add no pawn poll.
+Do not copy legacy event5min or trait/gene3s client purchase restrictions: no such
+limits are returned by server. Busy guards protect in-flight repeats; server owns
+refusals. Explicit cancel-event/cancel-trait tests reproduce old stale client lock
+and new available confirmation, with unchanged complete traffic and no charge.
+Stale catalog quote, gene and implant-side guards covered; heal preflight replacement
+was reproduced red and corrected. Generic buy-item/implant/passion/reset still lack
+atomic expected-price/pawn-generation/slot-object CAS in server contract. These API
+limits are reported; server/mod/old UI unchanged.
+Current xenotype name/metabolism and gene is_overridden are not returned by my-pawn;
+the old display branches cannot have authoritative data. New UI states unknown
+xenotype and shows actual catalog/genes; full current-xenotype details need backend.
+
+## 03.10 — measurement entrypoint correction
+Default measure-build previously used mobile.html, which is the separate skillgames
+entry, so the earlier29656-byte statement was mislabeled as panel initial. Preserved
+historical JSON and corrected STATUS. Default is now panel-mobile.html. Explicit
+panel-mobile and panel-extension static closures are44612 bytes gzip9 each.
+Including eagerly started CommonView/Bannerlord/Tournament dynamic closures gives
+104679 gzip9. Final report must include all startup-loaded assets, not count only
+static imports while lazy modules are already being mounted. Local TwitchHelper and
+API response bytes are excluded; no Twitch timing/hosted/mobile-network claim.
+
+## Review промежуточного f00c7f0
+
+Три runtime-дефекта подтверждены red и исправлены в 2091d24 (RimWorld JWT busy,
+Colony slow polling, строгие pre-action 403/429); детали и доказательства:
+docs/PANEL_FULL_PORT_REVIEW_FIXES_2026-10-03.md. Voting unknown outcome оставлен
+явным унаследованным ограничением: повторный взнос может списать деньги второй раз.
+Обычные Colony игровые fixtures созданы вручную; реальные ASGI captures здесь
+доказывают только policy/auth отказы. XSS-аудит был остановлен ограничениями среды,
+не владельцем. Артефакты f00c7f0 промежуточные; публикация не разрешена.
+## Второй review: Colony и remount оболочки
+
+Checkpoint e5ab10e/Library report v1 промежуточный. При JWT-resolving ViewerShell
+размонтировал ColonyView, который терял pending/unknown guard. Red f264ac2:
+8 failed/2 passed; fix6a048385b144199b56772eb8d0ac444baf741d49: состояние действия
+хранится в ColonyController по shedcolony/channel/login. Затронутые86/86,exit0.
+Смена identity/channel/game не переносит guard на другого владельца и не стирает
+его при возврате; поздний исход сохраняется для исходного owner. Определённые
+429/успех и raw traffic сохранены. Это не серверная идемпотентность и не защита
+после полного reload. Подробности: docs/PANEL_COLONY_REMOUNT_REVIEW_2026-10-03.md.
+Большой пакет и report v1 до повторного review не заменяются. Публикации нет.
+
+Дополнительная граница: Chromium на локальном стенде повторил POST при обрыве
+до первых байтов HTTP-ответа. Отдельный минимальный probe без приложения:
+один fetch → два одинаковых POST; при обрыве начатого JSON — один POST.
+UI guard не обеспечивает серверную дедупликацию транспортных повторов.
+Финальный remount probe использует оборванный JSON, сохраняет unknown и1 POST
+на1280/375. Backend не исправлялся; оба режима описаны в remount review.
+
+## Финал после независимого re-review
+
+Родитель подтвердил закрытие Colony-remount замечания и отсутствие новых найденных
+runtime-дефектов6a048385 относительно e5. Reviewer читал код/evidence, собственные
+прогоны не делал. Общий checkpoint23aca6b: suite1251 passed/2 skipped,57 мутаций,
+browser188 снимков; два HTTP-теста повторены2/2 на том же runtime. Последующие
+коммиты меняют только документацию/evidence. Финальный экспорт целостный, большой
+e5 ZIP не используется как новая поставка. Полный reload, транспортные повторы,
+идемпотентность, social marriage accept, Voting и DTO-ограничения остаются явными.
+XSS-аудит остановлен ограничениями среды/инструментов, не пользователем.
+Push/PR/deploy/Twitch submission не выполнялись и не разрешены.
+
+Финальный формат уточнён: компактный самостоятельный пакет полного frontend-next,
+актуального build, отчётов и релевантных evidence, плюс полный patch от b2064f4.
+Полный tree проверяется отдельным Git index. Большой142196852-байтный экспорт
+14c02b9 и его подтверждённые части сохранены как промежуточные; в финальный ZIP
+они не включаются и не выдаются за доставку. Runtime/tests не менялись.

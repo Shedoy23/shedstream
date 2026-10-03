@@ -1,0 +1,841 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord full dynasty policy consent has exactly one extra activity click and complete tails
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord full dynasty policy consent has exactly one extra activity click and complete tails
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord replaced hero retains freshly read dynasty data rather than discarding it on remount
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord replaced hero retains freshly read dynasty data rather than discarding it on remount
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord replaced hero retains freshly read dynasty data rather than discarding it on remount
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord replaced hero retains freshly read dynasty data rather than discarding it on remount
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord replaced hero retains freshly read dynasty data rather than discarding it on remount
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+[FE-VAS] loaded vassals=1 eligible=1
+
+ тЭп test/panel-game-bootstrap-parity.test.tsx (14 tests | 2 failed | 12 skipped) 4094ms
+   ├Ч bannerlord full dynasty policy consent has exactly one extra activity click and complete tails 3014ms
+   ├Ч bannerlord replaced hero retains freshly read dynasty data rather than discarding it on remount 1078ms
+
+тОптОптОптОптОптОптОп Failed Tests 2 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord full dynasty policy consent has exactly one extra activity click and complete tails
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М"
+
+Here are the accessible roles:
+
+  main:
+
+  Name "":
+  <main
+    class="panel-embedded"
+  />
+
+  --------------------------------------------------
+  navigation:
+
+  Name "╨а╨░╨╖╨┤╨╡╨╗ ╨│╨╡╤А╨╛╤П":
+  <nav
+    aria-label="╨а╨░╨╖╨┤╨╡╨╗ ╨│╨╡╤А╨╛╤П"
+    class="panel-tabs"
+  />
+
+  --------------------------------------------------
+  button:
+
+  Name "╨а╨░╨╖╨▓╨╕╤В╨╕╨╡":
+  <button
+    aria-pressed="false"
+    type="button"
+  />
+
+  Name "╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡":
+  <button
+    aria-pressed="false"
+    type="button"
+  />
+
+  Name "╨С╨╛╨╡╨▓╤Л╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П":
+  <button
+    aria-pressed="false"
+    type="button"
+  />
+
+  Name "╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П":
+  <button
+    aria-pressed="true"
+    type="button"
+  />
+
+  Name "ЁЯЪк ╨Я╨╛╨║╨╕╨╜╤Г╤В╤М ╨║╨╗╨░╨╜":
+  <button
+    class="bnr-clan-leave"
+    type="button"
+  />
+
+  Name "ЁЯЪк ╨Я╨╛╨║╨╕╨╜╤Г╤В╤М ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛":
+  <button
+    class="bnr-kingdom-leave"
+    type="button"
+  />
+
+  Name "ЁЯЫб ╨Э╨░╨╜╤П╤В╤М ╨▓╨░╤Б╤Б╨░╨╗╤М╨╜╤Л╨╣ ╨║╨╗╨░╨╜ (3MЁЯТ░)":
+  <button
+    class="bnr-recruit-vassal"
+    data-bnr-economic-action="hero.recruit_vassal_clan"
+    type="button"
+  />
+
+  Name "╨Ц╨╡╨╜╨╕╤В╤М╤Б╤П / ╨▓╤Л╨╣╤В╨╕ ╨╖╨░╨╝╤Г╨╢ тАФ 50┬а000 ЁЯТ░":
+  <button
+    id="bnr-marry-btn"
+    type="button"
+  />
+
+  Name "╨Ч╨░╤З╨░╤В╤М ╤А╨╡╨▒╤С╨╜╨║╨░ тАФ 100┬а000 ЁЯТ░":
+  <button
+    disabled=""
+    id="bnr-make-baby-btn"
+    type="button"
+  />
+
+  Name "╨Я╤А╨╕╨╜╤П╤В╤М":
+  <button
+    class="bnr-prop-accept"
+    type="button"
+  />
+
+  Name "╨Ю╤В╨║╨╗╨╛╨╜╨╕╤В╤М":
+  <button
+    class="bnr-prop-reject"
+    type="button"
+  />
+
+  Name "╨Ю╤В╨╛╨╖╨▓╨░╤В╤М":
+  <button
+    class="bnr-fam-cancel"
+    type="button"
+  />
+
+  Name "╨Я╨╡╤А╨╡╨╕╨╝╨╡╨╜╨╛╨▓╨░╤В╤М ╤А╨╡╨▒╤С╨╜╨║╨░ ┬╖ 50 ЁЯТО":
+  <button
+    class="bnr-fam-rename"
+    type="button"
+  />
+
+  Name "╨Ш╨╖╨╝╨╡╨╜╨╕╤В╤М ╨▓╨╜╨╡╤И╨╜╨╛╤Б╤В╤М ╤А╨╡╨▒╤С╨╜╨║╨░ ┬╖ 200 ЁЯТО":
+  <button
+    class="bnr-fam-looks"
+    type="button"
+  />
+
+  Name "╨б╨▒╤А╨╛╤Б╨╕╤В╤М ╨╜╨░╨▓╤Л╨║╨╕ ╤А╨╡╨▒╤С╨╜╨║╨░ ┬╖ 500 ЁЯТО":
+  <button
+    class="bnr-fam-respec"
+    type="button"
+  />
+
+  Name "╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М ╨▒╤А╨░╨║ ╨┤╨╡╤В╨╡╨╣ ┬╖ 100 ЁЯТО":
+  <button
+    class="bnr-fam-propose"
+    type="button"
+  />
+
+  Name "╨Я╨╡╤А╨╡╨╕╨╝╨╡╨╜╨╛╨▓╨░╤В╤М ┬╖ 100 ЁЯТО":
+  <button
+    class="bnr-vas-rename"
+    type="button"
+  />
+
+  Name "ЁЯЪй ╨б╨╛╨▒╤А╨░╤В╤М ╨░╤А╨╝╨╕╤О (1┬а000ЁЯТО)":
+  <button
+    data-bnr-action="army_create"
+    type="button"
+  />
+
+  Name "╨Ч╨░╨║╨╛╨╜ ╨╕╨╖ ╨╕╨│╤А╤Л╨в╨╡╨║╤Б╤В ╨╖╨░╨║╨╛╨╜╨░ ╨╕╨╖ ╨╕╨│╤А╤Л":
+  <button
+    class="bnr-diplo-policy-row"
+    data-policy-id="Mod.Policy-X"
+    data-policy-name="╨Ч╨░╨║╨╛╨╜ ╨╕╨╖ ╨╕╨│╤А╤Л"
+    type="button"
+  />
+
+  Name "0%":
+  <button
+    aria-pressed="true"
+    class="bnr-tax-btn"
+    data-tax-pct="0"
+    type="button"
+  />
+
+  Name "10%":
+  <button
+    aria-pressed="false"
+    class="bnr-tax-btn"
+    data-tax-pct="10"
+    type="button"
+  />
+
+  Name "25%":
+  <button
+    aria-pressed="false"
+    class="bnr-tax-btn"
+    data-tax-pct="25"
+    type="button"
+  />
+
+  Name "50%":
+  <button
+    aria-pressed="false"
+    class="bnr-tax-btn"
+    data-tax-pct="50"
+    type="button"
+  />
+
+  Name "тЪФ ╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М (2000ЁЯТО)":
+  <button
+    data-bnr-cd="kingdom.propose_war"
+    id="bnr-war-propose"
+    type="button"
+  />
+
+  Name "ЁЯХК ╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М (3000ЁЯТО)":
+  <button
+    data-bnr-cd="kingdom.propose_peace"
+    id="bnr-peace-vote-propose"
+    type="button"
+  />
+
+  Name "╨Т╨╜╨╡╤Б╤В╨╕ 500 ЁЯТО":
+  <button
+    class="bnr-ransom-pay"
+    type="button"
+  />
+
+  Name "╨Я╤А╨╛╨┤╨░╤В╤М":
+  <button
+    class="bnr-ws-sell"
+    type="button"
+  />
+
+  Name "╨Я╤А╨╛╨┤╨░╤В╤М":
+  <button
+    class="bnr-caravan-sell"
+    type="button"
+  />
+
+  --------------------------------------------------
+  region:
+
+  Name "╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П":
+  <section
+    aria-label="╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П"
+    class="panel-party"
+  />
+
+  Name "╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П":
+  <section
+    aria-label="╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П"
+    class="panel-card"
+  />
+
+  Name "╨Э╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║╨╕":
+  <section
+    aria-label="╨Э╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║╨╕"
+    class="panel-card"
+  />
+
+  Name "╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╡ ╨┤╨╡╤В╨╕ ╨╕ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╤П":
+  <section
+    aria-label="╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╡ ╨┤╨╡╤В╨╕ ╨╕ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╤П"
+    class="panel-card"
+  />
+
+  Name "╨Т╨░╤Б╤Б╨░╨╗╤М╨╜╤Л╨╡ ╨║╨╗╨░╨╜╤Л":
+  <section
+    aria-label="╨Т╨░╤Б╤Б╨░╨╗╤М╨╜╤Л╨╡ ╨║╨╗╨░╨╜╤Л"
+    class="panel-card"
+  />
+
+  Name "╨Т╤Л╨║╤Г╨┐ ╨┐╨╗╨╡╨╜╨╜╤Л╤Е":
+  <section
+    aria-label="╨Т╤Л╨║╤Г╨┐ ╨┐╨╗╨╡╨╜╨╜╤Л╤Е"
+    class="panel-card"
+  />
+
+  Name "╨Ш╨╝╤Г╤Й╨╡╤Б╤В╨▓╨╛ ╨╕ ╨╜╨░╤Б╨╗╨╡╨┤╨╛╨▓╨░╨╜╨╕╨╡":
+  <section
+    aria-label="╨Ш╨╝╤Г╤Й╨╡╤Б╤В╨▓╨╛ ╨╕ ╨╜╨░╤Б╨╗╨╡╨┤╨╛╨▓╨░╨╜╨╕╨╡"
+  />
+
+  Name "╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡":
+  <section
+    aria-label="╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡"
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П":
+  <h1 />
+
+  Name "[BLink] Fixture Clan":
+  <h2 />
+
+  Name "Fixture Kingdom":
+  <h2 />
+
+  Name "╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П":
+  <h2 />
+
+  Name "╨Ф╨╡╤В╨╕ (0 ╨╢╨╕╨▓╤Л╤Е ╨╕╨╖ 0)":
+  <h3 />
+
+  Name "╨Э╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║╨╕":
+  <h2 />
+
+  Name "╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╡ ╨┤╨╡╤В╨╕ ╨╕ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╤П":
+  <h2 />
+
+  Name "╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╨╡ ╨╛╤В @bob":
+  <h3 />
+
+  Name "╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╨╡ ╨║ @bob":
+  <h3 />
+
+  Name "╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║":
+  <h3 />
+
+  Name "╨Т╨░╤Б╤Б╨░╨╗╤М╨╜╤Л╨╡ ╨║╨╗╨░╨╜╤Л":
+  <h2 />
+
+  Name "╨б╨╡╨▓╨╡╤А╨╜╤Л╨╣ ╨┤╨╛╨╝":
+  <h3 />
+
+  Name "тЪЦ ╨Ф╨╕╨┐╨╗╨╛╨╝╨░╤В╨╕╤П тАФ ╨╜╨░ ╨│╨╛╨╗╨╛╤Б╨╛╨▓╨░╨╜╨╕╨╡ ╨║╨╗╨░╨╜╨╛╨▓":
+  <h3 />
+
+  Name "╨Т╤Л╨║╤Г╨┐ ╨┐╨╗╨╡╨╜╨╜╤Л╤Е":
+  <h2 />
+
+  Name "@bob":
+  <h3 />
+
+  Name "╨Я╨╕╨▓╨╛╨▓╨░╤А╨╜╤П":
+  <h3 />
+
+  Name "╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л":
+  <h3 />
+
+  Name "╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л":
+  <h3 />
+
+  Name "╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡":
+  <h2 />
+
+  Name "2026-10-02":
+  <h3 />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-details="dyn-clan"
+    open=""
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-details="dyn-kingdom"
+    open=""
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-details="dyn-upgrades"
+  />
+
+  Name "":
+  <details
+    data-bnr-details="vas-create"
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="partyorders"
+    open=""
+  />
+
+  Name "":
+  <details
+    data-bnr-details="party-order"
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="army"
+    open=""
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="diplomacy"
+    open=""
+  />
+
+  Name "":
+  <details
+    data-bnr-details="diplo-policy"
+    open=""
+  />
+
+  Name "":
+  <details
+    data-bnr-details="diplo-peace"
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="workshops"
+    open=""
+  />
+
+  Name "":
+  <details
+    data-bnr-details="ws-buy"
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="fiefs"
+    open=""
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="caravans"
+    open=""
+  />
+
+  Name "":
+  <details
+    data-bnr-details="caravan-buy"
+  />
+
+  --------------------------------------------------
+  term:
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  --------------------------------------------------
+  definition:
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  <ol />
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  <li />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article
+    data-proposal-id="200"
+  />
+
+  Name "":
+  <article
+    data-proposal-id="1"
+  />
+
+  Name "":
+  <article
+    data-child-id="child-a"
+  />
+
+  Name "":
+  <article
+    data-vassal-id="1"
+  />
+
+  Name "":
+  <article
+    data-captured="bob"
+  />
+
+  Name "":
+  <article
+    data-workshop-id="1"
+  />
+
+  Name "":
+  <article
+    data-fief-id="1"
+  />
+
+  Name "":
+  <article
+    data-caravan-id="1"
+  />
+
+  --------------------------------------------------
+  combobox:
+
+  Name "╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М ╨▓╨╛╨╣╨╜╤Г ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╤Г":
+  <select
+    aria-label="╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М ╨▓╨╛╨╣╨╜╤Г ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╤Г"
+    id="bnr-war-target"
+  />
+
+  Name "╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М ╨│╨╛╨╗╨╛╤Б╨╛╨▓╨░╨╜╨╕╨╡ ╨╛ ╨╝╨╕╤А╨╡":
+  <select
+    aria-label="╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М ╨│╨╛╨╗╨╛╤Б╨╛╨▓╨░╨╜╨╕╨╡ ╨╛ ╨╝╨╕╤А╨╡"
+    id="bnr-peace-vote-target"
+  />
+
+  --------------------------------------------------
+  option:
+
+  Name "Fixture Neutral":
+  <option
+    value="fixture_neutral"
+  />
+
+  Name "Fixture Enemy":
+  <option
+    value="fixture_enemy"
+  />
+
+  --------------------------------------------------
+  progressbar:
+
+  Name "╨б╨▒╨╛╤А ╨▓╤Л╨║╤Г╨┐╨░ ╨┤╨╗╤П bob":
+  <progress
+    aria-label="╨б╨▒╨╛╤А ╨▓╤Л╨║╤Г╨┐╨░ ╨┤╨╗╤П bob"
+    max="3500"
+    value="0"
+  />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <main
+      class="panel-embedded"
+    >
+      <div>
+        <nav
+          aria-label="╨а╨░╨╖╨┤╨╡╨╗ ╨│╨╡╤А╨╛╤П"
+          class="panel-tabs"
+        >
+          <button
+            aria-pressed="false"
+            type="button"
+          >
+            ╨а╨░╨╖╨▓╨╕╤В╨╕╨╡
+          </button>
+          <button
+            aria-pressed="false"
+            type="button"
+          >
+            ╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡
+          </button>
+          <button
+            aria-pressed="false"
+            type="button"
+          >
+            ╨С╨╛╨╡╨▓╤Л╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П
+          </button>
+          <button
+            aria-pressed="true"
+            type="button"
+          >
+            ╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П
+          </button>
+        </nav>
+        <div>
+          <section
+            aria-label="╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П"
+            class="panel-party"
+          >
+            <h1>
+              ╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П
+            </h1>
+            
+            
+            <details
+              class="panel-card"
+              data-bnr-details="dyn-clan"
+              open=""
+            >
+              <summary>
+                ЁЯП░ ╨Ъ╨╗╨░╨╜
+              </summary>
+              <div
+                id="bnr-clan-mgmt-slot"
+              >
+                <h2>
+                  [BLink] Fixture Clan
+                </h2>
+                <dl>
+                  <dt>
+                    тнР Tier:
+                  </dt>
+                  <dd>
+                    3
+                  </dd>
+                  <dt>
+                    ЁЯПЖ Renown:
+                  </dt>
+                  <dd>
+                    1┬а300
+                  </dd>
+                  <dt>
+                    ЁЯСе ╨У╨╡╤А╨╛╨╡╨▓:
+                  </dt>
+                  <dd>
+                    3
+                  </dd>
+                  <dt>
+                    тЪФ ╨Ю╤В╤А╤П╨┤╨╛╨▓:
+                  </dt>
+                  <dd>
+                    1
+                  </dd>
+                  <dt>
+                    ЁЯП░ ╨Я╨╛╤Б╨╡╨╗╨╡╨╜╨╕╨╣:
+                  </dt>
+                  <dd>
+                    2
+                  </dd>
+                </dl>
+                <p>
+                  тЬЕ ╨Ю╤В╤А╤П╨┤╨╛╨▓ ╤Г ╨║╨╗╨░╨╜╨░: 
+                  1
+                </p>
+                <button
+                  class="bnr-clan-leave"
+                  type="button"
+                >
+                  ЁЯЪк ╨Я╨╛╨║╨╕╨╜╤Г╤В╤М ╨║╨╗╨░╨╜
+                </button>
+              </div>
+            </details>
+            <details
+              class="panel-card"
+              data-bnr-details="dyn-kingdom"
+              open=""
+            >
+              <summary>
+                ЁЯСС ╨Ъ╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛
+              </summary>
+              <div
+                id="bnr-kingdom-mgmt-slot"
+              >
+                <h2>
+                  Fixture Kingdom
+                </h2>
+                <dl>
+                  <dt>
+                    ЁЯСС ╨Я╤А╨░╨▓╨╕╤В╨╡╨╗╤М:
+                  </dt>
+                  <dd>
+                    Alice Hero
+                     (╤В╤Л)
+                  </dd>
+                  <dt>
+                    ЁЯП░ ╨Ъ╨╗╨░╨╜╨╛╨▓:
+                  </dt>
+                  <dd>
+                    3
+                  </dd>
+                  <dt>
+                    ЁЯМЖ ╨Я╨╛╤Б╨╡╨╗╨╡╨╜╨╕╨╣:
+                  </dt>
+                  <dd>
+                    5
+                  </dd>
+                  <dt>
+                    тЪФ ╨Т╨╛╨╣╨╜╨░ ╤Б:
+                  </dt>
+                  <dd>
+                    1 ╨║╨╛╤А╨╛╨╗. (Fixture Enemy)
+                  </dd>
+                </dl>
+                <button
+                  class="bnr-kingdom-leave"
+                  type="button"
+                >
+                  ЁЯЪк ╨Я╨╛╨║╨╕╨╜╤Г╤В╤М ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛
+                </button>
+                <button
+                  class="bnr-recruit-vassal"
+                  data-bnr-economic-action="hero.recruit_vassal_clan"
+                  type="button"
+                >
+                  ЁЯЫб ╨Э╨░╨╜╤П╤В╤М ╨▓╨░╤Б╤Б╨░╨╗╤М╨╜╤Л╨╣ ╨║╨╗╨░╨╜ (
+                  3MЁЯТ░
+                  )
+                </button>
+              </div>
+            </details>
+            <section
+              aria-label="╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П"
+              class="panel-card"
+            >
+              <h2>
+                ╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П
+              </h2>
+              <p>
+                ╨б╤Г╨┐╤А╤Г╨│╨░ ╨┐╨╛╨┤╨▒╨╕╤А╨░╨╡╤В ╨╕╨│╤А╨░ ╨╕╨╖ ╨┐╨╛╨┤╤Е╨╛╨┤╤П╤Й╨╕╤Е NPC.
+                
+              </p>
+              <button
+                id="bnr-marry-btn"
+                type="button"
+              >
+                ╨Ц╨╡╨╜╨╕╤В╤М╤Б╤П / ╨▓╤Л╨╣╤В╨╕ ╨╖╨░╨╝╤Г╨╢ тАФ 
+                50┬а000 ЁЯТ░
+              </button>
+              <dl>
+                <dt>
+                  ╨Ю╤В╨╡╤Ж
+                </dt>
+                <dd>
+                  <span>
+                    ╨Э╨╡╤В ╨┤╨░╨╜╨╜╤Л╤Е
+                  </span>
+                </dd>
+                <dt>
+                  ╨Ь╨░╤В╤М
+                </dt>
+                <dd>
+                  <span>
+                    ╨Э╨╡╤В ╨┤╨░╨╜╨╜╤Л╤Е
+     ...
+ тЭп Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ тЭп test/panel-game-bootstrap-parity.test.tsx:53:660
+
+ тЭп test/panel-game-bootstrap-parity.test.tsx:53:526
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/2]тОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord replaced hero retains freshly read dynasty data rather than discarding it on remount
+AssertionError: expected '╨а╨░╨╖╨▓╨╕╤В╨╕╨╡╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡╨С╨╛╨╡╨▓╤Л╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П╨Ъ╨╗╨░╨╜тАж' to contain '╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║'
+
+Expected: "╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║"
+Received: "╨а╨░╨╖╨▓╨╕╤В╨╕╨╡╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡╨С╨╛╨╡╨▓╤Л╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤ПЁЯП░ ╨Ъ╨╗╨░╨╜[BLink] Fixture ClanтнР Tier:3ЁЯПЖ Renown:1┬а300ЁЯСе ╨У╨╡╤А╨╛╨╡╨▓:3тЪФ ╨Ю╤В╤А╤П╨┤╨╛╨▓:1ЁЯП░ ╨Я╨╛╤Б╨╡╨╗╨╡╨╜╨╕╨╣:2тЬЕ ╨Ю╤В╤А╤П╨┤╨╛╨▓ ╤Г ╨║╨╗╨░╨╜╨░: 1ЁЯЪк ╨Я╨╛╨║╨╕╨╜╤Г╤В╤М ╨║╨╗╨░╨╜ЁЯСС ╨Ъ╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛Fixture KingdomЁЯСС ╨Я╤А╨░╨▓╨╕╤В╨╡╨╗╤М:Alice Hero (╤В╤Л)ЁЯП░ ╨Ъ╨╗╨░╨╜╨╛╨▓:3ЁЯМЖ ╨Я╨╛╤Б╨╡╨╗╨╡╨╜╨╕╨╣:5тЪФ ╨Т╨╛╨╣╨╜╨░ ╤Б:1 ╨║╨╛╤А╨╛╨╗. (Fixture Enemy)ЁЯЪк ╨Я╨╛╨║╨╕╨╜╤Г╤В╤М ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛ЁЯЫб ╨Э╨░╨╜╤П╤В╤М ╨▓╨░╤Б╤Б╨░╨╗╤М╨╜╤Л╨╣ ╨║╨╗╨░╨╜ (3MЁЯТ░)╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П╨б╤Г╨┐╤А╤Г╨│╨░ ╨┐╨╛╨┤╨▒╨╕╤А╨░╨╡╤В ╨╕╨│╤А╨░ ╨╕╨╖ ╨┐╨╛╨┤╤Е╨╛╨┤╤П╤Й╨╕╤Е NPC.╨Ц╨╡╨╜╨╕╤В╤М╤Б╤П / ╨▓╤Л╨╣╤В╨╕ ╨╖╨░╨╝╤Г╨╢ тАФ 50┬а000 ЁЯТ░╨Ю╤В╨╡╤Ж╨Э╨╡╤В ╨┤╨░╨╜╨╜╤Л╤Е╨Ь╨░╤В╤М╨Э╨╡╤В ╨┤╨░╨╜╨╜╤Л╤Е╨Ф╨╡╤В╨╕ (0 ╨╢╨╕╨▓╤Л╤Е ╨╕╨╖ 0)╨Ф╨╡╤В╨╡╨╣ ╨┐╨╛╨║╨░ ╨╜╨╡╤В.╨Ч╨░╤З╨░╤В╤М ╤А╨╡╨▒╤С╨╜╨║╨░ тАФ 100┬а000 ЁЯТ░╨Э╤Г╨╢╨╡╨╜ ╨╢╨╕╨▓╨╛╨╣ ╤Б╤Г╨┐╤А╤Г╨│ ╨╕╨╗╨╕ ╤Б╤Г╨┐╤А╤Г╨│╨░.╨Ы╨╕╨╝╨╕╤В ╨┤╨╡╤В╨╡╨╣ ╨┐╤А╨╛╨▓╨╡╤А╨╕╤В ╨╕╨│╤А╨░. ╨Т╨╛╨╖╤А╨░╤Б╤В, ╨▒╨╡╤А╨╡╨╝╨╡╨╜╨╜╨╛╤Б╤В╤М ╨╕ ╤А╨╛╨╢╨┤╨╡╨╜╨╕╨╡ ╨╛╨▒╨╜╨╛╨▓╤П╤В╤Б╤П ╨┐╨╛╤Б╨╗╨╡ ╤Б╨╕╨╜╤Е╤А╨╛╨╜╨╕╨╖╨░╤Ж╨╕╨╕.╨г╨╗╤Г╤З╤И╨╡╨╜╨╕╤П ╨║╨╗╨░╨╜╨░╨Э╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║╨╕╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║╨╛╨▓тАж╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╡ ╨┤╨╡╤В╨╕ ╨╕ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╤П╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╨┤╨╡╤В╨╡╨╣ ╨╕ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╤ПтАж╨Т╨░╤Б╤Б╨░╨╗╤М╨╜╤Л╨╡ ╨║╨╗╨░╨╜╤Л╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╨▓╨░╤Б╤Б╨░╨╗╨╛╨▓тАжтЪФ ╨Я╤А╨╕╨║╨░╨╖╤Л ╨╝╨╛╨╡╨│╨╛ ╨╛╤В╤А╤П╨┤╨░ ╨╜╨░ ╨║╨░╤А╤В╨╡╨Ю╤В╤А╤П╨┤:  ЁЯкЦ ┬╖ ╨╖╨░╨┤╨░╤З╨░: тАФ╨Я╨░╤А╤В╨╕╤П ╨┤╨╡╨╣╤Б╤В╨▓╤Г╨╡╤В ╨░╨▓╤В╨╛╨╜╨╛╨╝╨╜╨╛тЪФ ╨Э╨░╨╖╨╜╨░╤З╨╕╤В╤М ╨┐╤А╨╕╨║╨░╨╖ (500ЁЯТО)ЁЯЪй ╨Р╤А╨╝╨╕╤П╨б╨╛╨▒╨╡╤А╨╕ ╨░╤А╨╝╨╕╤О ╤Б╨▓╨╛╨╡╨│╨╛ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨░. ╨Ъ╨╛╨╝╨░╨╜╨┤╨╛╨▓╨░╤В╤М тАФ ╤З╨╡╤А╨╡╨╖ ┬л╨Я╤А╨╕╨║╨░╨╖╤Л ╨╛╤В╤А╤П╨┤╨░┬╗ ╨▓╤Л╤И╨╡.ЁЯЪй ╨б╨╛╨▒╤А╨░╤В╤М ╨░╤А╨╝╨╕╤О (1┬а000ЁЯТО)ЁЯПЫ ╨Я╨╛╨╗╨╕╤В╨╕╨║╨░ тАФ Fixture Kingdom ЁЯСС ╨Ъ╨Ю╨а╨Ю╨Ы╨мЁЯУЬ ╨Ч╨░╨║╨╛╨╜╤Л ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨░ (╨┐╨╛╨╗╨╕╤В╨╕╨║╨╕, 1500ЁЯТО)╨Ъ╨╗╨╕╨║ ╨┐╨╛ ╨┐╨╛╨╗╨╕╤В╨╕╨║╨╡ = toggle (╨░╨║╤В╨╕╨▓╨╜╨░ тЖТ ╨╛╤В╨╛╨╖╨▓╨░╤В╤М). 1500ЁЯТО ╨╖╨░ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡.╨Ч╨░╨║╨╛╨╜ ╨╕╨╖ ╨╕╨│╤А╤Л╨в╨╡╨║╤Б╤В ╨╖╨░╨║╨╛╨╜╨░ ╨╕╨╖ ╨╕╨│╤А╤ЛЁЯХК ╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М peace (2000ЁЯТО)ЁЯСС ╨Э╨░╨╗╨╛╨│ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨░: 0% тАФ % ╨┤╨╜╨╡╨▓╨╜╨╛╨╣ ╨┐╤А╨╕╨▒╤Л╨╗╨╕ ╨▓╨░╤Б╤Б╨░╨╗╨╛╨▓ тЖТ ╤В╨╡╨▒╨╡0%10%25%50%тЪЦ ╨Ф╨╕╨┐╨╗╨╛╨╝╨░╤В╨╕╤П тАФ ╨╜╨░ ╨│╨╛╨╗╨╛╤Б╨╛╨▓╨░╨╜╨╕╨╡ ╨║╨╗╨░╨╜╨╛╨▓╨н╤В╨╛ ╨Ч╨Р╨п╨Т╨Ъ╨Р ╨╜╨░ ╨│╨╛╨╗╨╛╤Б╨╛╨▓╨░╨╜╨╕╨╡ ╨║╨╗╨░╨╜╨╛╨▓ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨░ тАФ ╨╜╨╡ ╨╝╨│╨╜╨╛╨▓╨╡╨╜╨╜╨╛ ╨╕ ╨╝╨╛╨╢╨╡╤В ╨╜╨╡ ╨┐╤А╨╛╨╣╤В╨╕. ╨Я╨╛╨▓╤В╨╛╤А╨╜╨╛ ╨╢╨░╤В╤М ╨╜╨╡ ╨╜╤Г╨╢╨╜╨╛: ╤Б╨╗╨╡╨┤╨╕ ╨╖╨░ ╤Б╤В╨░╤В╤Г╤Б╨╛╨╝ ╨▓╨╛╨╣╨╜ ╨▓╤Л╤И╨╡.Fixture NeutralтЪФ ╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М (2000ЁЯТО)Fixture EnemyЁЯХК ╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М (3000ЁЯТО)╨Т╤Л╨║╤Г╨┐ ╨┐╨╗╨╡╨╜╨╜╤Л╤Е╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╤Б╨▒╨╛╤А╤Л ╨▓╤Л╨║╤Г╨┐╨░тАжЁЯПн ╨Ь╨╛╨╕ ╨╝╨░╤Б╤В╨╡╤А╤Б╨║╨╕╨╡ (тАФ/тАФ)╨Ф╨╛╤Е╨╛╨┤ ╨▓ ╨┤╨╕╨╜╨░╤А╨░╤Е ╨╜╨░╨║╨░╨┐╨╗╨╕╨▓╨░╨╡╤В╤Б╤П ╤Г ╨│╨╡╤А╨╛╤П. ╨Ъ╤А╤Г╤Б╤В╨╕╨║╨╕ ╨┐╨░╤Б╤Б╨╕╨▓╨╜╨╛ ╨╜╨╡ ╨▓╤Л╨┤╨░╤О╤В╤Б╤П.╨Ц╨┤╤С╨╝ ╨┤╨░╨╜╨╜╤Л╨╡ ╨╕╨╝╤Г╤Й╨╡╤Б╤В╨▓╨░ ╤В╨╡╨║╤Г╤Й╨╡╨│╨╛ ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╤П.╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╨╕╨╝╤Г╤Й╨╡╤Б╤В╨▓╨╛тАжЁЯП░ ╨Ь╨╛╨╕ ╨▓╨╗╨░╨┤╨╡╨╜╨╕╤П╨б╨▓╨╡╨┤╨╡╨╜╨╕╨╣ ╨╛ ╨▓╨╗╨░╨┤╨╡╨╜╨╕╤П╤Е ╨┐╨╛╨║╨░ ╨╜╨╡╤В.╨Ф╨╕╨╜╨░╤А╤Л ╨┐╨╛╤Б╤В╤Г╨┐╨░╤О╤В ╨│╨╡╤А╨╛╤О. ╨Я╨╗╨░╤В╨╜╤Л╨╣ ╨▒╤Г╤Б╤В╨╡╤А ╨┤╨╛╤Е╨╛╨┤╨░ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╡╨╜.ЁЯРк ╨Ь╨╛╨╕ ╨║╨░╤А╨░╨▓╨░╨╜╤Л (тАФ/тАФ)╨Ф╨╛╤Е╨╛╨┤ ╨▓ ╨┤╨╕╨╜╨░╤А╨░╤Е ╨╜╨░╨║╨░╨┐╨╗╨╕╨▓╨░╨╡╤В╤Б╤П ╤Г ╨│╨╡╤А╨╛╤П. ╨Ъ╤А╤Г╤Б╤В╨╕╨║╨╕ ╨┐╨░╤Б╤Б╨╕╨▓╨╜╨╛ ╨╜╨╡ ╨▓╤Л╨┤╨░╤О╤В╤Б╤П. ╨С╨░╨╜╨┤╨╕╤В╤Л ╨╝╨╛╨│╤Г╤В ╤Г╨╜╨╕╤З╤В╨╛╨╢╨╕╤В╤М ╨║╨░╤А╨░╨▓╨░╨╜.╨Ц╨┤╤С╨╝ ╨┤╨░╨╜╨╜╤Л╨╡ ╨╕╨╝╤Г╤Й╨╡╤Б╤В╨▓╨░ ╤В╨╡╨║╤Г╤Й╨╡╨│╨╛ ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╤П.╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╨╕╨╝╤Г╤Й╨╡╤Б╤В╨▓╨╛тАж╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡╨Я╨╡╤А╨╡╤Е╨╛╨┤ ╨╕╨╝╤Г╤Й╨╡╤Б╤В╨▓╨░ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║╨░╨╝ ╨╡╤Й╤С ╨╜╨╡ ╨╖╨░╤А╨╡╨│╨╕╤Б╤В╤А╨╕╤А╨╛╨▓╨░╨╜.BANNERLORD╨С╨╛╨╡╨▓╤Л╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╤ПтЪФя╕П ╨Т ╨▒╨╛╤О1 ╤Г╤З╨░╤Б╤В.тЭд 87/115тШа 0╨Я╨╛╤Б╨╗╨╡ ╨▒╨╛╤П: тЙИ100тАУ120ЁЯТ░+0 XPтЪФ ╨б╤В╨╛╨╣╨║╨░ ╨▒╨╛╤ПЁЯЫб ╨Ю╨▒╨╛╤А╨╛╨╜╨░тЪЦ ╨С╨░╨╗╨░╨╜╤БтЪФ ╨Э╨░╤В╨╕╤Б╨║ЁЯОп ╨Я╤А╨╕╨║╨░╨╖╤Л ╨│╨╡╤А╨╛╤О╨г╨┐╤А╨░╨▓╨╗╤П╨╣ ╤Б╨▓╨╛╨╕╨╝ ╨│╨╡╤А╨╛╨╡╨╝ ╨▓ ╨▒╨╛╤О╨Т ╤Б╤В╤А╨╛╤ОтЫФ ╨б╤В╨╛╤П╤В╤М (30ЁЯТО)тЪФ ╨Т╨▒╨╗╨╕╨╖╨╕ (30ЁЯТО)ЁЯФД ╨Т ╤Б╤В╤А╨╛╨╣ (10ЁЯТО)ЁЯкЬ ╨Ъ ╤Б╤В╨╡╨╜╨░╨╝ (30ЁЯТО)ЁЯЪк ╨Ъ ╨▓╨╛╤А╨╛╤В╨░╨╝ (30ЁЯТО)ЁЯЪ╢ ╨Ю╤В╨┤╨╡╨╗╨╕╤В╤М╤Б╤П (10ЁЯТО)ЁЯУп ╨Я╤А╨╕╨╖╨▓╨░╤В╤М ╨╖╨░ ╤Б╤В╤А╨╕╨╝╨╡╤А╨░ 50ЁЯТОтЪФя╕П ╨Я╤А╨╕╨╖╨▓╨░╤В╤М ╨┐╤А╨╛╤В╨╕╨▓ ╤Б╤В╤А╨╕╨╝╨╡╤А╨░ 100ЁЯТОтЪб ╨б╨┐╨╛╤Б╨╛╨▒╨╜╨╛╤Б╤В╨╕ЁЯФе ╨п╤А╨╛╤Б╤В╤М 300ЁЯТОтЪФя╕П ╨а╨░╤Б╤Б╨╡╤З╨╡╨╜╨╕╨╡ 350ЁЯТОЁЯТК ╨Ы╨╡╤З╨╡╨╜╨╕╨╡ 100ЁЯТО╨в╤Г╤А╨╜╨╕╤А ╨╖╤А╨╕╤В╨╡╨╗╨╡╨╣ ╨Ю╤З╨╡╤А╨╡╨┤╤М (0)╨в╤Г╤А╨╜╨╕╤А ╨╜╨░╤З╨╜╤С╤В╤Б╤П, ╨║╨╛╨│╨┤╨░ ╨╡╨│╨╛ ╨╖╨░╨┐╤Г╤Б╤В╨╕╤В ╤Б╤В╤А╨╕╨╝╨╡╤А. ╨Э╨░╨│╤А╨░╨┤╨░ ╨┐╨╛╨▒╨╡╨┤╨╕╤В╨╡╨╗╤О: 50┬а000 ╨┤╨╕╨╜╨░╤А╨╛╨▓. ╨Ч╨░ ╨┐╨╛╨▒╨╡╨┤╤Г ╨▓ ╤А╨░╤Г╨╜╨┤╨╡: 10┬а000 ╨┤╨╕╨╜╨░╤А╨╛╨▓.╨Ю╤З╨╡╤А╨╡╨┤╤М ╨┐╤Г╤Б╤В╨░╨Т╤Б╤В╤Г╨┐╨╕╤В╤М ╨▓ ╤В╤Г╤А╨╜╨╕╤А (╨▒╨╡╤Б╨┐╨╗╨░╤В╨╜╨╛)BANNERLORD╨а╨░╨╖╨▓╨╕╤В╨╕╨╡ ╨│╨╡╤А╨╛╤П╨Ю╨▒╨╜╨╛╨▓╨╕╤В╤М╨Т╨Р╨и ╨У╨Х╨а╨Ю╨ЩAlice Hero╨г╤А╨╛╨▓╨╡╨╜╤М 110┬а000┬а000 ЁЯТ░╨Ц╨╕╨▓╨Ъ╨╗╨░╨╜[BLink] Fixture Clan╨Ъ╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛Fixture Kingdom╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡T0╨С╤А╨╛╨╜╤П ╨┐╨╛ ╨╖╨╛╨╜╨░╨╝╨У╨╛╨╗╨╛╨▓╨░: 0 ┬╖ ╨в╨╡╨╗╨╛: 0 ┬╖ ╨Э╨╛╨│╨╕: 0 ┬╖ ╨а╤Г╨║╨╕: 0╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡ ┬╖ T0╨г╨╗╤Г╤З╤И╨╕╤В╤М ╨┤╨╛ T1 ┬╖ 50┬а000 ЁЯТ░╨Я╨╡╤А╨╡╤Б╨╛╨▒╤А╨░╤В╤М ╤Б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡╨Х╨╢╨╡╨┤╨╜╨╡╨▓╨╜╨░╤П ╨╜╨░╨│╤А╨░╨┤╨░╨Т╤Л╨▒╨╡╤А╨╕ ╨╛╨┤╨╜╤Г ╨╜╨░╨│╤А╨░╨┤╤Г. ╨Ю╨╜╨░ ╨┐╨╛╤Б╤В╤Г╨┐╨╕╤В ╨┐╨╛╤Б╨╗╨╡ ╨╛╨▒╤А╨░╨▒╨╛╤В╨║╨╕ ╨╖╨░╤П╨▓╨║╨╕ ╨▓ ╨╕╨│╤А╨╡.+100┬а000 ЁЯТ░ ╨┤╨╕╨╜╨░╤А╨╛╨▓+50┬а000 XPЁЯЫб ╨б╨▓╨╕╤В╨░ (0/5) ╨┐╤Г╤Б╤В╨╛тЮХ ╨Э╨░╨╜╤П╤В╤М basic 5┬а000ЁЯТ░тШЕ ╨Э╨░╨╜╤П╤В╤М elite 15┬а000ЁЯТ░ЁЯОп ╨в╤А╨╡╨╜╨╕╤А╨╛╨▓╨░╤В╤М ╤Б╨▓╨╕╤В╤Г ╤Б╨▓╨╕╤В╨░ ╨┐╤Г╤Б╤В╨░╨Р╤В╤А╨╕╨▒╤Г╤В╤Л ╨╕ ╨╜╨░╨▓╤Л╨║╨╕╨Ч╨╜╨░╤З╨╡╨╜╨╕╤П, ╤Ж╨╡╨╜╤Л ╨╕ ╨┐╤А╨╡╨┤╨╡╨╗╤Л ╨┐╨╛╨║╤Г╨┐╨╛╨║ ╨┐╨╡╤А╨╡╨┤╨░╤С╤В ╨╕╨│╤А╨░. ╨Ч╨░╤П╨▓╨║╨░ ╨┐╤А╨╕╨╝╨╡╨╜╤П╨╡╤В╤Б╤П ╨┐╨╛╤Б╨╗╨╡ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨╡╨╜╨╕╤П ╨╕╨╖ ╨╕╨│╤А╤Л.╨Ш╨│╤А╨░ ╨╡╤Й╤С ╨╜╨╡ ╨┐╨╡╤А╨╡╨┤╨░╨╗╨░ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╤П ╨┐╤А╨╛╨║╨░╤З╨║╨╕.╨Ш╨│╤А╨░ ╨╜╨╡ ╨┐╨╡╤А╨╡╨┤╨░╨╗╨░ ╨╜╨░╨▓╤Л╨║╨╕ ╨╕ ╨░╤В╤А╨╕╨▒╤Г╤В╤Л.╨Я╨╛╨╗ ╨│╨╡╤А╨╛╤П╨в╨╡╨║╤Г╤Й╨╕╨╣: ╨Э╨╡╤В ╨┤╨░╨╜╨╜╤Л╤Е50┬а000 ЁЯТ░ ┬╖ ╤Г ╨│╨╡╤А╨╛╤П 10┬а000┬а000 ЁЯТ░тЩВ ╨Ь╤Г╨╢╤Б╨║╨╛╨╣тЩА ╨Ц╨╡╨╜╤Б╨║╨╕╨╣╨Ъ╨╗╨░╤Б╤Б╨Ы╤Г╤З╨╜╨╕╨║╨г╨▒╨╕╨╣╤Ж╨░╨С╨╡╤А╤Б╨╡╤А╨║╨Р╤А╨▒╨░╨╗╨╡╤В╤З╨╕╨║╨Ъ╨╛╨╜╨╜╤Л╨╣ ╨Ы╤Г╤З╨╜╨╕╨║╨Ъ╨░╨▓╨░╨╗╨╡╤А╨╕╤Б╤В╨Ы╨░╤В╨╜╨╕╨║╨Ъ╨╗╨░╤Б╤Б lvl 1 ┬╖ TwoHanded 0/50 тЖТ lvl 2╨Ь╨░╨│╨░╨╖╨╕╨╜ BannerlordЁЯЯв ╨Ю╨╜╨╗╨░╨╣╨╜╨Ф╨╕╨╜╨░╤А╤Л ╨│╨╡╤А╨╛╤О+5┬а000 ЁЯТ░ ┬╖ 1┬а000 ЁЯТО+25┬а000 ЁЯТ░ ┬╖ 5┬а000 ЁЯТО+100┬а000 ЁЯТ░ ┬╖ 20┬а000 ЁЯТО╨Ю╨┐╤Л╤В ╨▓ ╤Б╨╗╤Г╤З╨░╨╣╨╜╤Л╨╣ ╨╜╨░╨▓╤Л╨║+50 XP ┬╖ 500 ЁЯТО╨Ъ╤Г╨┐╨╕╤В╤М ╨╛╨┐╤Л╤В+100 XP ┬╖ 1┬а000 ЁЯТО╨Ъ╤Г╨┐╨╕╤В╤М ╨╛╨┐╤Л╤В+500 XP ┬╖ 5┬а000 ЁЯТО╨Ъ╤Г╨┐╨╕╤В╤М ╨╛╨┐╤Л╤В╨б╨╛╨▒╤А╨░╤В╤М ╨░╤А╨╝╨╕╤Оshop ┬╖ ╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╨╡ ╨║╨░╤В╨░╨╗╨╛╨│╨░ ╨╕╨│╤А╤Л1┬а000 ЁЯТО╨Э╨░╨┤╨╡╤В╤Л╨╡ ╨▓╨╡╤Й╨╕╨Э╨╡╤В ╤Н╨║╨╕╨┐╨╕╤А╨╛╨▓╨║╨╕.ЁЯОТ ╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╤Б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡тАж╨Ф╨╛╤Б╤В╨╕╨╢╨╡╨╜╨╕╤П ╨│╨╡╤А╨╛╤ПЁЯФи ╨Ъ╤Г╨╖╨╜╨╕╤Ж╨░ (╤В╤А╨╛╤Д╨╡╨╕)"
+
+ тЭп test/panel-game-bootstrap-parity.test.tsx:54:378
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/2]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 12 skipped (14)
+   Start at  18:19:38
+   Duration  9.31s (tests 45%, environment 23%, import 19%, transform 13%)
+

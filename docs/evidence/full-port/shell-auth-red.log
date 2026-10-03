@@ -1,0 +1,94 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stderr | test/panel-shell-parity.test.ts > shell recovers an HTTP-200 unauthorized snapshot through the same resolver without inventing zero balance
+[stats] ╤Б╨╡╤А╨▓╨╡╤А ╨╜╨╡ ╨╛╨┐╨╛╨╖╨╜╨░╨╗ ╨╖╤А╨╕╤В╨╡╨╗╤П: unauthorized
+
+ тЭп test/panel-shell-parity.test.ts (9 tests | 1 failed) 2359ms
+   ├Ч shell recovers an HTTP-200 unauthorized snapshot through the same resolver without inventing zero balance 157ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-shell-parity.test.ts > shell recovers an HTTP-200 unauthorized snapshot through the same resolver without inventing zero balance
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(16) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(21) ]
+
+- Expected
++ Received
+
+@@ -149,60 +149,10 @@
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"token\":\"fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture\",\"opaque_id\":\"Ufixture123\",\"user_id\":\"456\"}",
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/user/resolve-twitch-token",
+-     "query": "",
+-     "rawBody": "{\"token\":\"fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture\",\"opaque_id\":\"Ufixture123\",\"user_id\":\"456\"}",
+-     "token": "",
+-   },
+-   {
+-     "body": "null",
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/perks",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/online-list",
+
+ тЭп Object.check test/panel-shell-parity.test.ts:42:337
+
+ тЭп test/panel-shell-parity.test.ts:84:29
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 passed (9)
+   Start at  11:38:56
+   Duration  4.78s (tests 52%, environment 36%, import 7%, transform 6%)
+

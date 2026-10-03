@@ -1,0 +1,48 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (37 tests | 3 failed | 32 skipped) 2070ms
+   × review rimworld pending POST settles after same-viewer JWT refresh success=true 983ms
+   × review rimworld pending POST settles after same-viewer JWT refresh success=false 301ms
+   × review rimworld unknown POST outcome JWT refresh=false must not permit a duplicate 242ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > review rimworld pending POST settles after same-viewer JWT refresh success=true
+ FAIL  test/panel-rimworld-parity.test.tsx > review rimworld pending POST settles after same-viewer JWT refresh success=false
+AssertionError: same-viewer definite completion must release the outstanding action: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ test/panel-rimworld-parity.test.tsx:51:234
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > review rimworld unknown POST outcome JWT refresh=false must not permit a duplicate
+AssertionError: expected [ { method: 'POST', …(7) }, …(1) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ test/panel-rimworld-parity.test.tsx:59:667
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 2 passed | 32 skipped (37)
+   Start at  20:04:56
+   Duration  7.03s (environment 39%, tests 31%, import 20%, transform 10%)
+

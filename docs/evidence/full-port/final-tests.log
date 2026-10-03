@@ -1,0 +1,52 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЭп test/panel-diplomacy-parity.test.tsx (36 tests | 1 failed) 27583ms
+   ├Ч complete Politics card follows army in actual saved Dynasty with one read per active hero cadence 5390ms
+ тЭп test/skillgame-host.test.tsx (1 test | 1 failed) 2585ms
+   ├Ч preserves an unsaved fleet across same-viewer token re-resolution 2583ms
+
+тОптОптОптОптОптОптОп Failed Tests 2 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ тЭп test/panel-diplomacy-parity.test.tsx:6:1
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/2]тОп
+
+ FAIL  test/skillgame-host.test.tsx > preserves an unsaved fleet across same-viewer token re-resolution
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ тЭп test/skillgame-host.test.tsx:38:22
+     36|   await act(async()=>{telemetryTicks.at(-1)?.();});
+     37|   const usageCalls = vi.mocked(fetch).mock.calls.filter(([url])=>StrinтАж
+     38|   expect(usageCalls).toHaveLength(1);
+       |                      ^
+     39|   expect((usageCalls[0]![1]?.headers as Record<string,string>)['X-TwitтАж
+     40|   await act(async()=>{authorized({...authOne,token:'other-viewer-tokenтАж
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/2]тОп
+
+
+ Test Files  2 failed | 38 passed | 2 skipped (42)
+      Tests  2 failed | 955 passed | 2 skipped (959)
+   Start at  10:14:42
+   Duration  198.46s (tests 70%, environment 21%, import 8%, transform 1%)
+
+    Isolate  42 workers spawned ┬╖ ~2.22s startup each (spawn + environment, per file)
+             at least ~44.46s faster with isolate: false тАФ reuses workers across files instead of one per file
+

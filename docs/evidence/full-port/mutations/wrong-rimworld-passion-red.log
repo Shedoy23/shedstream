@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (37 tests | 1 failed | 36 skipped) 2581ms
+   × rimworld passion upgrade adds confirmed server quote and retains delayed skills reload 2576ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 36 skipped (37)
+   Start at  20:18:18
+   Duration  7.28s (tests 37%, environment 35%, import 18%, transform 10%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld passion upgrade adds confirmed server quote and retains delayed skills reload
+AssertionError: expected [ { method: 'GET', …(7) }, …(43) ] to deeply equal [ { method: 'GET', …(7) }, …(43) ]
+
+- Expected
++ Received
+
+@@ -188,17 +188,17 @@
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"username\":\"alice\",\"skill_def\":\"Shooting\",\"passion\":1}",
++     "body": "{\"username\":\"alice\",\"skill_def\":\"Shooting\",\"passion\":2}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/rimworld/buy-passion",
+      "query": "",
+-     "rawBody": "{\"username\":\"alice\",\"skill_def\":\"Shooting\",\"passion\":1}",
++     "rawBody": "{\"username\":\"alice\",\"skill_def\":\"Shooting\",\"passion\":2}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": "no-store",
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-rimworld-parity.test.tsx:35:518
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

@@ -1,0 +1,66 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-kingdom-parity.test.tsx > create button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-kingdom-parity.test.tsx > create button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-kingdom-parity.test.tsx (20 tests | 2 failed | 18 skipped) 3035ms
+   × create button/Enter false full wire/30s tail/usage parity 1930ms
+   × create button/Enter true full wire/30s tail/usage parity 1102ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 18 skipped (20)
+   Start at  19:10:08
+   Duration  8.43s (tests 38%, environment 29%, import 18%, transform 15%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > create button/Enter false full wire/30s tail/usage parity
+ FAIL  test/panel-kingdom-parity.test.tsx > create button/Enter true full wire/30s tail/usage parity
+AssertionError: complete admitted-host traffic; only documented independent startup catalog/stats ordering differs: expected [ { method: 'GET', …(7) }, …(73) ] to deeply equal [ { method: 'GET', …(7) }, …(73) ]
+
+- Expected
++ Received
+
+@@ -141,20 +141,20 @@
+    },
+    {
+      "body": {
+        "action_type": "hero.create_kingdom",
+        "data": {
++         "clan_name": "Fixture Kingdom",
+          "client_action_id": "<generated-action-id>",
+-         "kingdom_name": "Fixture Kingdom",
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.create_kingdom\",\"data\":{\"kingdom_name\":\"Fixture Kingdom\",\"client_action_id\":\"<generated-action-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.create_kingdom\",\"data\":{\"clan_name\":\"Fixture Kingdom\",\"client_action_id\":\"<generated-action-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": "no-store",
+
+ ❯ Object.check test/panel-combat-support.tsx:86:122
+     84|     // Move exactly this catalog GET across the immediately adjacent s…
+     85|     // retain every row, body byte, header, later poll and action cont…
+     86|     expect(actual, 'complete admitted-host traffic; only documented in…
+       |                                                                                                                          ^
+     87|   };
+     88|   if (!partyHost) check();
+ ❯ test/panel-kingdom-parity.test.tsx:6:584
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+

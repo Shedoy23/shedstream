@@ -1,0 +1,17 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Закрыть каталог пешки', exact: true })
+    - locator resolved to <button type="button">Закрыть каталог пешки</button>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+  - element was detached from the DOM, retrying
+
+    at C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\frontend-next\scripts\full-port-browser.mjs:502:164 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.19.0

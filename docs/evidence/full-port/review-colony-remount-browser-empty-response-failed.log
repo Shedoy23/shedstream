@@ -1,0 +1,8 @@
+file:///C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next/scripts/full-port-browser.mjs:383
+    if(receivedPosts!==1)throw Error('Colony repeated a paid request after response loss: '+receivedPosts);
+                               ^
+
+Error: Colony repeated a paid request after response loss: 6
+    at file:///C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next/scripts/full-port-browser.mjs:383:32
+
+Node.js v24.19.0

@@ -1,0 +1,54 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero culture creation uses the game catalog and exact complete legacy traffic 256ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero random creation uses the game catalog and exact complete legacy traffic 97ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > random creation remains compatible with a missing catalog and sends no fabricated context 63ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > an available empty culture catalog refuses creation without guessing cultures 48ms
+ ├Ч test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation false preserves the original warning and traffic 147ms
+   тЖТ Old rendered element missing: #confirm-dyn-no
+ ├Ч test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation true preserves the original warning and traffic 82ms
+   тЖТ Old rendered element missing: #confirm-dyn-yes
+ тЬУ test/panel-hero-lifecycle.test.tsx > a newly observed living hero invalidates the old respawn confirmation 87ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > a detached culture button cannot use its former catalog session 63ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero creation preserves the current server refusal without a success tail 89ms
+
+тОптОптОптОптОптОптОп Failed Tests 2 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation false preserves the original warning and traffic
+Error: Old rendered element missing: #confirm-dyn-no
+ тЭп element test/panel-legacy-harness.ts:372:22
+    370|   function element(selector: string) {
+    371|     const node = document.querySelector<HTMLElement>(selector);
+    372|     if (!node) throw new Error(`Old rendered element missing: ${selectтАж
+       |                      ^
+    373|     return node;
+    374|   }
+ тЭп Object.click test/panel-legacy-harness.ts:375:44
+ тЭп test/panel-hero-lifecycle.test.tsx:35:15
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/2]тОп
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation true preserves the original warning and traffic
+Error: Old rendered element missing: #confirm-dyn-yes
+ тЭп element test/panel-legacy-harness.ts:372:22
+    370|   function element(selector: string) {
+    371|     const node = document.querySelector<HTMLElement>(selector);
+    372|     if (!node) throw new Error(`Old rendered element missing: ${selectтАж
+       |                      ^
+    373|     return node;
+    374|   }
+ тЭп Object.click test/panel-legacy-harness.ts:375:44
+ тЭп test/panel-hero-lifecycle.test.tsx:35:15
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/2]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 7 passed (9)
+   Start at  13:56:49
+   Duration  3.39s (environment 37%, tests 29%, import 23%, transform 10%)
+

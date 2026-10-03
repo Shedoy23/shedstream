@@ -1,0 +1,36 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx [ test/panel-rimworld-parity.test.tsx ]
+Error: Failed to resolve import "../src/rimworld/controller" from "test/panel-rimworld-parity.test.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next/test/panel-rimworld-parity.test.tsx:3:33
+  1  |  import { act, cleanup, render } from "@testing-library/preact";
+  2  |  import { afterEach, expect, it, vi } from "vitest";
+  3  |  import { RimworldController } from "../src/rimworld/controller";
+     |                                      ^
+  4  |  import { RimworldView } from "../src/rimworld/RimworldView";
+  5  |  import { pair, flush, disposePairs, authorization, token } from "./panel-shell-pair";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/node.js:8766:39
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/node.js:8763:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/node.js:26423:18
+ ❯ node_modules/vite/dist/node/chunks/node.js:26493:30
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/node.js:26459:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/node.js:8545:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/node.js:19988:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  17:21:14
+   Duration  2.76s (environment 100%)
+

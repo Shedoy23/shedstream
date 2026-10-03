@@ -1,3 +1,4 @@
+import gameFixtures from './panel-fixtures/game-progression-responses.json';
 import { useEffect, useState } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/preact';
@@ -12,7 +13,7 @@ const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve()
 afterEach(() => { cleanup(); Object.defineProperty(document, 'hidden', { configurable: true, value: false }); vi.useRealTimers(); });
 async function setup(realEquipment = false) {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] }); const trace: string[] = []; const requests: LegacyRequest[] = [];
-  const routes: Record<string, unknown> = { '/api/user/resolve-twitch-token': { login: 'alice' }, '/api/bannerlord/config': f.config,
+  const routes: Record<string, unknown> = { '/api/user/resolve-twitch-token': { login: 'alice' }, '/api/bannerlord/content-catalogs': gameFixtures.responses.catalogs, '/api/bannerlord/progression': gameFixtures.responses.progression, '/api/bannerlord/config': f.config,
     '/api/bannerlord/my-hero': f.hero, '/api/bannerlord/classes': f.classes, '/api/bannerlord/build': f.build_ready,
     '/api/bannerlord/my-buffs': f.buffs, '/api/bannerlord/equipment-shop': f.equipment_inventory,
     '/api/bannerlord/action': f.attribute_success.response, '/api/viewer/stats/alice': f.stats, '/api/user/level/alice': f.level, '/api/duel/list': f.duels };
@@ -88,17 +89,17 @@ it('the actual equipment search editor survives auth refresh and is cleared for 
 
 for (const action of ['purchase', 'refresh'] as const) it(`both mounted screens preserve hidden equipment reads on hero ${action}`, async () => {
   const s = await setup(true), old = createLegacyHarness({}, { panelLifecycle: true });
-  const normalize = (rows: LegacyRequest[]) => rows.map(({ rawBody: _raw, ...row }) => {
+  const normalize = (rows: LegacyRequest[]) => rows.map(({ rawBody, ...row }) => {
     const body = structuredClone(row.body) as { data?: { client_action_id?: string } } | null;
-    if (body?.data?.client_action_id) body.data.client_action_id = '<random-id>';
-    return { ...row, body };
+    if (body?.data?.client_action_id) { rawBody=rawBody!.replace(JSON.stringify(body.data.client_action_id),JSON.stringify('<random-id>')); body.data.client_action_id = '<random-id>'; }
+    return { ...row, body, rawBody };
   });
   try {
     await old.bootHero(); expect(normalize(s.requests)).toEqual(normalize(old.trace));
     if (action === 'purchase') {
-      await old.click('.bnr-prog-attr-btn[data-attr="Vigor"]');
-      await act(async () => { (s.ui.container.querySelector('[data-attr="Vigor"]') as HTMLElement).click(); await flush(); });
-      await act(async () => { await flush(); });
+      await old.click('.bnr-prog-attr-btn[data-attr="vigor"]');
+      await act(async () => { (s.ui.container.querySelector('[data-attr="vigor"]') as HTMLElement).click(); await flush(); });
+      await s.click('Подтвердить');
       await old.advance(3500); await act(async () => { await vi.advanceTimersByTimeAsync(3500); await flush(); });
     } else {
       const button = old.document.createElement('button'); button.id = 'refresh-hero-btn'; old.document.body.append(button);

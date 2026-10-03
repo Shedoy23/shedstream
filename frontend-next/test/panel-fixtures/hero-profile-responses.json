@@ -1,0 +1,710 @@
+{
+  "provenance": {
+    "base": "052bf70",
+    "database": "owned temporary SQLite",
+    "live_game": false,
+    "synthetic": "family metadata ingested by actual adapter"
+  },
+  "responses": {
+    "config": {
+      "ui": {
+        "version": 1,
+        "combat_order": [
+          "summon",
+          "active_powers",
+          "tournament",
+          "weapon_choice"
+        ],
+        "combat_visible": {
+          "summon": true,
+          "active_powers": true,
+          "tournament": true,
+          "weapon_choice": true
+        },
+        "labels": {
+          "active_powers": "Активки",
+          "tournament": "🏆 Турнир зрителей",
+          "weapon_choice": "Оружейная способность",
+          "summon_ally": "📯 Призвать за стримера",
+          "summon_enemy": "⚔️ Призвать против стримера",
+          "discard": "🗑 Выкинуть вещь"
+        },
+        "tier_colors": {
+          "1": {
+            "text": "#c0c3ca",
+            "border": "#5b5e66",
+            "background": "#2b2d31"
+          },
+          "2": {
+            "text": "#89dba1",
+            "border": "#467457",
+            "background": "#203127"
+          },
+          "3": {
+            "text": "#87c6fa",
+            "border": "#426c91",
+            "background": "#202d3a"
+          },
+          "4": {
+            "text": "#c7a0f5",
+            "border": "#785398",
+            "background": "#30253b"
+          },
+          "5": {
+            "text": "#f2b17f",
+            "border": "#966139",
+            "background": "#3b2b20"
+          },
+          "6": {
+            "text": "#f5d174",
+            "border": "#aa8436",
+            "background": "#39311e"
+          }
+        }
+      },
+      "give_gold_presets": [
+        {
+          "crusticov": 1000,
+          "dinars": 5000
+        },
+        {
+          "crusticov": 5000,
+          "dinars": 25000
+        },
+        {
+          "crusticov": 20000,
+          "dinars": 100000
+        }
+      ],
+      "add_skill_presets": [
+        {
+          "crusticov": 500,
+          "xp": 50
+        },
+        {
+          "crusticov": 1000,
+          "xp": 100
+        },
+        {
+          "crusticov": 5000,
+          "xp": 500
+        }
+      ],
+      "focus_tier_costs": [
+        30000,
+        40000,
+        50000,
+        60000,
+        75000
+      ],
+      "attribute_cost": 50000,
+      "recruit_tier_costs": [
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        80000
+      ],
+      "recruit_elite_mult": 3,
+      "gear_upgrade_costs": {
+        "1": 50000,
+        "2": 100000,
+        "3": 200000,
+        "4": 400000,
+        "5": 800000,
+        "6": 1500000
+      },
+      "reforge_price": 20000,
+      "spawn_prices": {
+        "player": 50,
+        "enemy": 100
+      },
+      "gender_swap_cost": 50000,
+      "baby_cost": 100000,
+      "workshop_price": 2500,
+      "caravan_price": 4000,
+      "tournament_prize_gold": 50000,
+      "tournament_round_gold": 10000,
+      "action_prices": {
+        "hero.set_specialization": 0,
+        "hero.select_weapon_power": 0,
+        "hero.claim_starter": 0,
+        "hero.buy_equipment": 0,
+        "hero.equip_owned": 0,
+        "hero.unequip_owned": 0,
+        "hero.discard_owned": 0,
+        "hero.create": 0,
+        "player.modify_attribute": 50,
+        "world.trigger_event": 1000,
+        "hero.reforge_quality": 20000,
+        "hero.set_combat_stance": 0,
+        "hero.discard_item": 0,
+        "hero.detach": 10,
+        "hero.attach": 10,
+        "hero.detach_hold": 30,
+        "hero.detach_charge": 30,
+        "hero.detach_skirmish": 30,
+        "hero.detach_raid": 30,
+        "hero.detach_walls": 30,
+        "hero.detach_gate": 30,
+        "hero.propose_marriage": 100,
+        "hero.respond_marriage_proposal": 0,
+        "hero.cancel_proposal": 0,
+        "hero.rename_child": 50,
+        "hero.change_child_looks": 200,
+        "hero.respec_child_skills": 500,
+        "hero.create_vassal_clan": 0,
+        "hero.recruit_vassal_clan": 0,
+        "hero.rename_vassal": 100,
+        "hero.party_order_set": 500,
+        "hero.party_order_release": 0,
+        "hero.army_create": 1000,
+        "hero.army_disband": 0,
+        "hero.enact_policy": 1500,
+        "hero.make_peace": 2000,
+        "kingdom.propose_war": 2000,
+        "kingdom.propose_peace": 3000,
+        "hero.pay_ransom": 500,
+        "kingdom.set_tax_rate": 0,
+        "hero.buy_workshop": 2500,
+        "hero.sell_workshop": 0,
+        "hero.buy_caravan": 4000,
+        "hero.sell_caravan": 0
+      },
+      "power_prices": {
+        "heal_burst": 100,
+        "shield_break_burst": 200,
+        "rage": 300,
+        "retribution_toggle": 300,
+        "poison_dot": 350,
+        "disarm_burst": 250,
+        "berserker_charge": 200,
+        "lifesteal_burst": 300,
+        "ironskin_toggle": 300,
+        "explosive_arrows": 350,
+        "cleave": 350
+      },
+      "hero_gold_costs": {
+        "marry": 50000,
+        "create_clan": 1000000,
+        "join_clan": 50000,
+        "create_kingdom": 5000000,
+        "join_kingdom": 100000,
+        "create_party": 200000,
+        "recruit_vassal": 3000000,
+        "make_baby": 100000,
+        "create_vassal_clan": 250000
+      }
+    },
+    "hero_single": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-03 09:58:50",
+        "last_sync": "2026-10-03 09:58:50",
+        "level": 1,
+        "clan_name": "Клан фикстуры",
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "Клан фикстуры",
+          "is_leader": true,
+          "members_count": 4,
+          "parties_count": 1,
+          "tier": 3
+        },
+        "kingdom_info": null,
+        "is_female": false,
+        "family_info": {
+          "spouse": null,
+          "children": [
+            {
+              "hero_id": "child-fixture",
+              "name": "Ребёнок фикстуры",
+              "age": 7,
+              "is_alive": true,
+              "is_female": false
+            }
+          ],
+          "father": {
+            "name": "Отец фикстуры",
+            "age": 59,
+            "is_alive": false,
+            "is_female": false
+          },
+          "mother": {
+            "name": "Мать фикстуры",
+            "age": 54,
+            "is_alive": true,
+            "is_female": true
+          },
+          "sibling_count": 2
+        },
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "marry": {
+      "request": {
+        "action_type": "hero.marry",
+        "data": {}
+      },
+      "response": {
+        "success": true,
+        "action_id": "1a62de8c42d24aeeb5d82c3e3b8e3e75",
+        "charged": 0,
+        "message": "⚔️ Action hero.marry в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 180
+      }
+    },
+    "hero_married": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-03 09:58:50",
+        "last_sync": "2026-10-03 09:58:50",
+        "level": 1,
+        "clan_name": "Клан фикстуры",
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "Клан фикстуры",
+          "is_leader": true,
+          "members_count": 4,
+          "parties_count": 1,
+          "tier": 3
+        },
+        "kingdom_info": null,
+        "is_female": false,
+        "family_info": {
+          "spouse": {
+            "hero_id": "spouse-fixture",
+            "name": "Супруга фикстуры",
+            "is_alive": true,
+            "age": 29,
+            "is_female": true,
+            "is_pregnant": false
+          },
+          "children": [
+            {
+              "hero_id": "child-fixture",
+              "name": "Ребёнок фикстуры",
+              "age": 7,
+              "is_alive": true,
+              "is_female": false
+            }
+          ],
+          "father": {
+            "name": "Отец фикстуры",
+            "age": 59,
+            "is_alive": false,
+            "is_female": false
+          },
+          "mother": {
+            "name": "Мать фикстуры",
+            "age": 54,
+            "is_alive": true,
+            "is_female": true
+          },
+          "sibling_count": 2
+        },
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": "Супруга фикстуры",
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "baby": {
+      "request": {
+        "action_type": "hero.make_baby",
+        "data": {}
+      },
+      "response": {
+        "success": true,
+        "action_id": "2314399fd3f4468f9dbda2d02b5aba65",
+        "charged": 0,
+        "message": "⚔️ Action hero.make_baby в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      }
+    },
+    "divorce": {
+      "request": {
+        "action_type": "hero.divorce",
+        "data": {}
+      },
+      "response": {
+        "success": true,
+        "action_id": "39045e1ac5634d86ac82915e54cba73b",
+        "charged": 0,
+        "message": "⚔️ Action hero.divorce в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 60
+      }
+    },
+    "gender_male": {
+      "request": {
+        "action_type": "hero.set_gender",
+        "data": {
+          "gender": "male"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "74e2b3cdea9943aa93eba3e472805e93",
+        "charged": 0,
+        "message": "⚔️ Action hero.set_gender в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      }
+    },
+    "gender_female": {
+      "request": {
+        "action_type": "hero.set_gender",
+        "data": {
+          "gender": "female"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "a17149b5e5964c3bbbff6d3c55c2c8ef",
+        "charged": 0,
+        "message": "⚔️ Action hero.set_gender в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      }
+    },
+    "hero_poor": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 0,
+        "location": null,
+        "adopted_at": "2026-10-03 09:58:50",
+        "last_sync": "2026-10-03 09:58:50",
+        "level": 1,
+        "clan_name": "Клан фикстуры",
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "Клан фикстуры",
+          "is_leader": true,
+          "members_count": 4,
+          "parties_count": 1,
+          "tier": 3
+        },
+        "kingdom_info": null,
+        "is_female": false,
+        "family_info": {
+          "spouse": {
+            "hero_id": "spouse-fixture",
+            "name": "Супруга фикстуры",
+            "is_alive": true,
+            "age": 29,
+            "is_female": true,
+            "is_pregnant": false
+          },
+          "children": [
+            {
+              "hero_id": "child-fixture",
+              "name": "Ребёнок фикстуры",
+              "age": 7,
+              "is_alive": true,
+              "is_female": false
+            }
+          ],
+          "father": {
+            "name": "Отец фикстуры",
+            "age": 59,
+            "is_alive": false,
+            "is_female": false
+          },
+          "mother": {
+            "name": "Мать фикстуры",
+            "age": 54,
+            "is_alive": true,
+            "is_female": true
+          },
+          "sibling_count": 2
+        },
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": "Супруга фикстуры",
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "gender_refused": {
+      "request": {
+        "action_type": "hero.set_gender",
+        "data": {
+          "gender": "female"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Нужно 50,000💰 для смены пола (у тебя 0💰)."
+      }
+    },
+    "baby_refused": {
+      "request": {
+        "action_type": "hero.make_baby",
+        "data": {}
+      },
+      "response": {
+        "success": false,
+        "message": "Нужно 100,000💰 для зачатия (у тебя 0💰)."
+      }
+    },
+    "hero_clanless": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-03 09:58:50",
+        "last_sync": "2026-10-03 09:58:50",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": null,
+        "is_female": false,
+        "family_info": {
+          "spouse": null,
+          "children": [
+            {
+              "hero_id": "child-fixture",
+              "name": "Ребёнок фикстуры",
+              "age": 7,
+              "is_alive": true,
+              "is_female": false
+            }
+          ],
+          "father": {
+            "name": "Отец фикстуры",
+            "age": 59,
+            "is_alive": false,
+            "is_female": false
+          },
+          "mother": {
+            "name": "Мать фикстуры",
+            "age": 54,
+            "is_alive": true,
+            "is_female": true
+          },
+          "sibling_count": 2
+        },
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "marry_refused": {
+      "request": {
+        "action_type": "hero.marry",
+        "data": {}
+      },
+      "response": {
+        "success": false,
+        "message": "Нужен клан для брака — сначала создай или вступи в клан (🏰)."
+      }
+    },
+    "hero_many_children": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-03 09:58:50",
+        "last_sync": "2026-10-03 09:58:50",
+        "level": 1,
+        "clan_name": "Клан фикстуры",
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": {
+          "name": "Клан фикстуры",
+          "is_leader": true,
+          "members_count": 4,
+          "parties_count": 1,
+          "tier": 3
+        },
+        "kingdom_info": null,
+        "is_female": false,
+        "family_info": {
+          "spouse": {
+            "hero_id": "spouse-fixture",
+            "name": "Супруга фикстуры",
+            "is_alive": true,
+            "age": 29,
+            "is_female": true,
+            "is_pregnant": false
+          },
+          "children": [
+            {
+              "hero_id": "child-0",
+              "name": "Ребёнок фикстуры",
+              "age": 7,
+              "is_alive": true,
+              "is_female": false
+            },
+            {
+              "hero_id": "child-1",
+              "name": "Ребёнок фикстуры",
+              "age": 7,
+              "is_alive": true,
+              "is_female": false
+            },
+            {
+              "hero_id": "child-2",
+              "name": "Ребёнок фикстуры",
+              "age": 7,
+              "is_alive": true,
+              "is_female": false
+            },
+            {
+              "hero_id": "child-3",
+              "name": "Ребёнок фикстуры",
+              "age": 7,
+              "is_alive": true,
+              "is_female": false
+            },
+            {
+              "hero_id": "child-4",
+              "name": "Ребёнок фикстуры",
+              "age": 7,
+              "is_alive": true,
+              "is_female": false
+            }
+          ],
+          "father": {
+            "name": "Отец фикстуры",
+            "age": 59,
+            "is_alive": false,
+            "is_female": false
+          },
+          "mother": {
+            "name": "Мать фикстуры",
+            "age": 54,
+            "is_alive": true,
+            "is_female": true
+          },
+          "sibling_count": 2
+        },
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": "Супруга фикстуры",
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "baby_queued_limit": {
+      "request": {
+        "action_type": "hero.make_baby",
+        "data": {}
+      },
+      "response": {
+        "success": true,
+        "action_id": "bedcfc2b5c7f48e18dcc2ebc015f4051",
+        "charged": 0,
+        "message": "⚔️ Action hero.make_baby в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      }
+    }
+  }
+}

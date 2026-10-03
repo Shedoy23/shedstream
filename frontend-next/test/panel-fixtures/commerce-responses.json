@@ -1,0 +1,587 @@
+{
+  "provenance": {
+    "base": "b83f05a",
+    "database": "owned temporary SQLite",
+    "live_game": false,
+    "synthetic": "game-like optional catalog, observed class/tier"
+  },
+  "responses": {
+    "config": {
+      "ui": {
+        "version": 1,
+        "combat_order": [
+          "summon",
+          "active_powers",
+          "tournament",
+          "weapon_choice"
+        ],
+        "combat_visible": {
+          "summon": true,
+          "active_powers": true,
+          "tournament": true,
+          "weapon_choice": true
+        },
+        "labels": {
+          "active_powers": "Активки",
+          "tournament": "🏆 Турнир зрителей",
+          "weapon_choice": "Оружейная способность",
+          "summon_ally": "📯 Призвать за стримера",
+          "summon_enemy": "⚔️ Призвать против стримера",
+          "discard": "🗑 Выкинуть вещь"
+        },
+        "tier_colors": {
+          "1": {
+            "text": "#c0c3ca",
+            "border": "#5b5e66",
+            "background": "#2b2d31"
+          },
+          "2": {
+            "text": "#89dba1",
+            "border": "#467457",
+            "background": "#203127"
+          },
+          "3": {
+            "text": "#87c6fa",
+            "border": "#426c91",
+            "background": "#202d3a"
+          },
+          "4": {
+            "text": "#c7a0f5",
+            "border": "#785398",
+            "background": "#30253b"
+          },
+          "5": {
+            "text": "#f2b17f",
+            "border": "#966139",
+            "background": "#3b2b20"
+          },
+          "6": {
+            "text": "#f5d174",
+            "border": "#aa8436",
+            "background": "#39311e"
+          }
+        }
+      },
+      "give_gold_presets": [
+        {
+          "crusticov": 1000,
+          "dinars": 5000
+        },
+        {
+          "crusticov": 5000,
+          "dinars": 25000
+        },
+        {
+          "crusticov": 20000,
+          "dinars": 100000
+        }
+      ],
+      "add_skill_presets": [
+        {
+          "crusticov": 500,
+          "xp": 50
+        },
+        {
+          "crusticov": 1000,
+          "xp": 100
+        },
+        {
+          "crusticov": 5000,
+          "xp": 500
+        }
+      ],
+      "focus_tier_costs": [
+        30000,
+        40000,
+        50000,
+        60000,
+        75000
+      ],
+      "attribute_cost": 50000,
+      "recruit_tier_costs": [
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        80000
+      ],
+      "recruit_elite_mult": 3,
+      "gear_upgrade_costs": {
+        "1": 50000,
+        "2": 100000,
+        "3": 200000,
+        "4": 400000,
+        "5": 800000,
+        "6": 1500000
+      },
+      "reforge_price": 20000,
+      "spawn_prices": {
+        "player": 50,
+        "enemy": 100
+      },
+      "gender_swap_cost": 50000,
+      "baby_cost": 100000,
+      "workshop_price": 2500,
+      "caravan_price": 4000,
+      "tournament_prize_gold": 50000,
+      "tournament_round_gold": 10000,
+      "action_prices": {
+        "hero.set_specialization": 0,
+        "hero.select_weapon_power": 0,
+        "hero.claim_starter": 0,
+        "hero.buy_equipment": 0,
+        "hero.equip_owned": 0,
+        "hero.unequip_owned": 0,
+        "hero.discard_owned": 0,
+        "hero.create": 0,
+        "player.modify_attribute": 50,
+        "world.trigger_event": 1000,
+        "hero.reforge_quality": 20000,
+        "hero.set_combat_stance": 0,
+        "hero.discard_item": 0,
+        "hero.detach": 10,
+        "hero.attach": 10,
+        "hero.detach_hold": 30,
+        "hero.detach_charge": 30,
+        "hero.detach_skirmish": 30,
+        "hero.detach_raid": 30,
+        "hero.detach_walls": 30,
+        "hero.detach_gate": 30,
+        "hero.propose_marriage": 100,
+        "hero.respond_marriage_proposal": 0,
+        "hero.cancel_proposal": 0,
+        "hero.rename_child": 50,
+        "hero.change_child_looks": 200,
+        "hero.respec_child_skills": 500,
+        "hero.create_vassal_clan": 0,
+        "hero.recruit_vassal_clan": 0,
+        "hero.rename_vassal": 100,
+        "hero.party_order_set": 500,
+        "hero.party_order_release": 0,
+        "hero.army_create": 1000,
+        "hero.army_disband": 0,
+        "hero.enact_policy": 1500,
+        "hero.make_peace": 2000,
+        "kingdom.propose_war": 2000,
+        "kingdom.propose_peace": 3000,
+        "hero.pay_ransom": 500,
+        "kingdom.set_tax_rate": 0,
+        "hero.buy_workshop": 2500,
+        "hero.sell_workshop": 0,
+        "hero.buy_caravan": 4000,
+        "hero.sell_caravan": 0
+      },
+      "power_prices": {
+        "heal_burst": 100,
+        "shield_break_burst": 200,
+        "rage": 300,
+        "retribution_toggle": 300,
+        "poison_dot": 350,
+        "disarm_burst": 250,
+        "berserker_charge": 200,
+        "lifesteal_burst": 300,
+        "ironskin_toggle": 300,
+        "explosive_arrows": 350,
+        "cleave": 350
+      },
+      "hero_gold_costs": {
+        "marry": 50000,
+        "create_clan": 1000000,
+        "join_clan": 50000,
+        "create_kingdom": 5000000,
+        "join_kingdom": 100000,
+        "create_party": 200000,
+        "recruit_vassal": 3000000,
+        "make_baby": 100000,
+        "create_vassal_clan": 250000
+      }
+    },
+    "hero": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": "Культура фикстуры",
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": "Город фикстуры",
+        "adopted_at": "2026-10-03 11:15:41",
+        "last_sync": "2026-10-03 11:15:41",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 2,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 3,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {
+        "head": {
+          "item_id": "fixture-helmet",
+          "item_name": "Шлем фикстуры",
+          "tier": 2,
+          "item_value": 1234,
+          "weight": 2.5,
+          "stats": {
+            "head": 17,
+            "body": 3,
+            "mod_stat": 19
+          },
+          "quality": "fine"
+        }
+      },
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "classes": {
+      "success": true,
+      "classes": [
+        {
+          "class_key": "archer",
+          "name": "Лучник",
+          "formation": "Ranged",
+          "slots": [
+            "Bow",
+            "Arrows",
+            "Arrows",
+            "OneHandedWeapon"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Лук + два колчана + кинжал. Держит дистанцию и жжёт взрывными стрелами. Стиль: Баттания (лесной капюшон)."
+        },
+        {
+          "class_key": "assassin",
+          "name": "Убийца",
+          "formation": "Infantry",
+          "slots": [
+            "OneHandedWeapon",
+            "Thrown"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Кинжал и метательные ножи, разбойничий капюшон. Бьёт слабо и умирает быстро — живёт скрытностью: активка прячет его, и враги теряют цель на 45 секунд (удар ненадолго выдаёт). Кнопка пока подписана «Стойкость» — переименуем в ближайшем обновлении расширения."
+        },
+        {
+          "class_key": "berserk",
+          "name": "Берсерк",
+          "formation": "Infantry",
+          "slots": [
+            "TwoHandedWeapon",
+            "TwoHandedWeapon"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Северянин с двумя двуручными топорами. Косит толпу и лечится с урона, но ловит больше — стеклянная пушка. Стиль: Стургия (меха)."
+        },
+        {
+          "class_key": "crossbow",
+          "name": "Арбалетчик",
+          "formation": "Ranged",
+          "slots": [
+            "Crossbow",
+            "Bolts",
+            "Bolts",
+            "OneHandedWeapon"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Арбалет: медленный, но пробивает броню и разбивает щиты. Крепче лучника. Стиль: Асераи (пустынный стрелок)."
+        },
+        {
+          "class_key": "horse_archer",
+          "name": "Конный Лучник",
+          "formation": "HorseArcher",
+          "slots": [
+            "Bow",
+            "Arrows",
+            "OneHandedWeapon",
+            "Arrows"
+          ],
+          "use_horse": true,
+          "use_camel": false,
+          "description": "Лук верхом: кайт, набег, отравленные стрелы. Самый мобильный. Стиль: Кузаиты (степь)."
+        },
+        {
+          "class_key": "knight",
+          "name": "Кавалерист",
+          "formation": "Cavalry",
+          "slots": [
+            "Polearm",
+            "OneHandedWeapon",
+            "Shield"
+          ],
+          "use_horse": true,
+          "use_camel": false,
+          "description": "Конное копьё + меч + большой щит, латы. Таранный наскок и живучесть в седле. Стиль: Вландия (рыцарь)."
+        },
+        {
+          "class_key": "tank",
+          "name": "Латник",
+          "formation": "Infantry",
+          "slots": [
+            "OneHandedWeapon",
+            "Shield"
+          ],
+          "use_horse": false,
+          "use_camel": false,
+          "description": "Булава + большой щит, тяжёлые латы. Несокрушимая стена: держит удар, сбить с ног почти нельзя. Стиль: Империя (ламелляр)."
+        }
+      ],
+      "current": {
+        "class_key": "berserk",
+        "class_level": 1,
+        "primary_skill": "TwoHanded",
+        "primary_skill_level": 0,
+        "next_threshold": 50
+      },
+      "current_powers": [
+        {
+          "power_key": "rage",
+          "value": 1.76,
+          "price": 300
+        },
+        {
+          "power_key": "cleave",
+          "value": 0.4,
+          "price": 350
+        },
+        {
+          "power_key": "heal_burst",
+          "value": 50.0,
+          "price": 100
+        }
+      ]
+    },
+    "status": {
+      "success": true,
+      "online": true,
+      "last_seen": 1791026141.1952581,
+      "age_seconds": 0.011345863342285156
+    },
+    "shop": {
+      "success": true,
+      "items": [
+        {
+          "catalog_type": "shop",
+          "entry_id": "fixture-army",
+          "name": "Собрать армию",
+          "description": "Предложение каталога игры",
+          "action_type": "hero.army_create",
+          "price": 1000
+        },
+        {
+          "catalog_type": "shop",
+          "entry_id": "old-xp",
+          "name": "Устаревший опыт",
+          "action_type": "hero.add_skill",
+          "price": 1
+        }
+      ]
+    },
+    "gold_0": {
+      "request": {
+        "action_type": "player.give_item",
+        "data": {
+          "price": 1000,
+          "item_type": "gold"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "76d68ae5c61e421bb5da7636b89c3f44",
+        "charged": 1000,
+        "message": "⚔️ Action player.give_item в очереди (1000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "gold_1": {
+      "request": {
+        "action_type": "player.give_item",
+        "data": {
+          "price": 5000,
+          "item_type": "gold"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "f515ccd370694a159ce08f2f71064aea",
+        "charged": 5000,
+        "message": "⚔️ Action player.give_item в очереди (5000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "gold_2": {
+      "request": {
+        "action_type": "player.give_item",
+        "data": {
+          "price": 20000,
+          "item_type": "gold"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "8e1cf7ccfc0d42d3a78a44e4bbb34126",
+        "charged": 20000,
+        "message": "⚔️ Action player.give_item в очереди (20000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "catalog_buy": {
+      "request": {
+        "action_type": "hero.army_create",
+        "data": {
+          "price": 1000
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "eace2fd43d924d9daad253d4d1cff14f",
+        "charged": 1000,
+        "message": "⚔️ Action hero.army_create в очереди (1000💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "upgrade": {
+      "request": {
+        "action_type": "hero.upgrade_gear",
+        "data": {}
+      },
+      "response": {
+        "success": true,
+        "action_id": "2ffbc9c2a37549b88fb1bf0397e5c7c2",
+        "charged": 0,
+        "message": "⚔️ Action hero.upgrade_gear в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      }
+    },
+    "reequip": {
+      "request": {
+        "action_type": "hero.reequip_gear",
+        "data": {}
+      },
+      "response": {
+        "success": true,
+        "action_id": "b921139283e74b38963148a06e6893db",
+        "charged": 0,
+        "message": "⚔️ Action hero.reequip_gear в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      }
+    },
+    "discard": {
+      "request": {
+        "action_type": "hero.discard_item",
+        "data": {
+          "slot": "head"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "621a3e0fa6384e07889e40f7c0774fdc",
+        "charged": 0,
+        "message": "⚔️ Action hero.discard_item в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 0
+      }
+    },
+    "hero_max_tier": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": "Культура фикстуры",
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": "Город фикстуры",
+        "adopted_at": "2026-10-03 11:15:41",
+        "last_sync": "2026-10-03 11:15:41",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 6,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 3,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {
+        "head": {
+          "item_id": "fixture-helmet",
+          "item_name": "Шлем фикстуры",
+          "tier": 2,
+          "item_value": 1234,
+          "weight": 2.5,
+          "stats": {
+            "head": 17,
+            "body": 3,
+            "mod_stat": 19
+          },
+          "quality": "fine"
+        }
+      },
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "upgrade_refused": {
+      "request": {
+        "action_type": "hero.upgrade_gear",
+        "data": {}
+      },
+      "response": {
+        "success": false,
+        "message": "Снаряжение уже T6 — выше некуда"
+      }
+    }
+  }
+}

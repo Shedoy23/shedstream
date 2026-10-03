@@ -1,3 +1,4 @@
+import gameFixtures from './panel-fixtures/game-progression-responses.json';
 import { createLegacyHarness } from './panel-legacy-harness';
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render } from '@testing-library/preact';
@@ -16,7 +17,7 @@ function setup(overrides: Record<string, unknown> = {}) {
   const trace: { method: string; path: string; body?: any; token: string | null }[] = [];
   const routes: Record<string, unknown> = {
     '/api/user/resolve-twitch-token': { login: 'alice' },
-    '/api/bannerlord/config': f.config, '/api/bannerlord/my-hero': f.hero,
+    '/api/bannerlord/content-catalogs': gameFixtures.responses.catalogs, '/api/bannerlord/progression': gameFixtures.responses.progression, '/api/bannerlord/config': f.config, '/api/bannerlord/my-hero': f.hero,
     '/api/bannerlord/classes': f.classes, '/api/bannerlord/build': f.build_ready,
     '/api/bannerlord/my-buffs': f.buffs, '/api/bannerlord/action': f.focus_success.response,
     '/api/viewer/stats/alice': f.stats, '/api/user/level/alice': f.level, '/api/duel/list': f.duels, ...overrides,
@@ -58,28 +59,31 @@ it('renders real attributes, all 24 progression controls and server catalog choi
   const s = setup(); await s.start(); const ui = render(<HeroDevelopmentView controller={s.controller} />);
   expect(ui.container.querySelectorAll('[data-skill]')).toHaveLength(18);
   expect(ui.container.querySelectorAll('[data-attr]')).toHaveLength(6);
-  expect(ui.container.textContent).toContain('2/10'); expect(ui.container.textContent).toContain(f.hero.hero.display_name);
+  expect(ui.container.textContent).toContain('2/17'); expect(ui.container.textContent).toContain(f.hero.hero.display_name);
   expect(ui.container.querySelectorAll('[data-bnr-build-spec]')).toHaveLength(f.build_ready.build.specializations.length);
   expect(ui.container.querySelectorAll('[data-bnr-build-starter]')).toHaveLength(f.build_ready.build.starter_kits.length); s.controller.stop();
 });
-it('uses exact PascalCase attribute intent, immediate read and complete successful delayed tail', async () => {
+it('uses exact game attribute quote, immediate read and complete successful delayed tail', async () => {
   vi.useFakeTimers(); const s = setup({ '/api/bannerlord/action': f.attribute_success.response }); await s.start();
   const ui = render(<HeroDevelopmentView controller={s.controller} />);
-  await act(async () => { fireEvent.click(ui.container.querySelector('[data-attr="Vigor"]')!); await flush(); });
+  await act(async () => { fireEvent.click(ui.container.querySelector('[data-attr="vigor"]')!); await flush(); });
+  await act(async () => { fireEvent.click(ui.getByRole('button',{name:'Подтвердить',exact:true})); await flush(); });
   expect(s.trace.map(r => r.path)).toEqual(['/api/bannerlord/action','/api/bannerlord/my-hero','/api/viewer/stats/alice','/api/user/level/alice','/api/duel/list']);
-  expect(s.trace[0].body.data).toEqual({ attribute_key: 'Vigor', amount: 1, client_action_id: 'test-id' });
+  expect(s.trace[0].body.data).toEqual({ attribute_key: 'vigor', amount: 1, expected_cost_gold: gameFixtures.responses.progression.progression.attributes.find(a=>a.id==='vigor')!.options[0].cost_gold, expected_value: 2, progression_context: gameFixtures.responses.progression.context, client_action_id: 'test-id' });
   await act(async () => { await vi.advanceTimersByTimeAsync(3510); });
-  expect(s.trace.slice(-2).map(r => r.path)).toEqual(['/api/bannerlord/my-hero','/api/bannerlord/build']); s.controller.stop();
+  expect(s.trace.slice(-4).map(r => r.path)).toEqual(['/api/bannerlord/my-hero','/api/bannerlord/build','/api/bannerlord/content-catalogs','/api/bannerlord/progression']); s.controller.stop();
 });
-it('fails closed for missing/malformed prices but preserves legitimate zero and inherited 5/10 caps', async () => {
-  const s = setup({ '/api/bannerlord/config': { focus_tier_costs: [0, null, -1, '300', 500], attribute_cost: 0 } }); await s.start();
-  const ui = render(<HeroDevelopmentView controller={s.controller} />);
-  const attr = ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement; expect(attr.disabled).toBe(false);
-  const firstSkill = f.hero.skills[0]; const target = ui.container.querySelector(`[data-skill="${firstSkill.skill_key}"]`) as HTMLButtonElement;
-  expect(target.disabled).toBe(firstSkill.focus !== 0 && firstSkill.focus !== 4);
-  s.routes['/api/bannerlord/config'] = {}; await act(async () => { await s.controller.refresh(); });
-  expect([...ui.container.querySelectorAll('[data-attr],[data-skill]')].every(b => (b as HTMLButtonElement).disabled)).toBe(true);
-  s.controller.stop();
+it('fails closed for missing or malformed game prices and preserves legitimate zero', async () => {
+  const progression = structuredClone(gameFixtures.responses.progression);
+  progression.progression.attributes.find(a=>a.id==='vigor')!.options[0].cost_gold=0;
+  (progression.progression.skills[0].focus_options[0] as {cost_gold:unknown}).cost_gold='7';
+  const s=setup({'/api/bannerlord/progression':progression}); await s.start();
+  const ui=render(<HeroDevelopmentView controller={s.controller}/>);
+  expect((ui.container.querySelector('[data-attr="vigor"]') as HTMLButtonElement).disabled).toBe(false);
+  expect((ui.container.querySelector('[data-skill="'+progression.progression.skills[0].id+'"]') as HTMLButtonElement).disabled).toBe(true);
+  s.routes['/api/bannerlord/progression']=gameFixtures.responses.progression_missing;
+  await act(async()=>{await s.controller.refresh();});
+  expect([...ui.container.querySelectorAll('[data-attr],[data-skill]')].every(b=>(b as HTMLButtonElement).disabled)).toBe(true);s.controller.stop();
 });
 it('preserves arbitrary refusal, applies server cooldown and stops pre-action polls erasing it', async () => {
   const s = setup({ '/api/bannerlord/action': { success: false, message: 'Новый отказ с сервера', cooldown_remaining_s: 44 } }); await s.start();
@@ -114,12 +118,12 @@ it('absent/dead hero has no mutation controls and enabled-but-syncing never fall
   expect(ui.container.querySelector('select')).toBeNull(); expect(ui.container.textContent).toContain(f.build_syncing.message); s.controller.stop();
 });
 it('manual refresh recovers missing prices and classes without reloading the document', async () => {
-  const s = setup({ '/api/bannerlord/config': { success: false, message: 'Временный сбой цен' }, '/api/bannerlord/classes': { success: false, message: 'Временный сбой классов' } });
+  const s = setup({ '/api/bannerlord/progression': gameFixtures.responses.progression_missing, '/api/bannerlord/config': { success: false, message: 'Временный сбой цен' }, '/api/bannerlord/classes': { success: false, message: 'Временный сбой классов' } });
   await s.start(); const ui = render(<HeroDevelopmentView controller={s.controller} />);
-  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(true);
-  s.routes['/api/bannerlord/config'] = f.config; s.routes['/api/bannerlord/classes'] = f.classes;
+  expect([...ui.container.querySelectorAll('[data-attr]')].every(b=>(b as HTMLButtonElement).disabled)).toBe(true);
+  s.routes['/api/bannerlord/progression'] = gameFixtures.responses.progression; s.routes['/api/bannerlord/config'] = f.config; s.routes['/api/bannerlord/classes'] = f.classes;
   await act(async () => { fireEvent.click(ui.getByRole('button', { name: 'Обновить' })); await flush(); });
-  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(false);
+  expect((ui.container.querySelector('[data-attr="vigor"]') as HTMLButtonElement).disabled).toBe(false);
   expect(s.controller.snapshot().classes).toEqual(f.classes); expect(s.controller.snapshot().error).toBe(''); s.controller.stop();
 });
 it('failed new-build refresh removes stale enabled choices without exposing legacy picker', async () => {
@@ -165,7 +169,7 @@ it('a 20-second unknown action outcome blocks duplicate and different purchases 
   await vi.advanceTimersByTimeAsync(20001); await third;
   expect(s.trace.filter(r => r.method === 'POST')).toHaveLength(1);
   expect(s.controller.snapshot().message).toContain('Исход предыдущей заявки неизвестен');
-  await s.controller.refreshHero(); expect(s.trace.at(-1)?.path).toBe('/api/bannerlord/my-hero'); s.controller.stop();
+  await s.controller.refreshHero(); expect(s.trace.slice(-3).map(r=>r.path)).toEqual(['/api/bannerlord/my-hero','/api/bannerlord/content-catalogs','/api/bannerlord/progression']); s.controller.stop();
 });
 it('ignores a genuinely reverse-ordered older hero response', async () => {
   const s = setup(); await s.start(); const a = deferred<Response>(), b = deferred<Response>();
@@ -204,23 +208,24 @@ it('a definite server refusal is retryable and does not create unknown-outcome b
 });
 it('unknown-outcome disables visible mutation controls while refresh and another identity stay usable', async () => {
   const s = setup({ '/api/bannerlord/action': {} }); await s.start(); const ui = render(<HeroDevelopmentView controller={s.controller} />);
-  await act(async () => { (ui.container.querySelector('[data-attr="Vigor"]') as HTMLElement).click(); await flush(); });
+  await act(async () => { (ui.container.querySelector('[data-attr="vigor"]') as HTMLElement).click(); await flush(); });
+  await act(async()=>{ui.getByRole('button',{name:'Подтвердить',exact:true}).click();await flush();});
   expect(s.controller.snapshot().canAct).toBe(true);
   expect([...ui.container.querySelectorAll('[data-attr],[data-skill],[data-bnr-build-spec],[data-bnr-build-starter]')].every(node => (node as HTMLButtonElement).disabled)).toBe(true);
   expect((ui.getByRole('button', { name: 'Обновить' }) as HTMLButtonElement).disabled).toBe(false);
   expect(ui.container.textContent).toContain('могла дойти до сервера');
   await act(async () => { s.authorize({ ...authValue, token: 'rotated' }); await flush(); });
-  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(true);
+  expect((ui.container.querySelector('[data-attr="vigor"]') as HTMLButtonElement).disabled).toBe(true);
   await act(async () => { s.routes['/api/user/resolve-twitch-token'] = { login: 'carol' }; s.authorize({ ...authValue, userId: 'opaque-carol', token: 'carol' }); await flush(); });
-  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(false);
+  expect((ui.container.querySelector('[data-attr="vigor"]') as HTMLButtonElement).disabled).toBe(false);
   await act(async () => { s.routes['/api/user/resolve-twitch-token'] = { login: 'alice' }; s.authorize(authValue); await flush(); });
-  expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(true);
+  expect((ui.container.querySelector('[data-attr="vigor"]') as HTMLButtonElement).disabled).toBe(true);
   s.controller.stop();
 });
 it('an already rendered action button cannot dispatch during token identity verification', async () => {
   const s = setup(); await s.start(); const ui = render(<HeroDevelopmentView controller={s.controller} />);
   const pending = deferred<Response>(); s.routes['/api/user/resolve-twitch-token'] = pending.promise;
-  const button = ui.container.querySelector('[data-attr="Vigor"]') as HTMLElement;
+  const button = ui.container.querySelector('[data-attr="vigor"]') as HTMLElement;
   s.authorize({ ...authValue, token: 'rotated' }); button.click();
   expect(s.trace.filter(row => row.path === '/api/bannerlord/action')).toEqual([]);
   pending.resolve(response({ login: 'alice' })); await flush(); s.controller.stop();

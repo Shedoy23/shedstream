@@ -1,0 +1,53 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-community-games-parity.test.tsx (23 tests | 1 failed | 22 skipped) 985ms
+   × tictactoe move uses displayed room and exact action continuation 983ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 22 skipped (23)
+   Start at  18:57:18
+   Duration  4.71s (environment 46%, tests 22%, import 21%, transform 10%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-community-games-parity.test.tsx > tictactoe move uses displayed room and exact action continuation
+AssertionError: expected [ { method: 'GET', …(7) }, …(12) ] to deeply equal [ { method: 'GET', …(7) }, …(12) ]
+
+- Expected
++ Received
+
+@@ -118,15 +118,15 @@
+      "query": "?room_id=fixture-tictactoe",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"room_id\":\"fixture-tictactoe\",\"cell\":5}",
++     "body": "{\"room_id\":\"fixture-tictactoe\",\"cell\":4}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/tictactoe/move",
+      "query": "",
+-     "rawBody": "{\"room_id\":\"fixture-tictactoe\",\"cell\":5}",
++     "rawBody": "{\"room_id\":\"fixture-tictactoe\",\"cell\":4}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+  ]
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-community-games-parity.test.tsx:35:80
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

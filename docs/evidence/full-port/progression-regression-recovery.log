@@ -1,0 +1,2450 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-diplomacy-safety.test.tsx > old actual reverse completion rolls tax backward, new state stays latest applied
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > actual old party response reversal is reproduced while Preact keeps latest applied result
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > slow healthy party responses are not starved by later issued reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > slow steady reads make progress before newest outstanding read resolves
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > unchanged legacy writes after stop; owned Preact read cannot repopulate stopped host
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > old pending reader repaints after stop while new stopped host stays empty
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > ignored pre-identity hero completion cannot launch a fresh party read for a new owner
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > old [data-policy-id="policy_royal_guard"] local tail uses new JWT after stop, new timer is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > [data-bnr-action="army_disband"] original confirmation cannot authorize changed observable viewer
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > .bnr-locked-leave original confirmation cannot authorize changed observable viewer
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > old #bnr-peace-confirm local tail uses new JWT after stop, new timer is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > .bnr-clan-leave original confirmation cannot authorize changed observable viewer
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > old [data-tax-pct="25"] local tail uses new JWT after stop, new timer is owned
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > army confirmation invalidates changed hero
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > army confirmation invalidates changed clan
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > actual legacy open peace survives accepted role and nested ID change, new draft is invalidated
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > army confirmation invalidates changed army
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross identity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > army confirmation invalidates changed quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross channel
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > same-viewer JWT renewal retains draft and permits a fresh affirmative with current JWT
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > local 1500ms tail cannot follow stop and new JWT; original legacy hole stays measured
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross hero
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > local 2000ms tail cannot follow stop and new JWT; original legacy hole stays measured
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross role
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > same-viewer token changed during pending order cannot schedule old local tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross kingdom
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > read before accepted set cannot resurrect the old order after acknowledgement
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross navigation
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > party error preserves the last confirmed snapshot and text, then retry recovers
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > army member retains inherited disband affordance and real server owns eligibility
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > direct peace old saved click cannot cross stop
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > same-viewer idle token refresh preserves peace editor and current-token submit
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > missing clan price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > pending local tail cannot migrate to refreshed JWT
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > missing join price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-party-safety.test.tsx > missing party price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > scheduled local tail cannot migrate to refreshed JWT
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > missing army price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > accepted mutation prevents pre-action state from resurrecting old tax
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > missing order price is unavailable without fake free quote
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: auth required
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > create/join open drafts survive ordinary hero/config polls and Enter uses latest synchronous text
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: Fixture temporarily unavailable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+x┬╖stdout | test/panel-diplomacy-safety.test.tsx > read network failure preserves current snapshot; subsequent good read recovers
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > unknown-outcome lock crosses order, clan, army and retinue controls
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-diplomacy-safety.test.tsx > read of old token cannot replace newly resolved same-viewer state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > dismiss by backdrop or Escape sends nothing and can reopen with current context
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback null
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > collapsed army and order cards remain collapsed without suppressing active reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback []
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > read-owned clan switch clears previous order and does not preserve stale target draft
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","at_war":false},{"id":"fixture_b","name":"Fixture B","at_war":false}]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > legacy army danger confirmation really sends under changed JWT while new host cancels it
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","name":"Fixture A","at_war":true}]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > blank create is permitted, blank join is silent and sends nothing
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [null,{"id":"fixture_b","name":"Fixture B","at_war":false},{"id":"fixture_a","at_war":false}]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > hidden or unselected Dynasty performs no background kingdom-state reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > real released expired or recruit snapshot null
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > real released expired or recruit snapshot null
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > real released expired or recruit snapshot {"id":6,"order_type":"recruit","target_settlement_id":"","target_settlement_name":"","issued_at":"2026-10-02 22:37:43","expires_at":"2026-10-02 23:07:43"}
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > hero leader outside kingdom has no army button but complete own orders
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration undefined comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > nondefault server action/gold quotes change display without adding UI prices to request
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0.5 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > army/clan and order UI cannot dispatch after navigation or unmount, including saved yes handlers
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 2.2 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > double same-frame strategic submission remains one POST and preserves caller telemetry
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stderr | test/panel-party-safety.test.tsx > double same-frame strategic submission remains one POST and preserves caller telemetry
+[buyAction] duplicate-click guarded bannerlord:hero.party_order_set:order_type=siege&target_settlement_id=fixture_enemy_town&target_settlement_name=Enemy Town (╨│╨╛╤А╨╛╨┤, ~2 ╨┤╨╜)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 61 comes from server and restores actual priced label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > ordinary proposal refusal without cooldown does not invent one
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > old buff response cannot erase accepted proposal cooldown, fresh allowed clear restores price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > a scheduled acknowledged order tail cannot move onto a later same-viewer token
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > same-frame duplicate target sends one POST and retains complete tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stderr | test/panel-diplomacy-safety.test.tsx > same-frame duplicate target sends one POST and retains complete tails
+[buyAction] duplicate-click guarded bannerlord:kingdom.propose_war:target_kingdom_id=fixture_neutral&target_kingdom_name=Fixture Neutral
+
+┬╖stdout | test/panel-party-safety.test.tsx > old party read token cannot replace the newly resolved same-viewer state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+x┬╖stdout | test/panel-diplomacy-safety.test.tsx > unknown-outcome blocks policy, tax, direct peace and both proposals
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > config retry restores clan creation price without replacing the typed draft
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > later identical successful proposal keeps its own full seven-second feedback window
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-safety.test.tsx > actual active siege target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > pending tax POST cannot schedule work after stop and host rebind
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > actual active defend target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > pending war POST cannot schedule work after stop and host rebind
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > actual active raid target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > pending policy POST cannot schedule work after stop and host rebind
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-safety.test.tsx > actual active garrison target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+x┬╖stdout | test/panel-party-safety.test.tsx > actual active patrol target preselection matches old list
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-safety.test.tsx > old realm pending GET cannot apply to accepted new nested kingdom ID
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖xstdout | test/panel-diplomacy-safety.test.tsx > proposal selection follows actual second option and exact name on both hosts
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-safety.test.tsx > new hero target editor cannot submit old same-frame values after context changes
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖xstdout | test/panel-diplomacy-safety.test.tsx > empty target ID sends zero proposals without invented target
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > changed relation invalidates stale proposal click while current controls remain usable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > unknown cooldown key is not applied to either proposal and short duration expires to fresh label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-safety.test.tsx > independent review: fresh different-realm response quarantines old ruler actions until hero agrees
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-safety.test.tsx > fresh observed state remains quarantined while replacement hero waits for agreeing state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > army affirmative cannot use observed fixture_other_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > army affirmative cannot use observed fixture_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > army create saved button and controller admission reject fixture_other_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > army create saved button and controller admission reject fixture_kingdom/false contradiction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > agreement restores army create while previous contradiction sends nothing
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > agreement does not revive old army affirmative; fresh consent works
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > unobserved diplomacy does not block previously valid army controls
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > observed kingdom quarantine leaves unrelated retinue recruitment usable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > already-open order editor cannot submit its old realm target during observed quarantine
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖┬╖stdout | test/panel-army-kingdom-safety.test.tsx > quarantine preserves order cancellation and unrelated clan leave controls
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖x┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖┬╖xxx┬╖stdout | test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xxstdout | test/panel-diplomacy-parity.test.tsx > policy policy_royal_guard exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_sacred_majesty exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_trial_by_jury exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_imperial_towns exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_noble_retinues exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_lords_privy_council exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_serfdom exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_citizenship exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real policy state pending1/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted1
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute -200
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > clan create trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 20000
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > clan join trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+x┬╖stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 100.9
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace has no Enter binding, requires two trimmed characters and keeps polling draft
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-clan-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xxstdout | test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-j-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+x┬╖stdout | test/panel-diplomacy-parity.test.tsx > #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-party
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-peace-confirm preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-tax-pct="25"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_create"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-war-propose preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > outer collapsed card and inner details preserve telemetry, reads and user state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_disband"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > no kingdom is informational and genuine nohero clears Politics
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xxstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-leave
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-diplomacy-parity.test.tsx > vassal sees policies/votes but no direct peace or tax
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > unknown active law retains server badge without adding selectable invented policy
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-cancel
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xxstdout | test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+x
+
+тОптОптОптОптОптОп Failed Tests 95 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-army-kingdom-safety.test.tsx > quarantine preserves order cancellation and unrelated clan leave controls
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(43) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(43) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-army-kingdom-safety.test.tsx:25:949
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:6:339
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_royal_guard exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_sacred_majesty exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_trial_by_jury exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_imperial_towns exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_noble_retinues exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_lords_privy_council exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_serfdom exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_citizenship exact existing ID/name and complete local/generic tails
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(18) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(18) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:7:315
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > real policy state pending1/enacted0
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(16) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(16) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:8:573
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted1
+ FAIL  test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted0
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(30) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(30) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:8:573
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute -200
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 0
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 20000
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 100.9
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(21) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(21) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:9:642
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace has no Enter binding, requires two trimmed characters and keeps polling draft
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(29) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(29) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:10:644
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(18) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(18) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:11:327
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[8/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback
+ FAIL  test/panel-diplomacy-parity.test.tsx > #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(20) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(20) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:12:625
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[9/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal #bnr-peace-confirm preserves exact message and legacy tail
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal [data-tax-pct="25"] preserves exact message and legacy tail
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal #bnr-war-propose preserves exact message and legacy tail
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(19) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(19) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:13:591
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[10/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > outer collapsed card and inner details preserve telemetry, reads and user state
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(66) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(66) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:14:769
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[11/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > vassal sees policies/votes but no direct peace or tax
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:16:452
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[12/95]тОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > unknown active law retains server badge without adding selectable invented policy
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-parity.test.tsx:17:489
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[13/95]тОп
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: auth required
+ FAIL  test/panel-diplomacy-safety.test.tsx > read refusal keeps last good diplomacy: Fixture temporarily unavailable
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(15) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(15) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-safety.test.tsx:19:512
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[14/95]тОп
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback null
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback []
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","at_war":false},{"id":"fixture_b","name":"Fixture B","at_war":false}]
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [{"id":"fixture_a","name":"Fixture A","at_war":true}]
+ FAIL  test/panel-diplomacy-safety.test.tsx > dynamic target list keeps server order/name fallback [null,{"id":"fixture_b","name":"Fixture B","at_war":false},{"id":"fixture_a","at_war":false}]
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-safety.test.tsx:22:814
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[15/95]тОп
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration undefined comes from server and restores actual priced label
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0 comes from server and restores actual priced label
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(20) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(20) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-safety.test.tsx:24:603
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[16/95]тОп
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 0.5 comes from server and restores actual priced label
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 2.2 comes from server and restores actual priced label
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal cooldown duration 61 comes from server and restores actual priced label
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(20) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(20) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-safety.test.tsx:24:520
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[17/95]тОп
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > ordinary proposal refusal without cooldown does not invent one
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(17) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(17) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-safety.test.tsx:25:349
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[18/95]тОп
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > same-frame duplicate target sends one POST and retains complete tails
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(24) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(24) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-safety.test.tsx:27:365
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[19/95]тОп
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > proposal selection follows actual second option and exact name on both hosts
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(22) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(22) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-safety.test.tsx:32:802
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[20/95]тОп
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > empty target ID sends zero proposals without invented target
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-safety.test.tsx:33:324
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[21/95]тОп
+
+ FAIL  test/panel-diplomacy-safety.test.tsx > unknown cooldown key is not applied to either proposal and short duration expires to fresh label
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-diplomacy-safety.test.tsx:35:596
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[22/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:3:130
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[23/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(29) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(29) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:4:440
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[24/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+AssertionError: complete trace differs only by the explicitly corrected recruit placeholder: expected [ { method: 'GET', тАж(7) }, тАж(29) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(29) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп test/panel-party-parity.test.tsx:5:984
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[25/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(25) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(25) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:6:220
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[26/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails
+ FAIL  test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(28) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(28) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:7:251
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[27/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false
+ FAIL  test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(16) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(16) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:8:619
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[28/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+ FAIL  test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(28) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(28) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:8:619
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[29/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(29) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(29) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:10:397
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[30/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(18) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(18) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:11:322
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[31/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:12:322
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[32/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(29) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(29) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:13:537
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[33/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(15) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(15) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:14:171
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[34/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-party
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_create"]
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_disband"]
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-leave
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(78) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(78) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:15:812
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[35/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-cancel
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(79) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(79) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:15:812
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[36/95]тОп
+
+ FAIL  test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(66) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(66) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-parity.test.tsx:16:245
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[37/95]тОп
+
+ FAIL  test/panel-party-safety.test.tsx > army member retains inherited disband affordance and real server owns eligibility
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(28) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(28) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-safety.test.tsx:48:331
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[38/95]тОп
+
+ FAIL  test/panel-party-safety.test.tsx > collapsed army and order cards remain collapsed without suppressing active reads
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(29) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(29) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-safety.test.tsx:56:561
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[39/95]тОп
+
+ FAIL  test/panel-party-safety.test.tsx > real released expired or recruit snapshot null
+ FAIL  test/panel-party-safety.test.tsx > real released expired or recruit snapshot null
+ FAIL  test/panel-party-safety.test.tsx > real released expired or recruit snapshot {"id":6,"order_type":"recruit","target_settlement_id":"","target_settlement_name":"","issued_at":"2026-10-02 22:37:43","expires_at":"2026-10-02 23:07:43"}
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-safety.test.tsx:60:411
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[40/95]тОп
+
+ FAIL  test/panel-party-safety.test.tsx > hero leader outside kingdom has no army button but complete own orders
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-safety.test.tsx:61:447
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[41/95]тОп
+
+ FAIL  test/panel-party-safety.test.tsx > nondefault server action/gold quotes change display without adding UI prices to request
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(40) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(40) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-safety.test.tsx:62:599
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[42/95]тОп
+
+ FAIL  test/panel-party-safety.test.tsx > double same-frame strategic submission remains one POST and preserves caller telemetry
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(80) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(80) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-safety.test.tsx:64:413
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[43/95]тОп
+
+ FAIL  test/panel-party-safety.test.tsx > actual active siege target preselection matches old list
+ FAIL  test/panel-party-safety.test.tsx > actual active defend target preselection matches old list
+ FAIL  test/panel-party-safety.test.tsx > actual active raid target preselection matches old list
+ FAIL  test/panel-party-safety.test.tsx > actual active garrison target preselection matches old list
+ FAIL  test/panel-party-safety.test.tsx > actual active patrol target preselection matches old list
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(7) }, тАж(14) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(14) ]
+
+- Expected
++ Received
+
+@@ -89,24 +89,24 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп Object.check test/panel-combat-support.tsx:70:189
+
+ тЭп test/panel-party-safety.test.tsx:68:448
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[44/95]тОп
+
+ FAIL  test/panel-policy-transport.test.tsx > unregistered: native action button displays exact server text, stays available, and does not schedule success refresh
+ FAIL  test/panel-policy-transport.test.tsx > pending: native action button displays exact server text, stays available, and does not schedule success refresh
+ FAIL  test/panel-policy-transport.test.tsx > rate_limited: native action button displays exact server text, stays available, and does not schedule success refresh
+AssertionError: expected "vi.fn()" to be called 8 times, but got 4 times
+ тЭп test/panel-policy-transport.test.tsx:248:21
+
+    246|     expect(fetcher).toHaveBeenCalledTimes(4); // Existing immediateHerтАж
+    247|     await act(async () => { button.click(); await flush(); });
+    248|     expect(fetcher).toHaveBeenCalledTimes(8); expect(fetcher.mock.callтАж
+       |                     ^
+    249|   } finally { controller.stop(); detach(); }
+    250| });
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[45/95]тОп
+
+ Test Files  6 failed | 3 passed (9)
+      Tests  95 failed | 257 passed (352)
+   Start at  13:50:53
+   Duration  39.54s (tests 77%, environment 15%, import 6%, transform 1%)
+
+    Isolate  9 workers spawned ┬╖ ~1.47s startup each (spawn + environment, per file)
+             at least ~5.15s faster with isolate: false тАФ reuses workers across files instead of one per file
+

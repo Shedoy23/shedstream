@@ -1,0 +1,111 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-hero-profile-parity.test.tsx (9 tests | 9 failed) 4799ms
+   ├Ч hero profile male confirms game gold and exact gender with generic action tails 1395ms
+   ├Ч hero profile female confirms game gold and exact gender with generic action tails 414ms
+   ├Ч hero profile marry preserves raw action, family snapshot and all continuations 576ms
+   ├Ч hero profile divorce preserves raw action, family snapshot and all continuations 437ms
+   ├Ч hero profile baby preserves raw action, family snapshot and all continuations 373ms
+   ├Ч hero profile refusal displays the actual reason without inventing a successful family change 320ms
+   ├Ч hero profile missing game price blocks gender changes without the old fallback 426ms
+   ├Ч hero profile spouse replacement cancels divorce before any request 431ms
+   ├Ч hero profile delegates the unexposed child limit to the server and game instead of copying five 423ms
+
+тОптОптОптОптОптОптОп Failed Tests 9 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile male confirms game gold and exact gender with generic action tails
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile female confirms game gold and exact gender with generic action tails
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:49:101
+     47|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     48|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     49|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     50|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     51|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:49:46
+ тЭп test/panel-hero-profile-parity.test.tsx:16:39
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/9]тОп
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile marry preserves raw action, family snapshot and all continuations
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile divorce preserves raw action, family snapshot and all continuations
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile baby preserves raw action, family snapshot and all continuations
+AssertionError: expected '╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤ПЁЯП░ ╨Ъ╨╗╨░╨╜╨Ъ╨╗╨░╨╜ ╤Д╨╕╨║╤Б╤В╤ГтАж' to contain '╨Ю╤В╨╡╤Ж ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л'
+
+Expected: "╨Ю╤В╨╡╤Ж ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л"
+Received: "╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤ПЁЯП░ ╨Ъ╨╗╨░╨╜╨Ъ╨╗╨░╨╜ ╤Д╨╕╨║╤Б╤В╤Г╤А╤ЛтнР Tier:3ЁЯПЖ Renown:0ЁЯСе ╨У╨╡╤А╨╛╨╡╨▓:4тЪФ ╨Ю╤В╤А╤П╨┤╨╛╨▓:1ЁЯП░ ╨Я╨╛╤Б╨╡╨╗╨╡╨╜╨╕╨╣:0тЬЕ ╨Ю╤В╤А╤П╨┤╨╛╨▓ ╤Г ╨║╨╗╨░╨╜╨░: 1ЁЯЪк ╨Я╨╛╨║╨╕╨╜╤Г╤В╤М ╨║╨╗╨░╨╜ЁЯСС ╨Ъ╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛тАФ ╨╜╨╡╤В ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨░ тАФ╨Ъ╨╗╨░╨╜ ╨╜╨╡╨╖╨░╨▓╨╕╤Б╨╕╨╝ тАФ ╨▒╨╡╨╖ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨░.ЁЯСС ╨б╨╛╨╖╨┤╨░╤В╤М ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛ (5MЁЯТ░)ЁЯдЭ ╨Т╤Б╤В╤Г╨┐╨╕╤В╤М ╨▓ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛ (100KЁЯТ░)╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╨┐╤А╨╕╨║╨░╨╖ ╨╛╤В╤А╤П╨┤╨░тАжЁЯЪй ╨Р╤А╨╝╨╕╤П╨б╨╛╨▒╤А╨░╤В╤М ╨░╤А╨╝╨╕╤О ╨╝╨╛╨╢╨╡╤В ╤В╨╛╨╗╤М╨║╨╛ ╨║╨╗╨░╨╜ ╨▓ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╡. ╨Т╤Б╤В╤Г╨┐╨╗╨╡╨╜╨╕╨╡ ╨▓ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛ ╨┤╨╛╤Б╤В╤Г╨┐╨╜╨╛ ╨▓ ╨┤╨╡╨╣╤Б╤В╨▓╤Г╤О╤Й╨╡╨╣ ╨┐╨░╨╜╨╡╨╗╨╕.ЁЯПн ╨Ь╨╛╨╕ ╨╝╨░╤Б╤В╨╡╤А╤Б╨║╨╕╨╡ (1/3)╨Ф╨╛╤Е╨╛╨┤ ╨▓ ╨┤╨╕╨╜╨░╤А╨░╤Е ╨╜╨░╨║╨░╨┐╨╗╨╕╨▓╨░╨╡╤В╤Б╤П ╤Г ╨│╨╡╤А╨╛╤П. ╨Ъ╤А╤Г╤Б╤В╨╕╨║╨╕ ╨┐╨░╤Б╤Б╨╕╨▓╨╜╨╛ ╨╜╨╡ ╨▓╤Л╨┤╨░╤О╤В╤Б╤П.╨Я╨╕╨▓╨╛╨▓╨░╤А╨╜╤П╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л╨Ч╨░╤А╨░╨▒╨╛╤В╨░╨╜╨╛: 12┬а345 ЁЯТ░╨Я╤А╨╛╨┤╨░╤В╤М╨Ъ╤Г╨┐╨╕╤В╤М ╨╝╨░╤Б╤В╨╡╤А╤Б╨║╤Г╤О тАФ 2┬а500 ЁЯТОЁЯП░ ╨Ь╨╛╨╕ ╨▓╨╗╨░╨┤╨╡╨╜╨╕╤П╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л╨У╨╛╤А╨╛╨┤╨Ч╨░╤А╨░╨▒╨╛╤В╨░╨╜╨╛: 65┬а432 ЁЯТ░╨Ф╨╕╨╜╨░╤А╤Л ╨┐╨╛╤Б╤В╤Г╨┐╨░╤О╤В ╨│╨╡╤А╨╛╤О. ╨Я╨╗╨░╤В╨╜╤Л╨╣ ╨▒╤Г╤Б╤В╨╡╤А ╨┤╨╛╤Е╨╛╨┤╨░ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╡╨╜.ЁЯРк ╨Ь╨╛╨╕ ╨║╨░╤А╨░╨▓╨░╨╜╤Л (1/2)╨Ф╨╛╤Е╨╛╨┤ ╨▓ ╨┤╨╕╨╜╨░╤А╨░╤Е ╨╜╨░╨║╨░╨┐╨╗╨╕╨▓╨░╨╡╤В╤Б╤П ╤Г ╨│╨╡╤А╨╛╤П. ╨Ъ╤А╤Г╤Б╤В╨╕╨║╨╕ ╨┐╨░╤Б╤Б╨╕╨▓╨╜╨╛ ╨╜╨╡ ╨▓╤Л╨┤╨░╤О╤В╤Б╤П. ╨С╨░╨╜╨┤╨╕╤В╤Л ╨╝╨╛╨│╤Г╤В ╤Г╨╜╨╕╤З╤В╨╛╨╢╨╕╤В╤М ╨║╨░╤А╨░╨▓╨░╨╜.╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л╨Ч╨░╤А╨░╨▒╨╛╤В╨░╨╜╨╛: 6┬а789 ЁЯТ░╨Я╤А╨╛╨┤╨░╤В╤М╨Ъ╤Г╨┐╨╕╤В╤М ╨║╨░╤А╨░╨▓╨░╨╜ тАФ 4┬а000 ЁЯТО╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡2026-10-02╨Т╤Б╨╡╨│╨╛: 54┬а321 ╨┤╨╕╨╜╨░╤А╨╛╨▓╨г╨╜╨░╤Б╨╗╨╡╨┤╨╛╨▓╨░╨╜╨╜╨░╤П ╨╝╨░╤Б╤В╨╡╤А╤Б╨║╨░╤П ┬╖ 54┬а321 ╨┤╨╕╨╜╨░╤А╨╛╨▓"
+
+ тЭп test/panel-hero-profile-parity.test.tsx:22:38
+     20| for(const type of ['marry','divorce','baby'] as const)it(`hero profileтАж
+     21|   const p=await pair('family',{hero:type==='marry'?r.hero_single:r.herтАж
+     22|   expect(p.ui.container.textContent).toContain('╨Ю╤В╨╡╤Ж ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л');expectтАж
+       |                                      ^
+     23|   const selector='#bnr-'+(type==='baby'?'make-baby':type)+'-btn';awaitтАж
+     24|   if(type==='divorce')await p.old.click('#confirm-dyn-yes');expect(p.tтАж
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/9]тОп
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile refusal displays the actual reason without inventing a successful family change
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:49:101
+     47|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     48|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     49|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     50|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     51|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:49:46
+ тЭп test/panel-hero-profile-parity.test.tsx:28:113
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/9]тОп
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile missing game price blocks gender changes without the old fallback
+TypeError: Cannot read properties of null (reading 'disabled')
+ тЭп test/panel-hero-profile-parity.test.tsx:31:153
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/9]тОп
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile spouse replacement cancels divorce before any request
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:49:101
+     47|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     48|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     49|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     50|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     51|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:49:46
+ тЭп test/panel-hero-profile-parity.test.tsx:34:40
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/9]тОп
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile delegates the unexposed child limit to the server and game instead of copying five
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:49:101
+     47|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     48|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     49|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     50|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     51|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:49:46
+ тЭп test/panel-hero-profile-parity.test.tsx:41:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/9]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed (9)
+   Start at  14:46:08
+   Duration  12.08s (tests 41%, environment 31%, import 17%, transform 10%)
+

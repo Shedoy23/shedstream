@@ -1,0 +1,3086 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (23 tests | 10 failed | 13 skipped) 2582ms
+   × rimworld shop trait preserves expected price and catalog refresh ordering 738ms
+   × rimworld shop gene preserves expected price and catalog refresh ordering 247ms
+   × rimworld shop PortSword adds required paid confirmation with explicit extra activity click 198ms
+   × rimworld shop PortHeart adds required paid confirmation with explicit extra activity click 176ms
+   × rimworld paired implant retains observed sides preflight and right side payload 174ms
+   × rimworld neurotrainer uses category query and confirmed price with no invented pawn tail 151ms
+   × rimworld xenotype preserves both payload identifiers warning and full minute pawn polls 292ms
+   × rimworld passion upgrade adds confirmed server quote and retains delayed skills reload 206ms
+   × rimworld passion reset preserves confirmation quote and all refreshes 214ms
+   × rimworld event preserves string ID full minute continuation and server price 184ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld shop trait preserves expected price and catalog refresh ordering
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Купить Упорный"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:30:195
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld shop gene preserves expected price and catalog refresh ordering
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Купить Зоркость"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:30:195
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld shop PortSword adds required paid confirmation with explicit extra activity click
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Купить Меч поселенца"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:31:225
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld shop PortHeart adds required paid confirmation with explicit extra activity click
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Купить Сердце"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:31:225
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld paired implant retains observed sides preflight and right side payload
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Купить Парная рука"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:32:118
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld neurotrainer uses category query and confirmed price with no invented pawn tail
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Нейротренеры"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:33:127
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld xenotype preserves both payload identifiers warning and full minute pawn polls
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Ксенотипы"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:34:126
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld passion upgrade adds confirmed server quote and retains delayed skills reload
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Огоньки страсти"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:35:125
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld passion reset preserves confirmation quote and all refreshes
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Огоньки страсти"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:36:108
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld event preserves string ID full minute continuation and server price
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Заказать Гости из долины"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "RimWorld":
+  <section
+    aria-label="RimWorld"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "RimWorld":
+  <h2 />
+
+  Name "Колонисты":
+  <h3 />
+
+  Name "Моя пешка":
+  <h3 />
+
+  Name "Алиса":
+  <h4 />
+
+  Name "Снаряжение":
+  <h4 />
+
+  Name "Навыки":
+  <h4 />
+
+  Name "Черты":
+  <h4 />
+
+  Name "Гены":
+  <h4 />
+
+  Name "Здоровье и импланты":
+  <h4 />
+
+  --------------------------------------------------
+  button:
+
+  Name "Обновить пешку":
+  <button
+    type="button"
+  />
+
+  Name "Лечить":
+  <button
+    aria-label="Лечить"
+    type="button"
+  />
+
+  Name "Удалить черту Задумчивый":
+  <button
+    aria-label="Удалить черту Задумчивый"
+    type="button"
+  />
+
+  Name "Удалить ген Старый ген":
+  <button
+    aria-label="Удалить ген Старый ген"
+    type="button"
+  />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="RimWorld"
+    >
+      <header
+        class="panel-card"
+      >
+        <h2>
+          RimWorld
+        </h2>
+        <p>
+          🔴 Оффлайн
+        </p>
+      </header>
+      
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Колонисты
+        </h3>
+        <p>
+          Всего: 
+          1
+           · живы: 
+          1
+        </p>
+        <p>
+          Алиса
+           · @
+          alice
+           · 
+          73%
+        </p>
+      </section>
+      <section
+        class="panel-card"
+      >
+        <h3>
+          Моя пешка
+        </h3>
+        <button
+          type="button"
+        >
+          Обновить пешку
+        </button>
+        <h4>
+          Алиса
+        </h4>
+        <p>
+          Жива
+           · 
+          73%
+           · 
+          Долина
+        </p>
+        <button
+          aria-label="Лечить"
+          type="button"
+        >
+          Лечить
+           · 
+          150 💎
+        </button>
+        <h4>
+          Снаряжение
+        </h4>
+        <details>
+          <summary>
+            Меч поселенца
+             · 
+            weapon
+             · 
+            61
+            /
+            100
+          </summary>
+          <p>
+            tooltip
+            : 
+            Описание меча
+          </p>
+          <p>
+            quality
+            : 
+            excellent
+          </p>
+          <p>
+            description
+            : 
+            Старый меч
+          </p>
+          <p>
+            weapon_traits
+            : 
+            Точный
+          </p>
+        </details>
+        <h4>
+          Навыки
+        </h4>
+        <p>
+          Construction
+          : 
+          9
+           · страсть 
+          1
+           
+          
+           
+          · опыт 137
+        </p>
+        <p>
+          Shooting
+          : 
+          4
+           · страсть 
+          0
+           
+          
+           
+          · опыт 0
+        </p>
+        <p>
+          Artistic
+          : 
+          0
+           · страсть 
+          0
+           
+          · недоступен
+           
+          · опыт 0
+        </p>
+        <h4>
+          Черты
+        </h4>
+        <article>
+          <p>
+            Задумчивый
+            : 
+            Из наблюдаемого состояния
+          </p>
+          <button
+            aria-label="Удалить черту Задумчивый"
+            type="button"
+          >
+            Удалить черту Задумчивый
+             · 
+            300 💎
+          </button>
+        </article>
+        <h4>
+          Гены
+        </h4>
+        <article>
+          <p>
+            Старый ген
+             · 
+            ксеноген
+             · 
+            подавлен
+             
+            mod-gene
+          </p>
+          <button
+            aria-label="Удалить ген Старый ген"
+            type="button"
+          >
+            Удалить ген Старый ген
+             · 
+            3000 💎
+          </button>
+        </article>
+        <h4>
+          Здоровье и импланты
+        </h4>
+        <p>
+          Ушиб
+           · 
+          торс
+           · 
+          0.21
+           
+          
+        </p>
+        <p>
+          Парная рука
+           · 
+          левая рука
+           · 
+          0
+           
+          левая сторона
+        </p>
+      </section>
+    </section>
+  </div>
+</body>
+ ❯ Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ test/panel-rimworld-parity.test.tsx:16:107
+
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:90
+ ❯ test/panel-rimworld-parity.test.tsx:37:115
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  10 failed | 13 skipped (23)
+   Start at  17:32:42
+   Duration  5.23s (tests 51%, environment 27%, import 15%, transform 6%)
+

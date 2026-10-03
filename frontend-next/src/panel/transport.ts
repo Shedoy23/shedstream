@@ -1,27 +1,10 @@
+import { policyRefusal } from '../common/policy-refusal';
 import { TwitchAuthStore } from '../auth';
 import { isRecord } from '../contracts';
 import { requestJson } from '../skillgames/http';
 import { actionKey, UnknownActionOutcomeError, type ActionReply, type PanelTransport } from './contracts';
 const newClientActionId = () => typeof globalThis.crypto?.randomUUID === 'function'
   ? globalThis.crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
-// Only these exact outer require_jwt_user refusals precede action-body parsing,
-// charge and enqueue. A generic 4xx (or a mixed action/policy envelope) proves nothing.
-function policyRefusal(status: number, body: unknown, channelId: string, read = false): ActionReply | null {
-  if (!isRecord(body) || Object.keys(body).length !== 1 || !isRecord(body.detail)) return null;
-  const detail = body.detail;
-  if (typeof detail.channel_id !== 'number' || !Number.isSafeInteger(detail.channel_id) || detail.channel_id <= 0
-    || String(detail.channel_id) !== channelId || typeof detail.message !== 'string' || !detail.message.trim()) return null;
-  const registration = status === 403 && (detail.status === 'channel_not_registered' || detail.status === 'channel_pending_approval');
-  const rate = status === 429 && detail.status === 'channel_rate_limited';
-  if (!registration && !rate) return null;
-  const fields = rate ? ['status', 'channel_id', 'message', 'tier', 'limit_per_min', 'scope'] : ['status', 'channel_id', 'message'];
-  if (Object.keys(detail).some(key => !fields.includes(key))) return null;
-  if (rate && (typeof detail.tier !== 'string' || !detail.tier.trim()
-    || typeof detail.limit_per_min !== 'number' || !Number.isSafeInteger(detail.limit_per_min) || detail.limit_per_min <= 0
-    || (detail.scope !== 'channel' && !(read && detail.scope === 'viewer_poll')))) return null;
-  // Retry-After belongs to HTTP policy, not a game-action cooldown or retry command.
-  return { success: false, message: detail.message };
-}
 export class HttpPanelTransport implements PanelTransport {
   private inflight = new Set<string>();
   // No automatic retry after an unknown result: the server may already have
@@ -33,7 +16,7 @@ export class HttpPanelTransport implements PanelTransport {
   async read<T>(path: string, signal?: AbortSignal): Promise<T> {
     if (!path.startsWith('/api/')) throw new Error('Недопустимый путь API');
     const authorization = this.authorization();
-    const { response, body } = await requestJson(this.fetcher, this.baseUrl + path, { headers: { 'X-Twitch-JWT': authorization.token }, signal, ...((path.startsWith('/api/viewer/stats/') || path === '/api/bannerlord/config') ? { cache: 'no-store' as const } : {}) });
+    const { response, body } = await requestJson(this.fetcher, this.baseUrl + path, { headers: { 'X-Twitch-JWT': authorization.token }, signal, ...((path.startsWith('/api/viewer/stats/') || path === '/api/bannerlord/config' || path === '/api/bannerlord/progression') ? { cache: 'no-store' as const } : {}) });
     const refusal = policyRefusal(response.status, body, authorization.channelId, true);
     if (refusal) throw new Error(refusal.message);
     if (!response.ok || !isRecord(body) || body.success === false) {
@@ -66,5 +49,21 @@ export class HttpPanelTransport implements PanelTransport {
       this.uncertain.add(identity);
       throw new UnknownActionOutcomeError();
     } finally { this.inflight.delete(key); }
+  }
+  async post(path: string,data:Record<string,unknown>):Promise<ActionReply|null> {
+    if(!path.startsWith('/api/bannerlord/'))throw new Error('Недопустимый путь API');
+    const authorization=this.authorization(),identity=JSON.stringify([authorization.channelId,authorization.userId]);
+    if(this.uncertain.has(identity))throw new UnknownActionOutcomeError();
+    const key=identity+':'+path+':'+JSON.stringify(data);
+    if(this.inflight.has(key))return null;
+    this.inflight.add(key);
+    try{
+      const {response,body}=await requestJson(this.fetcher,this.baseUrl+path,{method:'POST',headers:{'Content-Type':'application/json','X-Twitch-JWT':authorization.token},body:JSON.stringify(data)});
+      const refusal=policyRefusal(response.status,body,authorization.channelId);
+      if(refusal)return refusal;
+      if(response.status<200||response.status>=500||!isRecord(body)||typeof body.success!=='boolean')throw new Error('Неизвестный исход запроса');
+      return body as ActionReply;
+    }catch{this.uncertain.add(identity);throw new UnknownActionOutcomeError();}
+    finally{this.inflight.delete(key);}
   }
 }

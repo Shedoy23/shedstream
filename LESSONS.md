@@ -1,3 +1,14 @@
+## 03.10 — окончательная проверка полного порта
+
+Полный список успешных action tests не доказывает raw-byte parity, если helper
+сохраняет только parsed JSON. Проверять саму запись исходного тела и ломать
+порядок JSON-полей мутацией: deep equality объектов этот дефект не замечает.
+Первичная мутация кузницы правильно упала на body вместо head, но runner искал
+слово slot, которого formatter не вывел. Это ошибка маркера evidence, не зелёная
+мутация: исходный runner exit1 сохранён, точный marker и повтор оформлены отдельно.
+Два больших DOM и минута fake timers в общем suite превысили5s при одновременных
+Chromium/build. Не объявлять весь suite зелёным по точечному повтору: сохранить
+красный лог, дать тяжёлому файлу явный30s timeout и повторить общий suite отдельно.
 ## 03.10.2026: согласование UI-источников и независимая проверка guard
 
 Кузница показывает my-hero, но slot-only касса берёт текущий inventory. Старый принятый
@@ -896,3 +907,81 @@ Latest-issued fence защитил от обратного порядка отв
 не гарантирует исходники npm-runtime — Vite сохранял minified dist без оригиналов.
 Теперь build gate требует исходные Preact sourcesContent.
 [Доказательства](docs/PREACT_SKILLGAMES_RESULT_2026-10-03.md).
+
+## 03.10 — select change in Preact test helper
+Installed @testing-library/preact3.2.4 fireEvent.change remaps every change to input
+under compat; Preact11 normalizes only input/textarea, keeps select onchange.
+A social-family proposal test looked like a dead form but native DOM change enabled
+and submitted it. Keep native select.dispatchEvent(new Event('change',{bubbles:true}))
+for this path, not direct handler calls. Browser verification is separate evidence.
+
+03.10 RimWorld mutation lesson: a whole-document health assertion matched the
+colonist summary even when pawn health was deliberately changed to zero. Scope
+it to the pawn section. Initial mutation red0/green0 is a failed check, preserved
+in rimworld-viewer-mutation.log; rerun after test correction, not counted as success.
+
+03.10 RimWorld fixture lesson: removal decrements purchase counters. To exercise
+an increased quote, capture catalog immediately after purchase, not after the
+later remove action. Real handler fixtures now keep catalog_after and catalog_final.
+
+03.10 Size lesson: multiple HTML entrypoints make an implicit mobile.html default
+misleading. Name panel-mobile.html explicitly; include immediately loaded dynamic
+imports in first-load budget, and keep static shell size separate. Verify the final
+startup asset set in browser before publishing a size claim.
+## 03.10 — parity общей оболочки и lazy компонентов
+
+Зелёные selected-host проверки не доказывают полный запуск. Full shell выявил
+порядок Bannerlord после level/duels, отдельный устаревший баланс шапки, сдвиг
+таймера Colony при JWT refresh и лишние чтения скрытой династии. Жизненный цикл
+чтений должен начинаться синхронно от active_module, а не от lazy рендера.
+Наблюдения героя могут успешно прийти, затем потеряться при remount дочерних
+компонентов; кроме сетевого trace проверяй отображение после замены героя.
+В host regression первый тест баланса ошибочно вызвал action без options;
+исправленный тест повторно запущен на старом пути и доказал 100000 вместо54321.
+Первое падение policy-теста было из-за чтения DOM внутри незавершённого act;
+после разделения пользовательских событий полный minute trace зелёный.
+
+## Review промежуточного f00c7f0
+
+Три runtime-дефекта подтверждены red и исправлены в 2091d24 (RimWorld JWT busy,
+Colony slow polling, строгие pre-action 403/429); детали и доказательства:
+docs/PANEL_FULL_PORT_REVIEW_FIXES_2026-10-03.md. Voting unknown outcome оставлен
+явным унаследованным ограничением: повторный взнос может списать деньги второй раз.
+Обычные Colony игровые fixtures созданы вручную; реальные ASGI captures здесь
+доказывают только policy/auth отказы. XSS-аудит был остановлен ограничениями среды,
+не владельцем. Артефакты f00c7f0 промежуточные; публикация не разрешена.
+## Второй review: Colony и remount оболочки
+
+Checkpoint e5ab10e/Library report v1 промежуточный. При JWT-resolving ViewerShell
+размонтировал ColonyView, который терял pending/unknown guard. Red f264ac2:
+8 failed/2 passed; fix6a048385b144199b56772eb8d0ac444baf741d49: состояние действия
+хранится в ColonyController по shedcolony/channel/login. Затронутые86/86,exit0.
+Смена identity/channel/game не переносит guard на другого владельца и не стирает
+его при возврате; поздний исход сохраняется для исходного owner. Определённые
+429/успех и raw traffic сохранены. Это не серверная идемпотентность и не защита
+после полного reload. Подробности: docs/PANEL_COLONY_REMOUNT_REVIEW_2026-10-03.md.
+Большой пакет и report v1 до повторного review не заменяются. Публикации нет.
+
+Для unknown-outcome browser tests различать transport retry и повтор приложения:
+обрыв до HTTP-байтов способен повторить даже один fetch (подтверждено отдельным
+probe без UI). Оборванный JSON после принятого POST позволяет проверить guard
+после remount отдельно. Сохранять неуспешный trace/log и не выдавать клиентский
+guard или client_action_id за доказанную серверную идемпотентность.
+
+## Финал после независимого re-review
+
+Родитель подтвердил закрытие Colony-remount замечания и отсутствие новых найденных
+runtime-дефектов6a048385 относительно e5. Reviewer читал код/evidence, собственные
+прогоны не делал. Общий checkpoint23aca6b: suite1251 passed/2 skipped,57 мутаций,
+browser188 снимков; два HTTP-теста повторены2/2 на том же runtime. Последующие
+коммиты меняют только документацию/evidence. Финальный экспорт целостный, большой
+e5 ZIP не используется как новая поставка. Полный reload, транспортные повторы,
+идемпотентность, social marriage accept, Voting и DTO-ограничения остаются явными.
+XSS-аудит остановлен ограничениями среды/инструментов, не пользователем.
+Push/PR/deploy/Twitch submission не выполнялись и не разрешены.
+
+Финальный формат уточнён: компактный самостоятельный пакет полного frontend-next,
+актуального build, отчётов и релевантных evidence, плюс полный patch от b2064f4.
+Полный tree проверяется отдельным Git index. Большой142196852-байтный экспорт
+14c02b9 и его подтверждённые части сохранены как промежуточные; в финальный ZIP
+они не включаются и не выдаются за доставку. Runtime/tests не менялись.

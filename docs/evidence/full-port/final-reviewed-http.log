@@ -1,0 +1,13 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+
+ Test Files  2 passed (2)
+      Tests  2 passed (2)
+   Start at  21:38:24
+   Duration  19.66s (tests 97%, import 1%, transform 1%)
+
+HTTP suite exit=0; runtime=6a048385b144199b56772eb8d0ac444baf741d49; checkout=23aca6b097e4a961fb199ad100513fa23727332b

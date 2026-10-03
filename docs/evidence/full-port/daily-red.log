@@ -1,0 +1,106 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ├Ч test/panel-daily-parity.test.tsx > daily gold keeps exact POST and immediate status plus 1500ms hero and metadata tails 702ms
+   тЖТ expected [ { method: 'GET', тАж(7) }, тАж(6) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(7) ]
+ ├Ч test/panel-daily-parity.test.tsx > daily xp keeps exact POST and immediate status plus 1500ms hero and metadata tails 193ms
+   тЖТ expected [ { method: 'GET', тАж(7) }, тАж(6) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(7) ]
+ ├Ч test/panel-daily-parity.test.tsx > daily server refusal retains the exact message and both original refresh continuations 171ms
+   тЖТ expected [ { method: 'GET', тАж(7) }, тАж(6) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(7) ]
+ ├Ч test/panel-daily-parity.test.tsx > daily status never invents missing reward amounts and an already claimed day has no claim buttons 187ms
+   тЖТ Cannot read properties of null (reading 'disabled')
+
+тОптОптОптОптОптОптОп Failed Tests 4 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-daily-parity.test.tsx > daily gold keeps exact POST and immediate status plus 1500ms hero and metadata tails
+ FAIL  test/panel-daily-parity.test.tsx > daily xp keeps exact POST and immediate status plus 1500ms hero and metadata tails
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(6) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(7) ]
+
+- Expected
++ Received
+
+@@ -67,16 +67,6 @@
+      "path": "/api/bannerlord/progression",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/daily-status",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+  ]
+
+ тЭп Object.check test/panel-hero-support.tsx:46:102
+     44|   close.push(() => controller.stop()); await controller.start(); awaitтАж
+     45|   const ui = render(<HeroDevelopmentView controller={controller} {...{тАж
+     46|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+       |                                                                                                      ^
+     47|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     48|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+ тЭп test/panel-daily-parity.test.tsx:9:69
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/4]тОп
+
+ FAIL  test/panel-daily-parity.test.tsx > daily server refusal retains the exact message and both original refresh continuations
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(6) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(7) ]
+
+- Expected
++ Received
+
+@@ -67,16 +67,6 @@
+      "path": "/api/bannerlord/progression",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/daily-status",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+  ]
+
+ тЭп Object.check test/panel-hero-support.tsx:46:102
+     44|   close.push(() => controller.stop()); await controller.start(); awaitтАж
+     45|   const ui = render(<HeroDevelopmentView controller={controller} {...{тАж
+     46|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+       |                                                                                                      ^
+     47|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     48|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+ тЭп test/panel-daily-parity.test.tsx:16:164
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/4]тОп
+
+ FAIL  test/panel-daily-parity.test.tsx > daily status never invents missing reward amounts and an already claimed day has no claim buttons
+TypeError: Cannot read properties of null (reading 'disabled')
+ тЭп test/panel-daily-parity.test.tsx:23:64
+     21|   const routes:Record<string,LegacyFixture>={'GET /api/bannerlord/dailтАж
+     22|   const p=await heroPair({}, {dailyHost:true,extraRoutes:routes});
+     23|   expect((p.ui.container.querySelector('#bnr-daily-claim-gold') as HTMтАж
+       |                                                                ^
+     24|   expect((p.ui.container.querySelector('#bnr-daily-claim-xp') as HTMLBтАж
+     25|   routes['GET /api/bannerlord/daily-status']=h.daily_claimed_gold;
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/4]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed (4)
+   Start at  14:04:06
+   Duration  5.08s (environment 38%, tests 26%, import 24%, transform 12%)
+

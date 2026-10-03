@@ -1,0 +1,741 @@
+{
+  "provenance": {
+    "base": "c11b1f2",
+    "database": "owned temporary SQLite",
+    "network": "no outgoing messaging, fixture-only",
+    "synthetic": "matchmaker-like rooms and finished-state seed; actual route serialization"
+  },
+  "responses": {
+    "duels": {
+      "duels": []
+    },
+    "rps_leaderboard": {
+      "season_id": 1,
+      "ends_at": null,
+      "game_type": "rps",
+      "prizes": {
+        "1": 300000,
+        "2": 200000,
+        "3": 100000
+      },
+      "elo_gate": 1100,
+      "leaderboard": []
+    },
+    "ttt_leaderboard": {
+      "success": true,
+      "game_type": "tictactoe",
+      "season_id": 1,
+      "ends_at": null,
+      "prizes": {
+        "1": 300000,
+        "2": 200000,
+        "3": 100000
+      },
+      "elo_gate": 1100,
+      "leaderboard": []
+    },
+    "tug_status_idle": {
+      "success": true,
+      "room": null,
+      "rules": {
+        "match_sec": 20,
+        "tap_base": 100,
+        "tap_decay": 4,
+        "tap_min": 20,
+        "rope_limit": 10000,
+        "prizes": {
+          "1": 300000,
+          "2": 200000,
+          "3": 100000
+        },
+        "prize_elo_gate": 1100,
+        "match_reward": 0,
+        "formula_ru": "Дуэль длится 20 секунд. n-й тап стоит max(20, 100 − (n−1)×4) очков — долбить быстро смысла мало, выигрывает ровный темп. Канат показывает, насколько один вклад больше другого: (A−B)÷(A+B). Кто натянул сильнее к концу времени, тот и выиграл; поровну — ничья, победитель не разыгрывается.",
+        "reward_ru": "Участие бесплатное  за отдельный матч крустики не начисляются. Платит сезон: топ-3 по рейтингу получают 300 000💎 / 200 000💎 / 100 000💎 при рейтинге не ниже 1100."
+      },
+      "leaderboard": [],
+      "season_ends_at": "2026-10-11T00:00:00+00:00"
+    },
+    "rps_idle": {
+      "success": true,
+      "status": "idle"
+    },
+    "rps_join": {
+      "success": true,
+      "queue_id": 1,
+      "elo_at_queue": 1100,
+      "message": "⏳ В очереди rps. Ищем противника..."
+    },
+    "rps_queued": {
+      "success": true,
+      "status": "queued",
+      "queue_id": 1,
+      "queued_at": "2026-10-03 11:37:33",
+      "elo_at_queue": 1100,
+      "queue_position": 1
+    },
+    "rps_duplicate": {
+      "success": false,
+      "reason": "already_queued",
+      "queue_id": 1,
+      "message": "Ты уже в очереди этой игры"
+    },
+    "rps_cancel": {
+      "success": true,
+      "message": "Вышел из очереди"
+    },
+    "rps_matched": {
+      "success": true,
+      "status": "in_room",
+      "room_id": "fixture-rps",
+      "opponent": "bob"
+    },
+    "rps_active": {
+      "success": true,
+      "room": {
+        "room_id": "fixture-rps",
+        "channel_id": 98319857,
+        "game_type": "rps",
+        "player_a": "alice",
+        "player_b": "bob",
+        "player_a_elo": 1000,
+        "player_b_elo": 1073,
+        "state": {
+          "version": 2,
+          "rounds_total": 3,
+          "current_round": 1,
+          "moves": {
+            "a": [
+              null,
+              null,
+              null
+            ],
+            "b": [
+              null,
+              null,
+              null
+            ]
+          },
+          "round_outcomes": [
+            null,
+            null,
+            null
+          ],
+          "wins": {
+            "a": 0,
+            "b": 0
+          },
+          "phase": "moving",
+          "deadline_at": "2026-10-03T11:37:43.257114+00:00"
+        },
+        "status": "active",
+        "you_are": "a",
+        "opponent": "bob",
+        "winner": null,
+        "outcome": null
+      }
+    },
+    "rps_move": {
+      "success": true,
+      "you_are": "a",
+      "state": {
+        "version": 2,
+        "rounds_total": 3,
+        "current_round": 1,
+        "moves": {
+          "a": [
+            "rock",
+            null,
+            null
+          ],
+          "b": [
+            null,
+            null,
+            null
+          ]
+        },
+        "round_outcomes": [
+          null,
+          null,
+          null
+        ],
+        "wins": {
+          "a": 0,
+          "b": 0
+        },
+        "phase": "moving",
+        "deadline_at": "2026-10-03T11:37:43.263643+00:00"
+      },
+      "finished": false,
+      "winner": null
+    },
+    "rps_after": {
+      "success": true,
+      "room": {
+        "room_id": "fixture-rps",
+        "channel_id": 98319857,
+        "game_type": "rps",
+        "player_a": "alice",
+        "player_b": "bob",
+        "player_a_elo": 1000,
+        "player_b_elo": 1073,
+        "state": {
+          "version": 2,
+          "rounds_total": 3,
+          "current_round": 1,
+          "moves": {
+            "a": [
+              "rock",
+              null,
+              null
+            ],
+            "b": [
+              null,
+              null,
+              null
+            ]
+          },
+          "round_outcomes": [
+            null,
+            null,
+            null
+          ],
+          "wins": {
+            "a": 0,
+            "b": 0
+          },
+          "phase": "moving",
+          "deadline_at": "2026-10-03T11:37:43.263643+00:00"
+        },
+        "status": "active",
+        "you_are": "a",
+        "opponent": "bob",
+        "winner": null,
+        "outcome": null
+      }
+    },
+    "rps_refused": {
+      "success": false,
+      "reason": "already_moved",
+      "state": {
+        "version": 2,
+        "rounds_total": 3,
+        "current_round": 1,
+        "moves": {
+          "a": [
+            "rock",
+            null,
+            null
+          ],
+          "b": [
+            null,
+            null,
+            null
+          ]
+        },
+        "round_outcomes": [
+          null,
+          null,
+          null
+        ],
+        "wins": {
+          "a": 0,
+          "b": 0
+        },
+        "phase": "moving",
+        "deadline_at": "2026-10-03T11:37:43.263643+00:00"
+      },
+      "message": "Ход уже сделан"
+    },
+    "rps_finished": {
+      "success": true,
+      "room": {
+        "room_id": "fixture-rps",
+        "channel_id": 98319857,
+        "game_type": "rps",
+        "player_a": "alice",
+        "player_b": "bob",
+        "player_a_elo": 1000,
+        "player_b_elo": 1073,
+        "state": {
+          "version": 2,
+          "rounds_total": 3,
+          "current_round": 1,
+          "moves": {
+            "a": [
+              "rock",
+              null,
+              null
+            ],
+            "b": [
+              null,
+              null,
+              null
+            ]
+          },
+          "round_outcomes": [
+            null,
+            null,
+            null
+          ],
+          "wins": {
+            "a": 2,
+            "b": 0
+          },
+          "phase": "finished",
+          "deadline_at": "2026-10-03T11:37:43.263643+00:00"
+        },
+        "status": "finished",
+        "you_are": "a",
+        "opponent": "bob",
+        "winner": "alice",
+        "outcome": "win_a"
+      }
+    },
+    "tictactoe_idle": {
+      "success": true,
+      "status": "idle"
+    },
+    "tictactoe_join": {
+      "success": true,
+      "queue_id": 2,
+      "elo_at_queue": 1100,
+      "message": "⏳ В очереди tictactoe. Ищем противника..."
+    },
+    "tictactoe_queued": {
+      "success": true,
+      "status": "queued",
+      "queue_id": 2,
+      "queued_at": "2026-10-03 11:37:33",
+      "elo_at_queue": 1100,
+      "queue_position": 1
+    },
+    "tictactoe_duplicate": {
+      "success": false,
+      "reason": "already_queued",
+      "queue_id": 2,
+      "message": "Ты уже в очереди этой игры"
+    },
+    "tictactoe_cancel": {
+      "success": true,
+      "message": "Вышел из очереди"
+    },
+    "tictactoe_matched": {
+      "success": true,
+      "status": "in_room",
+      "room_id": "fixture-tictactoe",
+      "opponent": "bob"
+    },
+    "tictactoe_active": {
+      "success": true,
+      "room": {
+        "room_id": "fixture-tictactoe",
+        "channel_id": 98319857,
+        "game_type": "tictactoe",
+        "player_a": "alice",
+        "player_b": "bob",
+        "player_a_elo": 1000,
+        "player_b_elo": 1073,
+        "state": {
+          "version": 2,
+          "board_size": 4,
+          "rounds_total": 3,
+          "current_round": 1,
+          "boards": [
+            {
+              "cells": [
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              ],
+              "next_turn": "a",
+              "moves": 0,
+              "winner": null
+            }
+          ],
+          "wins": {
+            "a": 0,
+            "b": 0
+          },
+          "phase": "playing",
+          "deadline_at": "2026-10-03T11:37:43.282412+00:00",
+          "starter": "a"
+        },
+        "status": "active",
+        "you_are": "a",
+        "opponent": "bob",
+        "winner": null,
+        "outcome": null
+      }
+    },
+    "tictactoe_move": {
+      "success": true,
+      "state": {
+        "version": 2,
+        "board_size": 4,
+        "rounds_total": 3,
+        "current_round": 1,
+        "boards": [
+          {
+            "cells": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "a",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "next_turn": "b",
+            "moves": 1,
+            "winner": null
+          }
+        ],
+        "wins": {
+          "a": 0,
+          "b": 0
+        },
+        "phase": "playing",
+        "deadline_at": "2026-10-03T11:37:43.292471+00:00",
+        "starter": "a"
+      },
+      "status": "active",
+      "finished": false,
+      "winner": null,
+      "outcome": null,
+      "you_are": "a",
+      "opponent": "bob",
+      "your_elo": null,
+      "opponent_elo": null,
+      "message": "Ход принят"
+    },
+    "tictactoe_after": {
+      "success": true,
+      "room": {
+        "room_id": "fixture-tictactoe",
+        "channel_id": 98319857,
+        "game_type": "tictactoe",
+        "player_a": "alice",
+        "player_b": "bob",
+        "player_a_elo": 1000,
+        "player_b_elo": 1073,
+        "state": {
+          "version": 2,
+          "board_size": 4,
+          "rounds_total": 3,
+          "current_round": 1,
+          "boards": [
+            {
+              "cells": [
+                "",
+                "",
+                "",
+                "",
+                "",
+                "a",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              ],
+              "next_turn": "b",
+              "moves": 1,
+              "winner": null
+            }
+          ],
+          "wins": {
+            "a": 0,
+            "b": 0
+          },
+          "phase": "playing",
+          "deadline_at": "2026-10-03T11:37:43.292471+00:00",
+          "starter": "a"
+        },
+        "status": "active",
+        "you_are": "a",
+        "opponent": "bob",
+        "winner": null,
+        "outcome": null
+      }
+    },
+    "tictactoe_refused": {
+      "success": false,
+      "reason": "not_your_turn",
+      "state": {
+        "version": 2,
+        "board_size": 4,
+        "rounds_total": 3,
+        "current_round": 1,
+        "boards": [
+          {
+            "cells": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "a",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "next_turn": "b",
+            "moves": 1,
+            "winner": null
+          }
+        ],
+        "wins": {
+          "a": 0,
+          "b": 0
+        },
+        "phase": "playing",
+        "deadline_at": "2026-10-03T11:37:43.292471+00:00",
+        "starter": "a"
+      },
+      "message": "Сейчас не твой ход"
+    },
+    "tictactoe_finished": {
+      "success": true,
+      "room": {
+        "room_id": "fixture-tictactoe",
+        "channel_id": 98319857,
+        "game_type": "tictactoe",
+        "player_a": "alice",
+        "player_b": "bob",
+        "player_a_elo": 1000,
+        "player_b_elo": 1073,
+        "state": {
+          "version": 2,
+          "board_size": 4,
+          "rounds_total": 3,
+          "current_round": 1,
+          "boards": [
+            {
+              "cells": [
+                "",
+                "",
+                "",
+                "",
+                "",
+                "a",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              ],
+              "next_turn": "b",
+              "moves": 1,
+              "winner": null
+            }
+          ],
+          "wins": {
+            "a": 2,
+            "b": 0
+          },
+          "phase": "finished",
+          "deadline_at": "2026-10-03T11:37:43.292471+00:00",
+          "starter": "a"
+        },
+        "status": "finished",
+        "you_are": "a",
+        "opponent": "bob",
+        "winner": "alice",
+        "outcome": "win_a"
+      }
+    },
+    "tug_idle": {
+      "success": true,
+      "status": "idle"
+    },
+    "tug_join": {
+      "success": true,
+      "queue_id": 3,
+      "elo_at_queue": 1100,
+      "message": "⏳ В очереди tug. Ищем противника..."
+    },
+    "tug_queued": {
+      "success": true,
+      "status": "queued",
+      "queue_id": 3,
+      "queued_at": "2026-10-03 11:37:33",
+      "elo_at_queue": 1100,
+      "queue_position": 1
+    },
+    "tug_duplicate": {
+      "success": false,
+      "reason": "already_queued",
+      "queue_id": 3,
+      "message": "Ты уже в очереди этой игры"
+    },
+    "tug_cancel": {
+      "success": true,
+      "message": "Вышел из очереди"
+    },
+    "tug_matched": {
+      "success": true,
+      "status": "in_room",
+      "room_id": "fixture-tug",
+      "opponent": "bob"
+    },
+    "tug_active": {
+      "success": true,
+      "room": {
+        "room_id": "fixture-tug",
+        "opponent": "bob",
+        "my_side": "a",
+        "pos": 0,
+        "my_taps": 0,
+        "my_eff": 0,
+        "opponent_eff": 0,
+        "next_tap_value": 100,
+        "seconds_left": 19,
+        "status": "active",
+        "outcome": null
+      },
+      "rules": {
+        "match_sec": 20,
+        "tap_base": 100,
+        "tap_decay": 4,
+        "tap_min": 20,
+        "rope_limit": 10000,
+        "prizes": {
+          "1": 300000,
+          "2": 200000,
+          "3": 100000
+        },
+        "prize_elo_gate": 1100,
+        "match_reward": 0,
+        "formula_ru": "Дуэль длится 20 секунд. n-й тап стоит max(20, 100 − (n−1)×4) очков — долбить быстро смысла мало, выигрывает ровный темп. Канат показывает, насколько один вклад больше другого: (A−B)÷(A+B). Кто натянул сильнее к концу времени, тот и выиграл; поровну — ничья, победитель не разыгрывается.",
+        "reward_ru": "Участие бесплатное  за отдельный матч крустики не начисляются. Платит сезон: топ-3 по рейтингу получают 300 000💎 / 200 000💎 / 100 000💎 при рейтинге не ниже 1100."
+      },
+      "leaderboard": [],
+      "season_ends_at": "2026-10-11T00:00:00+00:00"
+    },
+    "tug_pull": {
+      "success": true,
+      "gained": 288,
+      "room": {
+        "room_id": "fixture-tug",
+        "opponent": "bob",
+        "my_side": "a",
+        "pos": 10000,
+        "my_taps": 3,
+        "my_eff": 288,
+        "opponent_eff": 0,
+        "next_tap_value": 88,
+        "seconds_left": 19,
+        "status": "active",
+        "outcome": null
+      }
+    },
+    "tug_after": {
+      "success": true,
+      "room": {
+        "room_id": "fixture-tug",
+        "opponent": "bob",
+        "my_side": "a",
+        "pos": 10000,
+        "my_taps": 3,
+        "my_eff": 288,
+        "opponent_eff": 0,
+        "next_tap_value": 88,
+        "seconds_left": 19,
+        "status": "active",
+        "outcome": null
+      },
+      "rules": {
+        "match_sec": 20,
+        "tap_base": 100,
+        "tap_decay": 4,
+        "tap_min": 20,
+        "rope_limit": 10000,
+        "prizes": {
+          "1": 300000,
+          "2": 200000,
+          "3": 100000
+        },
+        "prize_elo_gate": 1100,
+        "match_reward": 0,
+        "formula_ru": "Дуэль длится 20 секунд. n-й тап стоит max(20, 100 − (n−1)×4) очков — долбить быстро смысла мало, выигрывает ровный темп. Канат показывает, насколько один вклад больше другого: (A−B)÷(A+B). Кто натянул сильнее к концу времени, тот и выиграл; поровну — ничья, победитель не разыгрывается.",
+        "reward_ru": "Участие бесплатное  за отдельный матч крустики не начисляются. Платит сезон: топ-3 по рейтингу получают 300 000💎 / 200 000💎 / 100 000💎 при рейтинге не ниже 1100."
+      },
+      "leaderboard": [],
+      "season_ends_at": "2026-10-11T00:00:00+00:00"
+    },
+    "tug_finished": {
+      "success": true,
+      "room": {
+        "room_id": "fixture-tug",
+        "opponent": "bob",
+        "my_side": "a",
+        "pos": 10000,
+        "my_taps": 3,
+        "my_eff": 288,
+        "opponent_eff": 0,
+        "next_tap_value": 88,
+        "seconds_left": 19,
+        "status": "finished",
+        "outcome": "win_a"
+      },
+      "rules": {
+        "match_sec": 20,
+        "tap_base": 100,
+        "tap_decay": 4,
+        "tap_min": 20,
+        "rope_limit": 10000,
+        "prizes": {
+          "1": 300000,
+          "2": 200000,
+          "3": 100000
+        },
+        "prize_elo_gate": 1100,
+        "match_reward": 0,
+        "formula_ru": "Дуэль длится 20 секунд. n-й тап стоит max(20, 100 − (n−1)×4) очков — долбить быстро смысла мало, выигрывает ровный темп. Канат показывает, насколько один вклад больше другого: (A−B)÷(A+B). Кто натянул сильнее к концу времени, тот и выиграл; поровну — ничья, победитель не разыгрывается.",
+        "reward_ru": "Участие бесплатное  за отдельный матч крустики не начисляются. Платит сезон: топ-3 по рейтингу получают 300 000💎 / 200 000💎 / 100 000💎 при рейтинге не ниже 1100."
+      },
+      "leaderboard": [],
+      "season_ends_at": "2026-10-11T00:00:00+00:00"
+    }
+  }
+}

@@ -1,0 +1,372 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-shell-controls-parity.test.tsx (4 tests | 1 failed) 3071ms
+   ├Ч shell collapse and restore retain exact minute activity without remounting services 1492ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-shell-controls-parity.test.tsx > shell collapse and restore retain exact minute activity without remounting services
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "╨б╨▓╨╡╤А╨╜╤Г╤В╤М ╨┐╨░╨╜╨╡╨╗╤М"
+
+Here are the accessible roles:
+
+  main:
+
+  Name "":
+  <main
+    class="panel-layout"
+  />
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  <header
+    class="panel-brand"
+  />
+
+  --------------------------------------------------
+  navigation:
+
+  Name "╨Я╨░╨╜╨╡╨╗╤М ╨╖╤А╨╕╤В╨╡╨╗╤П":
+  <nav
+    aria-label="╨Я╨░╨╜╨╡╨╗╤М ╨╖╤А╨╕╤В╨╡╨╗╤П"
+    class="panel-tabs"
+  />
+
+  Name "╨а╨░╨╖╨┤╨╡╨╗╤Л ╤Б╨╛╨╛╨▒╤Й╨╡╤Б╤В╨▓╨░":
+  <nav
+    aria-label="╨а╨░╨╖╨┤╨╡╨╗╤Л ╤Б╨╛╨╛╨▒╤Й╨╡╤Б╤В╨▓╨░"
+    class="panel-tabs"
+  />
+
+  Name "╨Я╤А╨╛╤Д╨╕╨╗╤М ╨╕ ╨╜╨░╨│╤А╨░╨┤╤Л":
+  <nav
+    aria-label="╨Я╤А╨╛╤Д╨╕╨╗╤М ╨╕ ╨╜╨░╨│╤А╨░╨┤╤Л"
+    class="panel-tabs"
+  />
+
+  --------------------------------------------------
+  button:
+
+  Name "╨б╨╛╨╛╨▒╤Й╨╡╤Б╤В╨▓╨╛":
+  <button
+    aria-pressed="true"
+    type="button"
+  />
+
+  Name "╨Ш╨│╤А╨░":
+  <button
+    aria-pressed="false"
+    type="button"
+  />
+
+  Name "╨б╤В╨░╤В╨╕╤Б╤В╨╕╨║╨░":
+  <button
+    aria-pressed="false"
+    type="button"
+  />
+
+  Name "╨Я╤А╨╛╤Д╨╕╨╗╤М":
+  <button
+    type="button"
+  />
+
+  Name "╨Ъ╨╡╨╣╤Б╤Л":
+  <button
+    type="button"
+  />
+
+  Name "╨Я╨╕╤В╨╛╨╝╤Ж╤Л":
+  <button
+    type="button"
+  />
+
+  Name "╨У╨╕╨╗╤М╨┤╨╕╨╕":
+  <button
+    type="button"
+  />
+
+  Name "╨У╨╛╨╗╨╛╤Б╨╛╨▓╨░╨╜╨╕╨╡":
+  <button
+    type="button"
+  />
+
+  Name "╨б╨╡╨╝╤М╤П":
+  <button
+    type="button"
+  />
+
+  Name "╨Ф╤Г╤Н╨╗╨╕":
+  <button
+    type="button"
+  />
+
+  Name "╨Ъ╤А╨╡╤Б╤В╨╕╨║╨╕-╨╜╨╛╨╗╨╕╨║╨╕":
+  <button
+    type="button"
+  />
+
+  Name "╨Ъ╨░╨╜╨░╤В":
+  <button
+    type="button"
+  />
+
+  Name "╨Ю╤В╨║╤А╤Л╤В╤М":
+  <button
+    type="button"
+  />
+
+  Name "╨Ъ╨▓╨╡╤Б╤В╤Л":
+  <button
+    aria-pressed="false"
+    type="button"
+  />
+
+  Name "╨Я╤А╨╛╨╝╨╛╨║╨╛╨┤":
+  <button
+    aria-pressed="false"
+    type="button"
+  />
+
+  Name "╨Ю╨╖╨▓╤Г╤З╨╕╤В╤М ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╡":
+  <button
+    aria-pressed="false"
+    type="button"
+  />
+
+  Name "╨б╨╛╨╛╨▒╤Й╨╕╤В╤М ╨╛ ╨▒╨░╨│╨╡":
+  <button
+    aria-pressed="false"
+    type="button"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "╨Я╤А╨╛╤Д╨╕╨╗╤М":
+  <h2 />
+
+  Name "╨в╨▓╨╛╨╣ ╨│╨╡╤А╨╛╨╣ ┬╖ Alice Hero":
+  <h3 />
+
+  --------------------------------------------------
+  progressbar:
+
+  Name "":
+  <progress
+    max="100"
+    value="0"
+  />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <main
+      class="panel-layout"
+    >
+      <header
+        class="panel-brand"
+      >
+        <span
+          class="panel-brand-mark"
+        >
+          S
+        </span>
+        <div>
+          <strong>
+            ShedLink ┬╖ 
+            alice
+          </strong>
+          <span>
+            100┬а000 ЁЯТО ┬╖ +25 ╨▓ ╨╝╨╕╨╜╤Г╤В╤Г
+          </span>
+          <small>
+            ЁЯЫб ╨Ь╨╛╨┤╨╡╤А
+             
+            ┬╖ Twitch 2
+             
+            
+          </small>
+        </div>
+      </header>
+      <nav
+        aria-label="╨Я╨░╨╜╨╡╨╗╤М ╨╖╤А╨╕╤В╨╡╨╗╤П"
+        class="panel-tabs"
+      >
+        <button
+          aria-pressed="true"
+          type="button"
+        >
+          ╨б╨╛╨╛╨▒╤Й╨╡╤Б╤В╨▓╨╛
+        </button>
+        <button
+          aria-pressed="false"
+          type="button"
+        >
+          ╨Ш╨│╤А╨░
+        </button>
+        <button
+          aria-pressed="false"
+          type="button"
+        >
+          ╨б╤В╨░╤В╨╕╤Б╤В╨╕╨║╨░
+        </button>
+      </nav>
+      
+      <div
+        hidden=""
+      >
+        <p>
+          ╨Э╨░ ╨║╨░╨╜╨░╨╗╨╡ ╨╜╨╡ ╨▓╤Л╨▒╤А╨░╨╜╨░ ╨╕╨│╤А╨╛╨▓╨░╤П ╨╕╨╜╤В╨╡╨│╤А╨░╤Ж╨╕╤П.
+        </p>
+      </div>
+      <section>
+        <nav
+          aria-label="╨а╨░╨╖╨┤╨╡╨╗╤Л ╤Б╨╛╨╛╨▒╤Й╨╡╤Б╤В╨▓╨░"
+          class="panel-tabs"
+        >
+          <button
+            type="button"
+          >
+            ╨Я╤А╨╛╤Д╨╕╨╗╤М
+          </button>
+          <button
+            type="button"
+          >
+            ╨Ъ╨╡╨╣╤Б╤Л
+          </button>
+          <button
+            type="button"
+          >
+            ╨Я╨╕╤В╨╛╨╝╤Ж╤Л
+          </button>
+          <button
+            type="button"
+          >
+            ╨У╨╕╨╗╤М╨┤╨╕╨╕
+          </button>
+          <button
+            type="button"
+          >
+            ╨У╨╛╨╗╨╛╤Б╨╛╨▓╨░╨╜╨╕╨╡
+          </button>
+          <button
+            type="button"
+          >
+            ╨б╨╡╨╝╤М╤П
+          </button>
+          <button
+            type="button"
+          >
+            ╨Ф╤Г╤Н╨╗╨╕
+          </button>
+          <button
+            type="button"
+          >
+            ╨Ъ╤А╨╡╤Б╤В╨╕╨║╨╕-╨╜╨╛╨╗╨╕╨║╨╕
+          </button>
+          <button
+            type="button"
+          >
+            ╨Ъ╨░╨╜╨░╤В
+          </button>
+        </nav>
+        <section
+          class="panel-card"
+        >
+          <h2>
+            ╨Я╤А╨╛╤Д╨╕╨╗╤М
+          </h2>
+          <div>
+            <strong>
+              ╨г╤А╨╛╨▓╨╡╨╜╤М 
+              1
+               ┬╖ 
+              ╨Э╨╛╨▓╨╡╨╜╤М╨║╨╕╨╣
+            </strong>
+            <progress
+              max="100"
+              value="0"
+            />
+            <p>
+              0
+               / 
+              100
+               EXP
+              
+            </p>
+          </div>
+          <div
+            class="panel-card"
+          >
+            <h3>
+              ╨в╨▓╨╛╨╣ ╨│╨╡╤А╨╛╨╣ ┬╖ Alice Hero
+            </h3>
+            <p>
+              
+            </p>
+            <button
+              type="button"
+            >
+              ╨Ю╤В╨║╤А╤Л╤В╤М
+            </button>
+          </div>
+          <nav
+            aria-label="╨Я╤А╨╛╤Д╨╕╨╗╤М ╨╕ ╨╜╨░╨│╤А╨░╨┤╤Л"
+            class="panel-tabs"
+          >
+            <button
+              aria-pressed="false"
+              type="button"
+            >
+              ╨Ъ╨▓╨╡╤Б╤В╤Л
+            </button>
+            <button
+              aria-pressed="false"
+              type="button"
+            >
+              ╨Я╤А╨╛╨╝╨╛╨║╨╛╨┤
+            </button>
+            <button
+              aria-pressed="false"
+              type="button"
+            >
+              ╨Ю╨╖╨▓╤Г╤З╨╕╤В╤М ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╡
+            </button>
+            <button
+              aria-pressed="false"
+              type="button"
+            >
+              ╨б╨╛╨╛╨▒╤Й╨╕╤В╤М ╨╛ ╨▒╨░╨│╨╡
+            </button>
+          </nav>
+          
+        </section>
+      </section>
+    </main>
+  </div>
+</body>
+ тЭп Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ тЭп test/panel-shell-controls-parity.test.tsx:14:63
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп test/panel-shell-controls-parity.test.tsx:14:46
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  18:33:50
+   Duration  7.33s (tests 44%, environment 32%, import 16%, transform 8%)
+

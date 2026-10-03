@@ -1,0 +1,621 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-community-games-parity.test.tsx (15 tests | 15 failed) 3202ms
+   ├Ч rps queue entry and cancellation preserve full shell minute traffic 741ms
+   ├Ч tictactoe queue entry and cancellation preserve full shell minute traffic 217ms
+   ├Ч tug queue entry and cancellation preserve full shell minute traffic 177ms
+   ├Ч rps move uses displayed room and exact action continuation 234ms
+   ├Ч tictactoe move uses displayed room and exact action continuation 244ms
+   ├Ч rps refusal displays unknown reason without successful extra reads 133ms
+   ├Ч tictactoe refusal displays unknown reason without successful extra reads 151ms
+   ├Ч tictactoe realtime re-reads canonical room only for matching room and game 180ms
+   ├Ч rps finished room stops polls and another game retains its exact refresh tail 142ms
+   ├Ч tictactoe finished room stops polls and another game retains its exact refresh tail 177ms
+   ├Ч tug batches three real clicks into one exact pull and preserves both refresh reads 200ms
+   ├Ч tug recognizes actual queued status instead of copying obsolete legacy aliases 147ms
+   ├Ч rps explicit close preserves cancellation behavior and stops poll traffic 174ms
+   ├Ч tictactoe explicit close preserves cancellation behavior and stops poll traffic 152ms
+   ├Ч tug explicit close preserves cancellation behavior and stops poll traffic 128ms
+
+тОптОптОптОптОптОп Failed Tests 15 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > rps queue entry and cancellation preserve full shell minute traffic
+AssertionError: new game control #duel-find-btn: expected null to be truthy
+
+- Expected:
+true
+
++ Received:
+null
+
+ тЭп test/panel-community-games-parity.test.tsx:21:187
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп click test/panel-community-games-parity.test.tsx:21:74
+ тЭп setup test/panel-community-games-parity.test.tsx:22:19
+ тЭп test/panel-community-games-parity.test.tsx:26:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tictactoe queue entry and cancellation preserve full shell minute traffic
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,26 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/leaderboard",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:26:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tug queue entry and cancellation preserve full shell minute traffic
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,26 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tug/status",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tug",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:26:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > rps move uses displayed room and exact action continuation
+AssertionError: new game control #duel-find-btn: expected null to be truthy
+
+- Expected:
+true
+
++ Received:
+null
+
+ тЭп test/panel-community-games-parity.test.tsx:21:187
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп click test/panel-community-games-parity.test.tsx:21:74
+ тЭп setup test/panel-community-games-parity.test.tsx:22:19
+ тЭп test/panel-community-games-parity.test.tsx:34:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tictactoe move uses displayed room and exact action continuation
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(11) ]
+
+- Expected
++ Received
+
+@@ -87,36 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/leaderboard",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/poll",
+-     "query": "?room_id=fixture-tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:34:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > rps refusal displays unknown reason without successful extra reads
+AssertionError: new game control #duel-find-btn: expected null to be truthy
+
+- Expected:
+true
+
++ Received:
+null
+
+ тЭп test/panel-community-games-parity.test.tsx:21:187
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп click test/panel-community-games-parity.test.tsx:21:74
+ тЭп setup test/panel-community-games-parity.test.tsx:22:19
+ тЭп test/panel-community-games-parity.test.tsx:39:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tictactoe refusal displays unknown reason without successful extra reads
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(11) ]
+
+- Expected
++ Received
+
+@@ -87,36 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/leaderboard",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/poll",
+-     "query": "?room_id=fixture-tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:39:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tictactoe realtime re-reads canonical room only for matching room and game
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(11) ]
+
+- Expected
++ Received
+
+@@ -87,36 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/leaderboard",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/poll",
+-     "query": "?room_id=fixture-tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:41:99
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[8/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > rps finished room stops polls and another game retains its exact refresh tail
+AssertionError: new game control #duel-find-btn: expected null to be truthy
+
+- Expected:
+true
+
++ Received:
+null
+
+ тЭп test/panel-community-games-parity.test.tsx:21:187
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп click test/panel-community-games-parity.test.tsx:21:74
+ тЭп setup test/panel-community-games-parity.test.tsx:22:19
+ тЭп test/panel-community-games-parity.test.tsx:43:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[9/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tictactoe finished room stops polls and another game retains its exact refresh tail
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(11) ]
+
+- Expected
++ Received
+
+@@ -87,36 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/leaderboard",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/poll",
+-     "query": "?room_id=fixture-tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:43:11
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[10/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tug batches three real clicks into one exact pull and preserves both refresh reads
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,26 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tug/status",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tug",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:46:107
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[11/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tug recognizes actual queued status instead of copying obsolete legacy aliases
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,26 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tug/status",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tug",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:47:103
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[12/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > rps explicit close preserves cancellation behavior and stops poll traffic
+AssertionError: new game control #duel-find-btn: expected null to be truthy
+
+- Expected:
+true
+
++ Received:
+null
+
+ тЭп test/panel-community-games-parity.test.tsx:21:187
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп click test/panel-community-games-parity.test.tsx:21:74
+ тЭп setup test/panel-community-games-parity.test.tsx:22:19
+ тЭп test/panel-community-games-parity.test.tsx:48:155
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[13/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tictactoe explicit close preserves cancellation behavior and stops poll traffic
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,26 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tictactoe/leaderboard",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tictactoe",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:48:155
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[14/15]тОп
+
+ FAIL  test/panel-community-games-parity.test.tsx > tug explicit close preserves cancellation behavior and stops poll traffic
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,26 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/tug/status",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/match/queue/status",
+-     "query": "?game_type=tug",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-community-games-parity.test.tsx:22:51
+ тЭп test/panel-community-games-parity.test.tsx:48:155
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[15/15]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  15 failed (15)
+   Start at  16:36:37
+   Duration  7.86s (tests 43%, environment 34%, import 16%, transform 6%)
+

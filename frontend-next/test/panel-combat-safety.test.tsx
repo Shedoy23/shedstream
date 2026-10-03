@@ -1,3 +1,5 @@
+import {nextResponseTurn} from './panel-response-order';
+import gameFixtures from './panel-fixtures/game-progression-responses.json';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/preact';
 import { TwitchAuthStore } from '../src/auth';
@@ -9,7 +11,7 @@ import { HttpPanelTransport } from '../src/panel/transport';
 import data from './panel-fixtures/combat-responses.json';
 import base from './panel-fixtures/real-responses.json';
 const c=data.responses,f=base.responses,epoch=Date.UTC(2026,9,2,12),initial={token:'alice-token',userId:'opaque-alice',channelId:'channel-a'};
-const flush=async()=>{for(let i=0;i<45;i++)await Promise.resolve();};
+const flush=async()=>{for(let i=0;i<45;i++)await Promise.resolve();await nextResponseTurn();};
 const response=(body:unknown)=>new Response(JSON.stringify(body));
 const deferred=<T,>()=>{let resolve!:(value:T)=>void;const promise=new Promise<T>(r=>resolve=r);return {resolve,promise};};
 const cleanupFns:(()=>void)[]=[];
@@ -18,7 +20,7 @@ afterEach(()=>{cleanup();cleanupFns.splice(0).forEach(fn=>fn());vi.useRealTimers
 async function setup(overrides:Record<string,unknown>={},savedTab?:string,keepSavedTab=false){
   if(savedTab)localStorage.setItem('bnr_active_tab',savedTab);
   const trace:{path:string;method:string;body?:{action_type:string;data:Record<string,unknown>};token:string|null}[]=[];
-  const routes:Record<string,unknown>={'/api/user/resolve-twitch-token':{login:'alice'},'/api/bannerlord/config':f.config,'/api/bannerlord/my-hero':f.hero,'/api/bannerlord/classes':c.classes_by_key.tank,'/api/bannerlord/build':c.build_combat_one_handed,'/api/bannerlord/my-buffs':c.buffs_empty,'/api/bannerlord/battle-status':c.battle_siege,'/api/viewer/stats/alice':f.stats,'/api/user/level/alice':f.level,'/api/viewer/stats/carol':{...f.stats,points:0},'/api/user/level/carol':f.level,'/api/duel/list':f.duels,'/api/bannerlord/equipment-shop':f.equipment_inventory,'/api/bannerlord/action':c.build_power_one_handed.response,...overrides};
+  const routes:Record<string,unknown>={'/api/user/resolve-twitch-token':{login:'alice'},'/api/bannerlord/content-catalogs': gameFixtures.responses.catalogs, '/api/bannerlord/progression': gameFixtures.responses.progression, '/api/bannerlord/config':f.config,'/api/bannerlord/my-hero':f.hero,'/api/bannerlord/classes':c.classes_by_key.tank,'/api/bannerlord/build':c.build_combat_one_handed,'/api/bannerlord/my-buffs':c.buffs_empty,'/api/bannerlord/battle-status':c.battle_siege,'/api/viewer/stats/alice':f.stats,'/api/user/level/alice':f.level,'/api/viewer/stats/carol':{...f.stats,points:0},'/api/user/level/carol':f.level,'/api/duel/list':f.duels,'/api/bannerlord/equipment-shop':f.equipment_inventory,'/api/bannerlord/action':c.build_power_one_handed.response,...overrides};
   const fetcher:typeof fetch=async(input,init={})=>{const path=String(input);trace.push({path,method:init.method||'GET',body:init.body?JSON.parse(String(init.body)):undefined,token:new Headers(init.headers).get('X-Twitch-JWT')});if(!(path in routes))throw Error('UNMATCHED '+path);let value=routes[path];if(typeof value==='function')value=(value as ()=>unknown)();if(value instanceof Promise)value=await value;return value instanceof Response?value.clone():response(value);};
   const auth=new TwitchAuthStore();let authorize!:(v:typeof initial)=>void;const identity=new IdentityBootstrap(auth,'',fetcher),detach=identity.attach({onAuthorized:fn=>authorize=fn});cleanupFns.push(detach);
   const controller=new PanelController(new HttpPanelTransport('',auth,fetcher),auth,identity);let ui!:ReturnType<typeof render>;

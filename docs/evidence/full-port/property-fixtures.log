@@ -1,0 +1,273 @@
+  Route: / -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\index.html (exists: True)
+  Route: /index.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\index.html (exists: True)
+  Route: /extension.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\extension.html (exists: True)
+  Route: /overlay.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\overlay.html (exists: True)
+  Route: /mobile.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\mobile.html (exists: True)
+  Route: /config.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\config.html (exists: True)
+  Route: /config.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\config.js (exists: True)
+  Route: /viewer.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer.js (exists: True)
+  Route: /viewer.css -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer.css (exists: True)
+  Route: /pawn.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\pawn.js (exists: True)
+  Route: /shop.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\shop.js (exists: True)
+  Route: /family.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\family.js (exists: True)
+  Route: /duels.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\duels.js (exists: True)
+  Route: /xenotype.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\xenotype.js (exists: True)
+  Route: /cases.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\cases.js (exists: True)
+  Route: /tictactoe.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\tictactoe.js (exists: True)
+  Route: /dice.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\dice.js (exists: True)
+  Route: /guilds.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\guilds.js (exists: True)
+  Route: /voting.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\voting.js (exists: True)
+  Route: /pets.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\pets.js (exists: True)
+  Route: /pet-stage.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\pet-stage.js (exists: True)
+  Route: /pet-layout.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\pet-layout.js (exists: True)
+  Route: /realtime.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\realtime.js (exists: True)
+  Route: /tugofwar.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\tugofwar.js (exists: True)
+  Route: /privacy.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\privacy.html (exists: True)
+  Route: /terms.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\terms.html (exists: True)
+  Route: /robots.txt -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\robots.txt (exists: True)
+  Route: /frontend/extension.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\extension.html (exists: True)
+  Route: /frontend/overlay.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\overlay.html (exists: True)
+  Route: /frontend/mobile.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\mobile.html (exists: True)
+  Route: /frontend/config.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\config.html (exists: True)
+  Route: /frontend/config.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\config.js (exists: True)
+  Route: /frontend/viewer.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer.js (exists: True)
+  Route: /frontend/viewer.css -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer.css (exists: True)
+  Route: /frontend/pawn.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\pawn.js (exists: True)
+  Route: /frontend/shop.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\shop.js (exists: True)
+  Route: /frontend/family.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\family.js (exists: True)
+  Route: /frontend/duels.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\duels.js (exists: True)
+  Route: /frontend/xenotype.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\xenotype.js (exists: True)
+  Route: /frontend/cases.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\cases.js (exists: True)
+  Route: /frontend/tictactoe.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\tictactoe.js (exists: True)
+  Route: /frontend/dice.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\dice.js (exists: True)
+  Route: /frontend/guilds.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\guilds.js (exists: True)
+  Route: /frontend/voting.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\voting.js (exists: True)
+  Route: /frontend/pets.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\pets.js (exists: True)
+  Route: /frontend/pet-stage.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\pet-stage.js (exists: True)
+  Route: /frontend/pet-layout.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\pet-layout.js (exists: True)
+  Route: /frontend/realtime.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\realtime.js (exists: True)
+  Route: /frontend/tugofwar.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\tugofwar.js (exists: True)
+  Route: /frontend/privacy.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\privacy.html (exists: True)
+  Route: /frontend/terms.html -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\terms.html (exists: True)
+  Route: /viewer-actions.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-actions.js (exists: True)
+  Route: /frontend/viewer-actions.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-actions.js (exists: True)
+  Route: /viewer-bannerlord-builds.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-bannerlord-builds.js (exists: True)
+  Route: /frontend/viewer-bannerlord-builds.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-bannerlord-builds.js (exists: True)
+  Route: /viewer-bannerlord-equipment.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-bannerlord-equipment.js (exists: True)
+  Route: /frontend/viewer-bannerlord-equipment.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-bannerlord-equipment.js (exists: True)
+  Route: /viewer-bannerlord-ui-config.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-bannerlord-ui-config.js (exists: True)
+  Route: /frontend/viewer-bannerlord-ui-config.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-bannerlord-ui-config.js (exists: True)
+  Route: /viewer-bannerlord.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-bannerlord.js (exists: True)
+  Route: /frontend/viewer-bannerlord.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-bannerlord.js (exists: True)
+  Route: /viewer-registry.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-registry.js (exists: True)
+  Route: /frontend/viewer-registry.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-registry.js (exists: True)
+  Route: /viewer-rimworld.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-rimworld.js (exists: True)
+  Route: /frontend/viewer-rimworld.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-rimworld.js (exists: True)
+  Route: /viewer-shedcolony.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-shedcolony.js (exists: True)
+  Route: /frontend/viewer-shedcolony.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-shedcolony.js (exists: True)
+  Route: /viewer-usage.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-usage.js (exists: True)
+  Route: /frontend/viewer-usage.js -> C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend\viewer-usage.js (exists: True)
+тЬЕ Extension routes registered (base: C:\Users\Edward\Documents\Codex\2026-10-03\task\shedstream-full\╨а╨░╤Б╤И╨╕╤А╨╡╨╜╨╕╨╡\frontend)
+{"ts": "2026-10-03T14:24:33", "lvl": "INFO", "logger": "rimlink.bot", "msg": "BotCore ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨╕╤А╨╛╨▓╨░╨╜", "file": "bot_core.py:166"}
+{"ts": "2026-10-03T14:24:33", "lvl": "INFO", "logger": "db_pool", "msg": "╨Ш╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П DBPool ╨┤╨╗╤П C:\\WINDOWS\\TEMP\\property-fixtures-3l1wujkg\\fixture.db (min=2, max=10)", "file": "db_pool.py:62"}
+{"ts": "2026-10-03T14:24:33", "lvl": "INFO", "logger": "db_pool", "msg": "DBPool ╨╕╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨╕╤А╨╛╨▓╨░╨╜. ╨б╨╛╨╡╨┤╨╕╨╜╨╡╨╜╨╕╨╣: 2", "file": "db_pool.py:78"}
+тЬЕ Migration: hediff_def ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ rimworld_pawn_hediffs
+тЬЕ Migration: part_def ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ rimworld_pawn_hediffs
+тЬЕ Migration: is_paired ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ rimworld_pawn_hediffs
+тЬЕ Migration: is_left ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ rimworld_pawn_hediffs
+тЬЕ Migration: streak_rewards + channel_points_log ╤Б╨╛╨╖╨┤╨░╨╜╤Л
+тЬЕ Migration: skill_name ╨╗╨╛╨║╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П ╨╕╤Б╨┐╤А╨░╨▓╨╗╨╡╨╜╨░
+тЬЕ M1: channel_id тЖТ drops
+тЬЕ M1: channel_id тЖТ marriages
+тЬЕ M1: channel_id тЖТ marriage_proposals
+тЬЕ M1: channel_id тЖТ activity_stats
+тЬЕ M1: channel_id тЖТ chat_stats
+тПня╕П  M1: ╨┐╤А╨╛╨┐╤Г╤Б╨║ market_listings (╤В╨░╨▒╨╗╨╕╤Ж╨░ ╨╜╨╡ ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╨╡╤В)
+тЬЕ M1: channel_id тЖТ rimworld_colonists
+тЬЕ M1: channel_id тЖТ rimworld_skills
+тПня╕П  M1: ╨┐╤А╨╛╨┐╤Г╤Б╨║ pending_duels (╤В╨░╨▒╨╗╨╕╤Ж╨░ ╨╜╨╡ ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╨╡╤В)
+тЬЕ M1: recreated viewers (channel_id ╨▓ PK/UNIQUE)
+тЬЕ M1: recreated inventory (channel_id ╨▓ PK/UNIQUE)
+тЬЕ M1: recreated quests (channel_id ╨▓ PK/UNIQUE)
+тЬЕ M1: ╤Б╨╛╨╖╨┤╨░╨╜╨░ ╨╜╨╛╨▓╨░╤П craft_stats (╨▒╨╡╨╖ ╨╝╨╕╨│╤А╨░╤Ж╨╕╨╕ ╨┤╨░╨╜╨╜╤Л╤Е)
+тЬЕ M1: ╤Б╨╛╨╖╨┤╨░╨╜╨░ ╨╜╨╛╨▓╨░╤П casino_settings (╨▒╨╡╨╖ ╨╝╨╕╨│╤А╨░╤Ж╨╕╨╕ ╨┤╨░╨╜╨╜╤Л╤Е)
+тЬЕ M1: ╤Б╨╛╨╖╨┤╨░╨╜╨░ ╨╜╨╛╨▓╨░╤П free_spins_daily (╨▒╨╡╨╖ ╨╝╨╕╨│╤А╨░╤Ж╨╕╨╕ ╨┤╨░╨╜╨╜╤Л╤Е)
+тЬЕ M1: recreated promocodes (channel_id ╨▓ PK/UNIQUE)
+тЬЕ M1: recreated promo_uses (channel_id ╨▓ PK/UNIQUE)
+тЬЕ M1: recreated streak_rewards (channel_id ╨▓ PK/UNIQUE)
+тЬЕ M1: recreated channel_points_log (channel_id ╨▓ PK/UNIQUE)
+тЬЕ M1: purchase_counters тЖТ rimworld_purchase_counters (pawn-scoped)
+тЬЕ M1: ╨║╨╛╨╝╨┐╨╛╨╖╨╕╤В╨╜╤Л╤Е ╨╕╨╜╨┤╨╡╨║╤Б╨╛╨▓ ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜╨╛: 5 (skipped 2)
+тЬЕ M1: multi-tenant schema migration complete
+тЬЕ M4: channels table created
+тЪая╕П  M4: TWITCH_BROADCASTER_ID ╨╕╨╗╨╕ TWITCH_CHANNEL_NAME ╨╜╨╡ ╨╖╨░╨┤╨░╨╜╤Л тАФ backfill ╨┐╤А╨╛╨┐╤Г╤Й╨╡╨╜. ╨а╨╡╨│╨╕╤Б╤В╤А╨░╤Ж╨╕╤П ╤З╨╡╤А╨╡╨╖ /streamer OAuth (M4.3).
+тЬЕ M5: module_actions table + indexes created
+тЬЕ M6: module_catalogs table + index created
+тПн  M7: activity_stats.active_clicks already absent
+тПн  M7: activity_stats.active_moves already absent
+тПн  M8: pending_duels.amount already absent
+тЬЕ M8: dropped marriages.family_balance
+тЬЕ M8: dropped table casino_settings
+тЬЕ M8: dropped table free_spins_daily
+тЬЕ M8: dropped table craft_stats
+тЬЕ M8: dropped table market_listings
+тЬЕ M8: deleted obsolete achievements (first_casino, first_craft)
+тЬЕ M8: compliance_cleanup completed
+тЬЕ M9: cases + case_triggers_fired tables created
+тЬЕ M10: pending_duels (legacy) dropped тАФ replaced by match_queue
+тЬЕ M10: matchmaking base ready
+тЬЕ M11: guilds + members + skills + contributions created
+тЬЕ M12: voting tables created (templates + events + options + bids + pool_counters)
+тЬЕ M13: pets tables created + catalog seeded (5 items)
+тЬЕ M14: bannerlord tables created (18 skill_keys, 6 attributes, 10 equipment slots)
+тЬЕ M15: bannerlord_classes seeded (13 classes) + hero_class table
+тЬЕ M16: bannerlord_class_powers seeded (33 entries)
+тЬЕ M17: eventsub_seen table created (dedupe + TTL index)
+тЬЕ M18: armor_bypass_pctтЖТignore_armor_pct fixup + 4 active powers seeded
+M19: bannerlord_heroes extended (level, clan_name, kingdom_name)
+M20: bannerlord_heroes.gear_tier added (default 0)
+M21: bannerlord_equipment extended (tier, item_value, weight, stats_json)
+M22: bannerlord_channel_state created (save-switch tracking)
+M23: bannerlord_retinue created (BLT-style ╤Б╨▓╨╕╤В╨░)
+M24: bannerlord_tournament_queue + _state created
+M25: bannerlord_tournament_bets created (viewer betting)
+M26: bannerlord_skills.focus column added
+M27: clan_info_json + kingdom_info_json columns added
+M28: bannerlord_retinue.is_elite column added
+тЬЕ M29: pet_catalog rebuild + 6 slots + svg_path column + scarfтЖТbody
+тЬЕ M30: pets catalog +12 items (total тЖТ 20)
+тЬЕ M31: deprecated 4 misfit pet items
+тЬЕ M32: hard-deleted 4 misfit pet items (catalog + inventory + equipped + purchases)
+тЬЕ M33: tts_messages table created
+тЬЕ M34: tts_messages.audio_data BLOB + drained legacy pending
+тЬЕ M35: clan upgrades tables + seeded 10 upgrades ╨┤╨╗╤П 1 channel(s)
+тЬЕ M36: bannerlord_heroes + is_female + family_info_json
+тЬЕ M37: pets clean-slate (wipe pets/equipped/inventory/purchases + catalog rebuild with mythic rarity + png_path column)
+M38: bannerlord_heroes.iteration column added (default=1)
+M39: bannerlord_user_stats + bannerlord_achievements_unlocked tables created
+M40: bannerlord_custom_items table created
+M41: bannerlord_auctions + bannerlord_auction_bids tables created
+M42: bannerlord_boosty_subscribers table created
+M43: bannerlord_heroes.is_wounded column added
+M44: class actives added тАФ 6/6 rows inserted (rest already existed)
+M45: bannerlord_daily_claims table created
+M46: module_actions.client_action_id column added
+M46: idx_module_actions_client_id partial unique index created
+M47: bannerlord_heroes.tournament_wins column added
+M48: bannerlord_heirs table created
+M48: idx_bannerlord_heirs_parent created
+M49: bannerlord_marriage_proposals table created
+M49: indexes created
+M50: character effects seeded тАФ 5/5 new rows
+M51: custom_items stats columns added (damage_bonus/armor_bonus/weight_factor/speed_factor)
+M52: bannerlord_vassals table created
+M52: indexes created
+M53: bannerlord_party_orders table created
+M53: indexes created
+M54: bannerlord_heroes extended ╤Б kingdom_id/is_king/captured/...
+M54: bannerlord_policy_requests created
+M54: bannerlord_peace_offers created
+M54: bannerlord_ransom_pool created
+M55: bannerlord_workshops created ╤Б indexes
+M56: bannerlord_fiefs created
+M57: bannerlord_caravans created
+M57: bannerlord_caravan_rescue_pool created
+M58: bannerlord_inheritance_log created
+M59: bannerlord_heroes.kingdom_tax_pct added
+M60: bannerlord_custom_items.source/claimed added
+M61: combat powers (lifesteal/iron-skin/cleave) тАФ 16/16 rows inserted (rest already existed)
+M62: ranged combat powers (archer/crossbow/horse_archer/camel_archer) тАФ 6/6 rows inserted (rest already existed)
+M63: explosive_arrows (archer/crossbow/horse_archer/camel_archer) тАФ 4/4 rows inserted (rest already existed)
+M64: ranged loadout (archer/crossbow/horse_archer/camel_archer) тАФ 7/7 catalog rows updated (1H + 2nd quiver)
+M65: power boost тАФ scaled rage/lifesteal/ironskin/explosive/poison + hp_multiplier(tanky ├Ч1.4) + heavy-ranged explosive_arrows
+M66: bannerlord_heroes.party_info_json added
+M67: melee balance (dmg_reduction/move_speed/stagger/cleave) тАФ 17/17 rows inserted (rest already existed)
+M68: stagger_immunity raised to BLT level тАФ 7 rows updated
+M69: combat AI (ai_combat_pct) тАФ 13/13 rows inserted
+M70: bannerlord_heroes.combat_stance column added
+M71: HP rebalance (heavy-ranged down, berserk up) тАФ 3 rows updated
+M72: feature_usage table created (+0 backfilled rows)
+M73: bug_reports table created
+M74: channel_greet_settings table created
+M75: watch_streaks table created
+M76: bannerlord_caravan_rescue_pool table dropped
+M77: bannerlord_equipment extended (quality)
+M78: cleave тЖТ active (5/5 rows inserted; passive cleave_chance_pct removed)
+M79: class balance pass тАФ 17 upserts, 1 deletes + legacy infantry cleanup
+M80: class overhaul тАФ 12 catalog rows, 6 remaps, 6 deprecated, 30 power rows for 5 new classes
+M81: dropped disarm_burst power rows (weak active, owner-removed)
+M82: baseline 5% lifesteal тЖТ 6 classes (insert-if-absent)
+M83: shedcolony_colony_link + shedcolony_colonist_state created
+M84: shedcolony_capacity + shedcolony_capacity_meta created
+M85: shedcolony_colonist_state.state_json added
+тЬЕ M86: pets catalog re-seeded (19 items, ╨║╤А╤Г╤Б╤В╨╕╨║╨╕-pricing)
+тЬЕ M87: pets shop = PNG skins only (2 skins, emoji deprecated)
+тЬЕ M88: voting_proposals + voting_events.allow_proposals (╨Э╨░╤А╨╛╨┤╨╜╤Л╨╣ ╨▓╤Л╨▒╨╛╤А ╨╕╨│╤А╤Л)
+тЬЕ M89: stream_attendance.first_seen_at (server-time gate ╨┤╨╗╤П ╤Б╤В╤А╨╕╨║-╨╜╨░╨│╤А╨░╨┤╤Л)
+M90: shedcolony_targets created
+M91: shedcolony_world created
+M92: classes v2 тАФ 6 ╨░╨║╤В╨╕╨▓╨╜╤Л╤Е ╨║╨╗╨░╤Б╤Б╨░, 13 remap-╨┐╤А╨░╨▓╨╕╨╗, 6 deprecated, 12 power-╤Б╤В╤А╨╛╨║, 6 ╨╗╨╕╤И╨╜╨╕╤Е ╨░╨║╤В╨╕╨▓╨╛╨║ ╤Б╨╜╤П╤В╨╛
+M93: classes v2 balance тАФ 6 ╨┐╨░╤Б╤Б╨╕╨▓╨╛╨║ ╨┐╨╛╨┤╨╛╨│╨╜╨░╨╜╨╛ (╨▒╨╡╤А╤Б╨╡╤А╨║ ╨▓╨╜╨╕╨╖ ╨┐╨╛╤Б╨╗╨╡ ╨▒╤А╨╛╨╜╨╕, ╨║╨╛╨╜╨╜╤Л╨╣ ╨╗╤Г╤З╨╜╨╕╨║ ╨╕ ╨░╤А╨▒╨░╨╗╨╡╤В╤З╨╕╨║ ╨▓╨▓╨╡╤А╤Е)
+M94: ╨░╤Б╤Б╨░╤Б╨╕╨╜ ╨▓╨╛╨╖╨▓╤А╨░╤Й╤С╨╜ ╨▓ ╤А╨╛╤Б╤В╨╡╤А (7 ╨║╨╗╨░╤Б╤Б╨╛╨▓), ╨░╨║╤В╨╕╨▓╨║╨╕: rage, retribution_toggle + heal_burst (╨│╨╗╨╛╨▒╨░╨╗╤М╨╜╤Л╨╣)
+M95: ╨┐╨░╤Б╤Б╨╕╨▓╨║╨╕ тАФ 7 ╤Б╤В╤А╨╛╨║ ╨┐╨╛╨┤╨╛╨│╨╜╨░╨╜╨╛, 4 ╨▓╨░╨╝╨┐╨╕╤А╨╕╨╖╨╝╨╛╨▓ ╤Б╨╜╤П╤В╨╛ (╨▒╨╡╤А╤Б╨╡╤А╨║ ╤Б╤В╨░╨╗ ╤В╨╛╨┐╨╛╨╝, ╨╜╨╡ ╨╕╨╖╨╝╨╡╨╜╨╕╨▓╤И╨╕╤Б╤М)
+M96: bannerlord_policy_requests.action_id ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜╨░
+тЬЕ M97: shop_catalog ╤Б╨╛╨╖╨┤╨░╨╜╨░ ╤Б channel_id (╤Б╤В╨░╤А╨╛╨╣ ╨╜╨╡ ╨▒╤Л╨╗╨╛)
+тЬЕ M97: rimworld_event_catalog ╤Б╨╛╨╖╨┤╨░╨╜╨░ ╤Б channel_id (╤Б╤В╨░╤А╨╛╨╣ ╨╜╨╡ ╨▒╤Л╨╗╨╛)
+тЬЕ M97: purchase_counters ╤Б╨╛╨╖╨┤╨░╨╜╨░ ╤Б channel_id (╤Б╤В╨░╤А╨╛╨╣ ╨╜╨╡ ╨▒╤Л╨╗╨╛)
+тЬЕ M97: rimworld_heal_cooldowns ╤Б╨╛╨╖╨┤╨░╨╜╨░ ╤Б channel_id (╤Б╤В╨░╤А╨╛╨╣ ╨╜╨╡ ╨▒╤Л╨╗╨╛)
+тЬЕ M97: RimWorld-╤В╨░╨▒╨╗╨╕╤Ж╤Л ╨┐╤А╨╕╨▓╤П╨╖╨░╨╜╤Л ╨║ ╨║╨░╨╜╨░╨╗╤Г
+тЬЕ M98: ╨╖╨░╤Й╨╕╤В╨░ ╨╛╤В ╨┤╨▓╨╛╨╣╨╜╨╛╨│╨╛ ╨║╨╗╨╕╨║╨░ ╨│╨╛╤В╨╛╨▓╨░
+тЬЕ M99: ╨║╨╛╨╗╨╛╨╜╨║╨░ approved ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜╨░, ╤Б╤Г╤Й╨╡╤Б╤В╨▓╤Г╤О╤Й╨╕╤Е ╨║╨░╨╜╨░╨╗╨╛╨▓ ╨╛╨┤╨╛╨▒╤А╨╡╨╜╨╛: 0
+тЬЕ M99: ╨▓╨╛╤А╨╛╤В╨░ ╨┤╨╗╤П ╤Б╤В╤А╨╕╨╝╨╡╤А╨╛╨▓ ╨│╨╛╤В╨╛╨▓╤Л (╨╜╨╛╨▓╤Л╨╡ ╨║╨░╨╜╨░╨╗╤Л тАФ ┬л╨╛╨╢╨╕╨┤╨░╨╡╤В┬╗)
+тЬЕ M100: active_module ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ feature_usage (╤Б╤В╨░╤А╤Л╨╡ ╤Б╤В╤А╨╛╨║╨╕ ╨╛╤Б╤В╨░╤О╤В╤Б╤П ╤Б NULL тАФ ╨║╨╛╨╜╤В╨╡╨║╤Б╤В ╨╜╨╡ ╤Б╨╛╤Е╤А╨░╨╜╤П╨╗╤Б╤П)
+тЬЕ M100: ╨╝╨╡╤В╤А╨╕╨║╨░ ╤В╨╡╨┐╨╡╤А╤М ╨┐╨╛╨╝╨╜╨╕╤В, ╨║╨░╨║╨░╤П ╨╕╨│╤А╨░ ╨▒╤Л╨╗╨░ ╨▓ ╤Н╤Д╨╕╤А╨╡
+тЬЕ M101: action_id ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜ ╨▓ bannerlord_peace_offers (╤Б╤В╨░╤А╤Л╨╡ ╤Б╤В╤А╨╛╨║╨╕ ╤Б NULL тАФ ╨╕╤Е ╤А╨░╨╖╨▒╨╡╤А╤С╤В ╤Б╤В╨╛╤А╨╛╨╢ ╨┐╨╛ ╨▓╨╛╨╖╤А╨░╤Б╤В╤Г)
+тЬЕ M101: ╨╖╨░╤П╨▓╨║╨░ ╨╜╨░ ╨╝╨╕╤А ╤В╨╡╨┐╨╡╤А╤М ╨╖╨░╨║╤А╤Л╨▓╨░╨╡╤В╤Б╤П ╨┐╨╛ ╨╕╤В╨╛╨│╤Г ╤Б╨▓╨╛╨╡╨│╨╛ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П
+тЬЕ M102: tts_messages ╨┐╨╛╨╗╤Г╤З╨╕╨╗ ╨┐╨╛╨╗╤П ╨╝╨╛╨┤╨╡╤А╨░╤Ж╨╕╨╕
+тЬЕ M102: ╨╝╨╛╨┤╨╡╤А╨░╤Ж╨╕╤П ╨╛╨╖╨▓╤Г╤З╨║╨╕ тАФ ╨▒╨╗╨╛╨║-╨╗╨╕╤Б╤В ╨╕ ╤Б╨║╤А╤Л╤В╨╕╨╡ ╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╣
+тЬЕ M103: ╨┐╤А╨╕╤З╨╕╨╜╨░ ╨╛╤В╨║╨░╨╖╨░ ╤В╨╡╨┐╨╡╤А╤М ╨┤╨╛╨╡╨╖╨╢╨░╨╡╤В ╨┤╨╛ ╨╖╤А╨╕╤В╨╡╨╗╤П (viewer_notices)
+тЬЕ M104: ╤Г╨┤╨░╨╗╨╡╨╜╤Л ╨┐╤Г╤Б╤В╤Л╨╡ ╤В╨░╨▒╨╗╨╕╤Ж╤Л ╨▒╨╡╨╖ ╤З╨╕╤В╨░╤В╨╡╨╗╨╡╨╣: rimworld_purchase_counters
+тЬЕ M105: ╨▓╤Л╨┐╨╗╨░╤В╤Л ╨╖╨░ ╤Б╨╡╨╖╨╛╨╜ ╨╝╨╕╨╜╨╕-╨╕╨│╤А ╤В╨╡╨┐╨╡╤А╤М ╨╛╤Б╤В╨░╨▓╨╗╤П╤О╤В ╤Б╨╗╨╡╨┤
+тЬЕ M106: ╨┤╨╛╤З╨╡╤А╨╜╨╕╨╡ ╤В╨░╨▒╨╗╨╕╤Ж╤Л ╨┐╨╡╤И╨╡╨║ ╨┐╤А╨╕╨▓╤П╨╖╨░╨╜╤Л ╨║ channel_id (5 ╤В╨░╨▒╨╗╨╕╤Ж)
+тЬЕ M107: tts_messages ╨┐╨╛╨╗╤Г╤З╨╕╨╗ ╨╛╤В╨╝╨╡╤В╨║╤Г ╨╛╨▒ ╨╛╨┤╨╛╨▒╤А╨╡╨╜╨╕╨╕
+тЬЕ M107: ╨│╨╡╨╣╤В ╨╛╨┤╨╛╨▒╤А╨╡╨╜╨╕╤П ╨╛╨╖╨▓╤Г╤З╨║╨╕ ╨▓╨║╨╗╤О╤З╤С╨╜ ╨┤╨╗╤П 0 ╨║╨░╨╜╨░╨╗(╨╛╨▓)
+тЬЕ M108: module_actions ╨┐╨╛╨╗╤Г╤З╨╕╨╗ ╨╛╤В╨┤╨╡╨╗╤М╨╜╤Л╨╣ ACK receipt
+тЬЕ M109: module_last_seen table created
+тЬЕ M110: Manager pairing and revocable credential ledger created
+тЬЕ M111: Manager sessions bound to approved module scope
+тЬЕ M112: Manager diagnostic action ledger created
+тЬЕ M113: onboarding funnel events table created
+тЬЕ M114: ╨░╨▓╤В╨╛╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╤П ╤Б╤В╨░╨╗╨╕ per-channel
+тЬЕ M115: ╤Г ╨░╨▓╤В╨╛╤Б╨╛╨╛╨▒╤Й╨╡╨╜╨╕╨╣ ╨┐╨╛╤П╨▓╨╕╨╗╨╕╤Б╤М ╤Б╨▓╨╛╨╕ ╤В╨░╨╣╨╝╨╡╤А╤Л
+тЬЕ M116: ╤Г╤З╤С╤В ╨▓╨╖╨░╨╕╨╝╨╛╨┤╨╡╨╣╤Б╤В╨▓╨╕╤П ╨╕ ╨▒╨╛╨╜╤Г╤Б-╨┐╨╛╤В╨╛╨╗╨╛╨║ ╤З╨░╤В╨░
+тЬЕ M117: ╤Г╤З╤С╤В ╨╕╤Б╤В╨╛╤З╨╜╨╕╨║╨╛╨▓ ╨┤╨╛╤Е╨╛╨┤╨░ ╨╖╤А╨╕╤В╨╡╨╗╤П
+тЬЕ M118: ╨╢╤Г╤А╨╜╨░╨╗ ╨┤╨▓╨╕╨╢╨╡╨╜╨╕╤П ╨║╤А╤Г╤Б╤В╨╕╨║╨╛╨▓ (╤Б╨┐╨╕╤Б╨░╨╜╨╕╤П ╨╕ ╨▓╨╛╨╖╨▓╤А╨░╤В╤Л ╤В╨╛╨╢╨╡)
+тЬЕ M119: ╨░╨▓╨░╤А╨╕╨╣╨╜╨░╤П ╨┐╨░╤Г╨╖╨░ ╨╕╨╜╤В╨╡╨│╤А╨░╤Ж╨╕╨╕ (channels.actions_paused)
+M121: shedcolony_catalog_check created
+M122: twitch_login_map created
+M123: bannerlord_heroes.state_ts added
+M124: shop_catalog.tooltip added
+тЬЕ Migrations complete
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "rimlink.bannerlord", "msg": "[bannerlord PERK RESOLVED] ch=98319857 user=alice action=hero.buy_workshop role=viewer price=2500├Ч1.00 reward├Ч1.00", "file": "bannerlord.py:2729"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_workshops", "msg": "[SHOP-BUY ENTRY] ch=98319857 @alice settlement=town_fixture type=brewery", "file": "bannerlord_workshops.py:105"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_workshops", "msg": "[SHOP-BUY] ch=98319857 @alice тЖТ ╨Я╨╕╨▓╨╛╨▓╨░╤А╨╜╤П in ╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л", "file": "bannerlord_workshops.py:151"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "rimlink.bannerlord", "msg": "[bannerlord PERK RESOLVED] ch=98319857 user=alice action=hero.sell_workshop role=viewer price=0├Ч1.00 reward├Ч1.00", "file": "bannerlord.py:2729"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_workshops", "msg": "[SHOP-SELL ENTRY] ch=98319857 @alice workshop_id=1", "file": "bannerlord_workshops.py:162"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_workshops", "msg": "[SHOP-SELL] ch=98319857 @alice sold ╨Я╨╕╨▓╨╛╨▓╨░╤А╨╜╤П in ╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л", "file": "bannerlord_workshops.py:202"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "rimlink.bannerlord", "msg": "[bannerlord PERK RESOLVED] ch=98319857 user=alice action=hero.sell_workshop role=viewer price=0├Ч1.00 reward├Ч1.00", "file": "bannerlord.py:2729"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_workshops", "msg": "[SHOP-SELL ENTRY] ch=98319857 @alice workshop_id=1", "file": "bannerlord_workshops.py:162"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_workshops", "msg": "[SHOP-SELL REFUSE] workshop not found / not owned ch=98319857 @alice id=1", "file": "bannerlord_workshops.py:178"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "rimlink.bannerlord", "msg": "[bannerlord PERK RESOLVED] ch=98319857 user=alice action=hero.buy_workshop role=viewer price=2500├Ч1.00 reward├Ч1.00", "file": "bannerlord.py:2729"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_workshops", "msg": "[SHOP-BUY ENTRY] ch=98319857 @alice settlement=town_fixture type=Mod.Workshop-X", "file": "bannerlord_workshops.py:105"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_workshops", "msg": "[SHOP-BUY] ch=98319857 @alice тЖТ ╨Ь╨░╤Б╤В╨╡╤А╤Б╨║╨░╤П ╨╕╨╖ ╨╕╨│╤А╤Л in ╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л", "file": "bannerlord_workshops.py:151"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "rimlink.bannerlord", "msg": "[bannerlord PERK RESOLVED] ch=98319857 user=alice action=hero.buy_caravan role=viewer price=4000├Ч1.00 reward├Ч1.00", "file": "bannerlord.py:2729"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_caravans", "msg": "[CARAVAN-BUY ENTRY] ch=98319857 @alice home=town_fixture", "file": "bannerlord_caravans.py:95"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_caravans", "msg": "[CARAVAN-BUY] ch=98319857 @alice home=╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л caravan_id=1", "file": "bannerlord_caravans.py:130"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "rimlink.bannerlord", "msg": "[bannerlord PERK RESOLVED] ch=98319857 user=alice action=hero.sell_caravan role=viewer price=0├Ч1.00 reward├Ч1.00", "file": "bannerlord.py:2729"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_caravans", "msg": "[CARAVAN-SELL ENTRY] ch=98319857 @alice caravan_id=1", "file": "bannerlord_caravans.py:141"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_caravans", "msg": "[CARAVAN-SELL] ch=98319857 @alice caravan_id=1", "file": "bannerlord_caravans.py:172"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "rimlink.bannerlord", "msg": "[bannerlord PERK RESOLVED] ch=98319857 user=alice action=hero.sell_caravan role=viewer price=0├Ч1.00 reward├Ч1.00", "file": "bannerlord.py:2729"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "routes.bannerlord_caravans", "msg": "[CARAVAN-SELL ENTRY] ch=98319857 @alice caravan_id=1", "file": "bannerlord_caravans.py:141"}
+PROPERTY_FIXTURES_OK 18 real responses; no production requests
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "db_pool", "msg": "╨Ч╨░╨║╤А╤Л╤В╨╕╨╡ DBPool...", "file": "db_pool.py:165"}
+{"ts": "2026-10-03T14:24:35", "lvl": "INFO", "logger": "db_pool", "msg": "DBPool ╨╖╨░╨║╤А╤Л╤В", "file": "db_pool.py:178"}

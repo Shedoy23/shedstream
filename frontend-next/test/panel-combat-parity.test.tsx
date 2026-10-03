@@ -9,7 +9,7 @@ it('actual host has combat startup balance reads and one active-transition buffs
   const p = await combatPair(); p.check();
   expect(p.old.sourceFiles).toHaveLength(23);
   expect(p.ui.getByRole('button',{name:'Боевые действия'}).getAttribute('aria-pressed')).toBe('true');
-  expect(p.trace.map(r => r.path)).toEqual(['/api/bannerlord/config','/api/bannerlord/my-hero','/api/bannerlord/classes','/api/bannerlord/build','/api/bannerlord/my-buffs','/api/viewer/stats/alice','/api/user/level/alice','/api/duel/list','/api/bannerlord/battle-status','/api/bannerlord/my-buffs']);
+  expect(p.trace.map(r => r.path)).toEqual(['/api/bannerlord/config','/api/bannerlord/my-hero','/api/bannerlord/classes','/api/bannerlord/build','/api/bannerlord/my-buffs','/api/bannerlord/content-catalogs','/api/bannerlord/progression','/api/viewer/stats/alice','/api/user/level/alice','/api/duel/list','/api/bannerlord/battle-status','/api/bannerlord/my-buffs']);
   expect(p.ui.queryByText('Турнир зрителей')).toBeNull();
 });
 for (const type of orders) it(`old rendered ${type} matches full exact payload and delayed hidden-equipment tail`, async () => {

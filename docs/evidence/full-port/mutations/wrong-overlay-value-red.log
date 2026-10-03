@@ -1,0 +1,43 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-config-parity.test.tsx (6 tests | 1 failed | 5 skipped) 401ms
+   × streamer config executes unchanged legacy read and exact toggle bytes 398ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 skipped (6)
+   Start at  19:04:15
+   Duration  3.67s (environment 65%, import 19%, tests 12%, transform 3%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-config-parity.test.tsx > streamer config executes unchanged legacy read and exact toggle bytes
+AssertionError: expected [ { method: 'GET', …(5) }, …(1) ] to deeply equal [ { method: 'GET', …(5) }, …(1) ]
+
+- Expected
++ Received
+
+@@ -6,11 +6,11 @@
+      "path": "/api/overlay/pets",
+      "query": "?channel_id=123",
+      "token": null,
+    },
+    {
+-     "body": "{\"enabled\":false}",
++     "body": "{\"enabled\":true}",
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/streamer/pets/overlay-toggle",
+      "query": "",
+      "token": "config-fixture-token",
+
+ ❯ Object.check test/panel-config-parity.test.tsx:33:243
+
+ ❯ test/panel-config-parity.test.tsx:36:58
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

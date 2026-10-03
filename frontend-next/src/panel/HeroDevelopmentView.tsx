@@ -1,17 +1,14 @@
 import { useSyncExternalStore } from 'react';
 import { RetinueView } from './RetinueView';
-import { actionKey, hasProgressionPrices, validPrice } from './contracts';
+import { ProgressionView } from './ProgressionView';
+import { HeroLifecycleView } from './HeroLifecycleView';
+import { DailyView } from './DailyView';
+import { HeroProfileView } from './HeroProfileView';
+import { ShopView } from './ShopView';
+import { LegacyGearView } from './LegacyGearView';
+import { HeroSummaryView } from './HeroSummaryView';
 import type { PanelController } from './controller';
-const groups = [
-  ['Vigor', 'Сила', [['OneHanded', 'Одноручное'], ['TwoHanded', 'Двуручное'], ['Polearm', 'Древковое']]],
-  ['Control', 'Точность', [['Bow', 'Лук'], ['Crossbow', 'Арбалет'], ['Throwing', 'Метательное']]],
-  ['Endurance', 'Выносливость', [['Riding', 'Верховая езда'], ['Athletics', 'Атлетика'], ['Crafting', 'Кузнечное']]],
-  ['Cunning', 'Хитрость', [['Scouting', 'Разведка'], ['Tactics', 'Тактика'], ['Roguery', 'Бесчестие']]],
-  ['Social', 'Социальность', [['Charm', 'Обаяние'], ['Leadership', 'Лидерство'], ['Trade', 'Торговля']]],
-  ['Intelligence', 'Интеллект', [['Steward', 'Управление'], ['Medicine', 'Медицина'], ['Engineering', 'Инженерия']]],
-] as const;
-const money = (value: number) => value.toLocaleString('ru-RU') + ' 💰';
-export function HeroDevelopmentView({ controller }: { controller: PanelController }) {
+export function HeroDevelopmentView({ controller, full=false }: { controller: PanelController;full?:boolean }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   const hero = state.hero?.hero;
   const canRead = state.canAct && controller.ready();
@@ -20,8 +17,6 @@ export function HeroDevelopmentView({ controller }: { controller: PanelControlle
   const newBuild = state.newBuild;
   const buildBusy = state.buildBusy;
   const manage = canAct && !!state.build?.ready && !!state.build.can_manage && !state.buildPending && !state.build.pending && !build?.in_battle && !buildBusy;
-  const attributePrice = state.config?.attribute_cost;
-  const hasPriceError = !hasProgressionPrices(state.config);
   const perform = (type: string, data: Record<string, unknown>, immediateHero = false) => { if (controller.ready()) void controller.action(type, data, { tail: 'hero', immediateHero }); };
   return <section className="panel-development" aria-label="Развитие героя">
     <div className="panel-section-heading"><div><p className="panel-eyebrow">BANNERLORD</p><h1>Развитие героя</h1></div>
@@ -29,37 +24,14 @@ export function HeroDevelopmentView({ controller }: { controller: PanelControlle
     {state.loading && !state.hero && <p role="status">Загружаем героя…</p>}
     {state.error && <p className="panel-error" role="alert">{state.error}</p>}
     {state.message && <p className="panel-notice" role="status">{state.message}</p>}
-    {state.hero && !state.hero.has_hero && <div className="panel-card"><h2>Герой ещё не создан</h2><p>Создание героя доступно в действующей панели.</p></div>}
-    {hero && <article className="panel-card panel-hero"><p className="panel-eyebrow">ВАШ ГЕРОЙ</p><h2>{hero.display_name}</h2>
-      <div className="panel-summary"><span>Уровень {hero.level}</span><strong>{money(hero.gold)}</strong></div>
-      <p className="panel-muted">{!hero.is_alive ? 'Герой погиб' : hero.is_prisoner ? 'В плену' : hero.is_wounded ? 'Ранен' : 'Жив'}</p></article>}
-    {hero && !hero.is_alive && <p>Развитие погибшего героя недоступно. Возрождение доступно в действующей панели.</p>}
+    <HeroLifecycleView controller={controller} />
+    <HeroSummaryView controller={controller}/>
     {hero?.is_alive ? <>
+      {full&&<LegacyGearView controller={controller}/>}
+      {full&&<DailyView key={state.generation+':daily'} controller={controller}/>}
       <RetinueView key={state.generation + ':' + hero.hero_id} controller={controller} />
-      <section className="panel-card" aria-label="Атрибуты и навыки"><h2>Атрибуты и навыки</h2>
-        <p className="panel-muted">Атрибут влияет на три навыка. Фокус повышает скорость развития навыка.</p>
-        {hasPriceError && <p className="panel-error" role="status">Сервер не передал цены развития. Покупки без подтверждённой цены недоступны.</p>}
-        {groups.map(([key, label, skills]) => {
-          const value = state.hero?.attributes?.[key] ?? state.hero?.attributes?.[key.toLowerCase()] ?? 0;
-          const attributeData = { attribute_key: key, amount: 1 };
-          const cooldown = controller.cooldown('hero.add_attribute');
-          return <div className="panel-attribute-group" key={key}>
-            <div className="panel-attribute"><strong>{label}</strong><span>{value}/10</span>
-              <button type="button" className="panel-progress-button" data-attr={key} aria-label={`Повысить атрибут ${label}`} title={validPrice(attributePrice) ? `+1 в ${label}. Списать ${money(attributePrice)}` : 'Цена недоступна'}
-                disabled={!canAct || value >= 10 || !validPrice(attributePrice) || cooldown > 0 || state.busy.includes(actionKey('hero.add_attribute', attributeData))}
-                onClick={() => perform('hero.add_attribute', attributeData, true)}>{cooldown > 0 ? `${Math.ceil(cooldown)} с` : '+1'}<small>{validPrice(attributePrice) ? money(attributePrice) : '—'}</small></button></div>
-            {skills.map(([skillKey, skillLabel]) => {
-              const skill = state.hero?.skills?.find(s => s.skill_key === skillKey); const focus = skill?.focus ?? 0;
-              const price = state.config?.focus_tier_costs?.[focus]; const cd = controller.cooldown('hero.add_focus');
-              const data = { skill_key: skillKey, amount: 1 };
-              return <div className="panel-skill" key={skillKey}><span>{skillLabel}<small>Уровень {skill?.level ?? 0} · Фокус {focus}/5</small></span>
-                <button type="button" className="panel-progress-button" data-skill={skillKey} aria-label={`Добавить фокус ${skillLabel}`} title={validPrice(price) ? `+1 focus в ${skillLabel}. Списать ${money(price)}` : 'Цена недоступна'}
-                  disabled={!canAct || focus >= 5 || !validPrice(price) || cd > 0 || state.busy.includes(actionKey('hero.add_focus', data))}
-                  onClick={() => perform('hero.add_focus', data, true)}>{cd > 0 ? `${Math.ceil(cd)} с` : '+1'}<small>{focus >= 5 ? 'Максимум' : validPrice(price) ? money(price) : '—'}</small></button></div>;
-            })}
-          </div>;
-        })}
-      </section>
+      <ProgressionView controller={controller} includeXp={!full} />
+      {full&&<HeroProfileView key={state.generation+':gender'} controller={controller} mode="gender"/>}
       <section className="panel-card" aria-label="Специализация и комплект">
         {newBuild ? !state.build?.ready || !build ? <p role="status">{state.build?.message || 'Данные сборки героя ещё синхронизируются с игрой.'}</p> : <>
           <h2>Специализация</h2><p className="panel-muted">Один пассивный бонус. Оружие и броню выбираешь свободно в «Инвентаре».</p>
@@ -74,5 +46,6 @@ export function HeroDevelopmentView({ controller }: { controller: PanelControlle
         </> : <p className="panel-muted">Загружаем варианты развития…</p>}
       </section>
     </> : null}
+    {full&&<ShopView controller={controller}/>}
   </section>;
 }

@@ -1,0 +1,452 @@
+{
+  "provenance": {
+    "base": "e966dcd",
+    "database": "owned temporary SQLite, full merged migrations",
+    "handlers": [
+      "bannerlord_my_hero",
+      "bannerlord_config",
+      "_bannerlord_buy_action_locked",
+      "bannerlord_daily_status",
+      "bannerlord_daily_claim"
+    ],
+    "live_game": false
+  },
+  "responses": {
+    "config": {
+      "ui": {
+        "version": 1,
+        "combat_order": [
+          "summon",
+          "active_powers",
+          "tournament",
+          "weapon_choice"
+        ],
+        "combat_visible": {
+          "summon": true,
+          "active_powers": true,
+          "tournament": true,
+          "weapon_choice": true
+        },
+        "labels": {
+          "active_powers": "Активки",
+          "tournament": "🏆 Турнир зрителей",
+          "weapon_choice": "Оружейная способность",
+          "summon_ally": "📯 Призвать за стримера",
+          "summon_enemy": "⚔️ Призвать против стримера",
+          "discard": "🗑 Выкинуть вещь"
+        },
+        "tier_colors": {
+          "1": {
+            "text": "#c0c3ca",
+            "border": "#5b5e66",
+            "background": "#2b2d31"
+          },
+          "2": {
+            "text": "#89dba1",
+            "border": "#467457",
+            "background": "#203127"
+          },
+          "3": {
+            "text": "#87c6fa",
+            "border": "#426c91",
+            "background": "#202d3a"
+          },
+          "4": {
+            "text": "#c7a0f5",
+            "border": "#785398",
+            "background": "#30253b"
+          },
+          "5": {
+            "text": "#f2b17f",
+            "border": "#966139",
+            "background": "#3b2b20"
+          },
+          "6": {
+            "text": "#f5d174",
+            "border": "#aa8436",
+            "background": "#39311e"
+          }
+        }
+      },
+      "give_gold_presets": [
+        {
+          "crusticov": 1000,
+          "dinars": 5000
+        },
+        {
+          "crusticov": 5000,
+          "dinars": 25000
+        },
+        {
+          "crusticov": 20000,
+          "dinars": 100000
+        }
+      ],
+      "add_skill_presets": [
+        {
+          "crusticov": 500,
+          "xp": 50
+        },
+        {
+          "crusticov": 1000,
+          "xp": 100
+        },
+        {
+          "crusticov": 5000,
+          "xp": 500
+        }
+      ],
+      "focus_tier_costs": [
+        30000,
+        40000,
+        50000,
+        60000,
+        75000
+      ],
+      "attribute_cost": 50000,
+      "recruit_tier_costs": [
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        80000
+      ],
+      "recruit_elite_mult": 3,
+      "gear_upgrade_costs": {
+        "1": 50000,
+        "2": 100000,
+        "3": 200000,
+        "4": 400000,
+        "5": 800000,
+        "6": 1500000
+      },
+      "reforge_price": 20000,
+      "spawn_prices": {
+        "player": 50,
+        "enemy": 100
+      },
+      "gender_swap_cost": 50000,
+      "baby_cost": 100000,
+      "workshop_price": 2500,
+      "caravan_price": 4000,
+      "tournament_prize_gold": 50000,
+      "tournament_round_gold": 10000,
+      "action_prices": {
+        "hero.set_specialization": 0,
+        "hero.select_weapon_power": 0,
+        "hero.claim_starter": 0,
+        "hero.buy_equipment": 0,
+        "hero.equip_owned": 0,
+        "hero.unequip_owned": 0,
+        "hero.discard_owned": 0,
+        "hero.create": 0,
+        "player.modify_attribute": 50,
+        "world.trigger_event": 1000,
+        "hero.reforge_quality": 20000,
+        "hero.set_combat_stance": 0,
+        "hero.discard_item": 0,
+        "hero.detach": 10,
+        "hero.attach": 10,
+        "hero.detach_hold": 30,
+        "hero.detach_charge": 30,
+        "hero.detach_skirmish": 30,
+        "hero.detach_raid": 30,
+        "hero.detach_walls": 30,
+        "hero.detach_gate": 30,
+        "hero.propose_marriage": 100,
+        "hero.respond_marriage_proposal": 0,
+        "hero.cancel_proposal": 0,
+        "hero.rename_child": 50,
+        "hero.change_child_looks": 200,
+        "hero.respec_child_skills": 500,
+        "hero.create_vassal_clan": 0,
+        "hero.recruit_vassal_clan": 0,
+        "hero.rename_vassal": 100,
+        "hero.party_order_set": 500,
+        "hero.party_order_release": 0,
+        "hero.army_create": 1000,
+        "hero.army_disband": 0,
+        "hero.enact_policy": 1500,
+        "hero.make_peace": 2000,
+        "kingdom.propose_war": 2000,
+        "kingdom.propose_peace": 3000,
+        "hero.pay_ransom": 500,
+        "kingdom.set_tax_rate": 0,
+        "hero.buy_workshop": 2500,
+        "hero.sell_workshop": 0,
+        "hero.buy_caravan": 4000,
+        "hero.sell_caravan": 0
+      },
+      "power_prices": {
+        "heal_burst": 100,
+        "shield_break_burst": 200,
+        "rage": 300,
+        "retribution_toggle": 300,
+        "poison_dot": 350,
+        "disarm_burst": 250,
+        "berserker_charge": 200,
+        "lifesteal_burst": 300,
+        "ironskin_toggle": 300,
+        "explosive_arrows": 350,
+        "cleave": 350
+      },
+      "hero_gold_costs": {
+        "marry": 50000,
+        "create_clan": 1000000,
+        "join_clan": 50000,
+        "create_kingdom": 5000000,
+        "join_kingdom": 100000,
+        "create_party": 200000,
+        "recruit_vassal": 3000000,
+        "make_baby": 100000,
+        "create_vassal_clan": 250000
+      }
+    },
+    "hero_alive": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "test_hero_alice",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": true,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-03 08:46:18",
+        "last_sync": "2026-10-03 08:46:18",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": {
+          "id": "vlandia",
+          "name": "Vlandia",
+          "is_clan_leader": true
+        },
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": {
+          "in_army": false
+        },
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "hero_absent": {
+      "success": true,
+      "has_hero": false
+    },
+    "create_culture": {
+      "request": {
+        "action_type": "hero.create",
+        "data": {
+          "price": 0,
+          "culture": "Mod.Culture-X",
+          "content_context": {
+            "save_id": "save-a",
+            "equipment_session_id": "session-a"
+          }
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "318c1a3e575b47b09f50ca8960e88c17",
+        "charged": 0,
+        "message": "⚔️ Action hero.create в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 60
+      }
+    },
+    "create_random": {
+      "request": {
+        "action_type": "hero.create",
+        "data": {
+          "price": 0,
+          "content_context": {
+            "save_id": "save-a",
+            "equipment_session_id": "session-a"
+          }
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "fd066e013db943c584df6bcd322a810d",
+        "charged": 0,
+        "message": "⚔️ Action hero.create в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 60
+      }
+    },
+    "create_stale": {
+      "request": {
+        "action_type": "hero.create",
+        "data": {
+          "price": 0,
+          "culture": "Mod.Culture-X",
+          "content_context": {
+            "save_id": "save-a",
+            "equipment_session_id": "old-session"
+          }
+        }
+      },
+      "response": {
+        "success": false,
+        "reason": "content_catalog_changed",
+        "message": "Сохранение или игровая сессия изменились. Обнови список культур."
+      }
+    },
+    "hero_dead": {
+      "equipment_shop_ready": false,
+      "success": true,
+      "has_hero": true,
+      "hero": {
+        "hero_id": "dead_hero",
+        "display_name": "Alice Hero",
+        "culture": null,
+        "is_alive": false,
+        "is_prisoner": false,
+        "gold": 500000,
+        "location": null,
+        "adopted_at": "2026-10-03 08:46:18",
+        "last_sync": "2026-10-03 08:46:18",
+        "level": 1,
+        "clan_name": null,
+        "kingdom_name": null,
+        "gear_tier": 0,
+        "clan_info": null,
+        "kingdom_info": null,
+        "is_female": null,
+        "family_info": null,
+        "iteration": 1,
+        "is_wounded": false,
+        "tournament_wins": 0,
+        "party_info": null,
+        "combat_stance": "balanced",
+        "spouse_name": null,
+        "retinue_cap": 5
+      },
+      "skills": [],
+      "attributes": {},
+      "equipment": {},
+      "retinue": [],
+      "recent_refunds": []
+    },
+    "respawn": {
+      "request": {
+        "action_type": "hero.create",
+        "data": {
+          "price": 0
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "5974940040f3434bb07c7a377ff64e3d",
+        "charged": 0,
+        "message": "⚔️ Action hero.create в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 60
+      }
+    },
+    "gender_male": {
+      "request": {
+        "action_type": "hero.set_gender",
+        "data": {
+          "gender": "male"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "de972c8ac6f84e2fb5c1b92ed2a7648c",
+        "charged": 0,
+        "message": "⚔️ Action hero.set_gender в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      }
+    },
+    "gender_female": {
+      "request": {
+        "action_type": "hero.set_gender",
+        "data": {
+          "gender": "female"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "11a53114b1a1471e90eaa0984b437406",
+        "charged": 0,
+        "message": "⚔️ Action hero.set_gender в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      }
+    },
+    "daily_ready": {
+      "success": true,
+      "can_claim": true,
+      "last_claim_date": null,
+      "last_reward_type": null,
+      "today_date": "2026-10-03",
+      "reward_amounts": {
+        "gold": 100000,
+        "xp": 50000
+      }
+    },
+    "daily_gold": {
+      "success": true,
+      "message": "🎁 +100,000💰 динаров — приходи завтра за новым!",
+      "amount": 100000,
+      "reward_type": "gold",
+      "action_id": "85505978cdbd41e2b7c18a3fb3a5ffd0"
+    },
+    "daily_claimed_gold": {
+      "success": true,
+      "can_claim": false,
+      "last_claim_date": "2026-10-03",
+      "last_reward_type": "gold",
+      "today_date": "2026-10-03",
+      "reward_amounts": {
+        "gold": 100000,
+        "xp": 50000
+      }
+    },
+    "daily_xp": {
+      "success": true,
+      "message": "🎁 +50,000 XP в случайный скилл — приходи завтра!",
+      "amount": 50000,
+      "reward_type": "xp",
+      "action_id": "f3b4d65497f5459fb95d381ec1f834aa"
+    },
+    "daily_claimed_xp": {
+      "success": true,
+      "can_claim": false,
+      "last_claim_date": "2026-10-03",
+      "last_reward_type": "xp",
+      "today_date": "2026-10-03",
+      "reward_amounts": {
+        "gold": 100000,
+        "xp": 50000
+      }
+    },
+    "daily_refused": {
+      "success": false,
+      "message": "Дейлик уже забран сегодня (xp). Возвращайся завтра!"
+    }
+  }
+}

@@ -17,7 +17,7 @@ function harness(reply = { success: true, cooldown_applied_s: 17.5 }) {
     const posts = [], errors = [], notices = [];
     const kingdom = { success: true, has_hero: true, kingdom_id: 'ours', kingdom_name: 'Our kingdom',
         is_king: true, is_clan_leader: true };
-    const context = vm.createContext({ window, document, ShedLink: namespace,
+    const context = vm.createContext({ window, document, AbortController, clearTimeout() {}, ShedLink: namespace,
         API_URL: 'https://fixture.invalid', authToken: 'fixture',
         escapeHtml: value => String(value), isAuthUser: () => true, dbg() {},
         Date: class extends Date { static now() { return now; } },
@@ -26,6 +26,7 @@ function harness(reply = { success: true, cooldown_applied_s: 17.5 }) {
         setInterval: () => 1, clearInterval() {}, safeInterval: () => 1, setTimeout() {},
         showNotification: (...args) => notices.push(args),
         fetch: async (url, options = {}) => {
+            if (url.endsWith('/content-catalogs')) return {ok:true, json:async()=>({success:true, policies:{available:true,entries:[]}})};
             if (options.method === 'POST') {
                 posts.push(JSON.parse(options.body));
                 if (reply instanceof Error) throw reply;

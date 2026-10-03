@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-guilds-parity.test.tsx (9 tests | 1 failed | 8 skipped) 560ms
+   × guild upgrade uses the actual configured skill key and guild refresh without personal stats 559ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  19:02:12
+   Duration  3.14s (environment 49%, import 23%, tests 19%, transform 9%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-guilds-parity.test.tsx > guild upgrade uses the actual configured skill key and guild refresh without personal stats
+AssertionError: expected [ { method: 'GET', …(7) }, …(12) ] to deeply equal [ { method: 'GET', …(7) }, …(12) ]
+
+- Expected
++ Received
+
+@@ -108,17 +108,17 @@
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"skill_key\":\"watch\"}",
++     "body": "{\"skill_key\":\"wrong-skill\"}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/guild/upgrade-skill",
+      "query": "",
+-     "rawBody": "{\"skill_key\":\"watch\"}",
++     "rawBody": "{\"skill_key\":\"wrong-skill\"}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-guilds-parity.test.tsx:36:135
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

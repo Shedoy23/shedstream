@@ -1,0 +1,109 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-party-parity.test.tsx > clan create trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > clan join trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖stdout | test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-clan-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-j-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-party
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_create"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_disband"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-leave
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-cancel
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖stdout | test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+┬╖┬╖
+
+ Test Files  1 passed (1)
+      Tests  32 passed (32)
+   Start at  13:56:43
+   Duration  11.70s (tests 79%, environment 10%, import 8%, transform 4%)
+

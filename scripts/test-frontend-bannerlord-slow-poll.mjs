@@ -25,6 +25,10 @@ function harness() {
         setInterval: () => 1, clearInterval() {}, setTimeout: callback => { timers.push(callback); },
         fetch: url => new Promise((resolve, reject) => requests.push({ url, resolve, reject })) });
     vm.runInContext(source, context);
+    // Keep the controlled 9s hero/vassal responses isolated from subordinate
+    // metadata reads; the complete unmodified loader chain has its own parity harness.
+    context._loadBnrContentCatalogs = async () => null;
+    context._loadBnrProgression = async () => null;
     const stub = ['ClanMgmt','KingdomMgmt','ProfileFamily','Heirs','Family','PartyOrders','Army','Diplomacy',
         'RansomPool','Workshops','Fiefs','Caravans','Inheritance','DynastyLockedActions','Daily','Progression',
         'Gender','Shop','Status','Classes','Build','Buffs','Tournament','BattleStatus','EquipmentShop'];

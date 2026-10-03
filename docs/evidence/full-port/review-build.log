@@ -1,0 +1,63 @@
+
+> shedlink-preact-pilot@0.0.0 build
+> npm run typecheck && vite build && node scripts/check-build.mjs
+
+
+> shedlink-preact-pilot@0.0.0 typecheck
+> tsc --noEmit
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vite.config.ts:3:49). Add the file extension
+  - import "./src/skillgames/origin" without a file extension (vite.config.ts:4:44). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+vite v8.3.2 building client environment for production...
+transforming...
+✓ 107 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/config.html                              0.95 kB │ gzip:  0.50 kB
+dist/tournament.html                          0.98 kB │ gzip:  0.51 kB
+dist/extension.html                           1.10 kB │ gzip:  0.50 kB
+dist/index.html                               1.10 kB │ gzip:  0.50 kB
+dist/mobile.html                              1.10 kB │ gzip:  0.50 kB
+dist/panel-extension.html                     1.19 kB │ gzip:  0.52 kB
+dist/panel-mobile.html                        1.19 kB │ gzip:  0.52 kB
+dist/.vite/manifest.json                      6.53 kB │ gzip:  0.99 kB
+dist/assets/TournamentPanel-BZI9w71V.css      0.48 kB │ gzip:  0.31 kB
+dist/assets/common-DfplPJhd.css               3.55 kB │ gzip:  1.27 kB
+dist/assets/tournament-DXEIGRqF.css           4.33 kB │ gzip:  1.53 kB
+dist/assets/style-DggeBuT6.css                4.55 kB │ gzip:  1.64 kB
+dist/assets/bannerlord-entry-Db9qGGtL.css     5.44 kB │ gzip:  1.74 kB
+dist/assets/main-BcDcf8_c.css                 7.13 kB │ gzip:  2.24 kB
+dist/assets/auth-CV2p59v7.js                  0.75 kB │ gzip:  0.36 kB │ map:   1.71 kB
+dist/assets/origin-B6GOuIUI.js                0.88 kB │ gzip:  0.53 kB │ map:   1.78 kB
+dist/assets/contracts-CLOA6o65.js             1.26 kB │ gzip:  0.76 kB │ map:   7.12 kB
+dist/assets/ConfirmDialog-0muCmxkU.js         1.88 kB │ gzip:  0.84 kB │ map:   2.70 kB
+dist/assets/StatisticsView-yphamyBl.js        2.36 kB │ gzip:  1.00 kB │ map:   3.11 kB
+dist/assets/CasesView-itAO46g5.js             4.74 kB │ gzip:  1.84 kB │ map:   7.74 kB
+dist/assets/TournamentPanel-mw_0FAxZ.js       5.67 kB │ gzip:  2.04 kB │ map:   7.60 kB
+dist/assets/config-DyyIoZRo.js                5.79 kB │ gzip:  2.23 kB │ map:   8.35 kB
+dist/assets/identity-DwEEfbA5.js              6.28 kB │ gzip:  2.38 kB │ map:  13.69 kB
+dist/assets/SocialFamilyView-DW8yLQRB.js      7.83 kB │ gzip:  2.63 kB │ map:  11.16 kB
+dist/assets/PetsView-3jBwZmIH.js              9.82 kB │ gzip:  3.19 kB │ map:  15.06 kB
+dist/assets/GuildsView-G8Rj1PO5.js           11.45 kB │ gzip:  3.19 kB │ map:  16.69 kB
+dist/assets/VotingView-BrUvse4q.js           11.49 kB │ gzip:  3.67 kB │ map:  17.63 kB
+dist/assets/CommonView-CT2-PmRe.js           13.00 kB │ gzip:  3.89 kB │ map:  17.24 kB
+dist/assets/ColonyView-DICVYhed.js           15.22 kB │ gzip:  4.87 kB │ map:  24.41 kB
+dist/assets/RimworldView-RWuDeKol.js         16.54 kB │ gzip:  4.50 kB │ map:  21.53 kB
+dist/assets/tournament-D91d4GCB.js           18.13 kB │ gzip:  5.23 kB │ map:  27.99 kB
+dist/assets/CommunityGamesView-D5iKO3Jj.js   20.01 kB │ gzip:  5.74 kB │ map:  31.69 kB
+dist/assets/jsxRuntime-CV27YSlv.js           27.05 kB │ gzip:  9.59 kB │ map: 175.07 kB
+dist/assets/main-BJXIP1kg.js                 52.42 kB │ gzip: 14.23 kB │ map:  83.64 kB
+dist/assets/main-DA7CYsTw.js                118.75 kB │ gzip: 30.90 kB │ map: 208.03 kB
+dist/assets/bannerlord-entry-C9PJ9sfE.js    226.06 kB │ gzip: 50.87 kB │ map: 325.02 kB
+
+✓ built in 1.10s
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vite.config.ts:3:49). Add the file extension
+  - import "./src/skillgames/origin" without a file extension (vite.config.ts:4:44). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+PASS: seven entrypoints; identical skillgame pages; validated EBS origin/CSP; isolated tournament preview; helper first; readable local assets; no legacy owner
+PASS: bundled runtime licenses and pinned versions included
+PASS: source maps confirm Preact-only runtime; readable build settings preserved
+PASS: original readable Preact source contents preserved in composed maps

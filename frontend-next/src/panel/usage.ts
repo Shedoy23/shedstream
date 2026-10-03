@@ -272,8 +272,9 @@ export class PanelUsage {
       let timeout: ReturnType<typeof setTimeout> | undefined;
       const controller = typeof AbortController === 'function' ? new AbortController() : null;
       try {
+        const request = this.fetcher;
         const response = await Promise.race([
-          this.fetcher(this.deps.baseUrl + '/api/viewer/ui-usage', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': batch.token }, body: batch.body, keepalive: true, signal: controller?.signal }),
+          request(this.deps.baseUrl + '/api/viewer/ui-usage', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Twitch-JWT': batch.token }, body: batch.body, keepalive: true, signal: controller?.signal }),
           new Promise<never>((_, reject) => { timeout = setTimeout(() => { controller?.abort(); reject(new Error('usage timeout')); }, 5000); }),
         ]);
         if (response.ok || [400, 401, 403, 404, 413].includes(response.status)) { if (this.flight === batch) this.flight = null; }

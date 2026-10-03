@@ -1,0 +1,31 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-equipment-parity.test.tsx (43 tests | 1 failed | 42 skipped) 438ms
+   × equipment trace retains exact raw POST bytes before random ID normalization 434ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-equipment-parity.test.tsx > equipment trace retains exact raw POST bytes before random ID normalization
+AssertionError: equipment raw request bytes must be recorded, not reconstructed from parsed JSON: expected undefined to be '{"action_type":"hero.buy_equipment","…' // Object.is equality
+
+- Expected:
+"{\"action_type\":\"hero.buy_equipment\",\"data\":{\"item_id\":\"sword\",\"client_action_id\":\"test-id\"}}"
+
++ Received:
+undefined
+
+ ❯ test/panel-equipment-parity.test.tsx:33:376
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 42 skipped (43)
+   Start at  19:02:29
+   Duration  4.46s (environment 37%, import 31%, transform 21%, tests 10%)
+

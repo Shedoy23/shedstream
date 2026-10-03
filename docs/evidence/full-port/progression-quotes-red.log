@@ -1,0 +1,40 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-game-progression-parity.test.tsx (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx [ test/panel-game-progression-parity.test.tsx ]
+Error: Transform failed with 1 error:
+
+[PARSE_ERROR] Expected `}` but found `EOF`
+    ╭─[ test/panel-game-progression-parity.test.tsx:84:5 ]
+    │
+ 12 │ function normalized(rows: LegacyRequest[]) {
+    │                                            ┬  
+    │                                            ╰── Opened here
+    │ 
+ 84 │ });
+    │     │ 
+    │     ╰─ `}` expected
+────╯
+
+  Plugin: vite:oxc
+  File: C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next/test/panel-game-progression-parity.test.tsx
+ ❯ transformWithOxc node_modules/vite/dist/node/chunks/node.js:7581:19
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/node.js:7653:26
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/node.js:8545:51
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/node.js:19988:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  13:09:21
+   Duration  3.95s (environment 99%, worker 1%)
+

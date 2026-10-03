@@ -1,0 +1,43 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-colony-review.test.tsx (15 tests | 2 failed) 2304ms
+   × review colony actual rate_limited policy refusal preserves message and permits explicit retry 676ms
+   × review colony actual pending policy refusal preserves message and permits explicit retry 123ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-colony-review.test.tsx > review colony actual rate_limited policy refusal preserves message and permits explicit retry
+AssertionError: expected 'Сервер отказал в действии. Исход заяв…' to be 'Слишком много запросов. Попробуй чере…' // Object.is equality
+
+Expected: "Слишком много запросов. Попробуй через минуту."
+Received: "Сервер отказал в действии. Исход заявки неизвестен; повторная покупка заблокирована до нового входа."
+
+ ❯ test/panel-colony-review.test.tsx:44:225
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/panel-colony-review.test.tsx > review colony actual pending policy refusal preserves message and permits explicit retry
+AssertionError: expected 'Сервер отказал в действии. Исход заяв…' to be 'Заявка стримера принята и ждёт подклю…' // Object.is equality
+
+Expected: "Заявка стримера принята и ждёт подключения"
+Received: "Сервер отказал в действии. Исход заявки неизвестен; повторная покупка заблокирована до нового входа."
+
+ ❯ test/panel-colony-review.test.tsx:44:225
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  2 failed | 196 passed (198)
+   Start at  20:10:09
+   Duration  20.95s (tests 70%, environment 19%, import 8%, transform 3%)
+
+    Isolate  4 workers spawned · ~2.08s startup each (spawn + environment, per file)
+             at least ~2.08s faster with isolate: false — reuses workers across files instead of one per file
+

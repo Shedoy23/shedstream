@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-community-games-parity.test.tsx (23 tests | 1 failed | 22 skipped) 803ms
+   × tug batches three real clicks into one exact pull and preserves both refresh reads 801ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 22 skipped (23)
+   Start at  18:57:31
+   Duration  4.95s (environment 45%, import 25%, tests 17%, transform 12%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-community-games-parity.test.tsx > tug batches three real clicks into one exact pull and preserves both refresh reads
+AssertionError: expected [ { method: 'GET', …(7) }, …(13) ] to deeply equal [ { method: 'GET', …(7) }, …(13) ]
+
+- Expected
++ Received
+
+@@ -108,17 +108,17 @@
+      "query": "?game_type=tug",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"taps\":3}",
++     "body": "{\"taps\":1}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/tug/pull",
+      "query": "",
+-     "rawBody": "{\"taps\":3}",
++     "rawBody": "{\"taps\":1}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-community-games-parity.test.tsx:46:365
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

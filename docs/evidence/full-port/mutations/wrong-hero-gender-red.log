@@ -1,0 +1,53 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-hero-profile-parity.test.tsx (9 tests | 1 failed | 8 skipped) 1393ms
+   × hero profile male confirms game gold and exact gender with generic action tails 1391ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  19:00:14
+   Duration  6.30s (environment 37%, import 24%, tests 23%, transform 16%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile male confirms game gold and exact gender with generic action tails
+AssertionError: expected [ { method: 'GET', …(7) }, …(16) ] to deeply equal [ { method: 'GET', …(7) }, …(16) ]
+
+- Expected
++ Received
+
+@@ -82,19 +82,19 @@
+    {
+      "body": {
+        "action_type": "hero.set_gender",
+        "data": {
+          "client_action_id": "<generated-id>",
+-         "gender": "male",
++         "gender": "female",
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.set_gender\",\"data\":{\"gender\":\"male\",\"client_action_id\":\"<generated-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.set_gender\",\"data\":{\"gender\":\"female\",\"client_action_id\":\"<generated-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": "no-store",
+
+ ❯ check test/panel-hero-support.tsx:61:102
+
+ ❯ Object.finish test/panel-hero-support.tsx:65:131
+ ❯ test/panel-hero-profile-parity.test.tsx:17:86
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

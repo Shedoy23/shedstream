@@ -1,0 +1,107 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-colony-shell-outcome.test.tsx (10 tests | 8 failed) 5021ms
+   × colony shell unknown response before-refresh stays blocked after held same-viewer JWT resolution 909ms
+   × colony shell unknown response during-resolver stays blocked after held same-viewer JWT resolution 436ms
+   × colony shell unknown response after-remount stays blocked after held same-viewer JWT resolution 428ms
+   × colony shell a still pending POST also survives JWT remount and a definite refusal releases it 407ms
+   × colony shell unknown guard belongs to its viewer and survives leaving then returning 525ms
+   × colony shell unknown guard belongs to its channel and survives leaving then returning 529ms
+   × colony shell old-owner response loss cannot overwrite a different owner pending action 507ms
+   × colony shell another active game does not erase the Colony unknown outcome on return 488ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-colony-shell-outcome.test.tsx > colony shell unknown response before-refresh stays blocked after held same-viewer JWT resolution
+ FAIL  test/panel-colony-shell-outcome.test.tsx > colony shell unknown response during-resolver stays blocked after held same-viewer JWT resolution
+ FAIL  test/panel-colony-shell-outcome.test.tsx > colony shell unknown response after-remount stays blocked after held same-viewer JWT resolution
+AssertionError: same-viewer remount must not send a second paid POST after an unknown outcome: expected [ { …(5) }, { …(5) } ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ test/panel-colony-shell-outcome.test.tsx:84:115
+     82|   await ready();
+     83|   if(timing==='after-remount')await act(async()=>{held.reject(new Erro…
+     84|   await p.buy();expect(p.posts(),'same-viewer remount must not send a …
+       |                                                                                                                   ^
+     85|   expect(p.button().disabled).toBe(true);expect(p.ui.container.textCon…
+     86| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  test/panel-colony-shell-outcome.test.tsx > colony shell a still pending POST also survives JWT remount and a definite refusal releases it
+AssertionError: a pending admitted action must survive the same remount: expected 2 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ test/panel-colony-shell-outcome.test.tsx:91:74
+     89|   const p=await shell(),held=deferred<Response>();p.setReply(()=>held.…
+     90|   const sent=p.posts().length;await act(async()=>{held.resolve(json({s…
+     91|   expect(sent,'a pending admitted action must survive the same remount…
+       |                                                                          ^
+     92| });
+     93|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  test/panel-colony-shell-outcome.test.tsx > colony shell unknown guard belongs to its viewer and survives leaving then returning
+ FAIL  test/panel-colony-shell-outcome.test.tsx > colony shell unknown guard belongs to its channel and survives leaving then returning
+AssertionError: returning to the original owner must restore its unknown guard: expected [ { …(5) }, { …(5) }, { …(5) } ] to have a length of 2 but got 3
+
+- Expected
++ Received
+
+- 2
++ 3
+
+ ❯ test/panel-colony-shell-outcome.test.tsx:98:161
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  test/panel-colony-shell-outcome.test.tsx > colony shell old-owner response loss cannot overwrite a different owner pending action
+AssertionError: late old-owner loss must be retained for that owner: expected [ { …(5) }, { …(5) }, { …(5) } ] to have a length of 2 but got 3
+
+- Expected
++ Received
+
+- 2
++ 3
+
+ ❯ test/panel-colony-shell-outcome.test.tsx:105:135
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  test/panel-colony-shell-outcome.test.tsx > colony shell another active game does not erase the Colony unknown outcome on return
+AssertionError: switching active games must not reset the Colony owner guard: expected [ { …(5) }, { …(5) } ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ test/panel-colony-shell-outcome.test.tsx:123:127
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 2 passed (10)
+   Start at  20:49:51
+   Duration  9.37s (tests 56%, environment 27%, import 11%, transform 6%)
+

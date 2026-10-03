@@ -1,0 +1,350 @@
+{
+  "provenance": {
+    "base": "aa45a59",
+    "database": "owned temporary SQLite",
+    "live_game": false,
+    "synthetic": "owned heir/vassal/capture observations"
+  },
+  "responses": {
+    "config": {
+      "ui": {
+        "version": 1,
+        "combat_order": [
+          "summon",
+          "active_powers",
+          "tournament",
+          "weapon_choice"
+        ],
+        "combat_visible": {
+          "summon": true,
+          "active_powers": true,
+          "tournament": true,
+          "weapon_choice": true
+        },
+        "labels": {
+          "active_powers": "Активки",
+          "tournament": "🏆 Турнир зрителей",
+          "weapon_choice": "Оружейная способность",
+          "summon_ally": "📯 Призвать за стримера",
+          "summon_enemy": "⚔️ Призвать против стримера",
+          "discard": "🗑 Выкинуть вещь"
+        },
+        "tier_colors": {
+          "1": {
+            "text": "#c0c3ca",
+            "border": "#5b5e66",
+            "background": "#2b2d31"
+          },
+          "2": {
+            "text": "#89dba1",
+            "border": "#467457",
+            "background": "#203127"
+          },
+          "3": {
+            "text": "#87c6fa",
+            "border": "#426c91",
+            "background": "#202d3a"
+          },
+          "4": {
+            "text": "#c7a0f5",
+            "border": "#785398",
+            "background": "#30253b"
+          },
+          "5": {
+            "text": "#f2b17f",
+            "border": "#966139",
+            "background": "#3b2b20"
+          },
+          "6": {
+            "text": "#f5d174",
+            "border": "#aa8436",
+            "background": "#39311e"
+          }
+        }
+      },
+      "give_gold_presets": [
+        {
+          "crusticov": 1000,
+          "dinars": 5000
+        },
+        {
+          "crusticov": 5000,
+          "dinars": 25000
+        },
+        {
+          "crusticov": 20000,
+          "dinars": 100000
+        }
+      ],
+      "add_skill_presets": [
+        {
+          "crusticov": 500,
+          "xp": 50
+        },
+        {
+          "crusticov": 1000,
+          "xp": 100
+        },
+        {
+          "crusticov": 5000,
+          "xp": 500
+        }
+      ],
+      "focus_tier_costs": [
+        30000,
+        40000,
+        50000,
+        60000,
+        75000
+      ],
+      "attribute_cost": 50000,
+      "recruit_tier_costs": [
+        5000,
+        10000,
+        20000,
+        30000,
+        50000,
+        80000
+      ],
+      "recruit_elite_mult": 3,
+      "gear_upgrade_costs": {
+        "1": 50000,
+        "2": 100000,
+        "3": 200000,
+        "4": 400000,
+        "5": 800000,
+        "6": 1500000
+      },
+      "reforge_price": 20000,
+      "spawn_prices": {
+        "player": 50,
+        "enemy": 100
+      },
+      "gender_swap_cost": 50000,
+      "baby_cost": 100000,
+      "workshop_price": 2500,
+      "caravan_price": 4000,
+      "tournament_prize_gold": 50000,
+      "tournament_round_gold": 10000,
+      "action_prices": {
+        "hero.set_specialization": 0,
+        "hero.select_weapon_power": 0,
+        "hero.claim_starter": 0,
+        "hero.buy_equipment": 0,
+        "hero.equip_owned": 0,
+        "hero.unequip_owned": 0,
+        "hero.discard_owned": 0,
+        "hero.create": 0,
+        "player.modify_attribute": 50,
+        "world.trigger_event": 1000,
+        "hero.reforge_quality": 20000,
+        "hero.set_combat_stance": 0,
+        "hero.discard_item": 0,
+        "hero.detach": 10,
+        "hero.attach": 10,
+        "hero.detach_hold": 30,
+        "hero.detach_charge": 30,
+        "hero.detach_skirmish": 30,
+        "hero.detach_raid": 30,
+        "hero.detach_walls": 30,
+        "hero.detach_gate": 30,
+        "hero.propose_marriage": 100,
+        "hero.respond_marriage_proposal": 0,
+        "hero.cancel_proposal": 0,
+        "hero.rename_child": 50,
+        "hero.change_child_looks": 200,
+        "hero.respec_child_skills": 500,
+        "hero.create_vassal_clan": 0,
+        "hero.recruit_vassal_clan": 0,
+        "hero.rename_vassal": 100,
+        "hero.party_order_set": 500,
+        "hero.party_order_release": 0,
+        "hero.army_create": 1000,
+        "hero.army_disband": 0,
+        "hero.enact_policy": 1500,
+        "hero.make_peace": 2000,
+        "kingdom.propose_war": 2000,
+        "kingdom.propose_peace": 3000,
+        "hero.pay_ransom": 500,
+        "kingdom.set_tax_rate": 0,
+        "hero.buy_workshop": 2500,
+        "hero.sell_workshop": 0,
+        "hero.buy_caravan": 4000,
+        "hero.sell_caravan": 0
+      },
+      "power_prices": {
+        "heal_burst": 100,
+        "shield_break_burst": 200,
+        "rage": 300,
+        "retribution_toggle": 300,
+        "poison_dot": 350,
+        "disarm_burst": 250,
+        "berserker_charge": 200,
+        "lifesteal_burst": 300,
+        "ironskin_toggle": 300,
+        "explosive_arrows": 350,
+        "cleave": 350
+      },
+      "hero_gold_costs": {
+        "marry": 50000,
+        "create_clan": 1000000,
+        "join_clan": 50000,
+        "create_kingdom": 5000000,
+        "join_kingdom": 100000,
+        "create_party": 200000,
+        "recruit_vassal": 3000000,
+        "make_baby": 100000,
+        "create_vassal_clan": 250000
+      }
+    },
+    "vassals": {
+      "success": true,
+      "vassals": [
+        {
+          "id": 1,
+          "vassal_clan_id": "vassal-1",
+          "vassal_leader_hero_id": "vassal-leader-1",
+          "vassal_name": "Северный дом",
+          "income_share_pct": 25.0,
+          "banner_code": "fixture",
+          "created_at": "2026-10-03 10:31:42"
+        }
+      ]
+    },
+    "eligible": {
+      "success": true,
+      "heirs": [
+        {
+          "hero_id": "heir-eligible",
+          "name": "Взрослый наследник",
+          "came_of_age_at": "2026-10-02 12:00:00"
+        }
+      ]
+    },
+    "ransom": {
+      "success": true,
+      "captures": [
+        {
+          "captured_hero": "bob",
+          "gear_tier": 3,
+          "level": 1,
+          "captor_party": "Партия разбойников",
+          "ransom_cost": 3500,
+          "pool_total": 0,
+          "contributors": 0,
+          "remaining": 3500
+        }
+      ]
+    },
+    "rename": {
+      "request": {
+        "action_type": "hero.rename_vassal",
+        "data": {
+          "vassal_id": 1,
+          "new_name": "Южный дом"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "6c6809f3b1bf4c608bb9e9360dae85f0",
+        "charged": 100,
+        "message": "⚔️ Action hero.rename_vassal в очереди (100💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      }
+    },
+    "rename_refused": {
+      "request": {
+        "action_type": "hero.rename_vassal",
+        "data": {
+          "vassal_id": 1000,
+          "new_name": "Южный дом"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Вассал не найден"
+      }
+    },
+    "create": {
+      "request": {
+        "action_type": "hero.create_vassal_clan",
+        "data": {
+          "heir_hero_id": "heir-eligible",
+          "vassal_name": "Дом наследника"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "32d6232e5ee34405b09a8249532bf7a1",
+        "charged": 0,
+        "message": "⚔️ Action hero.create_vassal_clan в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 300
+      }
+    },
+    "create_refused": {
+      "request": {
+        "action_type": "hero.create_vassal_clan",
+        "data": {
+          "heir_hero_id": "heir-eligible",
+          "vassal_name": "Второй дом"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "Наследник сейчас недоступен для создания вассала"
+      }
+    },
+    "ransom_pay": {
+      "request": {
+        "action_type": "hero.pay_ransom",
+        "data": {
+          "captured_hero": "bob"
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "3f0c829b29af42bab975ecaeea0c8f61",
+        "charged": 500,
+        "message": "⚔️ Action hero.pay_ransom в очереди (500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 20
+      }
+    },
+    "ransom_after": {
+      "success": true,
+      "captures": [
+        {
+          "captured_hero": "bob",
+          "gear_tier": 3,
+          "level": 1,
+          "captor_party": "Партия разбойников",
+          "ransom_cost": 3500,
+          "pool_total": 500,
+          "contributors": 1,
+          "remaining": 3000
+        }
+      ]
+    },
+    "ransom_refused": {
+      "request": {
+        "action_type": "hero.pay_ransom",
+        "data": {
+          "captured_hero": "bob"
+        }
+      },
+      "response": {
+        "success": false,
+        "message": "@bob не в плену"
+      }
+    },
+    "ransom_empty": {
+      "success": true,
+      "captures": []
+    }
+  }
+}

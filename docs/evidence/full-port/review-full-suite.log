@@ -1,0 +1,15 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+
+ Test Files  62 passed | 2 skipped (64)
+      Tests  1241 passed | 2 skipped (1243)
+   Start at  20:20:39
+   Duration  299.43s (tests 71%, environment 21%, import 7%, transform 1%)
+
+    Isolate  64 workers spawned · ~2.17s startup each (spawn + environment, per file)
+             at least ~67.37s faster with isolate: false — reuses workers across files instead of one per file
+

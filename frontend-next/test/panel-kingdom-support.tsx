@@ -1,3 +1,5 @@
+import policyCatalog from './panel-fixtures/policy-catalog.json';
+import {gameResponses as g} from './panel-legacy-harness';
 import saved from './panel-fixtures/kingdom-responses.json';
 import { combatPair } from './panel-combat-support';
 import type { LegacyFixtures,LegacyJson,LegacyRequest } from './panel-legacy-harness';
@@ -9,5 +11,5 @@ export const kingdomPair=(overrides:Partial<LegacyFixtures>={},tab:'hero'|'dynas
   // opt into their contradiction explicitly instead of inheriting fake rulers.
   const h=(overrides.hero as {hero?:{kingdom_name?:string|null;kingdom_info?:{id?:string;is_ruler?:boolean;is_clan_leader?:boolean}|null}}|undefined)?.hero,ki=h?.kingdom_info;
   const kingdomState=!h?r.kingdom_ruler:!h.kingdom_name?r.kingdom_independent:ki?.id==='fixture_other_kingdom'?r.kingdom_other:ki?.is_ruler?r.kingdom_ruler:ki?.is_clan_leader?r.kingdom_vassal:r.kingdom_member;
-  return combatPair({config:r.config,hero:r.hero_ruler,kingdomState,action,...overrides},false,tab,false,true);
+  return combatPair({catalogs:{...g.catalogs,policies:{available:true,entries:policyCatalog.entries}},config:r.config,hero:r.hero_ruler,kingdomState,action,...overrides},false,tab,false,true);
 };

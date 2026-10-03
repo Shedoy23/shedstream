@@ -1,0 +1,62 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-properties-parity.test.tsx (11 tests | 1 failed) 4880ms
+   ├Ч properties remove a pending sale when its observed object vanishes 249ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties remove a pending sale when its observed object vanishes
+AssertionError: expected <div role="dialog" тАж(3)>тАж(3)</div> to be null
+
+- Expected:
+null
+
++ Received:
+<div
+  aria-label="╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М ╨┐╤А╨╛╨┤╨░╨╢╤Г ╨╕╨╝╤Г╤Й╨╡╤Б╤В╨▓╨░"
+  aria-modal="true"
+  class="panel-card common-dialog"
+  role="dialog"
+>
+  <h2>
+    ╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М ╨┐╤А╨╛╨┤╨░╨╢╤Г ╨╕╨╝╤Г╤Й╨╡╤Б╤В╨▓╨░
+  </h2>
+  <p>
+    ╨Я╤А╨╛╨┤╨░╤В╤М ╨╝╨░╤Б╤В╨╡╤А╤Б╨║╤Г╤О? ╨Ю╤В╨╝╨╡╨╜╨╕╤В╤М ╨╜╨╡╨╗╤М╨╖╤П. ╨б╤Г╨╝╨╝╤Г ╨▓╨╛╨╖╨▓╤А╨░╤В╨░ ╨╛╨┐╤А╨╡╨┤╨╡╨╗╨╕╤В ╨╕╨│╤А╨░.
+  </p>
+  <div
+    class="panel-choices"
+  >
+    <button
+      type="button"
+    >
+      ╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М
+    </button>
+    <button
+      type="button"
+    >
+      ╨Ю╤В╨╝╨╡╨╜╨░
+    </button>
+  </div>
+</div>
+
+ тЭп test/panel-properties-parity.test.tsx:62:38
+     60|   p.routes['GET /api/bannerlord/my-workshops']=r.workshops_empty;
+     61|   await p.old.refreshHero();await act(async()=>{await p.controller.refтАж
+     62|   expect(p.ui.queryByRole('dialog')).toBeNull();expect(p.trace.some(q=тАж
+       |                                      ^
+     63| });
+     64| it('properties custom game workshop IDs are selectable and sent verbatтАж
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+   Start at  14:33:25
+   Duration  11.06s (tests 46%, environment 29%, import 16%, transform 9%)
+

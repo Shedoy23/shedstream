@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (37 tests | 1 failed | 36 skipped) 2200ms
+   × rimworld xenotype preserves both payload identifiers warning and full minute pawn polls 2198ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 36 skipped (37)
+   Start at  20:18:02
+   Duration  6.49s (tests 36%, environment 35%, import 21%, transform 9%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld xenotype preserves both payload identifiers warning and full minute pawn polls
+AssertionError: expected [ { method: 'GET', …(7) }, …(42) ] to deeply equal [ { method: 'GET', …(7) }, …(42) ]
+
+- Expected
++ Received
+
+@@ -188,17 +188,17 @@
+      "query": "?category=xenotype&username=alice",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"username\":\"alice\",\"item_def\":\"PortXeno\",\"def_name\":\"PortXeno\"}",
++     "body": "{\"username\":\"alice\",\"item_def\":\"PortXeno\",\"def_name\":\"wrong-xenotype\"}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/rimworld/buy-item",
+      "query": "",
+-     "rawBody": "{\"username\":\"alice\",\"item_def\":\"PortXeno\",\"def_name\":\"PortXeno\"}",
++     "rawBody": "{\"username\":\"alice\",\"item_def\":\"PortXeno\",\"def_name\":\"wrong-xenotype\"}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": "no-store",
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-rimworld-parity.test.tsx:34:485
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

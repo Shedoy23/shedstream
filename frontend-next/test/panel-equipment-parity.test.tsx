@@ -6,8 +6,10 @@ const closers: (() => void)[] = [];
 afterEach(() => { cleanup(); closers.splice(0).forEach(close => close()); vi.useRealTimers(); });
 function normalized(trace: (LegacyRequest | Trace)[]) {
   return trace.map(request => { const body = structuredClone(request.body) as Record<string, any> | null;
-    if (body?.data?.client_action_id) body.data.client_action_id = '<client-id>';
-    return { method: request.method, path: request.path, query: request.query, body, token: request.token, contentType: request.contentType, cache: request.cache };
+    const id=body?.data?.client_action_id;
+    if (id) body.data.client_action_id = '<client-id>';
+    const rawBody=id?request.rawBody!.replace(JSON.stringify(id),JSON.stringify('<client-id>')):request.rawBody;
+    return { method: request.method, path: request.path, query: request.query, body, rawBody, token: request.token, contentType: request.contentType, cache: request.cache };
   });
 }
 async function pair(equipment: unknown = f.equipment_inventory, action: unknown = f.equipment_buy.response) {
@@ -30,6 +32,7 @@ for (const mode of ['inventory', 'stash'] as const) for (const item of f.equipme
   const p = await pair(mode === 'stash' ? f.equipment_stash : f.equipment_inventory); await p.click(`[data-bnr-eq-buy="${item.item_id}"]`); await p.finish();
   expect(p.next.trace.map(r => r.path)).toEqual(['/api/bannerlord/equipment-shop','/api/bannerlord/action','/api/viewer/stats/alice','/api/user/level/alice','/api/duel/list']);
 });
+it('equipment trace retains exact raw POST bytes before random ID normalization',async()=>{const p=await pair();await p.click(`[data-bnr-eq-buy="${f.equipment_inventory.items[0].item_id}"]`);const sent=p.next.trace.find(q=>q.method==='POST') as Trace & {rawBody?:string};expect(sent.rawBody,'equipment raw request bytes must be recorded, not reconstructed from parsed JSON').toBe(JSON.stringify(sent.body));});
 for (const item of f.equipment_direct.items) for (const option of item.purchase_options) it(`old/new direct buy ${item.item_id} in ${option.slot} via real danger modal`, async () => {
   const p = await pair(f.equipment_direct, f.equipment_direct_buy.response);
   await p.change(`[data-bnr-eq-purchase-slot="${item.item_id}"]`, option.slot); await p.click(`[data-bnr-eq-buy="${item.item_id}"]`);

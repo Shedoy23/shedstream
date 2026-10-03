@@ -1,0 +1,83 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute control: exact game ID, quote, context and amount and complete success tail 1423ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute cunning: exact game ID, quote, context and amount and complete success tail 579ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute endurance: exact game ID, quote, context and amount and complete success tail 410ms
+ тЬУ test/panel-usage-host.test.tsx > actual PanelApp batches exposures, real transitions and action intent with complete old/new 30s request parity 2582ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute intelligence: exact game ID, quote, context and amount and complete success tail 530ms
+ тЬУ test/panel-usage-host.test.tsx > actual hidden-page event flushes once, visibility and rerenders never count additional same-day exposures 536ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute social: exact game ID, quote, context and amount and complete success tail 446ms
+ тЬУ test/panel-usage-host.test.tsx > an initially hidden authorized PanelApp records no exposure until it becomes visible 456ms
+stderr | test/panel-usage-host.test.tsx > same-task exact-choice duplicate clicks count two attempts while only one action is dispatched
+[buyAction] duplicate-click guarded bannerlord:hero.add_attribute:amount=1&attribute_key=vigor&expected_cost_gold=22&expected_value=2&progression_context=[object Object]
+
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute vigor: exact game ID, quote, context and amount and complete success tail 502ms
+ тЬУ test/panel-usage-host.test.tsx > same-task exact-choice duplicate clicks count two attempts while only one action is dispatched 711ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Engineering: exact key+amount and complete success tail 492ms
+ тЬУ test/panel-usage-host.test.tsx > the synchronous BnrBuilds family guard suppresses the second click before telemetry dispatch 478ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Medicine: exact key+amount and complete success tail 442ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Steward: exact key+amount and complete success tail 433ms
+ тЬУ test/panel-usage-host.test.tsx > a hung telemetry request never delays a real action, its result or its refresh tail 650ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Trade: exact key+amount and complete success tail 500ms
+ тЬУ test/panel-usage-host.test.tsx > telemetry exceptions cannot reject or stall the controller action dispatcher 512ms
+ тЬУ test/panel-usage-host.test.tsx > real Twitch token re-resolution blocks telemetry and discards the old context on authorization 311ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Leadership: exact key+amount and complete success tail 438ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Charm: exact key+amount and complete success tail 485ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Roguery: exact key+amount and complete success tail 381ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Tactics: exact key+amount and complete success tail 381ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Scouting: exact key+amount and complete success tail 421ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Crafting: exact key+amount and complete success tail 494ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Athletics: exact key+amount and complete success tail 429ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Riding: exact key+amount and complete success tail 368ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Throwing: exact key+amount and complete success tail 527ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Crossbow: exact key+amount and complete success tail 626ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Bow: exact key+amount and complete success tail 564ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Polearm: exact key+amount and complete success tail 555ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus TwoHanded: exact key+amount and complete success tail 295ms
+ тЬУ test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus OneHanded: exact key+amount and complete success tail 287ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class archer 126ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class assassin 166ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class berserk 183ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class crossbow 179ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class horse_archer 175ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class knight 183ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > legacy class tank 171ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > specialization guardian 374ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > specialization assault 348ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > specialization marksman 333ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > specialization mobility 319ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > starter infantry 345ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > starter two_handed 405ms
+ тЬУ test/panel-development-parity.test.tsx > actual emitted catalogs vs new Preact request parity > starter archer 434ms
+ тЬУ test/panel-development-parity.test.tsx > same-current catalog selections and unavailable kits produce no mutation 493ms
+ тЬУ test/panel-development-parity.test.tsx > pending new-build state never exposes selectable legacy controls 282ms
+ тЬУ test/panel-development-parity.test.tsx > battle new-build state never exposes selectable legacy controls 176ms
+ тЬУ test/panel-development-parity.test.tsx > syncing new-build state never exposes selectable legacy controls 154ms
+ тЬУ test/panel-development-parity.test.tsx > preserves money server refusal and exact full request tail 324ms
+ тЬУ test/panel-development-parity.test.tsx > preserves role server refusal and exact full request tail 305ms
+ тЬУ test/panel-development-parity.test.tsx > preserves unknown server refusal and exact full request tail 255ms
+ тЬУ test/panel-development-parity.test.tsx > preserves cooldown server refusal and exact full request tail 288ms
+ тЬУ test/panel-development-parity.test.tsx > shows game prices and legitimate zero regardless of legacy config 377ms
+ тЬУ test/panel-development-parity.test.tsx > respects game-provided unavailable purchase offers without assuming vanilla caps 747ms
+ тЬУ test/panel-development-parity.test.tsx > manual refresh uses actual old refresh control and entire selected-host reads 352ms
+ тЬУ test/panel-development-parity.test.tsx > same-frame build-family clicks [data-bnr-build-spec="assault"] then [data-bnr-build-spec="marksman"] preserve the actual old single flight 331ms
+ тЬУ test/panel-development-parity.test.tsx > same-frame build-family clicks [data-bnr-build-spec="assault"] then [data-bnr-build-starter="infantry"] preserve the actual old single flight 208ms
+ тЬУ test/panel-development-parity.test.tsx > same-frame build-family clicks [data-bnr-build-starter="infantry"] then [data-bnr-build-spec="assault"] preserve the actual old single flight 217ms
+ тЬУ test/panel-development-parity.test.tsx > absent hero has no old or new progression controls 124ms
+ тЬУ test/panel-development-parity.test.tsx > dead hero has no old or new progression controls 96ms
+ тЬУ test/panel-development-parity.test.tsx > claimed starter preserves the old information-only state 154ms
+stderr | test/panel-development-parity.test.tsx > same-frame duplicate progression clicks have the exact old single POST and immediate reads
+[buyAction] duplicate-click guarded bannerlord:hero.add_attribute:amount=1&attribute_key=vigor&expected_cost_gold=22&expected_value=2&progression_context=[object Object]
+
+ тЬУ test/panel-development-parity.test.tsx > same-frame duplicate progression clicks have the exact old single POST and immediate reads 325ms
+ тЬУ test/panel-development-parity.test.tsx > missing legacy config does not override authoritative game progression quotes 348ms
+
+ Test Files  2 passed (2)
+      Tests  65 passed (65)
+   Start at  13:38:02
+   Duration  26.33s (tests 75%, environment 13%, import 8%, transform 4%)
+

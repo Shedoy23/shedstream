@@ -1,4 +1,4 @@
-export interface TwitchAuthorization { token: string; channelId: string; userId: string }
+export interface TwitchAuthorization { token: string; channelId: string; userId: string; clientId?: string }
 export interface TwitchHelper { onAuthorized(callback: (authorization: TwitchAuthorization) => void): void }
 
 // A single host-owned instance, in memory only. Tokens are never logged or persisted.

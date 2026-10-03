@@ -1,0 +1,76 @@
+{
+  "provenance": {
+    "base": "d5a6fef",
+    "database": "owned temporary SQLite",
+    "outward_messaging": "disabled",
+    "proof": "request.from_user bob produces partner carol; server source unchanged"
+  },
+  "responses": {
+    "config": {
+      "voting_min_bid": 50,
+      "voting_min_pledge": 100,
+      "voting_bid_presets": [
+        50,
+        500,
+        5000,
+        50000
+      ],
+      "voting_pledge_presets": [
+        100,
+        500,
+        5000,
+        50000
+      ],
+      "guild_create_cost": 100000,
+      "divorce_cost": 500,
+      "tts_cost": 5000,
+      "tts_max_len": 200
+    },
+    "single": {
+      "married": false
+    },
+    "propose": {
+      "success": true,
+      "message": "💍 Предложение отправлено @bob! Ждём ответа..."
+    },
+    "proposals": {
+      "proposals": [
+        "carol",
+        "bob"
+      ]
+    },
+    "accept_wrong_target": {
+      "request": {
+        "username": "alice",
+        "from_user": "bob"
+      },
+      "response": {
+        "success": true,
+        "message": "💒 @carol и @alice теперь в браке!"
+      },
+      "status": {
+        "married": true,
+        "partner": "carol"
+      }
+    },
+    "married": {
+      "married": true,
+      "partner": "carol"
+    },
+    "divorce": {
+      "success": true,
+      "message": "💔 Развод оформлен (-500💎)"
+    },
+    "divorce_refused": {
+      "success": false,
+      "message": "Ты не в браке"
+    },
+    "reject": {
+      "success": true,
+      "message": "💔 Предложение от @bob отклонено"
+    },
+    "empty_proposals": {
+      "proposals": []
+    }
+  }
+}

@@ -17,7 +17,7 @@ function harness() {
     const fixture = { vassals: [{ id: 1, vassal_name: 'Old clan' }], heirs: [] };
     let mutate = async () => ({ success: true });
     let respond = async url => ({ success: true, ...(url.includes('eligible-heirs') ? { heirs: fixture.heirs } : { vassals: fixture.vassals }) });
-    const context = vm.createContext({ window, document, API_URL: 'https://fixture.invalid', authToken: jwt(), userId: 'Uviewer-a', _authUserId: 'viewer-a',
+    const context = vm.createContext({ window, document, AbortController, clearTimeout() {}, API_URL: 'https://fixture.invalid', authToken: jwt(), userId: 'Uviewer-a', _authUserId: 'viewer-a',
         atob: value => Buffer.from(value, 'base64').toString('binary'),
         escapeHtml: value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
         console: { info() {}, warn() {}, error() {} }, ShedLink: { registerGame() {} },
@@ -134,9 +134,10 @@ await test('dynasty HTTP fanout is deferred but opening preserves real summaries
         clan_info: { is_leader: true }, gold: 10000 }, equipment: {}, retinue: [] }
         : { success: true, heirs: [{ name: 'Known heir' }], vassals: [{ id: 1, vassal_name: 'Known vassal' }], children: [], incoming: [], outgoing: [] });
     await h.invoke('loadBannerlordHero()'); await flush();
-    assert.equal(h.requests.length, 1, 'hidden dynasty should issue only the hero request');
+    assert.equal(h.requests.length, 3, 'hidden dynasty reads hero and the two game metadata snapshots');
+    assert.deepEqual(h.requests.map(url => url.split('/').at(-1)), ['my-hero', 'content-catalogs', 'progression']);
     h.invoke('_setBnrInnerTab("dynasty")'); await flush();
-    assert.equal(h.requests.length, 13, 'opening issues the existing 12 dynasty HTTP requests');
+    assert.equal(h.requests.length, 15, 'opening adds the existing 12 dynasty HTTP requests');
     assert.match(h.query('#bnr-heir-slot').textContent, /Known heir/);
     assert.match(h.query('#bnr-vassals-slot').textContent, /Known vassal/);
     for (const id of ['bnr-workshops-slot', 'bnr-caravans-slot', 'bnr-party-orders-slot']) assert(h.query('#' + id + ' summary'), id + ' summary remains available');
@@ -144,7 +145,7 @@ await test('dynasty HTTP fanout is deferred but opening preserves real summaries
     await h.invoke('loadBannerlordHero()'); await flush();
     assert(h.query('#bnr-workshops-slot summary'), 'collapsed summary is still rendered on refresh');
     h.invoke('_setBnrInnerTab("combat")'); const before = h.requests.length;
-    await h.invoke('loadBannerlordHero()'); await flush(); assert.equal(h.requests.length, before + 1);
+    await h.invoke('loadBannerlordHero()'); await flush(); assert.equal(h.requests.length, before + 3);
 });
 for (const poll of [false, true]) await test('JWT refresh keeps cached rename handler alive (poll=' + poll + ')', async () => {
     const h = harness(); await h.invoke('loadBannerlordVassals()'); h.context.authToken = jwt('viewer-a', 'channel-a', '2');

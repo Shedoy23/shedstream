@@ -1,0 +1,327 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord leaving the integration tab stops hidden dynasty reads while core polls continue
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord leaving the integration tab stops hidden dynasty reads while core polls continue
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord leaving the integration tab stops hidden dynasty reads while core polls continue
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЭп test/panel-game-bootstrap-parity.test.tsx (12 tests | 1 failed | 11 skipped) 2166ms
+   ├Ч bannerlord leaving the integration tab stops hidden dynasty reads while core polls continue 2163ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord leaving the integration tab stops hidden dynasty reads while core polls continue
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(95) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(69) ]
+
+- Expected
++ Received
+
+@@ -512,10 +512,140 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
++     "path": "/api/bannerlord/heirs",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/my-children",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/proposals",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/vassals",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/eligible-heirs",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/party-orders",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/kingdom-state",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/ransom-pool",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/my-workshops",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/my-fiefs",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/my-caravans",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/inheritance-log",
++     "query": "?limit=15",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+@@ -683,10 +813,140 @@
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/bannerlord/daily-status",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/heirs",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/my-children",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/proposals",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/vassals",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/eligible-heirs",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/party-orders",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/kingdom-state",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/ransom-pool",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/my-workshops",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/my-fiefs",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/my-caravans",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/inheritance-log",
++     "query": "?limit=15",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+
+ тЭп Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ тЭп test/panel-game-bootstrap-parity.test.tsx:52:292
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 11 skipped (12)
+   Start at  18:17:18
+   Duration  7.01s (tests 32%, import 26%, environment 24%, transform 17%)
+

@@ -1,0 +1,66 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (32 tests | 1 failed | 31 skipped) 1793ms
+   × rimworld integration tab records the same complete minute telemetry 1787ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld integration tab records the same complete minute telemetry
+AssertionError: expected [ { method: 'GET', …(7) }, …(29) ] to deeply equal [ { method: 'GET', …(7) }, …(31) ]
+
+- Expected
++ Received
+
+@@ -182,30 +182,10 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/rimworld/my-pawn/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/rimworld/heal-cooldown/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+      "path": "/api/notices",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+
+ ❯ Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation cl…
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ ❯ test/panel-rimworld-parity.test.tsx:46:279
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 31 skipped (32)
+   Start at  17:45:45
+   Duration  5.95s (environment 41%, tests 32%, import 19%, transform 8%)
+

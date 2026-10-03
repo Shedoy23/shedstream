@@ -1,0 +1,351 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЬУ test/panel-core.test.tsx > keeps only the server-resolved login, clears it during refresh/switch/detach, and ignores old resolver 45ms
+ тЬУ test/panel-core.test.tsx > captures JWT once, adds client_action_id once and deduplicates exact choices only 15ms
+ тЬУ test/panel-core.test.tsx > renders real attributes, all 24 progression controls and server catalog choices 209ms
+ тЬУ test/panel-core.test.tsx > uses exact game attribute quote, immediate read and complete successful delayed tail 1160ms
+ тЬУ test/panel-core.test.tsx > fails closed for missing or malformed game prices and preserves legitimate zero 132ms
+ тЬУ test/panel-core.test.tsx > preserves arbitrary refusal, applies server cooldown and stops pre-action polls erasing it 27ms
+ тЬУ test/panel-core.test.tsx > does not starve slow polls or accept reverse-order state 13ms
+ тЬУ test/panel-core.test.tsx > never applies old identity action completion or runs its balance/tail under the new viewer 17ms
+ тЬУ test/panel-core.test.tsx > absent/dead hero has no mutation controls and enabled-but-syncing never falls back to classes 101ms
+stdout | test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-core.test.tsx > manual refresh recovers missing prices and classes without reloading the document 523ms
+ тЬУ test/panel-core.test.tsx > failed new-build refresh removes stale enabled choices without exposing legacy picker 78ms
+stdout | test/panel-policy-catalog.test.tsx > game policy catalog supplies custom IDs/names/descriptions and exact unchanged old action bytes
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-core.test.tsx > manual refresh recovers malformed focus tiers [] 582ms
+ тЬУ test/panel-core.test.tsx > manual refresh recovers malformed focus tiers [3] 431ms
+ тЬУ test/panel-core.test.tsx > manual refresh recovers malformed focus tiers {"0":3} 397ms
+ тЬУ test/panel-core.test.tsx > manual refresh recovers malformed focus tiers null 364ms
+ тЬУ test/panel-core.test.tsx > synchronously serializes different specialization and kit buttons within one render frame 71ms
+ тЬУ test/panel-core.test.tsx > a build GET started before acknowledgement cannot release local pending 12ms
+ тЬУ test/panel-core.test.tsx > a 20-second unknown action outcome blocks duplicate and different purchases while reads remain possible 14ms
+ тЬУ test/panel-core.test.tsx > ignores a genuinely reverse-ordered older hero response 17ms
+ тЬУ test/panel-core.test.tsx > accepted action with lost response blocks that identity across token rotation but not another viewer 12ms
+ тЬУ test/panel-core.test.tsx > a definite server refusal is retryable and does not create unknown-outcome blocking 9ms
+ тЬУ test/panel-core.test.tsx > unknown-outcome disables visible mutation controls while refresh and another identity stay usable 549ms
+ тЬУ test/panel-core.test.tsx > an already rendered action button cannot dispatch during token identity verification 76ms
+ тЬУ test/panel-core.test.tsx > missing randomUUID uses the inherited action-ID fallback without entering unknown-outcome lock 5ms
+ тЬУ test/panel-core.test.tsx > a local pre-fetch request construction error cannot imply server acceptance or lock later actions 5ms
+ тЬУ test/panel-core.test.tsx > matches legacy JWT ownership for a successful action tail after same-viewer token refresh 11ms
+ ├Ч test/panel-usage-host.test.tsx > actual PanelApp batches exposures, real transitions and action intent with complete old/new 30s request parity 4342ms
+   тЖТ complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(46) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(44) ]
+ тЬУ test/panel-policy-catalog.test.tsx > game policy catalog supplies custom IDs/names/descriptions and exact unchanged old action bytes 4547ms
+stdout | test/panel-policy-catalog.test.tsx > missing policy catalog has no guessed choices and admits no policy intent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-usage-host.test.tsx > actual hidden-page event flushes once, visibility and rerenders never count additional same-day exposures 885ms
+ тЬУ test/panel-core.test.tsx > late old-JWT acceptance refreshes same-viewer balance but cannot create wrapper cooldown or hero tail 25ms
+ тЬУ test/panel-core.test.tsx > accepted build remains pending across same-viewer JWT rotation and prevents a second choice 24ms
+ тЬУ test/panel-core.test.tsx > unchanged legacy build continuation keeps the same pending guard after JWT rotation 1100ms
+ тЬУ test/panel-core.test.tsx > pre-accept build read cannot clear an accepted old-JWT build pending state 8ms
+ тЬУ test/panel-policy-catalog.test.tsx > missing policy catalog has no guessed choices and admits no policy intent 979ms
+stdout | test/panel-policy-catalog.test.tsx > changed game policy catalog cancels the paid confirmation for the displayed choice
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence 5569ms
+   тЖТ Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ тЬУ test/panel-usage-host.test.tsx > an initially hidden authorized PanelApp records no exposure until it becomes visible 655ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stderr | test/panel-usage-host.test.tsx > same-task exact-choice duplicate clicks count two attempts while only one action is dispatched
+[buyAction] duplicate-click guarded bannerlord:hero.add_attribute:amount=1&attribute_key=vigor&expected_cost_gold=22&expected_value=2&progression_context=[object Object]
+
+ тЬУ test/panel-policy-catalog.test.tsx > changed game policy catalog cancels the paid confirmation for the displayed choice 846ms
+ тЬУ test/panel-usage-host.test.tsx > same-task exact-choice duplicate clicks count two attempts while only one action is dispatched 964ms
+ тЬУ test/panel-usage-host.test.tsx > the synchronous BnrBuilds family guard suppresses the second click before telemetry dispatch 530ms
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails 2346ms
+ ├Ч test/panel-usage-host.test.tsx > a hung telemetry request never delays a real action, its result or its refresh tail 744ms
+   тЖТ complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(52) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(50) ]
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ├Ч test/panel-usage-host.test.tsx > telemetry exceptions cannot reject or stall the controller action dispatcher 551ms
+   тЖТ complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(19) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(17) ]
+ тЬУ test/panel-usage-host.test.tsx > real Twitch token re-resolution blocks telemetry and discards the old context on authorization 283ms
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails 1688ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails 1672ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_royal_guard exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_royal_guard exact existing ID/name and complete local/generic tails 1433ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_sacred_majesty exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_sacred_majesty exact existing ID/name and complete local/generic tails 1462ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_trial_by_jury exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_trial_by_jury exact existing ID/name and complete local/generic tails 1280ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_imperial_towns exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_imperial_towns exact existing ID/name and complete local/generic tails 1183ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_noble_retinues exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_noble_retinues exact existing ID/name and complete local/generic tails 1881ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_lords_privy_council exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_lords_privy_council exact existing ID/name and complete local/generic tails 1951ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails 1621ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_serfdom exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_serfdom exact existing ID/name and complete local/generic tails 1218ms
+stdout | test/panel-diplomacy-parity.test.tsx > policy policy_citizenship exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > policy policy_citizenship exact existing ID/name and complete local/generic tails 1112ms
+stdout | test/panel-diplomacy-parity.test.tsx > real policy state pending1/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > real policy state pending1/enacted0 442ms
+stdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted1
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted1 586ms
+stdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted0 647ms
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute -200
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute -200 1249ms
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 0 1129ms
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 20000
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 20000 1424ms
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 100.9
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 100.9 1404ms
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute  1351ms
+stdout | test/panel-diplomacy-parity.test.tsx > direct peace has no Enter binding, requires two trimmed characters and keeps polling draft
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > direct peace has no Enter binding, requires two trimmed characters and keeps polling draft 635ms
+stdout | test/panel-diplomacy-parity.test.tsx > tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh 962ms
+stdout | test/panel-diplomacy-parity.test.tsx > tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh 907ms
+stdout | test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh 981ms
+stdout | test/panel-diplomacy-parity.test.tsx > tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh 975ms
+stdout | test/panel-diplomacy-parity.test.tsx > #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback 1835ms
+stdout | test/panel-diplomacy-parity.test.tsx > #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback 925ms
+stdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail 500ms
+stdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-peace-confirm preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > real refusal #bnr-peace-confirm preserves exact message and legacy tail 510ms
+stdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-tax-pct="25"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > real refusal [data-tax-pct="25"] preserves exact message and legacy tail 409ms
+stdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-war-propose preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > real refusal #bnr-war-propose preserves exact message and legacy tail 446ms
+stdout | test/panel-diplomacy-parity.test.tsx > outer collapsed card and inner details preserve telemetry, reads and user state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > outer collapsed card and inner details preserve telemetry, reads and user state 1549ms
+stdout | test/panel-diplomacy-parity.test.tsx > no kingdom is informational and genuine nohero clears Politics
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > no kingdom is informational and genuine nohero clears Politics 292ms
+stdout | test/panel-diplomacy-parity.test.tsx > vassal sees policies/votes but no direct peace or tax
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > vassal sees policies/votes but no direct peace or tax 353ms
+stdout | test/panel-diplomacy-parity.test.tsx > unknown active law retains server badge without adding selectable invented policy
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЬУ test/panel-diplomacy-parity.test.tsx > unknown active law retains server badge without adding selectable invented policy 441ms
+
+тОптОптОптОптОптОптОп Failed Tests 4 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ тЭп test/panel-diplomacy-parity.test.tsx:6:1
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/4]тОп
+
+ FAIL  test/panel-usage-host.test.tsx > actual PanelApp batches exposures, real transitions and action intent with complete old/new 30s request parity
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(46) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(44) ]
+
+- Expected
++ Received
+
+@@ -112,10 +112,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.check test/panel-usage-host.test.tsx:64:189
+
+ тЭп test/panel-usage-host.test.tsx:82:71
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/4]тОп
+
+ FAIL  test/panel-usage-host.test.tsx > a hung telemetry request never delays a real action, its result or its refresh tail
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(52) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(50) ]
+
+- Expected
++ Received
+
+@@ -362,10 +362,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.check test/panel-usage-host.test.tsx:64:189
+
+ тЭп test/panel-usage-host.test.tsx:119:28
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/4]тОп
+
+ FAIL  test/panel-usage-host.test.tsx > telemetry exceptions cannot reject or stall the controller action dispatcher
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(19) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(17) ]
+
+- Expected
++ Received
+
+@@ -94,10 +94,28 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/content-catalogs",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
++     "cache": "no-store",
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/bannerlord/progression",
++     "query": "",
++     "token": "alice-token",
++   },
++   {
++     "body": null,
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+
+ тЭп Object.check test/panel-usage-host.test.tsx:64:189
+
+ тЭп test/panel-usage-host.test.tsx:125:28
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/4]тОп
+
+
+ Test Files  2 failed | 2 passed (4)
+      Tests  4 failed | 73 passed (77)
+   Start at  13:36:48
+   Duration  50.77s (tests 74%, environment 14%, import 8%, transform 4%)
+

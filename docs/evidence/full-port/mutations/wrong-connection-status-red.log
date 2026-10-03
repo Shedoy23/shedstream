@@ -1,0 +1,28 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-commerce-parity.test.tsx (15 tests | 1 failed | 14 skipped) 1007ms
+   × Bannerlord commerce boots actual shop progression and connection status in original request order 1004ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 skipped (15)
+   Start at  18:57:55
+   Duration  5.86s (environment 40%, import 25%, tests 18%, transform 17%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord commerce boots actual shop progression and connection status in original request order
+AssertionError: expected '🔴 Оффлайн' to contain 'Онлайн'
+
+Expected: "Онлайн"
+Received: "🔴 Оффлайн"
+
+ ❯ test/panel-commerce-parity.test.tsx:18:417
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

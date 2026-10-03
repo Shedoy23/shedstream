@@ -1,0 +1,312 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-children-parity.test.tsx > children and heirs retain complete initial reads and observed names
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children and heirs retain complete initial reads and observed names
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children proposal accept keeps exact ID boolean and 1500ms family tail
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children proposal accept keeps exact ID boolean and 1500ms family tail
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children proposal reject keeps exact ID boolean and 1500ms family tail
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children proposal reject keeps exact ID boolean and 1500ms family tail
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children cancel warns and preserves the original proposal ID and continuation
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children cancel warns and preserves the original proposal ID and continuation
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children rename preserves the exact child and edited text with paid confirmation
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children rename preserves the exact child and edited text with paid confirmation
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children looks preserves the exact child and edited text with paid confirmation
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children looks preserves the exact child and edited text with paid confirmation
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children respec preserves irreversible warning and has no invented local family tail
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children respec preserves irreversible warning and has no invented local family tail
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children propose uses normalized username and the selected actual child ID
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children propose uses normalized username and the selected actual child ID
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children refusal keeps the server reason and original refresh requests
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children refusal keeps the server reason and original refresh requests
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children stale editor cannot rename a child removed by a fresh observation
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children stale editor cannot rename a child removed by a fresh observation
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+stdout | test/panel-children-parity.test.tsx > children missing price never copies a fifty-crustic rename fallback
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-children-parity.test.tsx > children missing price never copies a fifty-crustic rename fallback
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+
+ тЭп test/panel-children-parity.test.tsx (11 tests | 11 failed) 4531ms
+   ├Ч children and heirs retain complete initial reads and observed names 1330ms
+   ├Ч children proposal accept keeps exact ID boolean and 1500ms family tail 409ms
+   ├Ч children proposal reject keeps exact ID boolean and 1500ms family tail 292ms
+   ├Ч children cancel warns and preserves the original proposal ID and continuation 295ms
+   ├Ч children rename preserves the exact child and edited text with paid confirmation 325ms
+   ├Ч children looks preserves the exact child and edited text with paid confirmation 503ms
+   ├Ч children respec preserves irreversible warning and has no invented local family tail 330ms
+   ├Ч children propose uses normalized username and the selected actual child ID 289ms
+   ├Ч children refusal keeps the server reason and original refresh requests 265ms
+   ├Ч children stale editor cannot rename a child removed by a fresh observation 238ms
+   ├Ч children missing price never copies a fifty-crustic rename fallback 249ms
+
+тОптОптОптОптОптОп Failed Tests 11 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-children-parity.test.tsx > children and heirs retain complete initial reads and observed names
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(10) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(13) ]
+
+- Expected
++ Received
+
+@@ -72,40 +72,10 @@
+    {
+      "body": null,
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/heirs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-children",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/proposals",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+      "path": "/api/bannerlord/my-workshops",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+
+ тЭп Object.check test/panel-hero-support.tsx:51:102
+
+ тЭп test/panel-children-parity.test.tsx:19:107
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/11]тОп
+
+ FAIL  test/panel-children-parity.test.tsx > children proposal accept keeps exact ID boolean and 1500ms family tail
+ FAIL  test/panel-children-parity.test.tsx > children proposal reject keeps exact ID boolean and 1500ms family tail
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-children-parity.test.tsx:20:278
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/11]тОп
+
+ FAIL  test/panel-children-parity.test.tsx > children cancel warns and preserves the original proposal ID and continuation
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-children-parity.test.tsx:21:222
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/11]тОп
+
+ FAIL  test/panel-children-parity.test.tsx > children rename preserves the exact child and edited text with paid confirmation
+ FAIL  test/panel-children-parity.test.tsx > children looks preserves the exact child and edited text with paid confirmation
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-children-parity.test.tsx:24:75
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/11]тОп
+
+ FAIL  test/panel-children-parity.test.tsx > children respec preserves irreversible warning and has no invented local family tail
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-children-parity.test.tsx:27:193
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/11]тОп
+
+ FAIL  test/panel-children-parity.test.tsx > children propose uses normalized username and the selected actual child ID
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-children-parity.test.tsx:30:75
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/11]тОп
+
+ FAIL  test/panel-children-parity.test.tsx > children refusal keeps the server reason and original refresh requests
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-children-parity.test.tsx:35:214
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/11]тОп
+
+ FAIL  test/panel-children-parity.test.tsx > children stale editor cannot rename a child removed by a fresh observation
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-children-parity.test.tsx:36:120
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[8/11]тОп
+
+ FAIL  test/panel-children-parity.test.tsx > children missing price never copies a fifty-crustic rename fallback
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(10) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(13) ]
+
+- Expected
++ Received
+
+@@ -72,40 +72,10 @@
+    {
+      "body": null,
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/heirs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-children",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/proposals",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+      "path": "/api/bannerlord/my-workshops",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+
+ тЭп Object.check test/panel-hero-support.tsx:51:102
+
+ тЭп test/panel-children-parity.test.tsx:37:196
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[9/11]тОп
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  11 failed | 21 passed (32)
+   Start at  15:05:41
+   Duration  17.17s (tests 55%, environment 25%, import 13%, transform 6%)
+
+Environment  jsdom was created 3 times ┬╖ 6.53s total, 25% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

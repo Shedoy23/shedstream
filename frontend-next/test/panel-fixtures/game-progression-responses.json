@@ -1,0 +1,1341 @@
+{
+  "provenance": {
+    "base_merge": "e66e82098f894bc8f6e0dbe9598ddf2516088636",
+    "handlers": [
+      "routes.bannerlord.bannerlord_content_catalogs",
+      "routes.bannerlord.bannerlord_progression",
+      "routes.bannerlord._bannerlord_buy_action_locked"
+    ],
+    "database": "owned temporary SQLite, full merged migrations",
+    "live_game": false,
+    "metadata": "representative simulated game snapshots through real store_catalog/store_inventory; never frontend defaults"
+  },
+  "responses": {
+    "catalogs_missing": {
+      "success": true,
+      "save_id": "save-a",
+      "equipment_session_id": "session-a",
+      "cultures": {
+        "available": false,
+        "reason": "content_catalog_not_ready",
+        "entries": []
+      },
+      "policies": {
+        "available": false,
+        "reason": "content_catalog_not_ready",
+        "entries": []
+      },
+      "skills": {
+        "available": false,
+        "reason": "content_catalog_not_ready",
+        "entries": []
+      },
+      "attributes": {
+        "available": false,
+        "reason": "content_catalog_not_ready",
+        "entries": []
+      },
+      "workshop_types": {
+        "available": false,
+        "reason": "content_catalog_not_ready",
+        "entries": []
+      }
+    },
+    "progression_missing": {
+      "success": true,
+      "ready": false,
+      "pending": false,
+      "reason": "progression_not_ready",
+      "message": "Игра ещё не передала возможности прокачки этого героя.",
+      "context": {
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice"
+      },
+      "progression": {
+        "random_xp_reason_text": null
+      },
+      "xp_offers": [
+        {
+          "id": "500",
+          "crusticov": 500,
+          "price": 500,
+          "xp": 50,
+          "available": false,
+          "reason": "progression_not_ready",
+          "reason_text": "Игра ещё не передала возможности прокачки этого героя."
+        },
+        {
+          "id": "1000",
+          "crusticov": 1000,
+          "price": 1000,
+          "xp": 100,
+          "available": false,
+          "reason": "progression_not_ready",
+          "reason_text": "Игра ещё не передала возможности прокачки этого героя."
+        },
+        {
+          "id": "5000",
+          "crusticov": 5000,
+          "price": 5000,
+          "xp": 500,
+          "available": false,
+          "reason": "progression_not_ready",
+          "reason_text": "Игра ещё не передала возможности прокачки этого героя."
+        }
+      ]
+    },
+    "catalogs": {
+      "success": true,
+      "save_id": "save-a",
+      "equipment_session_id": "session-a",
+      "cultures": {
+        "available": true,
+        "reason": null,
+        "entries": [
+          {
+            "id": "Mod.Culture-X",
+            "name": "Культура из игры",
+            "description": "Описание из игрового каталога",
+            "available": true
+          }
+        ],
+        "catalog_seq": 1
+      },
+      "policies": {
+        "available": true,
+        "reason": null,
+        "entries": [
+          {
+            "id": "Mod.Policy-X",
+            "name": "Закон из игры",
+            "description": "Текст закона из игры"
+          }
+        ],
+        "catalog_seq": 1
+      },
+      "skills": {
+        "available": true,
+        "reason": null,
+        "entries": [
+          {
+            "id": "Engineering",
+            "name": "Engineering",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Medicine",
+            "name": "Medicine",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Steward",
+            "name": "Steward",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Trade",
+            "name": "Trade",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Leadership",
+            "name": "Leadership",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Charm",
+            "name": "Charm",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Roguery",
+            "name": "Roguery",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Tactics",
+            "name": "Tactics",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Scouting",
+            "name": "Scouting",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Crafting",
+            "name": "Crafting",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Athletics",
+            "name": "Athletics",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Riding",
+            "name": "Riding",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Throwing",
+            "name": "Throwing",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Crossbow",
+            "name": "Crossbow",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Bow",
+            "name": "Bow",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "Polearm",
+            "name": "Polearm",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "TwoHanded",
+            "name": "TwoHanded",
+            "description": "Описание навыка из игры"
+          },
+          {
+            "id": "OneHanded",
+            "name": "OneHanded",
+            "description": "Описание навыка из игры"
+          }
+        ],
+        "catalog_seq": 1
+      },
+      "attributes": {
+        "available": true,
+        "reason": null,
+        "entries": [
+          {
+            "id": "control",
+            "name": "control",
+            "description": "Описание атрибута из игры"
+          },
+          {
+            "id": "cunning",
+            "name": "cunning",
+            "description": "Описание атрибута из игры"
+          },
+          {
+            "id": "endurance",
+            "name": "endurance",
+            "description": "Описание атрибута из игры"
+          },
+          {
+            "id": "intelligence",
+            "name": "intelligence",
+            "description": "Описание атрибута из игры"
+          },
+          {
+            "id": "social",
+            "name": "social",
+            "description": "Описание атрибута из игры"
+          },
+          {
+            "id": "vigor",
+            "name": "vigor",
+            "description": "Описание атрибута из игры"
+          }
+        ],
+        "catalog_seq": 1
+      },
+      "workshop_types": {
+        "available": true,
+        "reason": null,
+        "entries": [
+          {
+            "id": "Mod.Workshop-X",
+            "name": "Мастерская из игры",
+            "description": "Тип из WorkshopType.All"
+          }
+        ],
+        "catalog_seq": 1
+      }
+    },
+    "progression": {
+      "success": true,
+      "ready": true,
+      "pending": false,
+      "reason": null,
+      "message": null,
+      "context": {
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice"
+      },
+      "progression": {
+        "version": 1,
+        "random_xp_available": true,
+        "skills": [
+          {
+            "id": "Engineering",
+            "level": 200,
+            "focus": 2,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 7,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Medicine",
+            "level": 190,
+            "focus": 1,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 8,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Steward",
+            "level": 180,
+            "focus": 0,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 9,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Trade",
+            "level": 170,
+            "focus": 4,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 10,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Leadership",
+            "level": 160,
+            "focus": 3,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 11,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Charm",
+            "level": 150,
+            "focus": 2,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 12,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Roguery",
+            "level": 140,
+            "focus": 1,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 13,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Tactics",
+            "level": 130,
+            "focus": 0,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 14,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Scouting",
+            "level": 120,
+            "focus": 4,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 15,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Crafting",
+            "level": 110,
+            "focus": 3,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 16,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Athletics",
+            "level": 100,
+            "focus": 2,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 17,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Riding",
+            "level": 90,
+            "focus": 1,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 18,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Throwing",
+            "level": 80,
+            "focus": 0,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 19,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Crossbow",
+            "level": 70,
+            "focus": 4,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 20,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Bow",
+            "level": 60,
+            "focus": 3,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 21,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Polearm",
+            "level": 50,
+            "focus": 2,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 22,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "TwoHanded",
+            "level": 40,
+            "focus": 1,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 23,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "OneHanded",
+            "level": 30,
+            "focus": 0,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 24,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          }
+        ],
+        "attributes": [
+          {
+            "id": "control",
+            "value": 3,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 17,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "cunning",
+            "value": 5,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 18,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "endurance",
+            "value": 4,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 19,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "intelligence",
+            "value": 7,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 20,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "social",
+            "value": 6,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 21,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "vigor",
+            "value": 2,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 22,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          }
+        ],
+        "random_xp_reason_text": null
+      },
+      "xp_offers": [
+        {
+          "id": "500",
+          "crusticov": 500,
+          "price": 500,
+          "xp": 50,
+          "available": true,
+          "reason": null,
+          "reason_text": null
+        },
+        {
+          "id": "1000",
+          "crusticov": 1000,
+          "price": 1000,
+          "xp": 100,
+          "available": true,
+          "reason": null,
+          "reason_text": null
+        },
+        {
+          "id": "5000",
+          "crusticov": 5000,
+          "price": 5000,
+          "xp": 500,
+          "available": true,
+          "reason": null,
+          "reason_text": null
+        }
+      ]
+    },
+    "focus_success": {
+      "request": {
+        "action_type": "hero.add_focus",
+        "data": {
+          "skill_key": "Engineering",
+          "amount": 1,
+          "expected_cost_gold": 7,
+          "expected_value": 2,
+          "progression_context": {
+            "save_id": "save-a",
+            "equipment_session_id": "session-a",
+            "hero_id": "test_hero_alice"
+          }
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "cff329ac43ff4b05aca82749ce317620",
+        "charged": 0,
+        "message": "⚔️ Action hero.add_focus в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 10
+      }
+    },
+    "progression_pending": {
+      "success": true,
+      "ready": true,
+      "pending": true,
+      "reason": "pending",
+      "message": "Предыдущая прокачка ещё выполняется.",
+      "context": {
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice"
+      },
+      "progression": {
+        "version": 1,
+        "random_xp_available": true,
+        "skills": [
+          {
+            "id": "Engineering",
+            "level": 200,
+            "focus": 2,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 7,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Medicine",
+            "level": 190,
+            "focus": 1,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 8,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Steward",
+            "level": 180,
+            "focus": 0,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 9,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Trade",
+            "level": 170,
+            "focus": 4,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 10,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Leadership",
+            "level": 160,
+            "focus": 3,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 11,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Charm",
+            "level": 150,
+            "focus": 2,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 12,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Roguery",
+            "level": 140,
+            "focus": 1,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 13,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Tactics",
+            "level": 130,
+            "focus": 0,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 14,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Scouting",
+            "level": 120,
+            "focus": 4,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 15,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Crafting",
+            "level": 110,
+            "focus": 3,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 16,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Athletics",
+            "level": 100,
+            "focus": 2,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 17,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Riding",
+            "level": 90,
+            "focus": 1,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 18,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Throwing",
+            "level": 80,
+            "focus": 0,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 19,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Crossbow",
+            "level": 70,
+            "focus": 4,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 20,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Bow",
+            "level": 60,
+            "focus": 3,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 21,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "Polearm",
+            "level": 50,
+            "focus": 2,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 22,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "TwoHanded",
+            "level": 40,
+            "focus": 1,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 23,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          },
+          {
+            "id": "OneHanded",
+            "level": 30,
+            "focus": 0,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 24,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          }
+        ],
+        "attributes": [
+          {
+            "id": "control",
+            "value": 3,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 17,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "cunning",
+            "value": 5,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 18,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "endurance",
+            "value": 4,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 19,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "intelligence",
+            "value": 7,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 20,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "social",
+            "value": 6,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 21,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          },
+          {
+            "id": "vigor",
+            "value": 2,
+            "limit": 14,
+            "native_limit": 17,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 22,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          }
+        ],
+        "random_xp_reason_text": null
+      },
+      "xp_offers": [
+        {
+          "id": "500",
+          "crusticov": 500,
+          "price": 500,
+          "xp": 50,
+          "available": false,
+          "reason": "pending",
+          "reason_text": "Предыдущая прокачка ещё выполняется."
+        },
+        {
+          "id": "1000",
+          "crusticov": 1000,
+          "price": 1000,
+          "xp": 100,
+          "available": false,
+          "reason": "pending",
+          "reason_text": "Предыдущая прокачка ещё выполняется."
+        },
+        {
+          "id": "5000",
+          "crusticov": 5000,
+          "price": 5000,
+          "xp": 500,
+          "available": false,
+          "reason": "pending",
+          "reason_text": "Предыдущая прокачка ещё выполняется."
+        }
+      ]
+    },
+    "attribute_success": {
+      "request": {
+        "action_type": "hero.add_attribute",
+        "data": {
+          "attribute_key": "control",
+          "amount": 1,
+          "expected_cost_gold": 17,
+          "expected_value": 3,
+          "progression_context": {
+            "save_id": "save-a",
+            "equipment_session_id": "session-a",
+            "hero_id": "test_hero_alice"
+          }
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "8651adf5f89748f08bb7a2cf869e6668",
+        "charged": 0,
+        "message": "⚔️ Action hero.add_attribute в очереди (0💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 30
+      }
+    },
+    "xp_success": {
+      "request": {
+        "action_type": "hero.add_skill",
+        "data": {
+          "price": 500,
+          "expected_platform_price": 500,
+          "progression_context": {
+            "save_id": "save-a",
+            "equipment_session_id": "session-a",
+            "hero_id": "test_hero_alice"
+          }
+        }
+      },
+      "response": {
+        "success": true,
+        "action_id": "3499354cccc24dd8bbe4ba3c7513ae31",
+        "charged": 500,
+        "message": "⚔️ Action hero.add_skill в очереди (500💎 списано)",
+        "perk": "viewer",
+        "perk_price_mult": 1.0,
+        "cooldown_applied_s": 3
+      }
+    },
+    "quote_changed": {
+      "request": {
+        "action_type": "hero.add_focus",
+        "data": {
+          "skill_key": "Engineering",
+          "amount": 1,
+          "expected_cost_gold": 999,
+          "expected_value": 2,
+          "progression_context": {
+            "save_id": "save-a",
+            "equipment_session_id": "session-a",
+            "hero_id": "test_hero_alice"
+          }
+        }
+      },
+      "response": {
+        "success": false,
+        "reason": "progression_quote_changed",
+        "message": "Цена или значение изменились. Обнови панель и подтверди заново."
+      }
+    },
+    "context_changed": {
+      "request": {
+        "action_type": "hero.add_focus",
+        "data": {
+          "skill_key": "Engineering",
+          "amount": 1,
+          "expected_cost_gold": 7,
+          "expected_value": 2,
+          "progression_context": {
+            "save_id": "save-a",
+            "equipment_session_id": "session-a",
+            "hero_id": "other"
+          }
+        }
+      },
+      "response": {
+        "success": false,
+        "reason": "progression_changed",
+        "message": "Герой или игровая сессия изменились. Обнови панель."
+      }
+    },
+    "progression_mod": {
+      "success": true,
+      "ready": true,
+      "pending": false,
+      "reason": null,
+      "message": null,
+      "context": {
+        "save_id": "save-a",
+        "equipment_session_id": "session-a",
+        "hero_id": "test_hero_alice"
+      },
+      "progression": {
+        "version": 1,
+        "random_xp_available": true,
+        "skills": [
+          {
+            "id": "Mod.Skill",
+            "level": 401,
+            "focus": 7,
+            "focus_limit": 9,
+            "native_focus_limit": 11,
+            "xp_available": true,
+            "focus_options": [
+              {
+                "amount": 1,
+                "cost_gold": 0,
+                "available": true,
+                "reason_text": null
+              }
+            ],
+            "xp_reason_text": null
+          }
+        ],
+        "attributes": [
+          {
+            "id": "Mod.Attribute",
+            "value": 12,
+            "limit": 18,
+            "native_limit": 20,
+            "options": [
+              {
+                "amount": 1,
+                "cost_gold": 9,
+                "available": true,
+                "reason_text": null
+              }
+            ]
+          }
+        ],
+        "random_xp_reason_text": null
+      },
+      "xp_offers": [
+        {
+          "id": "500",
+          "crusticov": 500,
+          "price": 500,
+          "xp": 50,
+          "available": true,
+          "reason": null,
+          "reason_text": null
+        },
+        {
+          "id": "1000",
+          "crusticov": 1000,
+          "price": 1000,
+          "xp": 100,
+          "available": true,
+          "reason": null,
+          "reason_text": null
+        },
+        {
+          "id": "5000",
+          "crusticov": 5000,
+          "price": 5000,
+          "xp": 500,
+          "available": true,
+          "reason": null,
+          "reason_text": null
+        }
+      ]
+    }
+  }
+}

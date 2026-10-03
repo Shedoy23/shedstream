@@ -1,0 +1,32 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-usage-server-contract.test.ts (1 test | 1 failed) 26ms
+   ├Ч the unchanged server validator accepts an actual new collector batch, rejects extra personal data 25ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-usage-server-contract.test.ts > the unchanged server validator accepts an actual new collector batch, rejects extra personal data
+Error: spawnSync python EPERM
+ тЭп test/panel-usage-server-contract.test.ts:21:20
+     19|     // Python + PyYAML are existing backend test requirements. No backтАж
+     20|     // or DB is changed; this executes the current canonical manifest тАж
+     21|     const result = execFileSync(process.env.PANEL_BACKEND_PYTHON || (pтАж
+       |                    ^
+     22|       'import copy,json,sys', 'from ui_usage import validate_batch', 'тАж
+     23|       'for key in ("token","login","coordinates","payload"):', '    baтАж
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed | 37 passed | 2 skipped (40)
+      Tests  1 failed | 939 passed | 2 skipped (942)
+   Start at  09:42:51
+   Duration  227.40s (tests 75%, environment 19%, import 5%, transform 1%)
+
+    Isolate  40 workers spawned ┬╖ ~2.41s startup each (spawn + environment, per file)
+             at least ~45.82s faster with isolate: false тАФ reuses workers across files instead of one per file
+

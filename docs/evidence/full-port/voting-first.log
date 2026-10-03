@@ -1,0 +1,56 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-voting-parity.test.tsx (7 tests | 1 failed) 5867ms
+   ├Ч voting finished result survives the poll, dismiss refreshes, and closing unsubscribes 962ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-voting-parity.test.tsx > voting finished result survives the poll, dismiss refreshes, and closing unsubscribes
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(22) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(21) ]
+
+- Expected
++ Received
+
+@@ -153,10 +153,20 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
++     "path": "/api/voting/status",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
+      "path": "/api/notices",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп test/panel-voting-parity.test.tsx:33:139
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  12:12:23
+   Duration  11.74s (tests 52%, environment 31%, import 13%, transform 4%)
+

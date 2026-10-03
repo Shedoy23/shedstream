@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (37 tests | 1 failed | 36 skipped) 2225ms
+   × rimworld event preserves string ID full minute continuation and server price 2220ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 36 skipped (37)
+   Start at  20:18:35
+   Duration  7.71s (environment 40%, tests 30%, import 19%, transform 11%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld event preserves string ID full minute continuation and server price
+AssertionError: expected [ { method: 'GET', …(7) }, …(33) ] to deeply equal [ { method: 'GET', …(7) }, …(33) ]
+
+- Expected
++ Received
+
+@@ -178,17 +178,17 @@
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"username\":\"alice\",\"event_id\":\"mod-event\"}",
++     "body": "{\"username\":\"alice\",\"event_id\":\"wrong-event\"}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/rimworld/trigger-event",
+      "query": "",
+-     "rawBody": "{\"username\":\"alice\",\"event_id\":\"mod-event\"}",
++     "rawBody": "{\"username\":\"alice\",\"event_id\":\"wrong-event\"}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": "no-store",
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-rimworld-parity.test.tsx:37:315
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

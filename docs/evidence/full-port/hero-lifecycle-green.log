@@ -1,0 +1,21 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero culture creation uses the game catalog and exact complete legacy traffic 257ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero random creation uses the game catalog and exact complete legacy traffic 98ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > random creation remains compatible with a missing catalog and sends no fabricated context 69ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > an available empty culture catalog refuses creation without guessing cultures 53ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation false restores the warning bypassed by old _bnrConfirm 154ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation true restores the warning bypassed by old _bnrConfirm 67ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > a newly observed living hero invalidates the old respawn confirmation 67ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > a detached culture button cannot use its former catalog session 65ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero creation preserves the current server refusal without a success tail 51ms
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  13:58:32
+   Duration  3.17s (environment 37%, tests 30%, import 23%, transform 10%)
+

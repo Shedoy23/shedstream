@@ -1,0 +1,84 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-shell-parity.test.ts (8 tests | 2 failed) 5192ms
+   ├Ч statistics tab, manual refresh and minute polling preserve all full-shell traffic 268ms
+   ├Ч attendance reward refreshes balance and statistics even while the statistics tab is closed 1545ms
+
+тОптОптОптОптОптОптОп Failed Tests 2 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-shell-parity.test.ts > statistics tab, manual refresh and minute polling preserve all full-shell traffic
+TypeError: p.runtime.selectTab is not a function
+ тЭп test/panel-shell-parity.test.ts:72:126
+     70| });
+     71| it('statistics tab, manual refresh and minute polling preserve all fulтАж
+     72|   const p = await pair(); await p.old.click('.tab[data-tab="stats"]');тАж
+       |                                                                                                                              ^
+     73|   await p.old.click('#stats-refresh-btn'); document.dispatchEvent(new тАж
+     74|   await p.advance(61000); p.check(); expect(p.runtime.snapshot().statiтАж
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/2]тОп
+
+ FAIL  test/panel-shell-parity.test.ts > attendance reward refreshes balance and statistics even while the statistics tab is closed
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(59) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(62) ]
+
+- Expected
++ Received
+
+@@ -520,40 +520,10 @@
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/achievements/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/streak/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+
+ тЭп Object.check test/panel-shell-parity.test.ts:40:337
+
+ тЭп test/panel-shell-parity.test.ts:77:149
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/2]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed (8)
+   Start at  11:29:47
+   Duration  9.43s (tests 58%, environment 32%, import 5%, transform 5%, worker 1%)
+

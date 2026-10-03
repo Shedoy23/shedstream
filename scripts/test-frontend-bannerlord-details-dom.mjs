@@ -16,7 +16,7 @@ function harness(slotId) {
     const data = { success: true, has_hero: true, kingdom_id: 'kingdom', kingdom_name: 'Kingdom', is_king: true,
         is_clan_leader: true, vassals: [], heirs: [{ hero_id: 'heir-1', name: 'Heir' }],
         workshops: [], caravans: [], fiefs: [{ fief_id: 'town-1', fief_name: 'Town', fief_type: 'town' }] };
-    const context = vm.createContext({ window, document, API_URL: 'https://fixture.invalid', authToken: 'fixture',
+    const context = vm.createContext({ window, document, AbortController, clearTimeout() {}, API_URL: 'https://fixture.invalid', authToken: 'fixture',
         _cachedUserPoints: 100000, escapeHtml: value => String(value),
         console: { info() {}, warn: (...args) => errors.push(args.map(String).join(' ')), error: (...args) => errors.push(args.map(String).join(' ')) },
         ShedLink: { registerGame: (name, spec) => { games[name] = spec; }, usage: { trackSection: key => events.push(key) } },

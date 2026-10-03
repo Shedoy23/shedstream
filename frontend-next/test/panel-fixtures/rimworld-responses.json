@@ -1,0 +1,627 @@
+{
+  "provenance": {
+    "base": "e6abb9b",
+    "database": "owned temporary SQLite",
+    "outward_messaging": "disabled",
+    "catalog": "fictional game fixture ingested through actual mod routes; all prices returned by server"
+  },
+  "responses": {
+    "config": {
+      "spawn_cost": 200,
+      "heal_cost": 150,
+      "resurrect_cost": 500,
+      "trait_remove_cost": 300,
+      "gene_remove_cost": 3000,
+      "progressive": {
+        "trait_base": 1000,
+        "gene_base": 1000,
+        "formula": "base * (owned + 1)"
+      },
+      "passion_upgrade_prices": {
+        "0": 500,
+        "1": 1500
+      },
+      "passion_reset_price": 300
+    },
+    "empty_pawn": {
+      "exists": false
+    },
+    "pawn": {
+      "exists": true,
+      "pawn_name": "Алиса",
+      "is_alive": true,
+      "health": 0.73,
+      "world_id": "world-A",
+      "world_name": "Долина",
+      "equipment": [
+        {
+          "slot": "weapon",
+          "item_def": "PortSword",
+          "label": "Меч поселенца",
+          "name": "Меч поселенца",
+          "hp": 61,
+          "tooltip": "Описание меча",
+          "max_hp": 100,
+          "quality": "excellent",
+          "description": "Старый меч",
+          "weapon_traits": [
+            "Точный"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "def_name": "Construction",
+          "name": "Construction",
+          "level": 9,
+          "passion": 1,
+          "xp": 137.0,
+          "disabled": false,
+          "is_disabled": false
+        },
+        {
+          "def_name": "Shooting",
+          "name": "Shooting",
+          "level": 4,
+          "passion": 0,
+          "xp": 0.0,
+          "disabled": false,
+          "is_disabled": false
+        },
+        {
+          "def_name": "Artistic",
+          "name": "Artistic",
+          "level": 0,
+          "passion": 0,
+          "xp": 0.0,
+          "disabled": true,
+          "is_disabled": true
+        }
+      ],
+      "traits": [
+        {
+          "def_name": "OldTrait",
+          "degree": -1,
+          "label": "Задумчивый",
+          "desc": "Из наблюдаемого состояния"
+        }
+      ],
+      "hediffs": [
+        {
+          "part": "торс",
+          "label": "Ушиб",
+          "severity": 0.21,
+          "age_ticks": 123,
+          "def_name": "",
+          "part_def": "",
+          "is_paired": false,
+          "is_left": null
+        },
+        {
+          "part": "левая рука",
+          "label": "Парная рука",
+          "severity": 0.0,
+          "age_ticks": 0,
+          "def_name": "PortArm",
+          "part_def": "Arm",
+          "is_paired": true,
+          "is_left": true
+        }
+      ],
+      "genes": [
+        {
+          "def_name": "OldGene",
+          "label": "Старый ген",
+          "is_active": false,
+          "xenogene": true,
+          "gene_class": "mod-gene"
+        }
+      ]
+    },
+    "colonists": {
+      "colonists": [
+        {
+          "username": "alice",
+          "pawn_name": "Алиса",
+          "is_alive": true,
+          "health": 73.0
+        }
+      ]
+    },
+    "status": {
+      "online": false
+    },
+    "catalog": {
+      "items": [
+        {
+          "category": "gene",
+          "def_name": "PortGene",
+          "label": "Зоркость",
+          "description": "",
+          "price": 1000,
+          "base_price": 1000,
+          "tech_level": "",
+          "purchase_count": 0,
+          "next_price": 2000
+        },
+        {
+          "category": "implant",
+          "def_name": "PortHeart",
+          "label": "Сердце",
+          "description": "",
+          "price": 419,
+          "base_price": 0,
+          "tech_level": ""
+        },
+        {
+          "category": "implant",
+          "def_name": "PortArm",
+          "label": "Парная рука",
+          "description": "",
+          "price": 811,
+          "base_price": 0,
+          "tech_level": "",
+          "is_paired": true
+        },
+        {
+          "category": "neurotrainer",
+          "def_name": "PortTrainer",
+          "label": "Урок строительства",
+          "description": "",
+          "price": 317,
+          "base_price": 0,
+          "tech_level": ""
+        },
+        {
+          "category": "trait",
+          "def_name": "PortTrait:1",
+          "label": "Упорный",
+          "description": "",
+          "price": 1000,
+          "base_price": 1000,
+          "tech_level": "",
+          "purchase_count": 0,
+          "next_price": 2000,
+          "trait_def": "PortTrait",
+          "degree": 1
+        },
+        {
+          "category": "weapon",
+          "def_name": "PortSword",
+          "label": "Меч поселенца",
+          "description": "Меч из каталога игры",
+          "price": 713,
+          "base_price": 0,
+          "tech_level": "",
+          "tooltip": "Описание меча"
+        },
+        {
+          "category": "xenotype",
+          "def_name": "PortXeno",
+          "label": "Путник",
+          "description": "",
+          "price": 1211,
+          "base_price": 0,
+          "tech_level": "",
+          "source_mod": "Fixture Colony",
+          "has_archite": false,
+          "genes": [
+            {
+              "def_name": "PortGene",
+              "label": "Зоркость"
+            }
+          ]
+        }
+      ],
+      "total": 7
+    },
+    "events": {
+      "events": [
+        {
+          "id": "mod-event",
+          "name": "Гости из долины",
+          "cost": 613,
+          "category": "Гости"
+        }
+      ]
+    },
+    "skills": {
+      "skills": [
+        {
+          "def_name": "Construction",
+          "label": "Строительство",
+          "level": 9,
+          "passion": 1,
+          "is_disabled": false,
+          "upgrade_price": 1500,
+          "reset_price": 300
+        },
+        {
+          "def_name": "Shooting",
+          "label": "Стрельба",
+          "level": 4,
+          "passion": 0,
+          "is_disabled": false,
+          "upgrade_price": 500,
+          "reset_price": null
+        },
+        {
+          "def_name": "Artistic",
+          "label": "Искусство",
+          "level": 2,
+          "passion": 0,
+          "is_disabled": true,
+          "upgrade_price": null,
+          "reset_price": null
+        }
+      ]
+    },
+    "cooldown": {
+      "cooldown_left": 0
+    },
+    "neurotrainer": {
+      "items": [
+        {
+          "category": "neurotrainer",
+          "def_name": "PortTrainer",
+          "label": "Урок строительства",
+          "description": "",
+          "price": 317,
+          "base_price": 0,
+          "tech_level": ""
+        }
+      ],
+      "total": 1
+    },
+    "xenotype": {
+      "items": [
+        {
+          "category": "xenotype",
+          "def_name": "PortXeno",
+          "label": "Путник",
+          "description": "",
+          "price": 1211,
+          "base_price": 0,
+          "tech_level": "",
+          "source_mod": "Fixture Colony",
+          "has_archite": false,
+          "genes": [
+            {
+              "def_name": "PortGene",
+              "label": "Зоркость"
+            }
+          ]
+        }
+      ],
+      "total": 1
+    },
+    "create": {
+      "success": true,
+      "message": "✨ Пешка создаётся! -200💎"
+    },
+    "heal": {
+      "success": true,
+      "message": "💊 Лечение! -150💎"
+    },
+    "heal_refused": {
+      "success": false,
+      "cooldown_left": 899,
+      "message": "⏳ Лечение будет доступно через 14:59"
+    },
+    "resurrect": {
+      "success": true,
+      "message": "✨ Воскрешение! -500💎"
+    },
+    "item": {
+      "success": true,
+      "message": "✅ Меч поселенца куплен за 713💎!"
+    },
+    "implant": {
+      "success": true,
+      "message": "🔧 Сердце устанавливается! -419💎"
+    },
+    "paired_implant": {
+      "success": true,
+      "message": "🔧 Парная рука (правая) устанавливается! -811💎"
+    },
+    "neuro": {
+      "success": true,
+      "message": "рџ§  Урок строительства применяется! -317💎"
+    },
+    "xeno": {
+      "success": true,
+      "message": "✅ Путник куплен за 1211💎!"
+    },
+    "trait": {
+      "success": true,
+      "message": "🧬 Черта «Упорный» добавляется! -1000💎 (черта №1)"
+    },
+    "gene": {
+      "success": true,
+      "message": "🧬 Ген «Зоркость» добавляется! -1000💎 (ген №1)"
+    },
+    "catalog_after": {
+      "items": [
+        {
+          "category": "gene",
+          "def_name": "PortGene",
+          "label": "Зоркость",
+          "description": "",
+          "price": 2000,
+          "base_price": 1000,
+          "tech_level": "",
+          "purchase_count": 1,
+          "next_price": 3000
+        },
+        {
+          "category": "implant",
+          "def_name": "PortHeart",
+          "label": "Сердце",
+          "description": "",
+          "price": 419,
+          "base_price": 0,
+          "tech_level": ""
+        },
+        {
+          "category": "implant",
+          "def_name": "PortArm",
+          "label": "Парная рука",
+          "description": "",
+          "price": 811,
+          "base_price": 0,
+          "tech_level": "",
+          "is_paired": true
+        },
+        {
+          "category": "neurotrainer",
+          "def_name": "PortTrainer",
+          "label": "Урок строительства",
+          "description": "",
+          "price": 317,
+          "base_price": 0,
+          "tech_level": ""
+        },
+        {
+          "category": "trait",
+          "def_name": "PortTrait:1",
+          "label": "Упорный",
+          "description": "",
+          "price": 2000,
+          "base_price": 1000,
+          "tech_level": "",
+          "purchase_count": 1,
+          "next_price": 3000,
+          "trait_def": "PortTrait",
+          "degree": 1
+        },
+        {
+          "category": "weapon",
+          "def_name": "PortSword",
+          "label": "Меч поселенца",
+          "description": "Меч из каталога игры",
+          "price": 713,
+          "base_price": 0,
+          "tech_level": "",
+          "tooltip": "Описание меча"
+        },
+        {
+          "category": "xenotype",
+          "def_name": "PortXeno",
+          "label": "Путник",
+          "description": "",
+          "price": 1211,
+          "base_price": 0,
+          "tech_level": "",
+          "source_mod": "Fixture Colony",
+          "has_archite": false,
+          "genes": [
+            {
+              "def_name": "PortGene",
+              "label": "Зоркость"
+            }
+          ]
+        }
+      ],
+      "total": 7
+    },
+    "remove_trait": {
+      "success": true,
+      "message": "🧬 Черта «OldTrait» удаляется! -300💎"
+    },
+    "remove_gene": {
+      "success": true,
+      "message": "🧬 Ген «Старый ген» удаляется! -3000💎"
+    },
+    "passion": {
+      "success": true,
+      "message": "⭐ Стрельба: страсть повышена! -500💎"
+    },
+    "reset": {
+      "success": true,
+      "message": "— Строительство: страсть сброшена! -300💎"
+    },
+    "event": {
+      "success": true,
+      "message": "Гости из долины активирован! (-613💎)"
+    },
+    "catalog_final": {
+      "items": [
+        {
+          "category": "gene",
+          "def_name": "PortGene",
+          "label": "Зоркость",
+          "description": "",
+          "price": 1000,
+          "base_price": 1000,
+          "tech_level": "",
+          "purchase_count": 0,
+          "next_price": 2000
+        },
+        {
+          "category": "implant",
+          "def_name": "PortHeart",
+          "label": "Сердце",
+          "description": "",
+          "price": 419,
+          "base_price": 0,
+          "tech_level": ""
+        },
+        {
+          "category": "implant",
+          "def_name": "PortArm",
+          "label": "Парная рука",
+          "description": "",
+          "price": 811,
+          "base_price": 0,
+          "tech_level": "",
+          "is_paired": true
+        },
+        {
+          "category": "neurotrainer",
+          "def_name": "PortTrainer",
+          "label": "Урок строительства",
+          "description": "",
+          "price": 317,
+          "base_price": 0,
+          "tech_level": ""
+        },
+        {
+          "category": "trait",
+          "def_name": "PortTrait:1",
+          "label": "Упорный",
+          "description": "",
+          "price": 2000,
+          "base_price": 1000,
+          "tech_level": "",
+          "purchase_count": 1,
+          "next_price": 3000,
+          "trait_def": "PortTrait",
+          "degree": 1
+        },
+        {
+          "category": "weapon",
+          "def_name": "PortSword",
+          "label": "Меч поселенца",
+          "description": "Меч из каталога игры",
+          "price": 713,
+          "base_price": 0,
+          "tech_level": "",
+          "tooltip": "Описание меча"
+        },
+        {
+          "category": "xenotype",
+          "def_name": "PortXeno",
+          "label": "Путник",
+          "description": "",
+          "price": 1211,
+          "base_price": 0,
+          "tech_level": "",
+          "source_mod": "Fixture Colony",
+          "has_archite": false,
+          "genes": [
+            {
+              "def_name": "PortGene",
+              "label": "Зоркость"
+            }
+          ]
+        }
+      ],
+      "total": 7
+    },
+    "cooldown_after": {
+      "cooldown_left": 899
+    },
+    "dead_pawn": {
+      "exists": true,
+      "pawn_name": "Алиса",
+      "is_alive": false,
+      "health": 0.0,
+      "world_id": "world-A",
+      "world_name": "Долина",
+      "equipment": [
+        {
+          "slot": "weapon",
+          "item_def": "PortSword",
+          "label": "Меч поселенца",
+          "name": "Меч поселенца",
+          "hp": 61,
+          "tooltip": "Описание меча",
+          "max_hp": 100,
+          "quality": "excellent",
+          "description": "Старый меч",
+          "weapon_traits": [
+            "Точный"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "def_name": "Construction",
+          "name": "Construction",
+          "level": 9,
+          "passion": 1,
+          "xp": 137.0,
+          "disabled": false,
+          "is_disabled": false
+        },
+        {
+          "def_name": "Shooting",
+          "name": "Shooting",
+          "level": 4,
+          "passion": 0,
+          "xp": 0.0,
+          "disabled": false,
+          "is_disabled": false
+        },
+        {
+          "def_name": "Artistic",
+          "name": "Artistic",
+          "level": 0,
+          "passion": 0,
+          "xp": 0.0,
+          "disabled": true,
+          "is_disabled": true
+        }
+      ],
+      "traits": [
+        {
+          "def_name": "OldTrait",
+          "degree": -1,
+          "label": "Задумчивый",
+          "desc": "Из наблюдаемого состояния"
+        }
+      ],
+      "hediffs": [
+        {
+          "part": "торс",
+          "label": "Ушиб",
+          "severity": 0.21,
+          "age_ticks": 123,
+          "def_name": "",
+          "part_def": "",
+          "is_paired": false,
+          "is_left": null
+        },
+        {
+          "part": "левая рука",
+          "label": "Парная рука",
+          "severity": 0.0,
+          "age_ticks": 0,
+          "def_name": "PortArm",
+          "part_def": "Arm",
+          "is_paired": true,
+          "is_left": true
+        }
+      ],
+      "genes": [
+        {
+          "def_name": "OldGene",
+          "label": "Старый ген",
+          "is_active": false,
+          "xenogene": true,
+          "gene_class": "mod-gene"
+        }
+      ]
+    }
+  }
+}

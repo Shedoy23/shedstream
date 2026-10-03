@@ -34,8 +34,10 @@ async def main():
             assert result.get('reason') == 'inventory_not_ready', result
             await sql("INSERT INTO bannerlord_channel_state(channel_id,current_save_id) VALUES(?,'save-a')", (CHANNEL_ID,))
             await sql("INSERT INTO bannerlord_equipment_sessions(channel_id,session_id,session_ts) VALUES(?,'session-a',1)",(CHANNEL_ID,))
-            sword = {'id':'sword','item_id':'sword','name':'Sword','tier':4,'required_level':1,'price_gold':1000,'category':'one_handed','slots':['weapon0'],'stats':{}}
-            five = {**sword,'id':'tier5','item_id':'tier5','tier':5}
+            # The authenticated game catalog owns requirements; viewer overrides
+            # below still cannot bypass them. Custom values have a separate test.
+            sword = {'id':'sword','item_id':'sword','name':'Sword','tier':4,'required_level':25,'price_gold':1000,'category':'one_handed','slots':['weapon0'],'stats':{}}
+            five = {**sword,'id':'tier5','item_id':'tier5','tier':5,'required_level':30}
             await store_catalog(db, CHANNEL_ID, envelope({'save_id':'save-a','entries':[sword,five]}))
             owned = {'owned_id':'party|sword|fine','item_id':'sword','name':'Sword','tier':4,'slot':None,'slots':['weapon0'],'modifier_id':'fine','source':'party','count':2}
             adapter=BannerlordAdapter(None)

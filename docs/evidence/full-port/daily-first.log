@@ -1,0 +1,54 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero culture creation uses the game catalog and exact complete legacy traffic 834ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero random creation uses the game catalog and exact complete legacy traffic 264ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > random creation remains compatible with a missing catalog and sends no fabricated context 270ms
+ тЬУ test/panel-daily-parity.test.tsx > daily gold keeps exact POST and immediate status plus 1500ms hero and metadata tails 1260ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > an available empty culture catalog refuses creation without guessing cultures 137ms
+ тЬУ test/panel-daily-parity.test.tsx > daily xp keeps exact POST and immediate status plus 1500ms hero and metadata tails 467ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation false restores the warning bypassed by old _bnrConfirm 558ms
+ тЬУ test/panel-daily-parity.test.tsx > daily server refusal retains the exact message and both original refresh continuations 398ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation true restores the warning bypassed by old _bnrConfirm 237ms
+ ├Ч test/panel-daily-parity.test.tsx > daily status never invents missing reward amounts and an already claimed day has no claim buttons 299ms
+   тЖТ expected <button type="button" тАж(2)></button> to be null
+ тЬУ test/panel-hero-lifecycle.test.tsx > a newly observed living hero invalidates the old respawn confirmation 197ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > a detached culture button cannot use its former catalog session 154ms
+ тЬУ test/panel-hero-lifecycle.test.tsx > hero creation preserves the current server refusal without a success tail 153ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-daily-parity.test.tsx > daily status never invents missing reward amounts and an already claimed day has no claim buttons
+AssertionError: expected <button type="button" тАж(2)></button> to be null
+
+- Expected:
+null
+
++ Received:
+<button
+  disabled=""
+  id="bnr-daily-claim-gold"
+  type="button"
+>
+  ╨а╨░╨╖╨╝╨╡╤А ╨╜╨░╨│╤А╨░╨┤╤Л ╨╜╨╡ ╨┐╨╛╨╗╤Г╤З╨╡╨╜
+</button>
+
+ тЭп test/panel-daily-parity.test.tsx:27:65
+     25|   routes['GET /api/bannerlord/daily-status']=h.daily_claimed_gold;
+     26|   await p.old.refreshHero();await act(async()=>{await p.controller.refтАж
+     27|   expect(p.ui.container.querySelector('#bnr-daily-claim-gold')).toBeNuтАж
+       |                                                                 ^
+     28| });
+     29|
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 12 passed (13)
+   Start at  14:08:11
+   Duration  7.94s (environment 36%, tests 36%, import 18%, transform 10%)
+

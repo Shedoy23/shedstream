@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-shell-parity.test.ts (15 tests | 1 failed | 14 skipped) 659ms
+   × whole shell refund notices preserve refresh-before-ack traffic and explain returned currency 655ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 skipped (15)
+   Start at  19:02:28
+   Duration  3.70s (environment 49%, import 22%, tests 19%, transform 10%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-shell-parity.test.ts > whole shell refund notices preserve refresh-before-ack traffic and explain returned currency
+AssertionError: expected [ { method: 'GET', …(7) }, …(13) ] to deeply equal [ { method: 'GET', …(7) }, …(13) ]
+
+- Expected
++ Received
+
+@@ -108,17 +108,17 @@
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"ids\":[51,52]}",
++     "body": "{\"ids\":[999,999]}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/notices/ack",
+      "query": "",
+-     "rawBody": "{\"ids\":[51,52]}",
++     "rawBody": "{\"ids\":[999,999]}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-shell-parity.test.ts:16:29
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

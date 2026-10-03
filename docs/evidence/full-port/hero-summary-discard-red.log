@@ -1,0 +1,332 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-commerce-parity.test.tsx (15 tests | 3 failed) 2555ms
+   ├Ч Bannerlord hero summary keeps observed location culture wins and armor totals 159ms
+   ├Ч Bannerlord legacy discard names the observed item and preserves exact slot-only wire 100ms
+   ├Ч Bannerlord legacy discard cannot delete a replacement item in the observed slot 90ms
+
+тОптОптОптОптОптОптОп Failed Tests 3 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord hero summary keeps observed location culture wins and armor totals
+TestingLibraryElementError: Unable to find an accessible element with the role "region" and name "╨Ъ╨░╤А╤В╨╛╤З╨║╨░ ╨│╨╡╤А╨╛╤П"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "╨Ь╨░╨│╨░╨╖╨╕╨╜ Bannerlord":
+  <section
+    aria-label="╨Ь╨░╨│╨░╨╖╨╕╨╜ Bannerlord"
+    class="panel-card"
+  />
+
+  Name "╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡ ╨┐╤А╨╡╨╢╨╜╨╡╨│╨╛ ╤А╨╡╨╢╨╕╨╝╨░":
+  <section
+    aria-label="╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡ ╨┐╤А╨╡╨╢╨╜╨╡╨│╨╛ ╤А╨╡╨╢╨╕╨╝╨░"
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "╨Ь╨░╨│╨░╨╖╨╕╨╜ Bannerlord":
+  <h2 />
+
+  Name "╨Ф╨╕╨╜╨░╤А╤Л ╨│╨╡╤А╨╛╤О":
+  <h3 />
+
+  Name "╨Ю╨┐╤Л╤В ╨▓ ╤Б╨╗╤Г╤З╨░╨╣╨╜╤Л╨╣ ╨╜╨░╨▓╤Л╨║":
+  <h3 />
+
+  Name "╨б╨╛╨▒╤А╨░╤В╤М ╨░╤А╨╝╨╕╤О":
+  <h3 />
+
+  Name "╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡ ┬╖ T2":
+  <h2 />
+
+  --------------------------------------------------
+  button:
+
+  Name "+5┬а000 ЁЯТ░ ┬╖ 1┬а000 ЁЯТО":
+  <button
+    data-bnr-givegold="1000"
+    disabled=""
+    type="button"
+  />
+
+  Name "+25┬а000 ЁЯТ░ ┬╖ 5┬а000 ЁЯТО":
+  <button
+    data-bnr-givegold="5000"
+    disabled=""
+    type="button"
+  />
+
+  Name "+100┬а000 ЁЯТ░ ┬╖ 20┬а000 ЁЯТО":
+  <button
+    data-bnr-givegold="20000"
+    disabled=""
+    type="button"
+  />
+
+  Name "╨Ъ╤Г╨┐╨╕╤В╤М ╨╛╨┐╤Л╤В":
+  <button
+    data-bnr-skillxp="500"
+    disabled=""
+    type="button"
+  />
+
+  Name "╨Ъ╤Г╨┐╨╕╤В╤М ╨╛╨┐╤Л╤В":
+  <button
+    data-bnr-skillxp="1000"
+    disabled=""
+    type="button"
+  />
+
+  Name "╨Ъ╤Г╨┐╨╕╤В╤М ╨╛╨┐╤Л╤В":
+  <button
+    data-bnr-skillxp="5000"
+    disabled=""
+    type="button"
+  />
+
+  Name "1┬а000 ЁЯТО":
+  <button
+    data-bnr-buy="hero.army_create"
+    disabled=""
+    type="button"
+  />
+
+  Name "╨г╨╗╤Г╤З╤И╨╕╤В╤М ╨┤╨╛ T3 ┬╖ 200┬а000 ЁЯТ░":
+  <button
+    id="bnr-inline-upgrade-btn"
+    type="button"
+  />
+
+  Name "╨Я╨╡╤А╨╡╤Б╨╛╨▒╤А╨░╤В╤М ╤Б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡":
+  <button
+    id="bnr-reequip-btn"
+    type="button"
+  />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  Name "":
+  <article />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    
+    <section
+      aria-label="╨Ь╨░╨│╨░╨╖╨╕╨╜ Bannerlord"
+      class="panel-card"
+    >
+      <h2>
+        ╨Ь╨░╨│╨░╨╖╨╕╨╜ Bannerlord
+      </h2>
+      <p
+        aria-label="╨Я╨╛╨┤╨║╨╗╤О╤З╨╡╨╜╨╕╨╡ Bannerlord"
+      >
+        ЁЯЯв ╨Ю╨╜╨╗╨░╨╣╨╜
+      </p>
+      <h3>
+        ╨Ф╨╕╨╜╨░╤А╤Л ╨│╨╡╤А╨╛╤О
+      </h3>
+      <div
+        class="panel-choices"
+      >
+        <button
+          data-bnr-givegold="1000"
+          disabled=""
+          type="button"
+        >
+          +
+          5┬а000
+           ЁЯТ░ ┬╖ 
+          1┬а000
+           ЁЯТО
+        </button>
+        <button
+          data-bnr-givegold="5000"
+          disabled=""
+          type="button"
+        >
+          +
+          25┬а000
+           ЁЯТ░ ┬╖ 
+          5┬а000
+           ЁЯТО
+        </button>
+        <button
+          data-bnr-givegold="20000"
+          disabled=""
+          type="button"
+        >
+          +
+          100┬а000
+           ЁЯТ░ ┬╖ 
+          20┬а000
+           ЁЯТО
+        </button>
+      </div>
+      <h3>
+        ╨Ю╨┐╤Л╤В ╨▓ ╤Б╨╗╤Г╤З╨░╨╣╨╜╤Л╨╣ ╨╜╨░╨▓╤Л╨║
+      </h3>
+      <div
+        class="panel-choices"
+      >
+        <article>
+          <p>
+            +
+            50
+             XP ┬╖ 
+            500 ЁЯТО
+          </p>
+          <button
+            data-bnr-skillxp="500"
+            disabled=""
+            type="button"
+          >
+            ╨Ъ╤Г╨┐╨╕╤В╤М ╨╛╨┐╤Л╤В
+          </button>
+        </article>
+        <article>
+          <p>
+            +
+            100
+             XP ┬╖ 
+            1┬а000 ЁЯТО
+          </p>
+          <button
+            data-bnr-skillxp="1000"
+            disabled=""
+            type="button"
+          >
+            ╨Ъ╤Г╨┐╨╕╤В╤М ╨╛╨┐╤Л╤В
+          </button>
+        </article>
+        <article>
+          <p>
+            +
+            500
+             XP ┬╖ 
+            5┬а000 ЁЯТО
+          </p>
+          <button
+            data-bnr-skillxp="5000"
+            disabled=""
+            type="button"
+          >
+            ╨Ъ╤Г╨┐╨╕╤В╤М ╨╛╨┐╤Л╤В
+          </button>
+        </article>
+      </div>
+      <article>
+        <h3>
+          ╨б╨╛╨▒╤А╨░╤В╤М ╨░╤А╨╝╨╕╤О
+        </h3>
+        <p>
+          shop
+           ┬╖ ╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╨╡ ╨║╨░╤В╨░╨╗╨╛╨│╨░ ╨╕╨│╤А╤Л
+        </p>
+        <button
+          data-bnr-buy="hero.army_create"
+          disabled=""
+          type="button"
+        >
+          1┬а000 ЁЯТО
+        </button>
+      </article>
+    </section>
+    <section
+      aria-label="╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡ ╨┐╤А╨╡╨╢╨╜╨╡╨│╨╛ ╤А╨╡╨╢╨╕╨╝╨░"
+      class="panel-card"
+    >
+      <h2>
+        ╨б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡ ┬╖ T
+        2
+      </h2>
+      <div
+        class="panel-choices"
+      >
+        <button
+          id="bnr-inline-upgrade-btn"
+          type="button"
+        >
+          ╨г╨╗╤Г╤З╤И╨╕╤В╤М ╨┤╨╛ T
+          3
+           ┬╖ 
+          200┬а000
+           ЁЯТ░
+        </button>
+        <button
+          id="bnr-reequip-btn"
+          type="button"
+        >
+          ╨Я╨╡╤А╨╡╤Б╨╛╨▒╤А╨░╤В╤М ╤Б╨╜╨░╤А╤П╨╢╨╡╨╜╨╕╨╡
+        </button>
+      </div>
+    </section>
+  </div>
+</body>
+ тЭп Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ тЭп test/panel-commerce-parity.test.tsx:27:144
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/3]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord legacy discard names the observed item and preserves exact slot-only wire
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:61:101
+     59|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     60|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     61|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     62|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     63|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:61:46
+ тЭп test/panel-commerce-parity.test.tsx:28:186
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/3]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord legacy discard cannot delete a replacement item in the observed slot
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:61:101
+     59|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     60|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     61|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     62|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     63|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:61:46
+ тЭп test/panel-commerce-parity.test.tsx:29:125
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/3]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 12 passed (15)
+   Start at  16:16:20
+   Duration  5.58s (tests 47%, environment 25%, import 18%, transform 10%)
+

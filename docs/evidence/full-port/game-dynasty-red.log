@@ -1,0 +1,196 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord whole dynasty opening preserves every child request and minute continuation
+[FE-HEIR] loaded 1 heirs: ╨Т╨╖╤А╨╛╤Б╨╗╤Л╨╣ ╨╜╨░╤Б╨╗╨╡╨┤╨╜╨╕╨║
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord whole dynasty opening preserves every child request and minute continuation
+[FE-FAM] loaded children=1 incoming=1 outgoing=1
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord whole dynasty opening preserves every child request and minute continuation
+OLD [
+  '/api/rimworld/my-pawn/alice',
+  '/api/rimworld/catalog',
+  '/api/bannerlord/heirs',
+  '/api/bannerlord/my-children',
+  '/api/bannerlord/proposals',
+  '/api/bannerlord/vassals',
+  '/api/bannerlord/eligible-heirs',
+  '/api/bannerlord/party-orders',
+  '/api/bannerlord/kingdom-state',
+  '/api/bannerlord/ransom-pool',
+  '/api/bannerlord/my-workshops',
+  '/api/bannerlord/my-fiefs',
+  '/api/bannerlord/my-caravans',
+  '/api/bannerlord/inheritance-log',
+  '/api/bannerlord/content-catalogs'
+]
+NEW [
+  '/api/bannerlord/party-orders',
+  '/api/bannerlord/kingdom-state',
+  '/api/bannerlord/content-catalogs',
+  '/api/bannerlord/heirs',
+  '/api/bannerlord/my-children',
+  '/api/bannerlord/proposals',
+  '/api/bannerlord/vassals',
+  '/api/bannerlord/eligible-heirs',
+  '/api/bannerlord/ransom-pool',
+  '/api/bannerlord/my-workshops',
+  '/api/bannerlord/my-fiefs',
+  '/api/bannerlord/my-caravans',
+  '/api/bannerlord/inheritance-log'
+]
+
+ тЭп test/panel-game-bootstrap-parity.test.tsx (11 tests | 1 failed | 10 skipped) 2307ms
+   ├Ч bannerlord whole dynasty opening preserves every child request and minute continuation 2304ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord whole dynasty opening preserves every child request and minute continuation
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(34) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(36) ]
+
+- Expected
++ Received
+
+@@ -222,91 +222,81 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/rimworld/my-pawn/alice",
++     "path": "/api/bannerlord/party-orders",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/rimworld/catalog",
+-     "query": "?username=alice",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/heirs",
++     "path": "/api/bannerlord/kingdom-state",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/my-children",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/proposals",
++     "path": "/api/bannerlord/heirs",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/vassals",
++     "path": "/api/bannerlord/my-children",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/eligible-heirs",
++     "path": "/api/bannerlord/proposals",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/party-orders",
++     "path": "/api/bannerlord/vassals",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/kingdom-state",
++     "path": "/api/bannerlord/eligible-heirs",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+@@ -354,19 +344,9 @@
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/bannerlord/inheritance-log",
+      "query": "?limit=15",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп test/panel-game-bootstrap-parity.test.tsx:51:237
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 skipped (11)
+   Start at  18:14:14
+   Duration  8.71s (environment 29%, tests 28%, import 27%, transform 17%)
+

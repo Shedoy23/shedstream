@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { expect, it } from 'vitest';
-import { createLegacyHarness, legacyResponses, legacySelectors } from './panel-legacy-harness';
+import { createLegacyHarness, legacyResponses, legacySelectors, gameResponses as g } from './panel-legacy-harness';
 
 it('executes actual old rendered progression click and all success follow-ups without unrelated hosts', async () => {
   const old = createLegacyHarness();
@@ -9,7 +9,7 @@ it('executes actual old rendered progression click and all success follow-ups wi
     expect(old.sourceFiles).toHaveLength(23);
     expect(old.trace.map(row => row.path)).toEqual([
       '/api/bannerlord/config', '/api/bannerlord/my-hero', '/api/bannerlord/classes',
-      '/api/bannerlord/build', '/api/bannerlord/my-buffs',
+      '/api/bannerlord/build', '/api/bannerlord/my-buffs', '/api/bannerlord/content-catalogs', '/api/bannerlord/progression',
     ]);
     expect(old.document.querySelectorAll('.bnr-prog-focus-btn')).toHaveLength(18);
     expect(old.document.querySelectorAll('.bnr-prog-attr-btn')).toHaveLength(6);
@@ -17,12 +17,12 @@ it('executes actual old rendered progression click and all success follow-ups wi
     old.trace.length = 0;
     await old.click(legacySelectors.focus('OneHanded'));
     expect(old.trace[0].body).toEqual({ action_type: 'hero.add_focus', data: {
-      skill_key: 'OneHanded', amount: 1, client_action_id: expect.any(String),
+      skill_key: 'OneHanded', amount: 1, expected_cost_gold:g.progression.progression.skills.find(s=>s.id==='OneHanded')!.focus_options[0].cost_gold, expected_value:g.progression.progression.skills.find(s=>s.id==='OneHanded')!.focus, progression_context:g.progression.context, client_action_id: expect.any(String),
     } });
     await old.advance(3500);
     expect(old.trace.map(row => `${row.method} ${row.path}${row.query}`)).toEqual([
       'POST /api/bannerlord/action', 'GET /api/bannerlord/my-hero', 'GET /api/viewer/stats/alice',
-      'GET /api/user/level/alice', 'GET /api/duel/list', 'GET /api/bannerlord/my-hero', 'GET /api/bannerlord/build',
+      'GET /api/user/level/alice', 'GET /api/duel/list', 'GET /api/bannerlord/my-hero', 'GET /api/bannerlord/build', 'GET /api/bannerlord/content-catalogs', 'GET /api/bannerlord/progression',
     ]);
   } finally { old.dispose(); }
 });

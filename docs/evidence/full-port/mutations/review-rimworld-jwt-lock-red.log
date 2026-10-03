@@ -1,0 +1,33 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (37 tests | 2 failed | 35 skipped) 1203ms
+   × review rimworld pending POST settles after same-viewer JWT refresh success=true 924ms
+   × review rimworld pending POST settles after same-viewer JWT refresh success=false 276ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 35 skipped (37)
+   Start at  20:55:35
+   Duration  5.90s (environment 46%, tests 22%, import 21%, transform 11%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > review rimworld pending POST settles after same-viewer JWT refresh success=true
+ FAIL  test/panel-rimworld-parity.test.tsx > review rimworld pending POST settles after same-viewer JWT refresh success=false
+AssertionError: same-viewer definite completion must release the outstanding action: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ test/panel-rimworld-parity.test.tsx:51:234
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+

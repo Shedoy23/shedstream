@@ -1,0 +1,67 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-colony-review.test.tsx (15 tests | 4 failed) 2965ms
+   × review colony six-second responses keep advancing under a five-second poll 40ms
+   × review colony actual rate_limited policy refusal preserves message and permits explicit retry 873ms
+   × review colony actual pending policy refusal preserves message and permits explicit retry 184ms
+   × review colony actual unregistered policy refusal preserves message and permits explicit retry 229ms
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 11 passed (15)
+   Start at  20:14:02
+   Duration  7.59s (tests 42%, environment 41%, import 14%, transform 3%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-colony-review.test.tsx > review colony six-second responses keep advancing under a five-second poll
+AssertionError: first slow snapshot must be applied despite another poll in flight: expected undefined to be 2 // Object.is equality
+
+- Expected:
+2
+
++ Received:
+undefined
+
+ ❯ test/panel-colony-review.test.tsx:25:170
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  test/panel-colony-review.test.tsx > review colony actual rate_limited policy refusal preserves message and permits explicit retry
+AssertionError: expected 'Сервер отказал в действии. Исход заяв…' to be 'Слишком много запросов. Попробуй чере…' // Object.is equality
+
+Expected: "Слишком много запросов. Попробуй через минуту."
+Received: "Сервер отказал в действии. Исход заявки неизвестен; повторная покупка заблокирована до нового входа."
+
+ ❯ test/panel-colony-review.test.tsx:44:271
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  test/panel-colony-review.test.tsx > review colony actual pending policy refusal preserves message and permits explicit retry
+AssertionError: expected 'Сервер отказал в действии. Исход заяв…' to be 'Заявка стримера принята и ждёт подклю…' // Object.is equality
+
+Expected: "Заявка стримера принята и ждёт подключения"
+Received: "Сервер отказал в действии. Исход заявки неизвестен; повторная покупка заблокирована до нового входа."
+
+ ❯ test/panel-colony-review.test.tsx:44:271
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  test/panel-colony-review.test.tsx > review colony actual unregistered policy refusal preserves message and permits explicit retry
+AssertionError: expected 'Сервер отказал в действии. Исход заяв…' to be 'Стример не подключил расширение к пла…' // Object.is equality
+
+Expected: "Стример не подключил расширение к платформе"
+Received: "Сервер отказал в действии. Исход заявки неизвестен; повторная покупка заблокирована до нового входа."
+
+ ❯ test/panel-colony-review.test.tsx:44:271
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+

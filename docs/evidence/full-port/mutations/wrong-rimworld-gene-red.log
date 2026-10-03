@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (37 tests | 1 failed | 36 skipped) 2405ms
+   × rimworld remove gene keeps observed identifier and every success continuation 2398ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 36 skipped (37)
+   Start at  20:18:52
+   Duration  7.41s (environment 36%, tests 34%, import 19%, transform 11%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld remove gene keeps observed identifier and every success continuation
+AssertionError: expected [ { method: 'GET', …(7) }, …(41) ] to deeply equal [ { method: 'GET', …(7) }, …(41) ]
+
+- Expected
++ Received
+
+@@ -178,17 +178,17 @@
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"username\":\"alice\",\"def_name\":\"OldGene\",\"label\":\"Старый ген\"}",
++     "body": "{\"username\":\"alice\",\"def_name\":\"wrong-gene\",\"label\":\"Старый ген\"}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/rimworld/remove-gene",
+      "query": "",
+-     "rawBody": "{\"username\":\"alice\",\"def_name\":\"OldGene\",\"label\":\"Старый ген\"}",
++     "rawBody": "{\"username\":\"alice\",\"def_name\":\"wrong-gene\",\"label\":\"Старый ген\"}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": "no-store",
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-rimworld-parity.test.tsx:24:363
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

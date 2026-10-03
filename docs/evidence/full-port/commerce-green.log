@@ -1,0 +1,107 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-commerce-parity.test.tsx (15 tests | 1 failed) 3023ms
+   ├Ч Bannerlord legacy discard names the observed item and preserves exact slot-only wire 167ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord legacy discard names the observed item and preserves exact slot-only wire
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(16) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(22) ]
+
+- Expected
++ Received
+
+@@ -148,71 +148,11 @@
+    {
+      "body": null,
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+      "path": "/api/bannerlord/build",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+
+ тЭп check test/panel-hero-support.tsx:61:102
+
+ тЭп Object.finish test/panel-hero-support.tsx:65:131
+ тЭп test/panel-commerce-parity.test.tsx:28:394
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 34 passed (35)
+   Start at  16:19:35
+   Duration  10.30s (tests 42%, environment 30%, import 18%, transform 10%)
+
+Environment  jsdom was created 4 times ┬╖ 5.90s total, 30% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

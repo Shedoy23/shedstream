@@ -1,0 +1,35 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-colony-shell-outcome.test.tsx (10 tests | 1 failed | 9 skipped) 1008ms
+   × colony shell unknown response before-refresh stays blocked after held same-viewer JWT resolution 1006ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 skipped (10)
+   Start at  20:55:08
+   Duration  5.42s (environment 47%, import 23%, tests 20%, transform 10%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-colony-shell-outcome.test.tsx > colony shell unknown response before-refresh stays blocked after held same-viewer JWT resolution
+AssertionError: same-viewer remount must not send a second paid POST after an unknown outcome: expected [ { …(5) }, { …(5) } ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ test/panel-colony-shell-outcome.test.tsx:84:115
+     82|   await ready();
+     83|   if(timing==='after-remount')await act(async()=>{held.reject(new Erro…
+     84|   await p.buy();expect(p.posts(),'same-viewer remount must not send a …
+       |                                                                                                                   ^
+     85|   expect(p.button().disabled).toBe(true);expect(p.ui.container.textCon…
+     86| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯

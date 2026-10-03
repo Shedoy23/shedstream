@@ -1,3 +1,65 @@
+## 03.10.2026 — локальный полный Preact-кандидат, итоговые проверки
+
+Ветка feature/panel-preact-full, base b2064f4, разрешённый merge e66e8209.
+Полный suite1221 passed/2 skipped,61 файлов passed,exit0; обе opt-in проверки
+отдельно2/2 через одноразовый HTTP loopback,exit0. Browser184 снимка1280/375,
+0 page errors/0 external, sandboxtrue/CSPbypassfalse. Startup обоих входов
+106941gzip/416140raw с немедленными dynamic imports; static46219gzip.
+53 результативные мутации, восстановленные SHA совпадают. Legacy18/18,
+ESLint/globals/consistency exit0. Точные команды/логи/ограничения/пакет:
+docs/PANEL_FULL_PORT_RESULT_2026-10-03.md и CLAUDE_FULL_PORT_HANDOFF_2026-10-03.md.
+Принятие social marriage блокируется реальным дефектом from_user. Непубликуемые
+xenotype/quote/CAS перечислены в отчёте. Production/игра/Twitch/телефон не проверены,
+публикации нет. Ранние checkpoints и числа ниже — история, не текущий итог.
+## 03.10.2026 — дети и наследники, 64ed686
+
+12 новых parity/guard тестов; соседний срез51/51, полный suite1096 passed/2 skipped,
+exit0. Chromium145:86 фактических снимков1280/375,0 ошибок/внешних запросов.
+Две мутации red1→green0 и восстановленные SHA, type/build/CSP/maps exit0.
+Далее вассалы/выкупы/улучшения/достижения, остальной Bannerlord, общие игры,
+RimWorld и полный игровой bootstrap. Финальный ZIP/Library ещё не готовы.
+
+## 03.10.2026: имущество и профиль героя — 107bbe3
+
+В feature/panel-preact-full перенесены мастерские/караваны/владения/наследие,
+пол героя/NPC-брак/развод/зачатие/семейное дерево. Имущество68 проверок с соседями,
+профиль25 с Daily/имуществом; шесть новых мутаций red1→green0. Chromium145 фактически
+80 снимков в verification.screenshots,0 ошибок/внешних запросов; type/build/CSP exit0.
+Полный suite1063/2skip был на a056e77; заключительный ещё впереди. Контрактные
+расхождения и недоступный viewer-лимит детей описаны в DEFERRED и commit107bbe3.
+Далее взрослые дети/предложения/наследники, остальной Bannerlord, общие игры и RimWorld.
+Сервер/mod/legacy самостоятельно не менялись; публикации и итогового ZIP нет.
+
+## 03.10.2026: ежедневные награды — a056e77
+
+Перенос продолжается в feature/panel-preact-full. Daily: exact raw parity с native
+старым JS, 4 теста; общий suite1063 passed/2 skipped exit0. Browser60 снимков1280/375,
+0 ошибок/внешних запросов, mutation red1→green0; type/build/CSP/maps exit0. Проверены
+локальные фикстуры, не production/игра/Twitch timing. Далее имущество/семья/магазин,
+общие игры, RimWorld и полный game boot. Никакого push/deploy/PR, итогового ZIP пока нет.
+
+## 03.10.2026: Preact full port — текущий срез a57b439
+
+Изолированная feature/panel-preact-full; owner-authorized merge progression 1682ebf
+в e66e820, без публикации. Реализованы игровые progression quotes/context/limits,
+каталог законов и создание/возрождение героя. Новые lifecycle тесты9/9; повторный
+Bannerlord срез306/306; замеченные full-suite регрессии проверены отдельно, финальный
+full suite ещё впереди. Type/build/CSP/maps exit0, Chromium145:58 снимков desktop/375,
+0 ошибок страницы/внешних запросов; новые progression/policy/hero мутации red1→green0.
+Предыдущий объём сохранён. Daily, семья/остаток Bannerlord, общие игры, RimWorld и
+полный game boot ещё не завершены. На C: ~2.52GB, новые крупные копии/архивы отложены.
+Актуальная [таблица покрытия](../../docs/PANEL_FULL_PORT_COVERAGE_2026-10-03.md).
+
+## Предыдущая запись до progression merge (историческая)
+
+Изолированная feature/panel-preact-full от b2064f4. Перенесены турнир/config/cases/pets,
+33 действия ShedColony, shared runtime/notices/refunds/realtime, statistics/profile,
+promo/TTS/feedback и guilds. Полный old DOMContentLoaded/onAuthorized работает в VM;
+сравнивается полный трафик bootstrap и 5 минут core. Последние 24/24 shell/profile/guild
+теста и type/build/CSP exit0; Chromium145:42 снимка1280/375,0 ошибок/внешних запросов.
+Ещё остаётся независимая реализация; узкие культуры/workshop-type зависят от API баз.
+Актуальная [таблица покрытия](../../docs/PANEL_FULL_PORT_COVERAGE_2026-10-03.md).
+Сервер/моды/старый UI не менялись. Публикации нет, это не финальный пакет.
 ## 03.10.2026: локальный кандидат панели Preact с кузницей
 
 К прежним проверенным развитию/снаряжению/бою/свите/клану/отряду/армии/королевству/политике
@@ -524,3 +586,43 @@ ssh root@31.130.132.224 'sqlite3 /root/twitch-extension/backend/viewers.db \
 *«Читай CONTEXT.md, продолжаем работу над main extension»*.
 Если нужна работа по конкретной игре — также скинуть `CONTEXT_BANNERLORD.md`
 или `CONTEXT_RIMWORLD.md`.
+
+
+## Review промежуточного f00c7f0
+
+Три runtime-дефекта подтверждены red и исправлены в 2091d24 (RimWorld JWT busy,
+Colony slow polling, строгие pre-action 403/429); детали и доказательства:
+docs/PANEL_FULL_PORT_REVIEW_FIXES_2026-10-03.md. Voting unknown outcome оставлен
+явным унаследованным ограничением: повторный взнос может списать деньги второй раз.
+Обычные Colony игровые fixtures созданы вручную; реальные ASGI captures здесь
+доказывают только policy/auth отказы. XSS-аудит был остановлен ограничениями среды,
+не владельцем. Артефакты f00c7f0 промежуточные; публикация не разрешена.
+## Второй review: Colony и remount оболочки
+
+Checkpoint e5ab10e/Library report v1 промежуточный. При JWT-resolving ViewerShell
+размонтировал ColonyView, который терял pending/unknown guard. Red f264ac2:
+8 failed/2 passed; fix6a048385b144199b56772eb8d0ac444baf741d49: состояние действия
+хранится в ColonyController по shedcolony/channel/login. Затронутые86/86,exit0.
+Смена identity/channel/game не переносит guard на другого владельца и не стирает
+его при возврате; поздний исход сохраняется для исходного owner. Определённые
+429/успех и raw traffic сохранены. Это не серверная идемпотентность и не защита
+после полного reload. Подробности: docs/PANEL_COLONY_REMOUNT_REVIEW_2026-10-03.md.
+Большой пакет и report v1 до повторного review не заменяются. Публикации нет.
+
+## Финал после независимого re-review
+
+Родитель подтвердил закрытие Colony-remount замечания и отсутствие новых найденных
+runtime-дефектов6a048385 относительно e5. Reviewer читал код/evidence, собственные
+прогоны не делал. Общий checkpoint23aca6b: suite1251 passed/2 skipped,57 мутаций,
+browser188 снимков; два HTTP-теста повторены2/2 на том же runtime. Последующие
+коммиты меняют только документацию/evidence. Финальный экспорт целостный, большой
+e5 ZIP не используется как новая поставка. Полный reload, транспортные повторы,
+идемпотентность, social marriage accept, Voting и DTO-ограничения остаются явными.
+XSS-аудит остановлен ограничениями среды/инструментов, не пользователем.
+Push/PR/deploy/Twitch submission не выполнялись и не разрешены.
+
+Финальный формат уточнён: компактный самостоятельный пакет полного frontend-next,
+актуального build, отчётов и релевантных evidence, плюс полный patch от b2064f4.
+Полный tree проверяется отдельным Git index. Большой142196852-байтный экспорт
+14c02b9 и его подтверждённые части сохранены как промежуточные; в финальный ZIP
+они не включаются и не выдаются за доставку. Runtime/tests не менялись.

@@ -32,6 +32,7 @@ import savedResponses from './panel-fixtures/real-responses.json';
 import combatSaved from './panel-fixtures/combat-responses.json';
 import partySaved from './panel-fixtures/party-responses.json';
 import kingdomSaved from './panel-fixtures/kingdom-responses.json';
+import gameSaved from './panel-fixtures/game-progression-responses.json';
 
 const require = createRequire(import.meta.url);
 type LegacyWindow = Window & {
@@ -65,6 +66,7 @@ const originalBuffTimer = combatSource.slice(buffTimerStart, buffTimerEnd + '   
 
 export const legacyResponses = savedResponses.responses;
 export const combatResponses = combatSaved.responses;
+export const gameResponses = gameSaved.responses;
 export type LegacyJson = null | boolean | number | string | LegacyJson[] | { [key: string]: LegacyJson | undefined };
 export interface LegacyRequest {
   method: string;
@@ -82,6 +84,8 @@ export const legacyHttpReply = (json: LegacyJson, status = 200): LegacyHttpReply
 export type LegacyFixture = LegacyJson | LegacyHttpReply |
   ((request: LegacyRequest, call: number) => LegacyJson | LegacyHttpReply | Promise<LegacyJson | LegacyHttpReply>);
 export interface LegacyFixtures {
+  catalogs: LegacyFixture;
+  progression: LegacyFixture;
   config: LegacyFixture;
   hero: LegacyFixture;
   classes: LegacyFixture;
@@ -96,6 +100,7 @@ export interface LegacyFixtures {
   battle: LegacyFixture;
   partyOrders: LegacyFixture;
   kingdomState: LegacyFixture;
+  tournament: LegacyFixture;
 }
 export const legacySelectors = {
   focus: (key: string) => `.bnr-prog-focus-btn[data-skill=${JSON.stringify(key)}]`,
@@ -107,12 +112,15 @@ export const legacySelectors = {
 };
 
 export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, options: {
-  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean; combatHost?: boolean; retinueHost?: boolean; partyHost?: boolean; forgeHost?: boolean; initialTab?: 'combat' | 'hero' | 'inventory' | 'dynasty';
+  login?: string; token?: string; now?: number; scope?: 'hero' | 'equipment'; equipmentHost?: boolean; panelLifecycle?: boolean; combatHost?: boolean; retinueHost?: boolean; partyHost?: boolean; forgeHost?: boolean; tournamentHost?: boolean; initialTab?: 'combat' | 'hero' | 'inventory' | 'dynasty';
+  commerceHost?: boolean; rewardsHost?: boolean; civicHost?: boolean; childrenHost?: boolean; genderHost?: boolean; profileHost?: boolean; propertyHost?: boolean; dailyHost?: boolean; commonHost?: boolean; gameHost?: 'shedcolony'; shellHost?: boolean; extraRoutes?: Record<string, LegacyFixture>;
 } = {}) {
   let login = options.login ?? 'alice';
   let token = options.token ?? 'alice-token';
   const equipmentOnly = options.scope === 'equipment';
   const fixtures: LegacyFixtures = {
+    catalogs: gameResponses.catalogs,
+    progression: gameResponses.progression,
     config: legacyResponses.config,
     hero: legacyResponses.hero,
     classes: legacyResponses.classes,
@@ -145,12 +153,15 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     battle: combatResponses.battle_idle,
     partyOrders: partySaved.responses.orders_none,
     kingdomState: kingdomSaved.responses.kingdom_ruler,
+    tournament: () => { throw new Error('Tournament fixture must be explicit'); },
     ...overrides,
   };
   const dom = new JSDOM(shell, { url: 'https://extension-files.twitch.tv/extension.html', runScripts: 'outside-only', pretendToBeVisual: true });
   const window = dom.window;
   const document = window.document;
   const context = dom.getInternalVMContext();
+  // A Twitch panel is embedded. Let the original iframe branch open its shell.
+  if (options.shellHost) Object.defineProperty(window, 'self', { value: {} });
   const trace: LegacyRequest[] = [];
   const failures: Error[] = [];
   let now = options.now ?? Date.UTC(2026, 9, 2, 12);
@@ -186,7 +197,12 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
   window.matchMedia = () => ({ matches: false, media: '', onchange: null,
     addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent() { return true; } });
   const addDocumentListener = document.addEventListener.bind(document);
+  const readyListeners: EventListenerOrEventListenerObject[] = [];
+  let authorize: ((auth: Record<string, string>) => void) | undefined;
+  let chat: ((channel: string, user: string, message: string, id: string) => void) | undefined;
+  const realtimeListeners = new Map<string, (target: string, type: string, message: string) => void>();
   document.addEventListener = ((name: string, listener: EventListenerOrEventListenerObject, opts?: AddEventListenerOptions | boolean) => {
+    if (name === 'DOMContentLoaded' && options.shellHost) readyListeners.push(listener);
     if (name !== 'DOMContentLoaded') addDocumentListener(name, listener, opts);
   }) as typeof document.addEventListener;
   window.addEventListener('error', event => {
@@ -194,22 +210,25 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     event.preventDefault();
   });
   Object.defineProperty(window, 'Twitch', { value: { ext: {
-    onAuthorized() {}, onContext() {}, onError() {}, onVisibilityChanged() {}, listen() {}, unlisten() {}, send() {},
+    onAuthorized(callback: typeof authorize) { authorize = callback; }, onContext() {}, onError() {}, onVisibilityChanged() {}, listen(target: string, callback: (target: string, type: string, message: string) => void) { realtimeListeners.set(target, callback); }, unlisten(target: string) { realtimeListeners.delete(target); }, send() {},
+    chat: { onMessage(callback: typeof chat) { chat = callback; } },
     actions: { requestIdShare() {} }, configuration: { onChanged() {}, broadcaster: null, global: null, developer: null },
     viewer: { id: null, opaqueId: null, isLinked: false, onChanged() {} },
     features: { onChanged() {} }, rig: { log() {} }, bits: { onTransactionComplete() {}, getProducts: async () => [] },
   } } });
   const routeKeys = new Map<string, keyof LegacyFixtures>([
+    ['GET /api/bannerlord/content-catalogs', 'catalogs'], ['GET /api/bannerlord/progression', 'progression'],
     ['GET /api/bannerlord/config', 'config'], ['GET /api/bannerlord/my-hero', 'hero'],
     ['GET /api/bannerlord/classes', 'classes'], ['GET /api/bannerlord/build', 'build'],
     ['GET /api/bannerlord/my-buffs', 'buffs'], ['POST /api/bannerlord/action', 'action'],
     ['GET /api/bannerlord/equipment-shop', 'equipment'],
     ['GET /api/bannerlord/battle-status', 'battle'],
+    ['GET /api/bannerlord/tournament', 'tournament'],
     ['GET /api/bannerlord/party-orders', 'partyOrders'], ['GET /api/bannerlord/kingdom-state','kingdomState'],
     [`GET /api/viewer/stats/${login}`, 'stats'], [`GET /api/user/level/${login}`, 'level'],
     ['GET /api/duel/list', 'duels'], ['POST /api/viewer/ui-usage', 'usage'],
   ]);
-  const callCounts = new Map<keyof LegacyFixtures, number>();
+  const callCounts = new Map<string, number>();
   window.fetch = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = new URL(String(input), window.location.href);
     const rawBody = init.body === undefined || init.body === null ? null : String(init.body);
@@ -222,21 +241,25 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
       query: url.search, body, rawBody, token: new Headers(init.headers).get('X-Twitch-JWT') ?? '',
       contentType: new Headers(init.headers).get('Content-Type') ?? '', cache: init.cache ?? null, ...(init.keepalive !== undefined ? { keepalive: init.keepalive } : {}) };
     trace.push(request);
+    const extraKey = `${request.method} ${request.path}${request.query}`;
+    const extra = options.extraRoutes?.[extraKey];
     const key = routeKeys.get(`${request.method} ${request.path}`);
-    if (!key || request.query !== '' || (request.method === 'GET' && rawBody !== null)) {
+    if ((extra === undefined && (!key || request.query !== '')) || (request.method === 'GET' && rawBody !== null)) {
       throw recordFailure(new Error(`Unmatched legacy request: ${request.method} ${request.path}${request.query} ${rawBody ?? ''}`));
     }
-    const fixture = fixtures[key];
-    const call = (callCounts.get(key) ?? 0) + 1;
-    callCounts.set(key, call);
+    const fixture = extra === undefined ? fixtures[key!] : extra;
+    const call = (callCounts.get(extraKey) ?? 0) + 1;
+    callCounts.set(extraKey, call);
     let result: LegacyJson | LegacyHttpReply;
     try { result = typeof fixture === 'function' ? await fixture(request, call) : fixture; }
     catch (error) { throw recordFailure(error); }
     const wrapped = result !== null && typeof result === 'object' && 'legacyHttpReply' in result && result.legacyHttpReply === true;
     const status = wrapped ? (result as LegacyHttpReply).status : 200;
     const json = wrapped ? (result as LegacyHttpReply).json : result;
-    return { ok: status >= 200 && status < 300, status, json: async () => structuredClone(json),
-      text: async () => JSON.stringify(json) } as Response;
+    // Match the new client fixture's native asynchronous body reader. A plain
+    // object with an immediately resolved json() changes the race between an
+    // accepted action and the concurrent hero read, inventing traffic differences.
+    return new Response(JSON.stringify(json), {status});
   }) as typeof fetch;
 
   for (const { file, source } of sources) {
@@ -244,23 +267,32 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     catch (error) { throw recordFailure(new Error(`${file}: ${String(error)}`)); }
   }
   const partyMarker = (fixtures.hero as { hero?: { clan_info?: { is_leader?: boolean } } })?.hero?.clan_info?.is_leader ? 'bnr-dynasty-built' : 'bnr-dynasty-locked';
-  document.body.innerHTML = equipmentOnly
+  if (!options.shellHost) document.body.innerHTML = equipmentOnly
     ? '<main id="bannerlord-content"><div id="bnr-equipment-shop"></div></main>'
     : `<main id="bannerlord-content">
     ${options.combatHost ? '<button class="bnr-tab-btn" data-bnr-tab="combat">Боевые действия</button>' : ''}
     ${options.panelLifecycle ? '<button class="bnr-tab-btn" data-bnr-tab="hero">Развитие</button><button class="bnr-tab-btn" data-bnr-tab="inventory">Снаряжение</button>' : ''}
     ${options.combatHost ? '<section class="bnr-tab-pane" data-bnr-pane="combat"><div id="bnr-battle-banner-slot"></div><div id="bnr-combat-stance-slot"></div><div id="bnr-buff-hud"></div><div id="bnr-detachment-slot"></div><div id="bnr-summon-slot" data-bnr-ui-section="summon"></div><div id="bnr-active-powers-slot" data-bnr-ui-section="active_powers"></div><div id="bnr-build-choice-slot" data-bnr-ui-section="weapon_choice"></div></section>' : ''}
     ${options.partyHost ? '<button class="bnr-tab-btn" data-bnr-tab="dynasty">Клан, отряд и армия</button><section id="bnr-pane-dynasty-body" class="bnr-tab-pane" data-bnr-pane="dynasty"><div id="' + partyMarker + '"></div><div id="bnr-dynasty-locked-actions"></div><details data-bnr-details="dyn-clan" open><summary>🏰 Клан</summary><div id="bnr-clan-mgmt-slot"></div></details><details data-bnr-details="dyn-kingdom" open><summary>👑 Королевство</summary><div id="bnr-kingdom-mgmt-slot"></div></details><div id="bnr-party-orders-slot"></div><div id="bnr-army-slot"></div><div id="bnr-diplo-slot"></div></section>' : ''}
+    ${options.propertyHost ? '<section id="bnr-pane-dynasty-body" class="bnr-tab-pane active" data-bnr-pane="dynasty"><div id="bnr-dynasty-built"></div>'+(options.profileHost?'<div id="bnr-profile-slot"></div>':'')+(options.childrenHost?'<div id="bnr-heir-slot"></div><div id="bnr-family-slot"></div>':'')+'<div id="bnr-workshops-slot"></div><div id="bnr-fiefs-slot"></div><div id="bnr-caravans-slot"></div><div id="bnr-inheritance-slot"></div></section>' : ''}
+    ${options.civicHost ? '<div id="bnr-vassals-slot"></div><div id="bnr-ransom-slot"></div>' : ''}
+    ${options.rewardsHost ? '<div id="bnr-clan-upgrades-slot"></div><div id="bnr-achievements-slot"></div>' : ''}
+    ${options.commerceHost ? '<div id="bannerlord-shop-list"></div><span id="bannerlord-shop-count"></span><span id="bannerlord-status-badge"></span><div id="bnr-pane-inventory-body"></div>' : ''}
     <div id="hero-body"></div>
+    ${options.tournamentHost ? '<div id="bannerlord-tournament-status"></div><div id="bannerlord-tournament-body"></div>' : ''}
     <section id="bnr-pane-hero-body" class="bnr-tab-pane active" data-bnr-pane="hero">
       <div id="bnr-pane-hero-stats"></div>
       <div id="hero-class-picker-slot"></div>
       <div id="bnr-progression-slot"></div>
+      ${options.dailyHost ? '<div id="bnr-daily-slot"></div>' : ''}
+      ${options.genderHost ? '<div id="bnr-gender-slot"></div>' : ''}
       ${options.retinueHost ? '<div id="bnr-retinue-slot"></div>' : ''}
     </section>
     ${options.equipmentHost || options.panelLifecycle ? '<section class="bnr-tab-pane" data-bnr-pane="inventory"><div id="bnr-equipment-shop"></div>' + (options.forgeHost ? '<div id="bnr-pane-inventory-body"></div>' : '') + '</section>' : ''}
   </main>`;
-  evaluate(`authToken=${JSON.stringify(token)};userLogin=${JSON.stringify(login)};window.userLogin=userLogin;`);
+  if (!options.shellHost) evaluate(`authToken=${JSON.stringify(token)};userLogin=${JSON.stringify(login)};window.userLogin=userLogin;`);
+  if (options.commonHost) document.body.innerHTML = '<main id="overlay-panel"><span id="cases-action-badge"></span></main>';
+  if (options.gameHost) document.body.innerHTML = `<main id="${options.gameHost}-content"></main>`;
   if (options.panelLifecycle) evaluate(`localStorage.setItem('bnr_active_tab',${JSON.stringify(options.initialTab || (options.combatHost ? 'combat' : 'hero'))});_bindBnrInnerTabs();`);
 
   async function settle() {
@@ -302,6 +334,7 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     evaluate(`_bannerlordPollId = safeInterval(() => { if (!document.hidden) { ${reads} } }, 8000);`);
     if (options.panelLifecycle) evaluate('_bannerlordBuffPollId = safeInterval(() => { if (!document.hidden) loadBannerlordBuffs(); }, 2500);');
     if (options.combatHost) evaluate('_bannerlordBattlePollId = safeInterval(() => { if (!document.hidden) loadBannerlordBattleStatus(); }, 2000);');
+    if (options.tournamentHost) evaluate('_bannerlordTournamentPollId = safeInterval(() => { if (!document.hidden) loadBannerlordTournament(); }, 3000);');
     // Actual shared-shell affordability dependency; safeInterval itself does
     // not suppress hidden reads. No unrelated active stats-tab host exists.
     if (options.combatHost) { evaluate(originalBuffTimer); evaluate('uiUpdateInterval = safeInterval(() => { loadUserData(); }, 60000);'); }
@@ -329,15 +362,16 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
     if (booted) throw new Error('bootHero may be called only once; use refreshHero/refreshBuild/refreshBuffs');
     if (equipmentOnly) throw new Error('bootHero needs the hero scope');
     enterLifecycle();
-    if (options.partyHost) { await evaluate<Promise<void>>("Promise.all([_hydrateBnrConfig(),loadBannerlordHero(),loadBannerlordClasses(),loadBannerlordBuild(),loadBannerlordBuffs()])"); await settle(); return; }
-    for (const loader of ['_hydrateBnrConfig', 'loadBannerlordHero', 'loadBannerlordClasses', 'loadBannerlordBuild', 'loadBannerlordBuffs']) {
-      await evaluate<Promise<void>>(`${loader}()`);
-      await settle();
-    }
+    // The actual _startBannerlordPolling dispatches these loaders synchronously
+    // without awaiting hero metadata before classes/build/buffs. Keep that order
+    // for every selected host now that hero has asynchronous catalog prerequisites.
+    await evaluate<Promise<void>>('Promise.all([_hydrateBnrConfig(),loadBannerlordHero(),'+(options.commerceHost?'loadBannerlordShop(),loadBannerlordStatus(),':'')+'loadBannerlordClasses(),loadBannerlordBuild(),loadBannerlordBuffs()])');
+    await settle();
   }
   async function bootCombat() {
     if (!options.combatHost) throw new Error('bootCombat requires combatHost:true');
     await bootHero(); await refresh('loadUserData'); await refresh('loadBannerlordBattleStatus');
+    if (options.tournamentHost) await refresh('loadBannerlordTournament');
   }
   function element(selector: string) {
     const node = document.querySelector<HTMLElement>(selector);
@@ -371,12 +405,31 @@ export function createLegacyHarness(overrides: Partial<LegacyFixtures> = {}, opt
   function dispose() { disposed = true; timers.clear(); window.close(); }
   assertHealthy();
   return { bootHero, bootCombat, bootEquipment, resetEquipment, setIdentity, exposeUsagePanels, setHidden, trace, document, window, fixtures, sourceFiles: [...sourceFiles], settle, advance, click, change,
+    bootShell: async (authorization: Record<string, string>) => {
+      if (!options.shellHost || booted) throw new Error('Full shell may be booted once'); booted = true;
+      const event = new window.Event('DOMContentLoaded');
+      for (const listener of readyListeners) { if (typeof listener === 'function') listener.call(document, event); else listener.handleEvent(event); }
+      await settle(); if (!authorize) throw new Error('Legacy shell did not register authorization'); authorize(authorization); await settle();
+    },
+    authorizeShell: async (authorization: Record<string, string>) => { authorize?.(authorization); await settle(); },
+    chatMessage: async (message: string) => { chat?.('123', 'alice', message, 'fixture'); await settle(); },
+    realtimeMessage: async (target: string, envelope: LegacyJson) => { realtimeListeners.get(target)?.(target, 'application/json', JSON.stringify(envelope)); await settle(); },
+    realtimeTargets: () => [...realtimeListeners.keys()],
+    openCommon: (loader: 'openCasesModal' | 'openPetsModal' | 'pollCasesBadge') => refresh(loader),
+    bootGame: async () => { if (!options.gameHost) throw new Error('gameHost required'); evaluate(`switchIntegrationModule(${JSON.stringify(options.gameHost)})`); await settle(); },
     stop: () => { evaluate('_stopBannerlordPolling()'); },
     refreshDiplomacy: () => refresh('loadBannerlordDiplomacy'),
+    // Selected lazy hosts invoke the unchanged original renderer; whole-game
+    // disclosure bindings and activity remain a separate bootstrap comparison.
+    openClanUpgrades: () => refresh('_renderClanUpgradesInline'),
+    openHeroAchievements: () => refresh('_renderAchievementsInline'),
+    refreshShop: () => refresh('loadBannerlordShop'),
+    refreshBalance: () => refresh('loadUserData'),
     refreshPartyOrders: () => refresh('loadBannerlordPartyOrders'),
     refreshConfig: () => refresh('_hydrateBnrConfig'),
     refreshHero: () => refresh('loadBannerlordHero'), refreshBuild: () => refresh('loadBannerlordBuild'),
     refreshBuffs: () => refresh('loadBannerlordBuffs'),
     refreshBattle: () => refresh('loadBannerlordBattleStatus'),
+    refreshTournament: () => refresh('loadBannerlordTournament'),
     refreshEquipment: () => refresh('loadBannerlordEquipmentShop'), assertHealthy, dispose };
 }

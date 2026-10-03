@@ -1,0 +1,4394 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-combat-parity.test.tsx > actual host has combat startup balance reads and one active-transition buffs read
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_hold matches full exact payload and delayed hidden-equipment tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_hold matches full exact payload and delayed hidden-equipment tail
+[FE-DET] click hero.detach_hold cost=30
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_charge matches full exact payload and delayed hidden-equipment tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_charge matches full exact payload and delayed hidden-equipment tail
+[FE-DET] click hero.detach_charge cost=30
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_skirmish matches full exact payload and delayed hidden-equipment tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_skirmish matches full exact payload and delayed hidden-equipment tail
+[FE-DET] click hero.detach_skirmish cost=30
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_raid matches full exact payload and delayed hidden-equipment tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_raid matches full exact payload and delayed hidden-equipment tail
+[FE-DET] click hero.detach_raid cost=30
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered hero.attach matches full exact payload and delayed hidden-equipment tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > old rendered hero.attach matches full exact payload and delayed hidden-equipment tail
+[FE-DET] click hero.attach cost=10
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_walls matches full exact payload and delayed hidden-equipment tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_walls matches full exact payload and delayed hidden-equipment tail
+[FE-DET] click hero.detach_walls cost=30
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_gate matches full exact payload and delayed hidden-equipment tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach_gate matches full exact payload and delayed hidden-equipment tail
+[FE-DET] click hero.detach_gate cost=30
+
+stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach matches full exact payload and delayed hidden-equipment tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered hero.detach matches full exact payload and delayed hidden-equipment tail
+[FE-DET] click hero.detach cost=10
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered stance defensive, including current, has no price or preflight
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered stance balanced, including current, has no price or preflight
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered stance aggressive, including current, has no price or preflight
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > old rendered player summon preserves its separate price and side
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > old rendered enemy summon preserves its separate price and side
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > actual archer legacy ability rage sends exact price+key and full tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual archer legacy ability explosive_arrows sends exact price+key and full tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual archer legacy ability heal_burst sends exact price+key and full tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual assassin legacy ability retribution_toggle sends exact price+key and full tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual berserk legacy ability cleave sends exact price+key and full tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual crossbow legacy ability shield_break_burst sends exact price+key and full tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual horse_archer legacy ability poison_dot sends exact price+key and full tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual knight legacy ability berserker_charge sends exact price+key and full tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual tank legacy ability ironskin_toggle sends exact price+key and full tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > actual weapon choice one_handed keeps weapon_type distinct from power_key
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > actual selected one_handed ability sends only key+id, never legacy price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > actual weapon choice two_handed keeps weapon_type distinct from power_key
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > actual selected two_handed ability sends only key+id, never legacy price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > actual weapon choice polearm keeps weapon_type distinct from power_key
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > actual selected polearm ability sends only key+id, never legacy price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual weapon choice bow keeps weapon_type distinct from power_key
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual selected bow ability sends only key+id, never legacy price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual weapon choice crossbow keeps weapon_type distinct from power_key
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual selected crossbow ability sends only key+id, never legacy price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual weapon choice thrown keeps weapon_type distinct from power_key
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual selected thrown ability sends only key+id, never legacy price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual weapon choice shield keeps weapon_type distinct from power_key
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual selected shield ability sends only key+id, never legacy price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > common heal has an independent action and exact new-build payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > field siege buttons disabled and legacy knight keeps inherited absent raid
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+····stdout | test/panel-combat-parity.test.tsx > pending build cannot select unavailable choices or expose legacy fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > syncing build cannot select unavailable choices or expose legacy fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > legacy_session build cannot select unavailable choices or expose legacy fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > prisoner build cannot select unavailable choices or expose legacy fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > unavailable build cannot select unavailable choices or expose legacy fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > same-frame opposite summons remain independent
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > combat timer/visibility/tab lifecycle and telemetry use actual host and unchanged collector
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > server refuses visibly with no success refresh tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > server refuses visibly with no success refresh tail
+[FE-DET] click hero.detach_charge cost=30
+
+stdout | test/panel-combat-parity.test.tsx > safety deviation: refusal restores confirmed stance rather than leaving optimistic legacy highlight
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > safety deviation: [data-bnr-power="rage"] immediately respects the acknowledged semantic cooldown
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > safety deviation: #bnr-summon-ally-btn immediately respects the acknowledged semantic cooldown
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > safety deviation: #bnr-summon-enemy-btn immediately respects the acknowledged semantic cooldown
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > same-frame distinct legacy powers remain independent, unlike new-build family lock
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > new-build shared synchronous lock: [data-bnr-build-select="bow"] then [data-bnr-build-select="crossbow"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > new-build shared synchronous lock: [data-bnr-build-activate="rage"] then [data-bnr-build-activate="heal_burst"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+···stdout | test/panel-combat-parity.test.tsx > battle live presents actual snapshot
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > battle routed presents actual snapshot
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+····stdout | test/panel-combat-parity.test.tsx > battle legacy presents actual snapshot
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+····stdout | test/panel-combat-parity.test.tsx > unknown active buff is text and disables its exact known-key control until absolute expiry
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > server UI permutation, visibility, labels apply only to known combat sections
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > real asynchronous mod refusal is shown once globally for six seconds, with exact old text
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > actual collector counts combat family hero.detach_hold through rendered [data-det-act="hero.detach_hold"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > actual collector counts combat family hero.detach_hold through rendered [data-det-act="hero.detach_hold"]
+[FE-DET] click hero.detach_hold cost=30
+
+··stdout | test/panel-combat-parity.test.tsx > actual collector counts combat family player.spawn through rendered #bnr-summon-enemy-btn
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual collector counts combat family power.activate through rendered [data-bnr-power="rage"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual collector counts combat family hero.select_weapon_power through rendered [data-bnr-build-select="thrown"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > actual collector counts combat family power.activate through rendered [data-bnr-build-activate="rage"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > malformed presentation keeps known defaults: {"version":2,"combat_order":["summon"]}
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > malformed presentation keeps known defaults: {"version":1,"combat_order":["summon","summon","active_powers","weapon_choice"],"labels":{"active_powers":"bad\nlabel"}}
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > malformed presentation keeps known defaults: {"version":1,"combat_order":["unknown","summon","active_powers","weapon_choice"],"labels":{"weapon_choice":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > malformed presentation keeps known defaults: null
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > real offline build disables weapon selection with server reason
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > 60-second actual balance interval refreshes passive affordability even while hidden
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > legacy cooldown text and 1-second countdown for [data-det-act="hero.detach_hold"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > legacy cooldown text and 1-second countdown for #bnr-summon-enemy-btn
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-combat-parity.test.tsx > server zero prices stay valid for orders, summons and legacy powers
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > server zero prices stay valid for orders, summons and legacy powers
+[FE-DET] click hero.detach_hold cost=0
+
+stdout | test/panel-combat-parity.test.tsx > new-build zero-priced ability is allowed with a verified zero balance and still omits price
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > restored combat initial selected-host request trace matches actual old initialization
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-combat-parity.test.tsx > restored hero initial selected-host request trace matches actual old initialization
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-combat-parity.test.tsx > restored inventory initial selected-host request trace matches actual old initialization
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·xxxxxxxxxxxxxxxxxxxxxxxx··················xxxxxx·······xx··········································stdout | test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-locked-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > clan create trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-party-parity.test.tsx > clan join trim and Enter exact payload
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-clan-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-j-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-party
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_create"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_disband"]
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-leave
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-cancel
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_royal_guard exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_sacred_majesty exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_trial_by_jury exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_imperial_towns exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_noble_retinues exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_lords_privy_council exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_serfdom exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > policy policy_citizenship exact existing ID/name and complete local/generic tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real policy state pending1/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted1
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute -200
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 0
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 20000
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 100.9
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > direct peace has no Enter binding, requires two trimmed characters and keeps polling draft
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-peace-confirm preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real refusal [data-tax-pct="25"] preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > real refusal #bnr-war-propose preserves exact message and legacy tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > outer collapsed card and inner details preserve telemetry, reads and user state
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > no kingdom is informational and genuine nohero clears Politics
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-diplomacy-parity.test.tsx > vassal sees policies/votes but no direct peace or tax
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-diplomacy-parity.test.tsx > unknown active law retains server badge without adding selectable invented policy
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > complete kingdom card is in saved production Dynasty between clan and orders
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > create button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-kingdom-parity.test.tsx > create button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-kingdom-parity.test.tsx > join button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-kingdom-parity.test.tsx > join button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-kingdom-parity.test.tsx > rebellion button/Enter false full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > rebellion button/Enter true full wire/30s tail/usage parity
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > leave ruler false has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > leave ruler true has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > leave vassal false has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > leave vassal true has explicit safety warning and exact action
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation false and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation true and 7s queue feedback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > blank create permitted, empty join silent, names preserved across ordinary polling
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-kingdom-parity.test.tsx > real refusal Недопустимые символы в имени remains exact
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-kingdom-parity.test.tsx > real refusal Нужно 100,000💰 динаров (у тебя 0💰). remains exact
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-kingdom-parity.test.tsx > rebellion 1/2 stays actionable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > rebellion 2/2 stays actionable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > outer collapsed kingdom retains details state/exposure while polls continue
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+xstdout | test/panel-kingdom-parity.test.tsx > same viewer idle token refresh leaves create draft and new current-token action usable
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > full forge is the saved inventory disclosure, initially closed, with all inherited slots and qualities
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge weapon0 real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge weapon1 real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge weapon2 real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge head real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge body real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge leg real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge gloves real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge cape real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge horse real control exact wire, usage and complete successful/refused double-hero tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_unsynced preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_bad_slot preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_best preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_pending_right preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_poor preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge real refusal reforge_no_hero preserves server text and the owned read tail
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge reads its independent server quote without changing the wire or adding a prisoner restriction
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-forge-parity.test.tsx > forge empty slots keep all ten rows and no actions
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+··stdout | test/panel-forge-parity.test.tsx > forge disclosure persists across tab changes, hero header rewrite and ordinary polls, recording only open transitions
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge numeric zero quote remains real and never invents a fallback charge
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-forge-parity.test.tsx > forge shield and quality presentation use the actual item, with unknown quality retaining the inherited next label
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > tournament join preserves the complete old request traffic through its 3.5 second continuation and polling
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > tournament prediction requires confirmation and sends the displayed participant, then keeps every tail request
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > cancelling a tournament prediction has no mutation traffic
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_no_hero
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_running
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_already
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_pending
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_cooldown
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > hidden tournament stops its reads and resumes without a second timer
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > prediction confirmation cannot submit into a visibly replaced tournament
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·stdout | test/panel-tournament-parity.test.tsx > missing join quote is not replaced by the old invented fallback
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+·x······xxx····x·······x···xx·······x··x·xx·
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 118 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-combat-parity.test.tsx > actual host has combat startup balance reads and one active-transition buffs read
+AssertionError: expected [ '/api/bannerlord/config', …(11) ] to deeply equal [ '/api/bannerlord/config', …(9) ]
+
+- Expected
++ Received
+
+@@ -2,10 +2,12 @@
+    "/api/bannerlord/config",
+    "/api/bannerlord/my-hero",
+    "/api/bannerlord/classes",
+    "/api/bannerlord/build",
+    "/api/bannerlord/my-buffs",
++   "/api/bannerlord/content-catalogs",
++   "/api/bannerlord/progression",
+    "/api/viewer/stats/alice",
+    "/api/user/level/alice",
+    "/api/duel/list",
+    "/api/bannerlord/battle-status",
+    "/api/bannerlord/my-buffs",
+
+ ❯ test/panel-combat-parity.test.tsx:12:36
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/118]⎯
+
+ FAIL  test/panel-core.test.tsx > renders real attributes, all 24 progression controls and server catalog choices
+AssertionError: expected 'BANNERLORDРазвитие герояОбновитьВАШ Г…' to contain '2/10'
+
+Expected: "2/10"
+Received: "BANNERLORDРазвитие герояОбновитьВАШ ГЕРОЙAlice HeroУровень 35500 000 💰Жив🛡 Свита (0/5) пусто➕ Нанять basic 5 000💰★ Нанять elite 15 000💰🎯 Тренировать свиту свита пустаАтрибуты и навыкиЗначения, цены и пределы покупок передаёт игра. Заявка применяется после подтверждения из игры.control3/17+117 💰Предел покупки: 14cunning5/17+118 💰Предел покупки: 14endurance4/17+119 💰Предел покупки: 14intelligence7/17+120 💰Предел покупки: 14social6/17+121 💰Предел покупки: 14vigor2/17+122 💰Предел покупки: 14EngineeringУровень 200 · Фокус 2/11Предел покупки: 9+17 💰MedicineУровень 190 · Фокус 1/11Предел покупки: 9+18 💰StewardУровень 180 · Фокус 0/11Предел покупки: 9+19 💰TradeУровень 170 · Фокус 4/11Предел покупки: 9+110 💰LeadershipУровень 160 · Фокус 3/11Предел покупки: 9+111 💰CharmУровень 150 · Фокус 2/11Предел покупки: 9+112 💰RogueryУровень 140 · Фокус 1/11Предел покупки: 9+113 💰TacticsУровень 130 · Фокус 0/11Предел покупки: 9+114 💰ScoutingУровень 120 · Фокус 4/11Предел покупки: 9+115 💰CraftingУровень 110 · Фокус 3/11Предел покупки: 9+116 💰AthleticsУровень 100 · Фокус 2/11Предел покупки: 9+117 💰RidingУровень 90 · Фокус 1/11Предел покупки: 9+118 💰ThrowingУровень 80 · Фокус 0/11Предел покупки: 9+119 💰CrossbowУровень 70 · Фокус 4/11Предел покупки: 9+120 💰BowУровень 60 · Фокус 3/11Предел покупки: 9+121 💰PolearmУровень 50 · Фокус 2/11Предел покупки: 9+122 💰TwoHandedУровень 40 · Фокус 1/11Предел покупки: 9+123 💰OneHandedУровень 30 · Фокус 0/11Предел покупки: 9+124 💰Опыт в случайный навык+50 XP · 500 💎Купить опыт+100 XP · 1 000 💎Купить опыт+500 XP · 5 000 💎Купить опытСпециализацияОдин пассивный бонус. Оружие и броню выбираешь свободно в «Инвентаре».Защитник+15% здоровья в полевых боях.Натиск+10% урона оружием в ближнем бою.Стрелок+10% урона стрелами, болтами и метательным оружием.Подвижность+10% скорости передвижения пешком.Стартовый комплектОдин бесплатный набор на героя. Полученные вещи можно заменить через магазин.Одноручное оружие и щитПолучить бесплатноДвуручное оружиеПолучить бесплатноЛук и стрелыПолучить бесплатно"
+
+ ❯ test/panel-core.test.tsx:62:36
+     60|   expect(ui.container.querySelectorAll('[data-skill]')).toHaveLength(1…
+     61|   expect(ui.container.querySelectorAll('[data-attr]')).toHaveLength(6);
+     62|   expect(ui.container.textContent).toContain('2/10'); expect(ui.contai…
+       |                                    ^
+     63|   expect(ui.container.querySelectorAll('[data-bnr-build-spec]')).toHav…
+     64|   expect(ui.container.querySelectorAll('[data-bnr-build-starter]')).to…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/118]⎯
+
+ FAIL  test/panel-core.test.tsx > uses exact PascalCase attribute intent, immediate read and complete successful delayed tail
+TypeError: Cannot use 'in' operator to search for 'onclick' in null
+ ❯ fireEvent.<computed> [as click] node_modules/@testing-library/preact/dist/esm/fire-event.mjs:26:33
+ ❯ test/panel-core.test.tsx:69:37
+     67|   vi.useFakeTimers(); const s = setup({ '/api/bannerlord/action': f.at…
+     68|   const ui = render(<HeroDevelopmentView controller={s.controller} />);
+     69|   await act(async () => { fireEvent.click(ui.container.querySelector('…
+       |                                     ^
+     70|   expect(s.trace.map(r => r.path)).toEqual(['/api/bannerlord/action','…
+     71|   expect(s.trace[0].body.data).toEqual({ attribute_key: 'Vigor', amoun…
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ test/panel-core.test.tsx:69:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/118]⎯
+
+ FAIL  test/panel-core.test.tsx > fails closed for missing/malformed prices but preserves legitimate zero and inherited 5/10 caps
+TypeError: Cannot read properties of null (reading 'disabled')
+ ❯ test/panel-core.test.tsx:78:100
+     76|   const s = setup({ '/api/bannerlord/config': { focus_tier_costs: [0, …
+     77|   const ui = render(<HeroDevelopmentView controller={s.controller} />);
+     78|   const attr = ui.container.querySelector('[data-attr="Vigor"]') as HT…
+       |                                                                                                    ^
+     79|   const firstSkill = f.hero.skills[0]; const target = ui.container.que…
+     80|   expect(target.disabled).toBe(firstSkill.focus !== 0 && firstSkill.fo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/118]⎯
+
+ FAIL  test/panel-core.test.tsx > manual refresh recovers missing prices and classes without reloading the document
+TypeError: Cannot read properties of null (reading 'disabled')
+ ❯ test/panel-core.test.tsx:120:60
+    118|   const s = setup({ '/api/bannerlord/config': { success: false, messag…
+    119|   await s.start(); const ui = render(<HeroDevelopmentView controller={…
+    120|   expect((ui.container.querySelector('[data-attr="Vigor"]') as HTMLBut…
+       |                                                            ^
+    121|   s.routes['/api/bannerlord/config'] = f.config; s.routes['/api/banner…
+    122|   await act(async () => { fireEvent.click(ui.getByRole('button', { nam…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/118]⎯
+
+ FAIL  test/panel-core.test.tsx > a 20-second unknown action outcome blocks duplicate and different purchases while reads remain possible
+AssertionError: expected '/api/bannerlord/progression' to be '/api/bannerlord/my-hero' // Object.is equality
+
+Expected: "/api/bannerlord/my-hero"
+Received: "/api/bannerlord/progression"
+
+ ❯ test/panel-core.test.tsx:169:66
+    167|   expect(s.trace.filter(r => r.method === 'POST')).toHaveLength(1);
+    168|   expect(s.controller.snapshot().message).toContain('Исход предыдущей …
+    169|   await s.controller.refreshHero(); expect(s.trace.at(-1)?.path).toBe(…
+       |                                                                  ^
+    170| });
+    171| it('ignores a genuinely reverse-ordered older hero response', async ()…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/118]⎯
+
+ FAIL  test/panel-core.test.tsx > unknown-outcome disables visible mutation controls while refresh and another identity stay usable
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-core.test.tsx:208:77
+    206| it('unknown-outcome disables visible mutation controls while refresh a…
+    207|   const s = setup({ '/api/bannerlord/action': {} }); await s.start(); …
+    208|   await act(async () => { (ui.container.querySelector('[data-attr="Vig…
+       |                                                                             ^
+    209|   expect(s.controller.snapshot().canAct).toBe(true);
+    210|   expect([...ui.container.querySelectorAll('[data-attr],[data-skill],[…
+ ❯ cb node_modules/preact/test-utils/src/index.js:92:12
+ ❯ test/panel-core.test.tsx:208:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/118]⎯
+
+ FAIL  test/panel-core.test.tsx > an already rendered action button cannot dispatch during token identity verification
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-core.test.tsx:225:59
+    223|   const pending = deferred<Response>(); s.routes['/api/user/resolve-tw…
+    224|   const button = ui.container.querySelector('[data-attr="Vigor"]') as …
+    225|   s.authorize({ ...authValue, token: 'rotated' }); button.click();
+       |                                                           ^
+    226|   expect(s.trace.filter(row => row.path === '/api/bannerlord/action'))…
+    227|   pending.resolve(response({ login: 'alice' })); await flush(); s.cont…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute Control: exact PascalCase+amount and complete success tail
+Error: Old rendered element missing: .bnr-prog-attr-btn[data-attr="Control"]
+ ❯ element test/panel-legacy-harness.ts:370:22
+    368|   function element(selector: string) {
+    369|     const node = document.querySelector<HTMLElement>(selector);
+    370|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    371|     return node;
+    372|   }
+ ❯ Object.click test/panel-legacy-harness.ts:373:44
+ ❯ Object.click test/panel-development-parity.test.tsx:50:77
+ ❯ test/panel-development-parity.test.tsx:58:37
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute Cunning: exact PascalCase+amount and complete success tail
+Error: Old rendered element missing: .bnr-prog-attr-btn[data-attr="Cunning"]
+ ❯ element test/panel-legacy-harness.ts:370:22
+    368|   function element(selector: string) {
+    369|     const node = document.querySelector<HTMLElement>(selector);
+    370|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    371|     return node;
+    372|   }
+ ❯ Object.click test/panel-legacy-harness.ts:373:44
+ ❯ Object.click test/panel-development-parity.test.tsx:50:77
+ ❯ test/panel-development-parity.test.tsx:58:37
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute Endurance: exact PascalCase+amount and complete success tail
+Error: Old rendered element missing: .bnr-prog-attr-btn[data-attr="Endurance"]
+ ❯ element test/panel-legacy-harness.ts:370:22
+    368|   function element(selector: string) {
+    369|     const node = document.querySelector<HTMLElement>(selector);
+    370|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    371|     return node;
+    372|   }
+ ❯ Object.click test/panel-legacy-harness.ts:373:44
+ ❯ Object.click test/panel-development-parity.test.tsx:50:77
+ ❯ test/panel-development-parity.test.tsx:58:37
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute Intelligence: exact PascalCase+amount and complete success tail
+Error: Old rendered element missing: .bnr-prog-attr-btn[data-attr="Intelligence"]
+ ❯ element test/panel-legacy-harness.ts:370:22
+    368|   function element(selector: string) {
+    369|     const node = document.querySelector<HTMLElement>(selector);
+    370|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    371|     return node;
+    372|   }
+ ❯ Object.click test/panel-legacy-harness.ts:373:44
+ ❯ Object.click test/panel-development-parity.test.tsx:50:77
+ ❯ test/panel-development-parity.test.tsx:58:37
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute Social: exact PascalCase+amount and complete success tail
+Error: Old rendered element missing: .bnr-prog-attr-btn[data-attr="Social"]
+ ❯ element test/panel-legacy-harness.ts:370:22
+    368|   function element(selector: string) {
+    369|     const node = document.querySelector<HTMLElement>(selector);
+    370|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    371|     return node;
+    372|   }
+ ❯ Object.click test/panel-legacy-harness.ts:373:44
+ ❯ Object.click test/panel-development-parity.test.tsx:50:77
+ ❯ test/panel-development-parity.test.tsx:58:37
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > attribute Vigor: exact PascalCase+amount and complete success tail
+Error: Old rendered element missing: .bnr-prog-attr-btn[data-attr="Vigor"]
+ ❯ element test/panel-legacy-harness.ts:370:22
+    368|   function element(selector: string) {
+    369|     const node = document.querySelector<HTMLElement>(selector);
+    370|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    371|     return node;
+    372|   }
+ ❯ Object.click test/panel-legacy-harness.ts:373:44
+ ❯ Object.click test/panel-development-parity.test.tsx:50:77
+ ❯ test/panel-development-parity.test.tsx:58:37
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Engineering: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 7,
+-         "expected_value": 2,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Engineering",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Medicine: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 8,
+-         "expected_value": 1,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Medicine",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Steward: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 9,
+-         "expected_value": 0,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Steward",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Trade: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 10,
+-         "expected_value": 4,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Trade",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Leadership: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 11,
+-         "expected_value": 3,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Leadership",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Charm: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 12,
+-         "expected_value": 2,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Charm",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Roguery: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 13,
+-         "expected_value": 1,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Roguery",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Tactics: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 14,
+-         "expected_value": 0,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Tactics",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Scouting: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 15,
+-         "expected_value": 4,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Scouting",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Crafting: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 16,
+-         "expected_value": 3,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Crafting",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Athletics: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 17,
+-         "expected_value": 2,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Athletics",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Riding: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 18,
+-         "expected_value": 1,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Riding",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Throwing: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 19,
+-         "expected_value": 0,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Throwing",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Crossbow: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 20,
+-         "expected_value": 4,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Crossbow",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Bow: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 21,
+-         "expected_value": 3,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Bow",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus Polearm: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 22,
+-         "expected_value": 2,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "Polearm",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus TwoHanded: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 23,
+-         "expected_value": 1,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "TwoHanded",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > real old rendered progression vs new Preact request parity > focus OneHanded: exact key+amount and complete success tail
+AssertionError: full method/path/query/body/JWT/header/cache trace: expected [] to deeply equal [ { method: 'POST', …(6) }, …(8) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "body": {
+-       "action_type": "hero.add_focus",
+-       "data": {
+-         "amount": 1,
+-         "client_action_id": "<random-client-id>",
+-         "expected_cost_gold": 24,
+-         "expected_value": 0,
+-         "progression_context": {
+-           "equipment_session_id": "session-a",
+-           "hero_id": "test_hero_alice",
+-           "save_id": "save-a",
+-         },
+-         "skill_key": "OneHanded",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+- ]
++ []
+
+ ❯ Object.finish test/panel-development-parity.test.tsx:51:246
+
+ ❯ test/panel-development-parity.test.tsx:62:91
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > preserves money server refusal and exact full request tail
+ FAIL  test/panel-development-parity.test.tsx > preserves role server refusal and exact full request tail
+ FAIL  test/panel-development-parity.test.tsx > preserves unknown server refusal and exact full request tail
+ FAIL  test/panel-development-parity.test.tsx > preserves cooldown server refusal and exact full request tail
+Error: Old rendered element missing: .bnr-prog-attr-btn[data-attr="Vigor"]
+ ❯ element test/panel-legacy-harness.ts:370:22
+    368|   function element(selector: string) {
+    369|     const node = document.querySelector<HTMLElement>(selector);
+    370|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    371|     return node;
+    372|   }
+ ❯ Object.click test/panel-legacy-harness.ts:373:44
+ ❯ Object.click test/panel-development-parity.test.tsx:50:77
+ ❯ test/panel-development-parity.test.tsx:99:52
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > shows changed server prices and legitimate zero without copying economics
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ test/panel-development-parity.test.tsx:107:93
+    105| it('shows changed server prices and legitimate zero without copying ec…
+    106|   const p = await pair({ config: { ...f.config, attribute_cost: 0, foc…
+    107|   expect(p.old.document.querySelector(oldSelect.attribute('Vigor'))?.g…
+       |                                                                                             ^
+    108|   expect(p.ui.container.querySelector('[data-attr="Vigor"]')?.getAttri…
+    109|   await p.click(oldSelect.attribute('Vigor'), '[data-attr="Vigor"]'); …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > preserves inherited 5/10 cap gating
+Error: Old rendered element missing: .bnr-prog-attr-btn[data-attr="Control"]
+ ❯ element test/panel-legacy-harness.ts:370:22
+    368|   function element(selector: string) {
+    369|     const node = document.querySelector<HTMLElement>(selector);
+    370|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    371|     return node;
+    372|   }
+ ❯ Object.click test/panel-legacy-harness.ts:373:44
+ ❯ Object.click test/panel-development-parity.test.tsx:50:77
+ ❯ test/panel-development-parity.test.tsx:114:36
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > same-frame duplicate progression clicks have the exact old single POST and immediate reads
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ test/panel-development-parity.test.tsx:154:7
+    152|   const p = await pair({ action: () => pending });
+    153|   const old = p.old.document.querySelector(oldSelect.attribute('Vigor'…
+    154|   old.click(); old.click(); await p.old.settle();
+       |       ^
+    155|   await act(async () => { const next = p.ui.container.querySelector('[…
+    156|   expect(p.trace.filter(row => row.method === 'POST')).toHaveLength(1)…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/118]⎯
+
+ FAIL  test/panel-development-parity.test.tsx > missing config deliberately fails closed instead of buying at inherited legacy fallback prices
+Error: Old rendered element missing: .bnr-prog-attr-btn[data-attr="Vigor"]
+ ❯ element test/panel-legacy-harness.ts:370:22
+    368|   function element(selector: string) {
+    369|     const node = document.querySelector<HTMLElement>(selector);
+    370|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    371|     return node;
+    372|   }
+ ❯ Object.click test/panel-legacy-harness.ts:373:44
+ ❯ Object.click test/panel-development-parity.test.tsx:50:77
+ ❯ test/panel-development-parity.test.tsx:161:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > complete Politics card follows army in actual saved Dynasty with one read per active hero cadence
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(14) ] to deeply equal [ { method: 'GET', …(6) }, …(14) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-diplomacy-parity.test.tsx:6:339
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_forgiveness_of_debts exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_land_grands_for_veteran exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_precarial_land_tenure exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_royal_guard exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_sacred_majesty exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_trial_by_jury exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_imperial_towns exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_noble_retinues exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_lords_privy_council exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_council_of_the_commons exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_serfdom exact existing ID/name and complete local/generic tails
+ FAIL  test/panel-diplomacy-parity.test.tsx > policy policy_citizenship exact existing ID/name and complete local/generic tails
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ Object.click test/panel-combat-support.tsx:74:79
+     72|     async advance(ms: number) { await old.advance(ms); await act(async…
+     73|     async click(oldSelector: string, newSelector = oldSelector, count …
+     74|       for (let i = 0; i < count; i++) (old.document.querySelector(oldS…
+       |                                                                               ^
+     75|       await act(async () => { for (let i = 0; i < count; i++) (ui.cont…
+     76|     },
+ ❯ test/panel-diplomacy-parity.test.tsx:7:180
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > real policy state pending1/enacted0
+ FAIL  test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted1
+ FAIL  test/panel-diplomacy-parity.test.tsx > real policy state pending0/enacted0
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ Object.click test/panel-combat-support.tsx:74:79
+     72|     async advance(ms: number) { await old.advance(ms); await act(async…
+     73|     async click(oldSelector: string, newSelector = oldSelector, count …
+     74|       for (let i = 0; i < count; i++) (old.document.querySelector(oldS…
+       |                                                                               ^
+     75|       await act(async () => { for (let i = 0; i < count; i++) (ui.cont…
+     76|     },
+ ❯ test/panel-diplomacy-parity.test.tsx:8:536
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute -200
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 0
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 20000
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 100.9
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace keeps text target twice and parseInt tribute 
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(21) ] to deeply equal [ { method: 'GET', …(6) }, …(21) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-diplomacy-parity.test.tsx:9:642
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > direct peace has no Enter binding, requires two trimmed characters and keeps polling draft
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(29) ] to deeply equal [ { method: 'GET', …(6) }, …(29) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-diplomacy-parity.test.tsx:10:644
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 0 exact data and 1200ms tail with no 3500ms generic hero refresh
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 10 exact data and 1200ms tail with no 3500ms generic hero refresh
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 25 exact data and 1200ms tail with no 3500ms generic hero refresh
+ FAIL  test/panel-diplomacy-parity.test.tsx > tax 50 exact data and 1200ms tail with no 3500ms generic hero refresh
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(18) ] to deeply equal [ { method: 'GET', …(6) }, …(18) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-diplomacy-parity.test.tsx:11:327
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > #bnr-war-propose exact proposal without tribute, immediate read and 7s queue feedback
+ FAIL  test/panel-diplomacy-parity.test.tsx > #bnr-peace-vote-propose exact proposal without tribute, immediate read and 7s queue feedback
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(20) ] to deeply equal [ { method: 'GET', …(6) }, …(20) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-diplomacy-parity.test.tsx:12:625
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal [data-policy-id="policy_royal_guard"] preserves exact message and legacy tail
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ Object.click test/panel-combat-support.tsx:74:79
+     72|     async advance(ms: number) { await old.advance(ms); await act(async…
+     73|     async click(oldSelector: string, newSelector = oldSelector, count …
+     74|       for (let i = 0; i < count; i++) (old.document.querySelector(oldS…
+       |                                                                               ^
+     75|       await act(async () => { for (let i = 0; i < count; i++) (ui.cont…
+     76|     },
+ ❯ test/panel-diplomacy-parity.test.tsx:13:495
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal #bnr-peace-confirm preserves exact message and legacy tail
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal [data-tax-pct="25"] preserves exact message and legacy tail
+ FAIL  test/panel-diplomacy-parity.test.tsx > real refusal #bnr-war-propose preserves exact message and legacy tail
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(19) ] to deeply equal [ { method: 'GET', …(6) }, …(19) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-diplomacy-parity.test.tsx:13:591
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > outer collapsed card and inner details preserve telemetry, reads and user state
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(66) ] to deeply equal [ { method: 'GET', …(6) }, …(66) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-diplomacy-parity.test.tsx:14:769
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > vassal sees policies/votes but no direct peace or tax
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(14) ] to deeply equal [ { method: 'GET', …(6) }, …(14) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-diplomacy-parity.test.tsx:16:452
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/118]⎯
+
+ FAIL  test/panel-diplomacy-parity.test.tsx > unknown active law retains server badge without adding selectable invented policy
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(14) ] to deeply equal [ { method: 'GET', …(6) }, …(14) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-diplomacy-parity.test.tsx:17:489
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[49/118]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > complete kingdom card is in saved production Dynasty between clan and orders
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(14) ] to deeply equal [ { method: 'GET', …(6) }, …(14) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:5:437
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[50/118]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > rebellion button/Enter false full wire/30s tail/usage parity
+ FAIL  test/panel-kingdom-parity.test.tsx > rebellion button/Enter true full wire/30s tail/usage parity
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(78) ] to deeply equal [ { method: 'GET', …(6) }, …(78) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:6:584
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[51/118]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > leave ruler false has explicit safety warning and exact action
+ FAIL  test/panel-kingdom-parity.test.tsx > leave vassal false has explicit safety warning and exact action
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(66) ] to deeply equal [ { method: 'GET', …(6) }, …(66) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:7:501
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[52/118]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > leave ruler true has explicit safety warning and exact action
+ FAIL  test/panel-kingdom-parity.test.tsx > leave vassal true has explicit safety warning and exact action
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(78) ] to deeply equal [ { method: 'GET', …(6) }, …(78) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:7:501
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[53/118]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation false and 7s queue feedback
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(66) ] to deeply equal [ { method: 'GET', …(6) }, …(66) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:8:463
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[54/118]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > NPC hire quote confirmation true and 7s queue feedback
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(78) ] to deeply equal [ { method: 'GET', …(6) }, …(78) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:8:463
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[55/118]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > rebellion 1/2 stays actionable
+ FAIL  test/panel-kingdom-parity.test.tsx > rebellion 2/2 stays actionable
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(28) ] to deeply equal [ { method: 'GET', …(6) }, …(28) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:11:466
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[56/118]⎯
+
+ FAIL  test/panel-kingdom-parity.test.tsx > outer collapsed kingdom retains details state/exposure while polls continue
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(66) ] to deeply equal [ { method: 'GET', …(6) }, …(66) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-kingdom-parity.test.tsx:12:347
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[57/118]⎯
+
+ FAIL  test/panel-legacy-harness.test.ts > executes actual old rendered progression click and all success follow-ups without unrelated hosts
+AssertionError: expected [ '/api/bannerlord/config', …(6) ] to deeply equal [ '/api/bannerlord/config', …(4) ]
+
+- Expected
++ Received
+
+@@ -2,6 +2,8 @@
+    "/api/bannerlord/config",
+    "/api/bannerlord/my-hero",
+    "/api/bannerlord/classes",
+    "/api/bannerlord/build",
+    "/api/bannerlord/my-buffs",
++   "/api/bannerlord/content-catalogs",
++   "/api/bannerlord/progression",
+  ]
+
+ ❯ test/panel-legacy-harness.test.ts:10:44
+      8|     await old.bootHero();
+      9|     expect(old.sourceFiles).toHaveLength(23);
+     10|     expect(old.trace.map(row => row.path)).toEqual([
+       |                                            ^
+     11|       '/api/bannerlord/config', '/api/bannerlord/my-hero', '/api/banne…
+     12|       '/api/bannerlord/build', '/api/bannerlord/my-buffs',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[58/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > production selected host restores dynasty with exact initial and 8s active-only reads
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(14) ] to deeply equal [ { method: 'GET', …(6) }, …(14) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:3:130
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[59/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic defend exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic raid exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic garrison exact target decoration and complete 2s/3.5s tails
+ FAIL  test/panel-party-parity.test.tsx > strategic patrol exact target decoration and complete 2s/3.5s tails
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(29) ] to deeply equal [ { method: 'GET', …(6) }, …(29) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:4:440
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[60/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > recruit hides target and sends empty strings; old placeholder defect remains an explicit exception
+AssertionError: complete trace differs only by the explicitly corrected recruit placeholder: expected [ { method: 'GET', …(6) }, …(29) ] to deeply equal [ { method: 'GET', …(6) }, …(29) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ test/panel-party-parity.test.tsx:5:913
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[61/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > release preserves real 1.5s explicit hidden read plus generic 3.5s tail
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(25) ] to deeply equal [ { method: 'GET', …(6) }, …(25) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:6:220
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[62/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > complete [data-bnr-action="army_create"] action and full success tails
+ FAIL  test/panel-party-parity.test.tsx > complete .bnr-clan-party action and full success tails
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(28) ] to deeply equal [ { method: 'GET', …(6) }, …(28) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:7:251
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[63/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer false
+ FAIL  test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer false
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(16) ] to deeply equal [ { method: 'GET', …(6) }, …(16) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:8:619
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[64/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > real danger modal [data-bnr-action="army_disband"] answer true
+ FAIL  test/panel-party-parity.test.tsx > real danger modal .bnr-clan-leave answer true
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(28) ] to deeply equal [ { method: 'GET', …(6) }, …(28) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:8:619
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[65/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > draft survives changing active orders on ordinary poll and target lists are preselected
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(29) ] to deeply equal [ { method: 'GET', …(6) }, …(29) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:10:397
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[66/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > server refusal keeps exact message and still performs local order-read tail
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(18) ] to deeply equal [ { method: 'GET', …(6) }, …(18) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:11:322
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[67/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > empty lists stay select-mode with no made-up target or POST
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(14) ] to deeply equal [ { method: 'GET', …(6) }, …(14) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:12:322
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[68/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > absent lists permit manual target, trimmed with inherited three-character check
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(29) ] to deeply equal [ { method: 'GET', …(6) }, …(29) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:13:537
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[69/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > hidden dynasty suppresses ordinary polls, restored show resumes at next hero cadence
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(15) ] to deeply equal [ { method: 'GET', …(6) }, …(15) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:14:171
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[70/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-party
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_create"]
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace [data-bnr-action="army_disband"]
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace .bnr-clan-leave
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(78) ] to deeply equal [ { method: 'GET', …(6) }, …(78) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:15:812
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[71/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-confirm
+ FAIL  test/panel-party-parity.test.tsx > actual usage collector and 30s complete family trace #bnr-order-cancel
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(79) ] to deeply equal [ { method: 'GET', …(6) }, …(79) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:15:812
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[72/118]⎯
+
+ FAIL  test/panel-party-parity.test.tsx > details collapse/reopen retains exposure and exact 30s trace
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', …(6) }, …(66) ] to deeply equal [ { method: 'GET', …(6) }, …(66) ]
+
+- Expected
++ Received
+
+@@ -80,23 +80,23 @@
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/viewer/stats/alice",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/viewer/stats/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+
+ ❯ Object.check test/panel-combat-support.tsx:68:189
+
+ ❯ test/panel-party-parity.test.tsx:16:245
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[73/118]⎯
+
+ FAIL  test/panel-usage-host.test.tsx > actual PanelApp batches exposures, real transitions and action intent with complete old/new 30s request parity
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ Object.click test/panel-usage-host.test.tsx:70:79
+     68|     async advance(ms: number) { await old.advance(ms); await act(async…
+     69|     async click(oldSelector: string, newSelector = oldSelector, count …
+     70|       for (let i = 0; i < count; i++) (old.document.querySelector(oldS…
+       |                                                                               ^
+     71|       await act(async () => { for (let i = 0; i < count; i++) (ui.cont…
+     72|     },
+ ❯ test/panel-usage-host.test.tsx:81:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[74/118]⎯
+
+ FAIL  test/panel-usage-host.test.tsx > same-task exact-choice duplicate clicks count two attempts while only one action is dispatched
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ Object.click test/panel-usage-host.test.tsx:70:79
+     68|     async advance(ms: number) { await old.advance(ms); await act(async…
+     69|     async click(oldSelector: string, newSelector = oldSelector, count …
+     70|       for (let i = 0; i < count; i++) (old.document.querySelector(oldS…
+       |                                                                               ^
+     71|       await act(async () => { for (let i = 0; i < count; i++) (ui.cont…
+     72|     },
+ ❯ test/panel-usage-host.test.tsx:100:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[75/118]⎯
+
+ FAIL  test/panel-usage-host.test.tsx > a hung telemetry request never delays a real action, its result or its refresh tail
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ Object.click test/panel-usage-host.test.tsx:70:79
+     68|     async advance(ms: number) { await old.advance(ms); await act(async…
+     69|     async click(oldSelector: string, newSelector = oldSelector, count …
+     70|       for (let i = 0; i < count; i++) (old.document.querySelector(oldS…
+       |                                                                               ^
+     71|       await act(async () => { for (let i = 0; i < count; i++) (ui.cont…
+     72|     },
+ ❯ test/panel-usage-host.test.tsx:117:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[76/118]⎯
+
+ FAIL  test/panel-usage-host.test.tsx > telemetry exceptions cannot reject or stall the controller action dispatcher
+TypeError: Cannot read properties of null (reading 'click')
+ ❯ Object.click test/panel-usage-host.test.tsx:70:79
+     68|     async advance(ms: number) { await old.advance(ms); await act(async…
+     69|     async click(oldSelector: string, newSelector = oldSelector, count …
+     70|       for (let i = 0; i < count; i++) (old.document.querySelector(oldS…
+       |                                                                               ^
+     71|       await act(async () => { for (let i = 0; i < count; i++) (ui.cont…
+     72|     },
+ ❯ test/panel-usage-host.test.tsx:123:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[77/118]⎯
+
+
+ Test Files  8 failed | 3 passed (11)
+      Tests  118 failed | 231 passed (349)
+   Start at  13:20:20
+   Duration  135.46s (tests 79%, environment 13%, import 7%, transform 1%)
+
+    Isolate  11 workers spawned · ~1.84s startup each (spawn + environment, per file)
+             at least ~18.38s faster with isolate: false — reuses workers across files instead of one per file
+

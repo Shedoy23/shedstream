@@ -65,7 +65,7 @@ export function combatAllowed(state: PanelState, type: string, data: Record<stri
   return !!power && validPrice(power.price) && data.price === power.price && !remaining(state.cooldowns[power.power_key],now) && !remaining(state.buffs[power.power_key],now);
 }
 export const combatSections = ['summon','active_powers','tournament','weapon_choice'] as const;
-export function combatPresentation(raw: unknown) {
+export function combatPresentation(raw: unknown, tournament = false) {
   const labels: Record<string,string> = { active_powers:'Активки',weapon_choice:'Оружейная способность',summon_ally:'📯 Призвать за стримера',summon_enemy:'⚔️ Призвать против стримера' };
   let order: readonly string[] = combatSections;
   const visible: Record<string,boolean> = Object.fromEntries(combatSections.map(id => [id,true]));
@@ -75,5 +75,5 @@ export function combatPresentation(raw: unknown) {
     for (const id of combatSections) if (ui.combat_visible && typeof ui.combat_visible === 'object' && id in ui.combat_visible) { const value=(ui.combat_visible as Record<string,unknown>)[id]; if (typeof value === 'boolean') visible[id]=value; }
     for (const id of Object.keys(labels)) if (ui.labels && typeof ui.labels === 'object') { const value=(ui.labels as Record<string,unknown>)[id]; if (typeof value === 'string' && value.length>=1 && value.length<=64 && !/[\u0000-\u001f\u007f]/.test(value)) labels[id]=value; }
   }
-  return {labels,visible,order:order.filter(id=>id!=='tournament')};
+  return {labels,visible,order:order.filter(id=>tournament || id!=='tournament')};
 }

@@ -1,0 +1,81 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-voting-parity.test.tsx (9 tests | 1 failed) 4283ms
+   ├Ч voting ignores a late ended hint belonging to a different active round 324ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-voting-parity.test.tsx > voting ignores a late ended hint belonging to a different active round
+TestingLibraryElementError: Unable to find an accessible element with the role "heading" and name "╨б╨╗╨╡╨┤╤Г╤О╤Й╨░╤П ╨╕╨│╤А╨░"
+
+Here are the accessible roles:
+
+  heading:
+
+  Name "╨У╨╛╨╗╨╛╤Б╨╛╨▓╨░╨╜╨╕╨╡ ╨╖╨░ ╤Б╨╗╨╡╨┤╤Г╤О╤Й╤Г╤О ╨╕╨│╤А╤Г":
+  <h2 />
+
+  Name "╨б╤В╨░╤А╤Л╨╣ ╤А╨╡╨╖╤Г╨╗╤М╤В╨░╤В":
+  <h3 />
+
+  --------------------------------------------------
+  button:
+
+  Name "╨Ъ ╨║╨╛╨┐╨╕╨╗╨║╨╡":
+  <button
+    type="button"
+  />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      class="panel-card"
+    >
+      <h2>
+        ╨У╨╛╨╗╨╛╤Б╨╛╨▓╨░╨╜╨╕╨╡ ╨╖╨░ ╤Б╨╗╨╡╨┤╤Г╤О╤Й╤Г╤О ╨╕╨│╤А╤Г
+      </h2>
+      
+      <div>
+        <h3>
+          ╨б╤В╨░╤А╤Л╨╣ ╤А╨╡╨╖╤Г╨╗╤М╤В╨░╤В
+        </h3>
+        <p>
+          999
+           ЁЯТО ╨▓╨╗╨╛╨╢╨╡╨╜╨╛
+        </p>
+        <button
+          type="button"
+        >
+          ╨Ъ ╨║╨╛╨┐╨╕╨╗╨║╨╡
+        </button>
+      </div>
+    </section>
+  </div>
+</body>
+ тЭп Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ тЭп test/panel-voting-parity.test.tsx:50:15
+     48| it('voting ignores a late ended hint belonging to a different active rтАж
+     49|   const p = await setup(); await p.hint('vote_ended', { event_id: 49, тАж
+     50|   expect(p.ui.getByRole('heading', { name: '╨б╨╗╨╡╨┤╤Г╤О╤Й╨░╤П ╨╕╨│╤А╨░', exact: trтАж
+       |               ^
+     51| });
+     52|
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 passed (9)
+   Start at  12:18:21
+   Duration  8.39s (tests 54%, environment 29%, import 13%, transform 5%)
+

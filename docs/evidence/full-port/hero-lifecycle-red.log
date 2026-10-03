@@ -1,0 +1,131 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ├Ч test/panel-hero-lifecycle.test.tsx > hero culture creation uses the game catalog and exact complete legacy traffic 296ms
+   тЖТ the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ├Ч test/panel-hero-lifecycle.test.tsx > hero random creation uses the game catalog and exact complete legacy traffic 67ms
+   тЖТ the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ├Ч test/panel-hero-lifecycle.test.tsx > random creation remains compatible with a missing catalog and sends no fabricated context 82ms
+   тЖТ Cannot read properties of null (reading 'click')
+ ├Ч test/panel-hero-lifecycle.test.tsx > an available empty culture catalog refuses creation without guessing cultures 55ms
+   тЖТ Cannot read properties of null (reading 'disabled')
+ ├Ч test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation false preserves the original warning and traffic 107ms
+   тЖТ Cannot read properties of null (reading 'click')
+ ├Ч test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation true preserves the original warning and traffic 70ms
+   тЖТ Cannot read properties of null (reading 'click')
+ ├Ч test/panel-hero-lifecycle.test.tsx > a newly observed living hero invalidates the old respawn confirmation 54ms
+   тЖТ Cannot read properties of null (reading 'click')
+ ├Ч test/panel-hero-lifecycle.test.tsx > a detached culture button cannot use its former catalog session 85ms
+   тЖТ expected null not to be null
+ ├Ч test/panel-hero-lifecycle.test.tsx > hero creation preserves the current server refusal without a success tail 67ms
+   тЖТ Cannot read properties of null (reading 'click')
+
+тОптОптОптОптОптОптОп Failed Tests 9 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > hero culture creation uses the game catalog and exact complete legacy traffic
+ FAIL  test/panel-hero-lifecycle.test.tsx > hero random creation uses the game catalog and exact complete legacy traffic
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ тЭп test/panel-hero-lifecycle.test.tsx:12:91
+     10| ] as const)it(`hero ${name} creation uses the game catalog and exact cтАж
+     11|   const p=await heroPair({hero:h.hero_absent,action:response,config:h.тАж
+     12|   expect(p.ui.container.querySelector('[data-bnr-culture="Mod.Culture-тАж
+       |                                                                                           ^
+     13|   await p.old.click(q);await p.newClick(q);await p.finish();
+     14|   expect(p.trace.find(q=>q.method==='POST')?.body).toMatchObject(name=тАж
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/9]тОп
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > random creation remains compatible with a missing catalog and sends no fabricated context
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:47:101
+     45|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     46|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     47|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     48|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     49|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:47:46
+ тЭп test/panel-hero-lifecycle.test.tsx:20:50
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/9]тОп
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > an available empty culture catalog refuses creation without guessing cultures
+TypeError: Cannot read properties of null (reading 'disabled')
+ тЭп test/panel-hero-lifecycle.test.tsx:26:60
+     24| it('an available empty culture catalog refuses creation without guessiтАж
+     25|   const p=await heroPair({hero:h.hero_absent,catalogs:{...g.catalogs,cтАж
+     26|   expect((p.ui.container.querySelector('#bnr-adopt-random') as HTMLButтАж
+       |                                                            ^
+     27|   await p.old.click('#bnr-adopt-random');await p.newClick('#bnr-adopt-тАж
+     28|   expect(p.trace.some(q=>q.method==='POST')).toBe(false);
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/9]тОп
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation false preserves the original warning and traffic
+ FAIL  test/panel-hero-lifecycle.test.tsx > dead hero respawn confirmation true preserves the original warning and traffic
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:47:101
+     45|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     46|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     47|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     48|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     49|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:47:46
+ тЭп test/panel-hero-lifecycle.test.tsx:32:50
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/9]тОп
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > a newly observed living hero invalidates the old respawn confirmation
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:47:101
+     45|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     46|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     47|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     48|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     49|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:47:46
+ тЭп test/panel-hero-lifecycle.test.tsx:40:96
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/9]тОп
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > a detached culture button cannot use its former catalog session
+AssertionError: expected null not to be null
+ тЭп test/panel-hero-lifecycle.test.tsx:46:117
+     44| it('a detached culture button cannot use its former catalog session',aтАж
+     45|   const p=await heroPair({hero:h.hero_absent,action:h.create_culture.rтАж
+     46|   const before=p.ui.container.querySelector('[data-bnr-culture="Mod.CuтАж
+       |                                                                                                                     ^
+     47|   p.fixtures.catalogs={...g.catalogs,equipment_session_id:'next-sessioтАж
+     48|   await act(async()=>{await p.controller.refreshCatalogs();});
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/9]тОп
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > hero creation preserves the current server refusal without a success tail
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:47:101
+     45|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     46|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     47|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     48|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     49|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:47:46
+ тЭп test/panel-hero-lifecycle.test.tsx:53:67
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/9]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed (9)
+   Start at  13:48:13
+   Duration  3.41s (environment 40%, tests 27%, import 23%, transform 10%)
+

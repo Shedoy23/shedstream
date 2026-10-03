@@ -24,6 +24,10 @@ function harness() {
         setTimeout: fn => { timers.push(fn); }, showNotification() {},
         fetch: url => new Promise((resolve, reject) => requests.push({ url, resolve, reject })) });
     vm.runInContext(source, context);
+    // This focused lifecycle gate isolates subordinate loaders, including the
+    // two metadata loaders introduced by progression. Full HTTP parity runs in frontend-next.
+    context._loadBnrContentCatalogs = async () => null;
+    context._loadBnrProgression = async () => null;
     const stub = [...dynasty, 'DynastyLockedActions', 'Daily', 'Progression', 'Gender', 'Shop', 'Status',
         'Classes', 'Build', 'Buffs', 'Tournament', 'BattleStatus', 'EquipmentShop'];
     for (const suffix of stub) context['loadBannerlord' + suffix] = () => calls.push(suffix);

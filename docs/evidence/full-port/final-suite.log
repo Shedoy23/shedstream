@@ -1,0 +1,31 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-game-bootstrap-parity.test.tsx > bannerlord whole shell startup preserves every request before the core level continuation
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-game-bootstrap-parity.test.tsx (15 tests | 1 failed) 44437ms
+   × bannerlord whole shell startup preserves every request before the core level continuation 5050ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord whole shell startup preserves every request before the core level continuation
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ test/panel-game-bootstrap-parity.test.tsx:39:1
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 60 passed | 2 skipped (63)
+      Tests  1 failed | 1213 passed | 2 skipped (1216)
+   Start at  18:44:39
+   Duration  367.62s (tests 75%, environment 18%, import 7%, transform 1%)
+
+    Isolate  63 workers spawned · ~2.29s startup each (spawn + environment, per file)
+             at least ~69.94s faster with isolate: false — reuses workers across files instead of one per file
+

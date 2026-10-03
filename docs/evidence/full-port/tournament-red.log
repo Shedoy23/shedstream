@@ -1,0 +1,206 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-tournament-parity.test.tsx > tournament join preserves the complete old request traffic through its 3.5 second continuation and polling
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-tournament-parity.test.tsx > tournament prediction requires confirmation and sends the displayed participant, then keeps every tail request
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-tournament-parity.test.tsx > cancelling a tournament prediction has no mutation traffic
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_no_hero
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_running
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_already
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_pending
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_cooldown
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+stdout | test/panel-tournament-parity.test.tsx > hidden tournament stops its reads and resumes without a second timer
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ тЭп test/panel-tournament-parity.test.tsx (9 tests | 9 failed) 4134ms
+   ├Ч tournament join preserves the complete old request traffic through its 3.5 second continuation and polling 1186ms
+   ├Ч tournament prediction requires confirmation and sends the displayed participant, then keeps every tail request 597ms
+   ├Ч cancelling a tournament prediction has no mutation traffic 428ms
+   ├Ч tournament renders exact server refusal join_no_hero 419ms
+   ├Ч tournament renders exact server refusal join_running 240ms
+   ├Ч tournament renders exact server refusal join_already 305ms
+   ├Ч tournament renders exact server refusal join_pending 287ms
+   ├Ч tournament renders exact server refusal join_cooldown 218ms
+   ├Ч hidden tournament stops its reads and resumes without a second timer 449ms
+
+тОптОптОптОптОптОптОп Failed Tests 9 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-tournament-parity.test.tsx > tournament join preserves the complete old request traffic through its 3.5 second continuation and polling
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(9) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,15 +87,6 @@
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/tournament",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+  ]
+
+ тЭп check test/panel-combat-support.tsx:68:189
+
+ тЭп combatPair test/panel-combat-support.tsx:69:19
+ тЭп test/panel-tournament-parity.test.tsx:8:13
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/9]тОп
+
+ FAIL  test/panel-tournament-parity.test.tsx > tournament prediction requires confirmation and sends the displayed participant, then keeps every tail request
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(9) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,15 +87,6 @@
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/tournament",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+  ]
+
+ тЭп check test/panel-combat-support.tsx:68:189
+
+ тЭп combatPair test/panel-combat-support.tsx:69:19
+ тЭп test/panel-tournament-parity.test.tsx:14:13
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/9]тОп
+
+ FAIL  test/panel-tournament-parity.test.tsx > cancelling a tournament prediction has no mutation traffic
+
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(9) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(10) ]
+ Test Files  1 failed (1)
+      Tests  9 failed (9)
+
+- Expected
++ Received
+
+@@ -87,15 +87,6 @@
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/tournament",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+  ]
+
+ тЭп check test/panel-combat-support.tsx:68:189
+
+ тЭп combatPair test/panel-combat-support.tsx:69:19
+ тЭп test/panel-tournament-parity.test.tsx:22:13
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/9]тОп
+
+ FAIL  test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_no_hero
+ FAIL  test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_running
+ FAIL  test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_already
+ FAIL  test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_pending
+   Start at  09:47:33
+ FAIL  test/panel-tournament-parity.test.tsx > tournament renders exact server refusal join_cooldown
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(9) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,15 +87,6 @@
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/tournament",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+  ]
+
+ тЭп check test/panel-combat-support.tsx:68:189
+
+ тЭп combatPair test/panel-combat-support.tsx:69:19
+ тЭп test/panel-tournament-parity.test.tsx:27:13
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/9]тОп
+
+ FAIL  test/panel-tournament-parity.test.tsx > hidden tournament stops its reads and resumes without a second timer
+AssertionError: complete admitted-host request trace, including telemetry and all action/poll tails: expected [ { method: 'GET', тАж(6) }, тАж(9) ] to deeply equal [ { method: 'GET', тАж(6) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -87,15 +87,6 @@
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/tournament",
+-     "query": "",
+-     "token": "alice-token",
+-   },
+  ]
+
+ тЭп check test/panel-combat-support.tsx:68:189
+
+ тЭп combatPair test/panel-combat-support.tsx:69:19
+ тЭп test/panel-tournament-parity.test.tsx:32:13
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/9]тОп
+
+   Duration  8.74s (tests 49%, environment 27%, import 16%, transform 8%)
+

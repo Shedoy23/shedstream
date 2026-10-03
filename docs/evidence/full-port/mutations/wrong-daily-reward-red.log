@@ -1,0 +1,52 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-daily-parity.test.tsx (4 tests | 1 failed | 3 skipped) 565ms
+   × daily gold keeps exact POST and immediate status plus 1500ms hero and metadata tails 563ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 skipped (4)
+   Start at  19:01:29
+   Duration  3.77s (environment 39%, import 29%, transform 16%, tests 16%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-daily-parity.test.tsx > daily gold keeps exact POST and immediate status plus 1500ms hero and metadata tails
+AssertionError: expected [ { method: 'GET', …(7) }, …(13) ] to deeply equal [ { method: 'GET', …(7) }, …(13) ]
+
+- Expected
++ Received
+
+@@ -79,18 +79,18 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": {
+-       "reward_type": "gold",
++       "reward_type": "xp",
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/daily-claim",
+      "query": "",
+-     "rawBody": "{\"reward_type\":\"gold\"}",
++     "rawBody": "{\"reward_type\":\"xp\"}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": null,
+
+ ❯ check test/panel-hero-support.tsx:61:102
+
+ ❯ Object.finish test/panel-hero-support.tsx:65:131
+ ❯ test/panel-daily-parity.test.tsx:11:90
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

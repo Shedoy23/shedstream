@@ -1,0 +1,63 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > vassal create keeps actual eligible hero ID and 2000ms plus generic continuation
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > vassal create keeps actual eligible hero ID and 2000ms plus generic continuation
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > vassal create keeps actual eligible hero ID and 2000ms plus generic continuation
+[FE-VAS] loaded vassals=1 eligible=1
+
+ ❯ test/panel-vassal-ransom-parity.test.tsx (11 tests | 1 failed | 10 skipped) 1632ms
+   × vassal create keeps actual eligible hero ID and 2000ms plus generic continuation 1629ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 skipped (11)
+   Start at  18:59:15
+   Duration  6.30s (environment 34%, tests 27%, import 23%, transform 16%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > vassal create keeps actual eligible hero ID and 2000ms plus generic continuation
+AssertionError: expected [ { method: 'GET', …(7) }, …(30) ] to deeply equal [ { method: 'GET', …(7) }, …(30) ]
+
+- Expected
++ Received
+
+@@ -142,20 +142,20 @@
+    {
+      "body": {
+        "action_type": "hero.create_vassal_clan",
+        "data": {
+          "client_action_id": "<generated-id>",
+-         "heir_hero_id": "heir-eligible",
++         "heir_hero_id": "wrong-heir",
+          "vassal_name": "Дом наследника",
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.create_vassal_clan\",\"data\":{\"heir_hero_id\":\"heir-eligible\",\"vassal_name\":\"Дом наследника\",\"client_action_id\":\"<generated-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.create_vassal_clan\",\"data\":{\"heir_hero_id\":\"wrong-heir\",\"vassal_name\":\"Дом наследника\",\"client_action_id\":\"<generated-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": "no-store",
+
+ ❯ check test/panel-hero-support.tsx:61:102
+
+ ❯ Object.finish test/panel-hero-support.tsx:65:131
+ ❯ test/panel-vassal-ransom-parity.test.tsx:29:134
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

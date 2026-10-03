@@ -1,0 +1,345 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-game-bootstrap-parity.test.tsx (3 tests | 3 failed) 1605ms
+   ├Ч colony whole shell startup and five minute polls preserve every request in order 595ms
+   ├Ч colony paid heal keeps all core updates and the explicit extra confirmation click 633ms
+   ├Ч colony token refresh repeats legacy snapshots without moving the five second poll phase 375ms
+
+тОптОптОптОптОптОптОп Failed Tests 3 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > colony whole shell startup and five minute polls preserve every request in order
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(13) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(13) ]
+
+- Expected
++ Received
+
+@@ -72,51 +72,51 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/config",
++     "path": "/api/user/level/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/my-colonist",
++     "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/capacity",
++     "path": "/api/shedcolony/config",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/user/level/alice",
++     "path": "/api/shedcolony/my-colonist",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/duel/list",
++     "path": "/api/shedcolony/capacity",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп test/panel-game-bootstrap-parity.test.tsx:13:122
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/3]тОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > colony paid heal keeps all core updates and the explicit extra confirmation click
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(63) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(63) ]
+
+- Expected
++ Received
+
+@@ -72,51 +72,51 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/config",
++     "path": "/api/user/level/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/my-colonist",
++     "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/capacity",
++     "path": "/api/shedcolony/config",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/user/level/alice",
++     "path": "/api/shedcolony/my-colonist",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/duel/list",
++     "path": "/api/shedcolony/capacity",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп test/panel-game-bootstrap-parity.test.tsx:14:378
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/3]тОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > colony token refresh repeats legacy snapshots without moving the five second poll phase
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(62) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(62) ]
+
+- Expected
++ Received
+
+@@ -72,51 +72,51 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/config",
++     "path": "/api/user/level/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/my-colonist",
++     "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/capacity",
++     "path": "/api/shedcolony/config",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/user/level/alice",
++     "path": "/api/shedcolony/my-colonist",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/duel/list",
++     "path": "/api/shedcolony/capacity",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+@@ -232,51 +232,51 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/config",
++     "path": "/api/user/level/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/my-colonist",
++     "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/shedcolony/capacity",
++     "path": "/api/shedcolony/config",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/user/level/alice",
++     "path": "/api/shedcolony/my-colonist",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/duel/list",
++     "path": "/api/shedcolony/capacity",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+@@ -425,10 +425,21 @@
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/shedcolony/capacity",
+      "query": "",
+      "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
++   },
++   {
++     "body": "{\"batch_id\":\"<generated>\",\"surface\":\"desktop\",\"events\":[{\"kind\":\"panel_view\",\"feature\":\"core:panel\",\"count\":1}]}",
++     "cache": null,
++     "contentType": "application/json",
++     "keepalive": true,
++     "method": "POST",
++     "path": "/api/viewer/ui-usage",
++     "query": "",
++     "rawBody": "{\"batch_id\":\"<generated>\",\"surface\":\"desktop\",\"events\":[{\"kind\":\"panel_view\",\"feature\":\"core:panel\",\"count\":1}]}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+      "body": "null",
+      "cache": null,
+@@ -445,21 +456,10 @@
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/shedcolony/capacity",
+      "query": "",
+      "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+-   },
+-   {
+-     "body": "{\"batch_id\":\"<generated>\",\"surface\":\"desktop\",\"events\":[{\"kind\":\"panel_view\",\"feature\":\"core:panel\",\"count\":1}]}",
+-     "cache": null,
+-     "contentType": "application/json",
+-     "keepalive": true,
+-     "method": "POST",
+-     "path": "/api/viewer/ui-usage",
+-     "query": "",
+-     "rawBody": "{\"batch_id\":\"<generated>\",\"surface\":\"desktop\",\"events\":[{\"kind\":\"panel_view\",\"feature\":\"core:panel\",\"count\":1}]}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+      "body": "null",
+      "cache": null,
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп test/panel-game-bootstrap-parity.test.tsx:15:437
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/3]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  18:00:19
+   Duration  4.06s (tests 43%, environment 33%, import 17%, transform 7%)
+

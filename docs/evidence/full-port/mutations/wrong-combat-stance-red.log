@@ -1,0 +1,60 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-combat-parity.test.tsx > old rendered stance aggressive, including current, has no price or preflight
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-combat-parity.test.tsx (87 tests | 1 failed | 86 skipped) 1814ms
+   × old rendered stance aggressive, including current, has no price or preflight 1811ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 86 skipped (87)
+   Start at  19:09:21
+   Duration  6.56s (environment 31%, tests 29%, import 22%, transform 18%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-combat-parity.test.tsx > old rendered stance aggressive, including current, has no price or preflight
+AssertionError: complete admitted-host traffic; only documented independent startup catalog/stats ordering differs: expected [ { method: 'GET', …(7) }, …(22) ] to deeply equal [ { method: 'GET', …(7) }, …(22) ]
+
+- Expected
++ Received
+
+@@ -122,19 +122,19 @@
+    {
+      "body": {
+        "action_type": "hero.set_combat_stance",
+        "data": {
+          "client_action_id": "<generated-action-id>",
+-         "stance": "aggressive",
++         "stance": "defensive",
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.set_combat_stance\",\"data\":{\"stance\":\"aggressive\",\"client_action_id\":\"<generated-action-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.set_combat_stance\",\"data\":{\"stance\":\"defensive\",\"client_action_id\":\"<generated-action-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": "no-store",
+
+ ❯ Object.check test/panel-combat-support.tsx:86:122
+     84|     // Move exactly this catalog GET across the immediately adjacent s…
+     85|     // retain every row, body byte, header, later poll and action cont…
+     86|     expect(actual, 'complete admitted-host traffic; only documented in…
+       |                                                                                                                          ^
+     87|   };
+     88|   if (!partyHost) check();
+ ❯ test/panel-combat-parity.test.tsx:22:129
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

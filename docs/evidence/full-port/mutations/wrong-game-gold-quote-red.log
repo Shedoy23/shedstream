@@ -1,0 +1,62 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-game-progression-parity.test.tsx (9 tests | 1 failed | 8 skipped) 672ms
+   × game focus uses exact quote/context bytes and every success continuation 670ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  19:01:56
+   Duration  3.64s (environment 43%, import 25%, tests 19%, transform 12%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > game focus uses exact quote/context bytes and every success continuation
+AssertionError: expected [ { method: 'GET', …(7) }, …(15) ] to deeply equal [ { method: 'GET', …(7) }, …(15) ]
+
+- Expected
++ Received
+
+@@ -73,11 +73,11 @@
+      "body": {
+        "action_type": "hero.add_focus",
+        "data": {
+          "amount": 1,
+          "client_action_id": "<generated-id>",
+-         "expected_cost_gold": 7,
++         "expected_cost_gold": 999,
+          "expected_value": 2,
+          "progression_context": {
+            "equipment_session_id": "session-a",
+            "hero_id": "test_hero_alice",
+            "save_id": "save-a",
+@@ -88,11 +88,11 @@
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.add_focus\",\"data\":{\"skill_key\":\"Engineering\",\"amount\":1,\"expected_cost_gold\":7,\"expected_value\":2,\"progression_context\":{\"save_id\":\"save-a\",\"equipment_session_id\":\"session-a\",\"hero_id\":\"test_hero_alice\"},\"client_action_id\":\"<generated-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.add_focus\",\"data\":{\"skill_key\":\"Engineering\",\"amount\":1,\"expected_cost_gold\":999,\"expected_value\":2,\"progression_context\":{\"save_id\":\"save-a\",\"equipment_session_id\":\"session-a\",\"hero_id\":\"test_hero_alice\"},\"client_action_id\":\"<generated-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": null,
+
+ ❯ check test/panel-game-progression-parity.test.tsx:45:102
+     43|   close.push(() => controller.stop()); await controller.start(); await…
+     44|   const ui = render(<HeroDevelopmentView controller={controller}/>);
+     45|   const check = () => { old.assertHealthy(); expect(failures).toEqual(…
+       |                                                                                                      ^
+     46|   return {old, trace, controller, ui, check,
+     47|     async newClick(selector: string) { await act(async () => { (ui.con…
+ ❯ Object.finish test/panel-game-progression-parity.test.tsx:49:131
+ ❯ test/panel-game-progression-parity.test.tsx:65:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

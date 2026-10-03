@@ -7,11 +7,12 @@ const config = await resolveConfig({ root: fileURLToPath(new URL('../', import.m
 // Resolve through the same build validator, including .env.production and overrides.
 const apiOrigin = JSON.parse(config.define['import.meta.env.VITE_SKILLGAME_EBS_ORIGIN']);
 const pages = new Map();
-for (const entry of ['index', 'extension', 'mobile', 'tournament', 'panel-extension', 'panel-mobile']) {
+for (const entry of ['index', 'extension', 'mobile', 'tournament', 'panel-extension', 'panel-mobile', 'config']) {
 const html = readFileSync(new URL(`../dist/${entry}.html`, import.meta.url), 'utf8');
 pages.set(entry, html);
 const expectedSources = ["'self'", 'https://api.twitch.tv', ...(entry !== 'tournament' && apiOrigin ? [apiOrigin] : [])];
 assert.deepEqual(html.match(/connect-src ([^;]+)/)?.[1].split(/\s+/), expectedSources, `${entry}: CSP must permit only the expected API origins`);
+if (entry.startsWith('panel-')) assert.deepEqual(html.match(/img-src ([^;]+)/)?.[1].split(/\s+/), ["'self'", 'data:', ...(apiOrigin ? [apiOrigin] : [])], 'Pet images use only local/data or the configured server origin');
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
 assert.match(scripts[0][1], /src="https:\/\/extension-files\.twitch\.tv\/helper\/v1\/twitch-ext\.min\.js"/, 'Twitch helper must be FIRST');
 assert(scripts.every(script => !script[2].trim()), 'No inline JavaScript');
@@ -64,7 +65,7 @@ for (const entry of ['panel-extension.html', 'panel-mobile.html']) {
   assert(source.includes('/api/bannerlord/action'), 'Panel must include the real action adapter');
   assert(!source.includes('/api/skillgames/'), 'Panel must remain independent of skillgame API');
 }
-console.log('PASS: six entrypoints; identical skillgame pages; validated EBS origin/CSP; isolated tournament preview; helper first; readable local assets; no legacy owner');
+console.log('PASS: seven entrypoints; identical skillgame pages; validated EBS origin/CSP; isolated tournament preview; helper first; readable local assets; no legacy owner');
 
 const noticesUrl = new URL('../dist/THIRD_PARTY_NOTICES.txt', import.meta.url);
 assert(existsSync(noticesUrl), 'Bundled Preact runtime requires third-party license notices');

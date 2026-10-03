@@ -1,0 +1,54 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-hero-lifecycle.test.tsx (9 tests | 1 failed | 8 skipped) 472ms
+   × hero culture creation uses the game catalog and exact complete legacy traffic 470ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  19:01:37
+   Duration  3.65s (environment 38%, import 30%, transform 18%, tests 14%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-hero-lifecycle.test.tsx > hero culture creation uses the game catalog and exact complete legacy traffic
+AssertionError: expected [ { method: 'GET', …(7) }, …(14) ] to deeply equal [ { method: 'GET', …(7) }, …(14) ]
+
+- Expected
++ Received
+
+@@ -76,20 +76,20 @@
+          "client_action_id": "<generated-id>",
+          "content_context": {
+            "equipment_session_id": "session-a",
+            "save_id": "save-a",
+          },
+-         "culture": "Mod.Culture-X",
++         "culture": "wrong-culture",
+          "price": 0,
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.create\",\"data\":{\"price\":0,\"culture\":\"Mod.Culture-X\",\"content_context\":{\"save_id\":\"save-a\",\"equipment_session_id\":\"session-a\"},\"client_action_id\":\"<generated-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.create\",\"data\":{\"price\":0,\"culture\":\"wrong-culture\",\"content_context\":{\"save_id\":\"save-a\",\"equipment_session_id\":\"session-a\"},\"client_action_id\":\"<generated-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": "no-store",
+
+ ❯ check test/panel-hero-support.tsx:61:102
+
+ ❯ Object.finish test/panel-hero-support.tsx:65:131
+ ❯ test/panel-hero-lifecycle.test.tsx:13:44
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

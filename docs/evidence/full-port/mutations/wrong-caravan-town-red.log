@@ -1,0 +1,54 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-properties-parity.test.tsx (12 tests | 1 failed | 11 skipped) 1398ms
+   × properties caravan buy preserves catalog selection, exact raw action and all 2000/3500ms tails 1396ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 11 skipped (12)
+   Start at  19:00:58
+   Duration  6.55s (environment 37%, import 24%, tests 23%, transform 16%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-properties-parity.test.tsx > properties caravan buy preserves catalog selection, exact raw action and all 2000/3500ms tails
+AssertionError: expected [ { method: 'GET', …(7) }, …(24) ] to deeply equal [ { method: 'GET', …(7) }, …(24) ]
+
+- Expected
++ Received
+
+@@ -122,20 +122,20 @@
+    {
+      "body": {
+        "action_type": "hero.buy_caravan",
+        "data": {
+          "client_action_id": "<generated-id>",
+-         "home_settlement_id": "town_fixture",
++         "home_settlement_id": "wrong-town",
+          "home_settlement_name": "Город фикстуры",
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.buy_caravan\",\"data\":{\"home_settlement_id\":\"town_fixture\",\"home_settlement_name\":\"Город фикстуры\",\"client_action_id\":\"<generated-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.buy_caravan\",\"data\":{\"home_settlement_id\":\"wrong-town\",\"home_settlement_name\":\"Город фикстуры\",\"client_action_id\":\"<generated-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": "no-store",
+
+ ❯ check test/panel-hero-support.tsx:61:102
+
+ ❯ Object.finish test/panel-hero-support.tsx:65:131
+ ❯ test/panel-properties-parity.test.tsx:35:84
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

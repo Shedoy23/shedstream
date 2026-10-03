@@ -1,8 +1,9 @@
-import { useSyncExternalStore } from 'react';
+import { lazy, Suspense, useSyncExternalStore } from 'react';
 import { actionKey, validPrice, type BattleStats, type PowerOption } from './contracts';
 import type { PanelController } from './controller';
 import { combatAllowed, combatPresentation, cooldownLabel, liveParticipant, orderLabels, orders, orderVisible, powerCooldown, powerLabels, remaining, stances } from './combat';
 import './combat.css';
+const TournamentPanel = lazy(() => import('./TournamentPanel'));
 const number = (value: unknown, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const amount = (value: unknown) => Math.max(0,Math.floor(number(value))).toLocaleString('ru-RU');
 function payout(stats: BattleStats) {
@@ -17,9 +18,9 @@ function strength(power: PowerOption) {
   const value=Number(power.value);if(!Number.isFinite(value))return '';
   switch(power.power_key){case 'rage':return `Урон +${Math.round((value-1)*100)}%`;case 'cleave':return `${Math.round(value*100)}% урона удара соседним врагам`;case 'shield_break_burst':return `${value}% шанс разбить щит при попадании`;case 'explosive_arrows':return `До ${value} урона соседним врагам`;case 'poison_dot':return `${value} урона в секунду от яда`;case 'ironskin_toggle':return `Входящий урон −${value}% со щитом в руке`;default:return '';}
 }
-export function CombatView({controller}:{controller:PanelController}) {
+export function CombatView({controller,tournament=false}:{controller:PanelController;tournament?:boolean}) {
   const s=useSyncExternalStore(controller.subscribe,controller.snapshot), battle=s.battle, my=battle?.my_stats, build=s.build?.build;
-  const ui=combatPresentation(s.config?.ui), live=liveParticipant(s), newBuild=s.newBuild;
+  const ui=combatPresentation(s.config?.ui,tournament), live=liveParticipant(s), newBuild=s.newBuild;
   const act=(type:string,data:Record<string,unknown>,family=false)=>{void controller.combatAction(type,data,family);};
   const allowed=(type:string,data:Record<string,unknown>,family=false)=>combatAllowed(s,type,data,family) && !s.busy.includes(actionKey(type,data));
   const affordability=(price:unknown,title:string)=>({ title:validPrice(price) && price>(s.points || 0)?`Не хватает:\n  • 💎: нужно ${price.toLocaleString('ru-RU')}, есть ${(s.points || 0).toLocaleString('ru-RU')}`:title, className:validPrice(price) && price>(s.points || 0)?'bnr-cant-afford':'' });
@@ -31,6 +32,7 @@ export function CombatView({controller}:{controller:PanelController}) {
     return <button type="button" key={power.power_key} data-bnr-build-activate={power.power_key} disabled={!allowed('power.activate',data,true)} title={power.description} onClick={()=>act('power.activate',data,true)}>{power.label || power.power_key} · {validPrice(power.price)?power.price.toLocaleString('ru-RU'):'—'} 💎{cd>0?` · ${cd} с`:buff?' · действует':''}</button>;
   };
   const contents:Record<string,unknown>={
+    tournament:<Suspense fallback={<p>Загружаем турнир…</p>}><TournamentPanel controller={controller} /></Suspense>,
     summon:<div className="panel-summons">{(['player','enemy'] as const).map(side=>{
       const price=s.config?.spawn_prices?.[side],data={price,side},cd=remaining(s.cooldowns['player.spawn:'+side],s.now);
       return <button type="button" key={side} id={'bnr-summon-'+(side==='player'?'ally':'enemy')+'-btn'} disabled={!allowed('player.spawn',data)} {...affordability(price,side==='player'?'Призвать героя в бой на сторону стримера':'Призвать героя ПРОТИВ стримера (на сторону противника)')} onClick={()=>act('player.spawn',data)}>{ui.labels[side==='player'?'summon_ally':'summon_enemy']} <span>{cd>0?cooldownLabel(cd):validPrice(price)?`${price}💎`:'Цена недоступна'}</span></button>;
@@ -54,6 +56,6 @@ export function CombatView({controller}:{controller:PanelController}) {
       const price=s.config?.action_prices?.[type],data={price},cd=remaining(s.cooldowns[type],s.now);return <button type="button" key={type} data-det-act={type} disabled={!allowed(type,data)} title={['hero.detach_walls','hero.detach_gate'].includes(type) && battle?.is_siege!==true?'Доступно только во время осады.':tip} onClick={()=>act(type,data)}>{cd>0?cooldownLabel(cd):<>{label} <span>{validPrice(price)?`(${price}💎)`:'Цена недоступна'}</span></>}</button>;
     })}</div></section>}</div>
     {ui.order.map(id=><section className="panel-card" key={id} id={id==='summon'?'bnr-summon-slot':id==='active_powers'?'bnr-active-powers-slot':'bnr-build-choice-slot'} data-bnr-ui-section={id} hidden={!ui.visible[id]}>{contents[id] as import('react').ReactNode}</section>)}
-    <p className="panel-muted">Турниры доступны в действующей панели.</p>
+    {!tournament && <p className="panel-muted">Турниры доступны в действующей панели.</p>}
   </section>;
 }

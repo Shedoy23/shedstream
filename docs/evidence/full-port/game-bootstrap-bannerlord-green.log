@@ -1,0 +1,32 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-game-bootstrap-parity.test.tsx (5 tests | 1 failed) 7873ms
+   ├Ч bannerlord accepted action updates shared shell balance and level immediately 471ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord accepted action updates shared shell balance and level immediately
+TypeError: Cannot read properties of undefined (reading 'buildFamily')
+ тЭп PanelController.action src/panel/controller.ts:348:35
+    346|     // BnrBuilds has one synchronous family lock. Rendered disabled stтАж
+    347|     // is too late for two different choices clicked before Preact comтАж
+    348|     const buildFamily = !!options.buildFamily || type === 'hero.set_spтАж
+       |                                   ^
+    349|     if (buildFamily) {
+    350|       const build = this.state.build;
+ тЭп test/panel-game-bootstrap-parity.test.tsx:34:240
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп test/panel-game-bootstrap-parity.test.tsx:34:207
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  18:06:27
+   Duration  15.02s (tests 54%, environment 21%, import 15%, transform 10%)
+

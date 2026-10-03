@@ -1,0 +1,5 @@
+.panel-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: #090611c9; display: flex; align-items: center; justify-content: center; padding: 12px; }
+.panel-modal-backdrop > .panel-card { width: min(100%, 420px); max-height: calc(100dvh - 24px); overflow: auto; box-shadow: 0 12px 60px #0009; }
+.panel-modal-backdrop button { margin: 4px; }
+#bannerlord-tournament-status { font-size: .75em; color: #d4b578; }
+#bannerlord-tournament-body { overflow-wrap: anywhere; }

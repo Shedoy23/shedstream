@@ -1,0 +1,59 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-party-parity.test.tsx (32 tests | 1 failed | 31 skipped) 1608ms
+   × strategic siege exact target decoration and complete 2s/3.5s tails 1606ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 31 skipped (32)
+   Start at  19:09:53
+   Duration  6.71s (environment 31%, tests 25%, import 24%, transform 20%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-party-parity.test.tsx > strategic siege exact target decoration and complete 2s/3.5s tails
+AssertionError: complete admitted-host traffic; only documented independent startup catalog/stats ordering differs: expected [ { method: 'GET', …(7) }, …(28) ] to deeply equal [ { method: 'GET', …(7) }, …(29) ]
+
+- Expected
++ Received
+
+@@ -210,20 +210,10 @@
+    {
+      "body": null,
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/party-orders",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+
+ ❯ Object.check test/panel-combat-support.tsx:86:122
+     84|     // Move exactly this catalog GET across the immediately adjacent s…
+     85|     // retain every row, body byte, header, later poll and action cont…
+     86|     expect(actual, 'complete admitted-host traffic; only documented in…
+       |                                                                                                                          ^
+     87|   };
+     88|   if (!partyHost) check();
+ ❯ test/panel-party-parity.test.tsx:5:440
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

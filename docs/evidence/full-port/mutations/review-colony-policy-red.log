@@ -1,0 +1,52 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-colony-review.test.tsx (15 tests | 3 failed | 12 skipped) 1093ms
+   × review colony actual rate_limited policy refusal preserves message and permits explicit retry 708ms
+   × review colony actual pending policy refusal preserves message and permits explicit retry 190ms
+   × review colony actual unregistered policy refusal preserves message and permits explicit retry 187ms
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 12 skipped (15)
+   Start at  20:55:59
+   Duration  5.05s (environment 53%, tests 24%, import 17%, transform 6%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-colony-review.test.tsx > review colony actual rate_limited policy refusal preserves message and permits explicit retry
+AssertionError: expected 'Слишком много запросов. Попробуй чере…' to be 'Слишком много запросов. Попробуй чере…' // Object.is equality
+
+Expected: "Слишком много запросов. Попробуй через минуту."
+Received: "Слишком много запросов. Попробуй через минуту.. Исход заявки неизвестен; повторная покупка заблокирована в этой открытой панели."
+
+ ❯ test/panel-colony-review.test.tsx:44:271
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  test/panel-colony-review.test.tsx > review colony actual pending policy refusal preserves message and permits explicit retry
+AssertionError: expected 'Заявка стримера принята и ждёт подклю…' to be 'Заявка стримера принята и ждёт подклю…' // Object.is equality
+
+Expected: "Заявка стримера принята и ждёт подключения"
+Received: "Заявка стримера принята и ждёт подключения. Исход заявки неизвестен; повторная покупка заблокирована в этой открытой панели."
+
+ ❯ test/panel-colony-review.test.tsx:44:271
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  test/panel-colony-review.test.tsx > review colony actual unregistered policy refusal preserves message and permits explicit retry
+AssertionError: expected 'Стример не подключил расширение к пла…' to be 'Стример не подключил расширение к пла…' // Object.is equality
+
+Expected: "Стример не подключил расширение к платформе"
+Received: "Стример не подключил расширение к платформе. Исход заявки неизвестен; повторная покупка заблокирована в этой открытой панели."
+
+ ❯ test/panel-colony-review.test.tsx:44:271
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+

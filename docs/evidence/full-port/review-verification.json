@@ -1,0 +1,43 @@
+{
+  "runtime_commit": "2091d24efb8442894746491f12eb9f9aaabdf52a",
+  "full_suite": {
+    "exit": 0,
+    "passed": 1241,
+    "log": "review-full-suite.log",
+    "files_passed": 62,
+    "skipped": 2
+  },
+  "fresh_http": {
+    "passed": 2,
+    "log": "review-fresh-http.log",
+    "exit": 0
+  },
+  "build_type_csp_maps": {
+    "exit": 0,
+    "log": "review-build.log"
+  },
+  "legacy": {
+    "log": "review-legacy-gates.log",
+    "files_passed": 18,
+    "exit": 0
+  },
+  "browser": {
+    "sandbox": true,
+    "screenshots": 184,
+    "log": "review-browser.log",
+    "errors": 0,
+    "csp_bypass": false,
+    "exit": 0,
+    "external_requests": 0
+  },
+  "mutations": {
+    "all_red_exit": 1,
+    "all_green_exit": 0,
+    "count": 56,
+    "all_current_hashes_verified": true
+  },
+  "initial_gzip": 107128,
+  "static_gzip": 46408,
+  "production_or_publish_performed": false,
+  "scope_after_authorized_merge": "Only frontend-next, documents/evidence; in Расширение only docs/CONTEXT.md"
+}

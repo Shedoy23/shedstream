@@ -1,0 +1,680 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-hero-profile-parity.test.tsx (9 tests | 2 failed) 4982ms
+   ├Ч hero profile divorce preserves raw action, family snapshot and all continuations 586ms
+   ├Ч hero profile spouse replacement cancels divorce before any request 330ms
+
+тОптОптОптОптОптОптОп Failed Tests 2 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile divorce preserves raw action, family snapshot and all continuations
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М"
+
+Here are the accessible roles:
+
+  region:
+
+  Name "╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П":
+  <section
+    aria-label="╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П"
+    class="panel-party"
+  />
+
+  Name "╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П":
+  <section
+    aria-label="╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П"
+    class="panel-card"
+  />
+
+  Name "╨Ш╨╝╤Г╤Й╨╡╤Б╤В╨▓╨╛ ╨╕ ╨╜╨░╤Б╨╗╨╡╨┤╨╛╨▓╨░╨╜╨╕╨╡":
+  <section
+    aria-label="╨Ш╨╝╤Г╤Й╨╡╤Б╤В╨▓╨╛ ╨╕ ╨╜╨░╤Б╨╗╨╡╨┤╨╛╨▓╨░╨╜╨╕╨╡"
+  />
+
+  Name "╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡":
+  <section
+    aria-label="╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡"
+    class="panel-card"
+  />
+
+  --------------------------------------------------
+  heading:
+
+  Name "╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П":
+  <h1 />
+
+  Name "╨Ъ╨╗╨░╨╜ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л":
+  <h2 />
+
+  Name "тАФ ╨╜╨╡╤В ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨░ тАФ":
+  <h2 />
+
+  Name "╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П":
+  <h2 />
+
+  Name "╨Ф╨╡╤В╨╕ (1 ╨╢╨╕╨▓╤Л╤Е ╨╕╨╖ 1)":
+  <h3 />
+
+  Name "╨Я╨╕╨▓╨╛╨▓╨░╤А╨╜╤П":
+  <h3 />
+
+  Name "╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л":
+  <h3 />
+
+  Name "╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л":
+  <h3 />
+
+  Name "╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡":
+  <h2 />
+
+  Name "2026-10-02":
+  <h3 />
+
+  --------------------------------------------------
+  group:
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-details="dyn-clan"
+    open=""
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-details="dyn-kingdom"
+    open=""
+  />
+
+  Name "":
+  <details
+    data-bnr-details="kingdom-create"
+  />
+
+  Name "":
+  <details
+    data-bnr-details="kingdom-join"
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="army"
+    open=""
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="workshops"
+    open=""
+  />
+
+  Name "":
+  <details
+    data-bnr-details="ws-buy"
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="fiefs"
+    open=""
+  />
+
+  Name "":
+  <details
+    class="panel-card"
+    data-bnr-section="caravans"
+    open=""
+  />
+
+  Name "":
+  <details
+    data-bnr-details="caravan-buy"
+  />
+
+  --------------------------------------------------
+  term:
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  Name "":
+  <dt />
+
+  --------------------------------------------------
+  definition:
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  Name "":
+  <dd />
+
+  --------------------------------------------------
+  button:
+
+  Name "ЁЯЪк ╨Я╨╛╨║╨╕╨╜╤Г╤В╤М ╨║╨╗╨░╨╜":
+  <button
+    class="bnr-clan-leave"
+    type="button"
+  />
+
+  Name "╨а╨░╨╖╨▓╨╡╤Б╤В╨╕╤Б╤М тАФ ╨ж╨╡╨╜╨░ ╨╜╨╡ ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨░":
+  <button
+    disabled=""
+    id="bnr-divorce-btn"
+    type="button"
+  />
+
+  Name "╨Ч╨░╤З╨░╤В╤М ╤А╨╡╨▒╤С╨╜╨║╨░ тАФ 100┬а000 ЁЯТ░":
+  <button
+    id="bnr-make-baby-btn"
+    type="button"
+  />
+
+  Name "╨Я╤А╨╛╨┤╨░╤В╤М":
+  <button
+    class="bnr-ws-sell"
+    type="button"
+  />
+
+  Name "╨Я╤А╨╛╨┤╨░╤В╤М":
+  <button
+    class="bnr-caravan-sell"
+    type="button"
+  />
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  <ul />
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  <li />
+
+  --------------------------------------------------
+  status:
+
+  Name "":
+  <p
+    role="status"
+  />
+
+  --------------------------------------------------
+  article:
+
+  Name "":
+  <article
+    data-workshop-id="1"
+  />
+
+  Name "":
+  <article
+    data-fief-id="1"
+  />
+
+  Name "":
+  <article
+    data-caravan-id="1"
+  />
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <section
+      aria-label="╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П"
+      class="panel-party"
+    >
+      <h1>
+        ╨Ъ╨╗╨░╨╜, ╨╛╤В╤А╤П╨┤ ╨╕ ╨░╤А╨╝╨╕╤П
+      </h1>
+      
+      
+      <details
+        class="panel-card"
+        data-bnr-details="dyn-clan"
+        open=""
+      >
+        <summary>
+          ЁЯП░ ╨Ъ╨╗╨░╨╜
+        </summary>
+        <div
+          id="bnr-clan-mgmt-slot"
+        >
+          <h2>
+            ╨Ъ╨╗╨░╨╜ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
+          </h2>
+          <dl>
+            <dt>
+              тнР Tier:
+            </dt>
+            <dd>
+              3
+            </dd>
+            <dt>
+              ЁЯПЖ Renown:
+            </dt>
+            <dd>
+              0
+            </dd>
+            <dt>
+              ЁЯСе ╨У╨╡╤А╨╛╨╡╨▓:
+            </dt>
+            <dd>
+              4
+            </dd>
+            <dt>
+              тЪФ ╨Ю╤В╤А╤П╨┤╨╛╨▓:
+            </dt>
+            <dd>
+              1
+            </dd>
+            <dt>
+              ЁЯП░ ╨Я╨╛╤Б╨╡╨╗╨╡╨╜╨╕╨╣:
+            </dt>
+            <dd>
+              0
+            </dd>
+          </dl>
+          <p>
+            тЬЕ ╨Ю╤В╤А╤П╨┤╨╛╨▓ ╤Г ╨║╨╗╨░╨╜╨░: 
+            1
+          </p>
+          <button
+            class="bnr-clan-leave"
+            type="button"
+          >
+            ЁЯЪк ╨Я╨╛╨║╨╕╨╜╤Г╤В╤М ╨║╨╗╨░╨╜
+          </button>
+        </div>
+      </details>
+      <details
+        class="panel-card"
+        data-bnr-details="dyn-kingdom"
+        open=""
+      >
+        <summary>
+          ЁЯСС ╨Ъ╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛
+        </summary>
+        <div
+          id="bnr-kingdom-mgmt-slot"
+        >
+          <h2>
+            тАФ ╨╜╨╡╤В ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨░ тАФ
+          </h2>
+          <p>
+            ╨Ъ╨╗╨░╨╜ ╨╜╨╡╨╖╨░╨▓╨╕╤Б╨╕╨╝ тАФ ╨▒╨╡╨╖ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨░.
+          </p>
+          <details
+            data-bnr-details="kingdom-create"
+          >
+            <summary>
+              ЁЯСС ╨б╨╛╨╖╨┤╨░╤В╤М ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛ (5MЁЯТ░)
+            </summary>
+          </details>
+          <details
+            data-bnr-details="kingdom-join"
+          >
+            <summary>
+              ЁЯдЭ ╨Т╤Б╤В╤Г╨┐╨╕╤В╤М ╨▓ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛ (
+              100KЁЯТ░
+              )
+            </summary>
+          </details>
+        </div>
+      </details>
+      <section
+        aria-label="╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П"
+        class="panel-card"
+      >
+        <h2>
+          ╨б╨╡╨╝╤М╤П ╨│╨╡╤А╨╛╤П
+        </h2>
+        <p>
+          ╨б╤Г╨┐╤А╤Г╨│(╨░): 
+          ╨б╤Г╨┐╤А╤Г╨│╨░ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
+        </p>
+        <span>
+          тЩА 
+          ╨б╤Г╨┐╤А╤Г╨│╨░ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
+           ┬╖ 29 ╨╗╨╡╤В
+          
+          
+        </span>
+        <button
+          disabled=""
+          id="bnr-divorce-btn"
+          type="button"
+        >
+          ╨а╨░╨╖╨▓╨╡╤Б╤В╨╕╤Б╤М тАФ 
+          ╨ж╨╡╨╜╨░ ╨╜╨╡ ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨░
+        </button>
+        <dl>
+          <dt>
+            ╨Ю╤В╨╡╤Ж
+          </dt>
+          <dd>
+            <span>
+              тЩВ 
+              ╨Ю╤В╨╡╤Ж ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
+               ┬╖ 59 ╨╗╨╡╤В
+               ┬╖ ╤Г╨╝╨╡╤А(╨╗╨░)
+              
+            </span>
+          </dd>
+          <dt>
+            ╨Ь╨░╤В╤М
+          </dt>
+          <dd>
+            <span>
+              тЩА 
+              ╨Ь╨░╤В╤М ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
+               ┬╖ 54 ╨╗╨╡╤В
+              
+              
+            </span>
+          </dd>
+          <dt>
+            ╨С╤А╨░╤В╤М╤П ╨╕ ╤Б╤С╤Б╤В╤А╤Л
+          </dt>
+          <dd>
+            2
+          </dd>
+        </dl>
+        <h3>
+          ╨Ф╨╡╤В╨╕ (
+          1
+           ╨╢╨╕╨▓╤Л╤Е ╨╕╨╖ 
+          1
+          )
+        </h3>
+        <ul>
+          <li>
+            <span>
+              тЩВ 
+              ╨а╨╡╨▒╤С╨╜╨╛╨║ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
+               ┬╖ 7 ╨╗╨╡╤В
+              
+              
+            </span>
+          </li>
+        </ul>
+        <button
+          id="bnr-make-baby-btn"
+          type="button"
+        >
+          ╨Ч╨░╤З╨░╤В╤М ╤А╨╡╨▒╤С╨╜╨║╨░ тАФ 
+          100┬а000 ЁЯТ░
+        </button>
+        <p>
+          ╨Ы╨╕╨╝╨╕╤В ╨┤╨╡╤В╨╡╨╣ ╨┐╤А╨╛╨▓╨╡╤А╨╕╤В ╨╕╨│╤А╨░. ╨Т╨╛╨╖╤А╨░╤Б╤В, ╨▒╨╡╤А╨╡╨╝╨╡╨╜╨╜╨╛╤Б╤В╤М ╨╕ ╤А╨╛╨╢╨┤╨╡╨╜╨╕╨╡ ╨╛╨▒╨╜╨╛╨▓╤П╤В╤Б╤П ╨┐╨╛╤Б╨╗╨╡ ╤Б╨╕╨╜╤Е╤А╨╛╨╜╨╕╨╖╨░╤Ж╨╕╨╕.
+        </p>
+      </section>
+      <div
+        id="bnr-party-orders-slot"
+      >
+        <p
+          role="status"
+        >
+          ╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╨┐╤А╨╕╨║╨░╨╖ ╨╛╤В╤А╤П╨┤╨░тАж
+        </p>
+      </div>
+      <div
+        id="bnr-army-slot"
+      >
+        <details
+          class="panel-card"
+          data-bnr-section="army"
+          open=""
+        >
+          <summary>
+            ЁЯЪй ╨Р╤А╨╝╨╕╤П
+          </summary>
+          <p>
+            ╨б╨╛╨▒╤А╨░╤В╤М ╨░╤А╨╝╨╕╤О ╨╝╨╛╨╢╨╡╤В ╤В╨╛╨╗╤М╨║╨╛ ╨║╨╗╨░╨╜ ╨▓ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╡. ╨Т╤Б╤В╤Г╨┐╨╗╨╡╨╜╨╕╨╡ ╨▓ ╨║╨╛╤А╨╛╨╗╨╡╨▓╤Б╤В╨▓╨╛ ╨┤╨╛╤Б╤В╤Г╨┐╨╜╨╛ ╨▓ ╨┤╨╡╨╣╤Б╤В╨▓╤Г╤О╤Й╨╡╨╣ ╨┐╨░╨╜╨╡╨╗╨╕.
+          </p>
+        </details>
+      </div>
+      <div
+        id="bnr-diplo-slot"
+      />
+      <section
+        aria-label="╨Ш╨╝╤Г╤Й╨╡╤Б╤В╨▓╨╛ ╨╕ ╨╜╨░╤Б╨╗╨╡╨┤╨╛╨▓╨░╨╜╨╕╨╡"
+      >
+        <details
+          class="panel-card"
+          data-bnr-section="workshops"
+          open=""
+        >
+          <summary>
+            ЁЯПн ╨Ь╨╛╨╕ ╨╝╨░╤Б╤В╨╡╤А╤Б╨║╨╕╨╡
+             (
+            1
+            /
+            3
+            )
+          </summary>
+          <p>
+            ╨Ф╨╛╤Е╨╛╨┤ ╨▓ ╨┤╨╕╨╜╨░╤А╨░╤Е ╨╜╨░╨║╨░╨┐╨╗╨╕╨▓╨░╨╡╤В╤Б╤П ╤Г ╨│╨╡╤А╨╛╤П. ╨Ъ╤А╤Г╤Б╤В╨╕╨║╨╕ ╨┐╨░╤Б╤Б╨╕╨▓╨╜╨╛ ╨╜╨╡ ╨▓╤Л╨┤╨░╤О╤В╤Б╤П.
+            
+          </p>
+          
+          <article
+            data-workshop-id="1"
+          >
+            <h3>
+              ╨Я╨╕╨▓╨╛╨▓╨░╤А╨╜╤П
+            </h3>
+            <p>
+              ╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
+            </p>
+            <p>
+              ╨Ч╨░╤А╨░╨▒╨╛╤В╨░╨╜╨╛: 
+              12┬а345
+               ЁЯТ░
+            </p>
+            <button
+              class="bnr-ws-sell"
+              type="button"
+            >
+              ╨Я╤А╨╛╨┤╨░╤В╤М
+            </button>
+          </article>
+          <details
+            data-bnr-details="ws-buy"
+          >
+            <summary>
+              ╨Ъ╤Г╨┐╨╕╤В╤М 
+              ╨╝╨░╤Б╤В╨╡╤А╤Б╨║╤Г╤О
+               тАФ 
+              2┬а500 ЁЯТО
+            </summary>
+          </details>
+        </details>
+        <details
+          class="panel-card"
+          data-bnr-section="fiefs"
+          open=""
+        >
+          <summary>
+            ЁЯП░ ╨Ь╨╛╨╕ ╨▓╨╗╨░╨┤╨╡╨╜╨╕╤П
+          </summary>
+          
+          <article
+            data-fief-id="1"
+          >
+            <h3>
+              ╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
+            </h3>
+            <p>
+              ╨У╨╛╤А╨╛╨┤
+              
+            </p>
+            <p>
+              ╨Ч╨░╤А╨░╨▒╨╛╤В╨░╨╜╨╛: 
+              65┬а432
+               ЁЯТ░
+            </p>
+          </article>
+          <p>
+            ╨Ф╨╕╨╜╨░╤А╤Л ╨┐╨╛╤Б╤В╤Г╨┐╨░╤О╤В ╨│╨╡╤А╨╛╤О. ╨Я╨╗╨░╤В╨╜╤Л╨╣ ╨▒╤Г╤Б╤В╨╡╤А ╨┤╨╛╤Е╨╛╨┤╨░ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╡╨╜.
+          </p>
+        </details>
+        <details
+          class="panel-card"
+          data-bnr-section="caravans"
+          open=""
+        >
+          <summary>
+            ЁЯРк ╨Ь╨╛╨╕ ╨║╨░╤А╨░╨▓╨░╨╜╤Л
+             (
+            1
+            /
+            2
+            )
+          </summary>
+          <p>
+            ╨Ф╨╛╤Е╨╛╨┤ ╨▓ ╨┤╨╕╨╜╨░╤А╨░╤Е ╨╜╨░╨║╨░╨┐╨╗╨╕╨▓╨░╨╡╤В╤Б╤П ╤Г ╨│╨╡╤А╨╛╤П. ╨Ъ╤А╤Г╤Б╤В╨╕╨║╨╕ ╨┐╨░╤Б╤Б╨╕╨▓╨╜╨╛ ╨╜╨╡ ╨▓╤Л╨┤╨░╤О╤В╤Б╤П.
+             ╨С╨░╨╜╨┤╨╕╤В╤Л ╨╝╨╛╨│╤Г╤В ╤Г╨╜╨╕╤З╤В╨╛╨╢╨╕╤В╤М ╨║╨░╤А╨░╨▓╨░╨╜.
+          </p>
+          
+          <article
+            data-caravan-id="1"
+          >
+            <h3>
+              ╨У╨╛╤А╨╛╨┤ ╤Д╨╕╨║╤Б╤В╤Г╤А╤Л
+            </h3>
+            <p>
+              ╨Ч╨░╤А╨░╨▒╨╛╤В╨░╨╜╨╛: 
+              6┬а789
+               ЁЯТ░
+            </p>
+            <button
+              class="bnr-caravan-sell"
+              type="button"
+            >
+              ╨Я╤А╨╛╨┤╨░╤В╤М
+            </button>
+          </article>
+          <details
+            data-bnr-details="caravan-buy"
+          >
+            <summary>
+              ╨Ъ╤Г╨┐╨╕╤В╤М 
+              ╨║╨░╤А╨░╨▓╨░╨╜
+               тАФ 
+              4┬а000 ЁЯТО
+            </summary>
+          </details>
+        </details>
+        <section
+          aria-label="╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡"
+          class="panel-card"
+        >
+          <h2>
+            ╨Э╨░╤Б╨╗╨╡╨┤╨╕╨╡
+          </h2>
+          
+          <div>
+            <h3>
+              2026-10-02
+            </h3>
+            <p>
+              ╨Т╤Б╨╡╨│╨╛: 
+              54┬а321
+               ╨┤╨╕╨╜╨░╤А╨╛╨▓
+            </p>
+            <p>
+              ╨г╨╜╨░╤Б╨╗╨╡╨┤╨╛╨▓╨░╨╜╨╜╨░╤П ╨╝╨░╤Б╤В╨╡╤А╤Б╨║╨░╤П
+               ┬╖ 
+              54┬а321
+               ╨┤╨╕╨╜╨░╤А╨╛╨▓
+            </p>
+          </div>
+        </section>
+      </section>
+    </section>
+  </div>
+</body>
+ тЭп Object.getElementError node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/config.js:37:19
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ тЭп node_modules/@testing-library/preact/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ тЭп test/panel-hero-support.tsx:50:50
+     48|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     49|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+     50|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+       |                                                  ^
+     51|     async finish() { await old.advance(3510); await act(async () => { тАж
+     52|   };
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.confirm test/panel-hero-support.tsx:50:29
+ тЭп test/panel-hero-profile-parity.test.tsx:24:124
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/2]тОп
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile spouse replacement cancels divorce before any request
+AssertionError: expected null not to be null
+ тЭп test/panel-hero-profile-parity.test.tsx:34:108
+
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/2]тОп
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  2 failed | 23 passed (25)
+   Start at  14:49:07
+   Duration  16.21s (tests 47%, environment 29%, import 15%, transform 8%)
+
+Environment  jsdom was created 3 times ┬╖ 7.46s total, 29% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

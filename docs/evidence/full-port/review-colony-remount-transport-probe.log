@@ -1,0 +1,36 @@
+{
+  "browser": "145.0.7632.6",
+  "sandbox": true,
+  "results": [
+    {
+      "mode": "empty",
+      "received": [
+        {
+          "mode": "empty",
+          "body": "{\"client_action_id\":\"single-local-call\"}"
+        },
+        {
+          "mode": "empty",
+          "body": "{\"client_action_id\":\"single-local-call\"}"
+        }
+      ],
+      "outcome": {
+        "calls": 1,
+        "error": "TypeError: Failed to fetch"
+      }
+    },
+    {
+      "mode": "truncated",
+      "received": [
+        {
+          "mode": "truncated",
+          "body": "{\"client_action_id\":\"single-local-call\"}"
+        }
+      ],
+      "outcome": {
+        "calls": 1,
+        "error": "TypeError: Failed to fetch"
+      }
+    }
+  ]
+}

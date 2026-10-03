@@ -1,0 +1,31 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-game-bootstrap-parity.test.tsx (21 tests | 1 failed | 20 skipped) 1387ms
+   × bannerlord accepted action updates shared shell balance and level immediately 1385ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 20 skipped (21)
+   Start at  18:55:01
+   Duration  6.72s (environment 34%, import 25%, tests 22%, transform 19%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord accepted action updates shared shell balance and level immediately
+AssertionError: expected 100000 to be 54321 // Object.is equality
+
+- Expected
++ Received
+
+- 54321
++ 100000
+
+ ❯ test/panel-game-bootstrap-parity.test.tsx:44:426
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

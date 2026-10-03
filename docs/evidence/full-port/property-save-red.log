@@ -1,0 +1,62 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-properties-parity.test.tsx (12 tests | 1 failed | 11 skipped) 1183ms
+   ├Ч properties never sell a card from the previous game save while its replacement read is pending 1180ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties never sell a card from the previous game save while its replacement read is pending
+AssertionError: expected <div role="dialog" тАж(3)>тАж(3)</div> to be null
+
+- Expected:
+null
+
++ Received:
+<div
+  aria-label="╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М ╨┐╤А╨╛╨┤╨░╨╢╤Г ╨╕╨╝╤Г╤Й╨╡╤Б╤В╨▓╨░"
+  aria-modal="true"
+  class="panel-card common-dialog"
+  role="dialog"
+>
+  <h2>
+    ╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М ╨┐╤А╨╛╨┤╨░╨╢╤Г ╨╕╨╝╤Г╤Й╨╡╤Б╤В╨▓╨░
+  </h2>
+  <p>
+    ╨Я╤А╨╛╨┤╨░╤В╤М ╨╝╨░╤Б╤В╨╡╤А╤Б╨║╤Г╤О? ╨Ю╤В╨╝╨╡╨╜╨╕╤В╤М ╨╜╨╡╨╗╤М╨╖╤П. ╨б╤Г╨╝╨╝╤Г ╨▓╨╛╨╖╨▓╤А╨░╤В╨░ ╨╛╨┐╤А╨╡╨┤╨╡╨╗╨╕╤В ╨╕╨│╤А╨░.
+  </p>
+  <div
+    class="panel-choices"
+  >
+    <button
+      type="button"
+    >
+      ╨Я╨╛╨┤╤В╨▓╨╡╤А╨┤╨╕╤В╤М
+    </button>
+    <button
+      type="button"
+    >
+      ╨Ю╤В╨╝╨╡╨╜╨░
+    </button>
+  </div>
+</div>
+
+ тЭп test/panel-properties-parity.test.tsx:77:38
+     75|   await act(async()=>{await p.controller.refreshCatalogs();await nextRтАж
+     76|   await p.newClick(`[data-workshop-id="${r.workshop_id}"] .bnr-ws-sellтАж
+     77|   expect(p.ui.queryByRole('dialog')).toBeNull();expect(p.trace.some(q=тАж
+       |                                      ^
+     78| });
+     79|
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 11 skipped (12)
+   Start at  14:37:12
+   Duration  7.23s (environment 43%, import 25%, tests 17%, transform 14%)
+

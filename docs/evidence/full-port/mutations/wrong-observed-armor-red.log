@@ -1,0 +1,28 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-commerce-parity.test.tsx (15 tests | 1 failed | 14 skipped) 889ms
+   × Bannerlord hero summary keeps observed location culture wins and armor totals 886ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 skipped (15)
+   Start at  18:58:23
+   Duration  5.49s (environment 40%, import 24%, transform 18%, tests 17%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord hero summary keeps observed location culture wins and armor totals
+AssertionError: expected 'ВАШ ГЕРОЙAlice HeroУровень 1500 000 …' to contain 'Голова: 17'
+
+Expected: "Голова: 17"
+Received: "ВАШ ГЕРОЙAlice HeroУровень 1500 000 💰Жив · Культура фикстуры · 📍 Город фикстурыКланНе вступилКоролевствоНе вступилСнаряжениеT2Броня по зонамГолова: 0 · Тело: 0 · Ноги: 0 · Руки: 0 · ~T3Побед в турнирах: 3"
+
+ ❯ test/panel-commerce-parity.test.tsx:27:331
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

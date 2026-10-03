@@ -228,6 +228,7 @@ async def validate_tx(conn, channel_id, username, action_type, data):
 
 
 async def store_inventory(db, channel_id, env):
+    from .progression import normalize
     data = env.data
     username = str(data.get("username") or "").lower()
     items = data.get("items")
@@ -251,19 +252,20 @@ async def store_inventory(db, channel_id, env):
             await conn.rollback()
             return
         await conn.execute(
-            "INSERT INTO bannerlord_inventory_snapshots(channel_id,username,save_id,session_id,hero_id,inventory_seq,items_json,build_json,inventory_state_json) VALUES(?,?,?,?,?,?,?,?,?) "
+            "INSERT INTO bannerlord_inventory_snapshots(channel_id,username,save_id,session_id,hero_id,inventory_seq,items_json,build_json,inventory_state_json,progression_json) VALUES(?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT(channel_id,username) DO UPDATE SET save_id=excluded.save_id,session_id=excluded.session_id,hero_id=excluded.hero_id,"
-            "inventory_seq=excluded.inventory_seq,items_json=excluded.items_json,build_json=excluded.build_json,inventory_state_json=excluded.inventory_state_json "
+            "inventory_seq=excluded.inventory_seq,items_json=excluded.items_json,build_json=excluded.build_json,inventory_state_json=excluded.inventory_state_json,progression_json=excluded.progression_json "
             "WHERE excluded.inventory_seq>bannerlord_inventory_snapshots.inventory_seq OR excluded.save_id!=bannerlord_inventory_snapshots.save_id "
             "OR excluded.hero_id!=bannerlord_inventory_snapshots.hero_id OR excluded.session_id!=bannerlord_inventory_snapshots.session_id",
             (channel_id, username, data["save_id"], data["equipment_session_id"], data["hero_id"], seq,
              json.dumps(items, ensure_ascii=False), json.dumps(data.get('build') if 'build' in data and (data['build'] is None or isinstance(data['build'], dict)) else {}, ensure_ascii=False),
-             json.dumps(data.get('inventory_state') if isinstance(data.get('inventory_state'), dict) else {}, ensure_ascii=False)))
+             json.dumps(data.get('inventory_state') if isinstance(data.get('inventory_state'), dict) else {}, ensure_ascii=False),
+             json.dumps(normalize(data.get('progression')), ensure_ascii=False)))
         await conn.commit()
 
 
 async def store_catalog(db, channel_id, env):
-    """Replace catalog atomically only for current save; tier gates are server-owned."""
+    """Replace current-save catalog; preserve the game-owned purchase requirement."""
     entries = env.data.get("entries")
     if not isinstance(entries, list) or not env.data.get("save_id"):
         return
@@ -275,7 +277,10 @@ async def store_catalog(db, channel_id, env):
         tier, gold = entry.get("tier"), entry.get("price_gold")
         if not isinstance(item_id, str) or not item_id or type(tier) is not int or tier not in TIER_LEVELS or type(gold) is not int or gold < 1:
             continue
-        normalized.append({**entry, "id": item_id, "item_id": item_id, "required_level": TIER_LEVELS[tier]})
+        required_level = entry.get('required_level', TIER_LEVELS[tier])
+        if type(required_level) is not int or not 0 <= required_level <= 2147483647:
+            continue
+        normalized.append({**entry, "id": item_id, "item_id": item_id, "required_level": required_level})
     async with db._connect() as conn:
         await conn.execute("BEGIN IMMEDIATE")
         cur = await conn.execute("SELECT 1 FROM bannerlord_channel_state s JOIN bannerlord_equipment_sessions e ON e.channel_id=s.channel_id WHERE s.channel_id=? AND s.current_save_id=? AND e.session_id=?", (channel_id, env.data["save_id"], env.data.get("equipment_session_id")))

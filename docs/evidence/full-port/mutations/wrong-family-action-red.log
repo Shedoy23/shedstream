@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-hero-profile-parity.test.tsx (9 tests | 1 failed | 8 skipped) 1456ms
+   × hero profile baby preserves raw action, family snapshot and all continuations 1453ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  19:00:29
+   Duration  6.81s (environment 37%, import 23%, tests 22%, transform 17%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-hero-profile-parity.test.tsx > hero profile baby preserves raw action, family snapshot and all continuations
+AssertionError: expected [ { method: 'GET', …(7) }, …(22) ] to deeply equal [ { method: 'GET', …(7) }, …(22) ]
+
+- Expected
++ Received
+
+@@ -109,21 +109,21 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": {
+-       "action_type": "hero.make_baby",
++       "action_type": "hero.marry",
+        "data": {
+          "client_action_id": "<generated-id>",
+        },
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"hero.make_baby\",\"data\":{\"client_action_id\":\"<generated-id>\"}}",
++     "rawBody": "{\"action_type\":\"hero.marry\",\"data\":{\"client_action_id\":\"<generated-id>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": "no-store",
+
+ ❯ check test/panel-hero-support.tsx:61:102
+
+ ❯ Object.finish test/panel-hero-support.tsx:65:131
+ ❯ test/panel-hero-profile-parity.test.tsx:24:134
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

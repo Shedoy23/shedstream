@@ -41,29 +41,29 @@ const BnrEquipmentShop = (() => {
         const gameWeight = Number(rawWeight);
         const weight = rawWeight != null && Number.isFinite(gameWeight) && gameWeight >= 0
             ? `Вес ${gameWeight.toLocaleString('ru-RU',{maximumFractionDigits:2})} кг` : null;
-        const other = Object.entries(item.stats || {}).filter(([key,value]) => key !== 'weight' && statNames[key]
-            && Number.isFinite(Number(value)) && Number(value) > 0)
-            .map(([key,value]) => `${statNames[key]} ${text(value)}`);
-        return [weight,...other].filter(Boolean).slice(0,6).join(' · ');
+        const other = Object.entries(item.stats || {}).filter(([key,value]) => key !== 'weight' && value != null)
+            .map(([key,value]) => `${text(Object.hasOwn(statNames, key) ? statNames[key] : key)} ${text(typeof value === 'object' ? JSON.stringify(value) : value)}`);
+        return [weight,...other].filter(Boolean).join(' · ');
     }
 
     function numericStats(item) {
         const values = {...(item?.stats || {})};
         if (item?.weight != null) values.weight = item.weight;
-        return Object.fromEntries(Object.entries(values).filter(([key,value]) => statNames[key]
-            && Number.isFinite(Number(value))));
+        return Object.fromEntries(Object.entries(values).filter(([,value]) => value !== null && value !== ''
+            && (typeof value === 'number' || typeof value === 'string') && Number.isFinite(Number(value))));
     }
 
     function comparedStats(item, equipped) {
         const current = numericStats(equipped);
-        return Object.entries(numericStats(item)).filter(([,value]) => Number(value) > 0).slice(0,8).map(([key,value]) => {
+        return Object.entries(numericStats(item)).map(([key,value]) => {
             const amount = Number(value);
             const baseline = Number(current[key] || 0);
             const delta = amount - baseline;
             const usefulDelta = key === 'weight' ? -delta : delta;
-            const comparison = !equipped || Math.abs(delta) < 0.001 ? ''
-                : ` <span class="bnr-eq-delta ${usefulDelta > 0 ? 'better' : 'worse'}">${delta > 0 ? '+' : ''}${delta.toLocaleString('ru-RU',{maximumFractionDigits:2})}</span>`;
-            return `<span>${statNames[key]} ${amount.toLocaleString('ru-RU',{maximumFractionDigits:2})}${comparison}</span>`;
+            const direction = Object.hasOwn(statNames, key) ? (usefulDelta > 0 ? 'better' : 'worse') : '';
+            const comparison = !equipped || !Object.hasOwn(current, key) || Math.abs(delta) < 0.001 ? ''
+                : ` <span class="bnr-eq-delta ${direction}">${delta > 0 ? '+' : ''}${delta.toLocaleString('ru-RU',{maximumFractionDigits:2})}</span>`;
+            return `<span>${text(Object.hasOwn(statNames, key) ? statNames[key] : key)} ${amount.toLocaleString('ru-RU',{maximumFractionDigits:2})}${comparison}</span>`;
         }).join('');
     }
 

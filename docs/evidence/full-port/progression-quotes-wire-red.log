@@ -1,0 +1,224 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-game-progression-parity.test.tsx (7 tests | 7 failed) 2239ms
+   × game progression startup preserves every metadata request including no-store 385ms
+   × game focus uses exact quote/context bytes and every success continuation 146ms
+   × game attribute uses exact quote/context bytes and every success continuation 267ms
+   × game metadata keeps custom IDs, zero gold and values above former vanilla caps 102ms
+   × missing game quotes never use the old config price fallback 158ms
+   × pending game quotes never use the old config price fallback 312ms
+   × a changed session while confirming cannot submit the old progression quote 866ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > game progression startup preserves every metadata request including no-store
+AssertionError: expected [ { method: 'GET', …(7) }, …(4) ] to deeply equal [ { method: 'GET', …(7) }, …(6) ]
+
+- Expected
++ Received
+
+@@ -47,26 +47,6 @@
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+  ]
+
+ ❯ Object.check test/panel-game-progression-parity.test.tsx:45:102
+     43|   close.push(() => controller.stop()); await controller.start(); await…
+     44|   const ui = render(<HeroDevelopmentView controller={controller}/>);
+     45|   const check = () => { old.assertHealthy(); expect(failures).toEqual(…
+       |                                                                                                      ^
+     46|   return {old, trace, controller, ui, check,
+     47|     async newClick(selector: string) { await act(async () => { (ui.con…
+ ❯ test/panel-game-progression-parity.test.tsx:53:29
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > game focus uses exact quote/context bytes and every success continuation
+ FAIL  test/panel-game-progression-parity.test.tsx > game attribute uses exact quote/context bytes and every success continuation
+AssertionError: expected [ { method: 'GET', …(7) }, …(4) ] to deeply equal [ { method: 'GET', …(7) }, …(6) ]
+
+- Expected
++ Received
+
+@@ -47,26 +47,6 @@
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+  ]
+
+ ❯ Object.check test/panel-game-progression-parity.test.tsx:45:102
+     43|   close.push(() => controller.stop()); await controller.start(); await…
+     44|   const ui = render(<HeroDevelopmentView controller={controller}/>);
+     45|   const check = () => { old.assertHealthy(); expect(failures).toEqual(…
+       |                                                                                                      ^
+     46|   return {old, trace, controller, ui, check,
+     47|     async newClick(selector: string) { await act(async () => { (ui.con…
+ ❯ test/panel-game-progression-parity.test.tsx:59:112
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > game metadata keeps custom IDs, zero gold and values above former vanilla caps
+AssertionError: expected [ { method: 'GET', …(7) }, …(4) ] to deeply equal [ { method: 'GET', …(7) }, …(6) ]
+
+- Expected
++ Received
+
+@@ -47,26 +47,6 @@
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+  ]
+
+ ❯ Object.check test/panel-game-progression-parity.test.tsx:45:102
+     43|   close.push(() => controller.stop()); await controller.start(); await…
+     44|   const ui = render(<HeroDevelopmentView controller={controller}/>);
+     45|   const check = () => { old.assertHealthy(); expect(failures).toEqual(…
+       |                                                                                                      ^
+     46|   return {old, trace, controller, ui, check,
+     47|     async newClick(selector: string) { await act(async () => { (ui.con…
+ ❯ test/panel-game-progression-parity.test.tsx:68:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > missing game quotes never use the old config price fallback
+ FAIL  test/panel-game-progression-parity.test.tsx > pending game quotes never use the old config price fallback
+AssertionError: expected [ { method: 'GET', …(7) }, …(4) ] to deeply equal [ { method: 'GET', …(7) }, …(6) ]
+
+- Expected
++ Received
+
+@@ -47,26 +47,6 @@
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+  ]
+
+ ❯ Object.check test/panel-game-progression-parity.test.tsx:45:102
+     43|   close.push(() => controller.stop()); await controller.start(); await…
+     44|   const ui = render(<HeroDevelopmentView controller={controller}/>);
+     45|   const check = () => { old.assertHealthy(); expect(failures).toEqual(…
+       |                                                                                                      ^
+     46|   return {old, trace, controller, ui, check,
+     47|     async newClick(selector: string) { await act(async () => { (ui.con…
+ ❯ test/panel-game-progression-parity.test.tsx:74:51
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  test/panel-game-progression-parity.test.tsx > a changed session while confirming cannot submit the old progression quote
+AssertionError: expected [ { method: 'POST', …(7) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/panel-game-progression-parity.test.tsx:84:52
+     82|   await act(async () => { await p.controller.refreshHero(); await flus…
+     83|   const button = p.ui.queryByRole('button',{name:'Подтвердить'}); if (…
+     84|   expect(p.trace.filter(r => r.method === 'POST')).toHaveLength(0);
+       |                                                    ^
+     85| });
+     86|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed (7)
+   Start at  13:11:42
+   Duration  5.77s (tests 41%, environment 33%, import 20%, transform 7%)
+

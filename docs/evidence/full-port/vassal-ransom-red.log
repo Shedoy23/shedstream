@@ -1,0 +1,262 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > vassals and ransom keep every initial authenticated read and observed data
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > vassal create keeps actual eligible hero ID and 2000ms plus generic continuation
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > vassal rename keeps stable vassal ID trimmed name and success-only 1500ms continuation
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > vassal rename refusal keeps the editable form and adds no refresh tail
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > vassal create refusal still reloads its authoritative lists
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > vassal open draft survives hero refresh and suppresses only the legacy vassal reads
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > ransom contribution acceptance keeps captured viewer and both continuations
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > ransom contribution refusal keeps captured viewer and both continuations
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > ransom capture replacement invalidates a paid confirmation
+[FE-VAS] loaded vassals=1 eligible=1
+
+stdout | test/panel-vassal-ransom-parity.test.tsx > missing economic and contribution quotes disable paid controls without legacy fallbacks
+[FE-VAS] loaded vassals=1 eligible=1
+
+ тЭп test/panel-vassal-ransom-parity.test.tsx (10 tests | 10 failed) 2472ms
+   ├Ч vassals and ransom keep every initial authenticated read and observed data 807ms
+   ├Ч vassal create keeps actual eligible hero ID and 2000ms plus generic continuation 239ms
+   ├Ч vassal rename keeps stable vassal ID trimmed name and success-only 1500ms continuation 182ms
+   ├Ч vassal rename refusal keeps the editable form and adds no refresh tail 205ms
+   ├Ч vassal create refusal still reloads its authoritative lists 211ms
+   ├Ч vassal open draft survives hero refresh and suppresses only the legacy vassal reads 192ms
+   ├Ч ransom contribution acceptance keeps captured viewer and both continuations 136ms
+   ├Ч ransom contribution refusal keeps captured viewer and both continuations 178ms
+   ├Ч ransom capture replacement invalidates a paid confirmation 159ms
+   ├Ч missing economic and contribution quotes disable paid controls without legacy fallbacks 160ms
+
+тОптОптОптОптОптОп Failed Tests 10 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > vassals and ransom keep every initial authenticated read and observed data
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(10) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(13) ]
+
+- Expected
++ Received
+
+@@ -72,40 +72,10 @@
+    {
+      "body": null,
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/vassals",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/eligible-heirs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/ransom-pool",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+      "path": "/api/bannerlord/my-workshops",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+
+ тЭп Object.check test/panel-hero-support.tsx:51:102
+
+ тЭп test/panel-vassal-ransom-parity.test.tsx:28:114
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/10]тОп
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > vassal create keeps actual eligible hero ID and 2000ms plus generic continuation
+TypeError: Cannot set properties of null (setting 'open')
+ тЭп test/panel-vassal-ransom-parity.test.tsx:20:138
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп create test/panel-vassal-ransom-parity.test.tsx:20:28
+ тЭп test/panel-vassal-ransom-parity.test.tsx:29:118
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/10]тОп
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > vassal rename keeps stable vassal ID trimmed name and success-only 1500ms continuation
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп rename test/panel-vassal-ransom-parity.test.tsx:25:48
+ тЭп test/panel-vassal-ransom-parity.test.tsx:30:124
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/10]тОп
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > vassal rename refusal keeps the editable form and adds no refresh tail
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп rename test/panel-vassal-ransom-parity.test.tsx:25:48
+ тЭп test/panel-vassal-ransom-parity.test.tsx:31:142
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/10]тОп
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > vassal create refusal still reloads its authoritative lists
+TypeError: Cannot set properties of null (setting 'open')
+ тЭп test/panel-vassal-ransom-parity.test.tsx:20:138
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп create test/panel-vassal-ransom-parity.test.tsx:20:28
+ тЭп test/panel-vassal-ransom-parity.test.tsx:32:131
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/10]тОп
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > vassal open draft survives hero refresh and suppresses only the legacy vassal reads
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-vassal-ransom-parity.test.tsx:33:166
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/10]тОп
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > ransom contribution acceptance keeps captured viewer and both continuations
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > ransom contribution refusal keeps captured viewer and both continuations
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-vassal-ransom-parity.test.tsx:34:282
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/10]тОп
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > ransom capture replacement invalidates a paid confirmation
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:53:101
+     51|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     52|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     53|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     54|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     55|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:53:46
+ тЭп test/panel-vassal-ransom-parity.test.tsx:35:104
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[8/10]тОп
+
+ FAIL  test/panel-vassal-ransom-parity.test.tsx > missing economic and contribution quotes disable paid controls without legacy fallbacks
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(10) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(13) ]
+
+- Expected
++ Received
+
+@@ -72,40 +72,10 @@
+    {
+      "body": null,
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/vassals",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/eligible-heirs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/ransom-pool",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+      "path": "/api/bannerlord/my-workshops",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+
+ тЭп Object.check test/panel-hero-support.tsx:51:102
+
+ тЭп test/panel-vassal-ransom-parity.test.tsx:36:326
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[9/10]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  10 failed (10)
+   Start at  15:31:54
+   Duration  6.37s (tests 40%, environment 27%, import 21%, transform 12%)
+

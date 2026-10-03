@@ -1,0 +1,67 @@
+import {act,cleanup,render} from '@testing-library/preact';
+import {afterEach,expect,it,vi} from 'vitest';
+import {pair,flush,disposePairs,authorization,token} from './panel-shell-pair';
+import {legacyResponses,type LegacyFixture} from './panel-legacy-harness';
+import {ColonyView} from '../src/colony/ColonyView';
+import {ColonyController} from '../src/colony/controller';
+import {PanelController} from '../src/panel/controller';
+import {HttpPanelTransport} from '../src/panel/transport';
+import BannerlordEntry from '../src/common/bannerlord-entry';
+import commerce from './panel-fixtures/commerce-responses.json';
+import game from './panel-fixtures/game-progression-responses.json';
+import combat from './panel-fixtures/combat-responses.json';
+import tournament from './panel-fixtures/forge-tournament-responses.json';
+import lifecycle from './panel-fixtures/hero-lifecycle-responses.json';
+import kingdom from './panel-fixtures/kingdom-responses.json';
+import children from './panel-fixtures/children-responses.json';
+import civic from './panel-fixtures/vassal-ransom-responses.json';
+import properties from './panel-fixtures/property-responses.json';
+import partyData from './panel-fixtures/party-responses.json';
+import rw from './panel-fixtures/rimworld-responses.json';
+// This runs both the entire legacy DOM and the new host, including a minute
+// of fake-time polls. The Windows final suite exceeded the default 5 s while
+// Chromium/build gates were running; request assertions remain unchanged.
+vi.setConfig({testTimeout:30000});
+afterEach(()=>{cleanup();disposePairs();localStorage.clear();vi.useRealTimers();});
+const citizen={success:true,linked:true,citizen_id:41,name:'Алиса',job:'knight',state:{hp:12,max_hp:20,sick:true}};
+const capacity={success:true,stale:false,free_beds:3,jobs:[],targets:{}};
+async function colony(overrides:Record<string,LegacyFixture>={}){
+  let game!:ColonyController;
+  const p=await pair({'GET /api/viewer/stats/alice':{...legacyResponses.stats,active_module:'shedcolony'},'GET /api/shedcolony/config':{action_prices:{'colonist.heal':1459}},'GET /api/shedcolony/my-colonist':citizen,'GET /api/shedcolony/capacity':capacity,'POST /api/shedcolony/action':{success:true,message:'Принято'},...overrides},runtime=>{game=new ColonyController(runtime);});
+  const ui=render(<ColonyView client={p.runtime.snapshot().client!} controller={game}/>);await act(flush);return {...p,ui,game};
+}
+it('colony whole shell startup and five minute polls preserve every request in order',async()=>{const p=await colony();p.check();await act(async()=>{await p.advance(300000);});p.check();});
+it('colony paid heal keeps all core updates and the explicit extra confirmation click',async()=>{const p=await colony();await p.old.click('[data-sc="heal"]');await act(async()=>{(p.ui.container.querySelector('[data-sc="heal"]') as HTMLButtonElement).click();});await act(async()=>{p.ui.getByRole('button',{name:'Подтвердить'}).click();await flush();await p.advance(60000);});p.check({extraConfirmationClicks:1});});
+it('colony token refresh repeats legacy snapshots without moving the five second poll phase',async()=>{const p=await colony();await p.advance(17000);const next={...authorization,token:token.replace(/fixture$/,'refreshed')};await p.old.authorizeShell(next);p.callbacks.forEach(cb=>cb(next));await act(flush);p.ui.rerender(<ColonyView client={p.runtime.snapshot().client!} controller={p.game}/>);await act(async()=>{await flush();await p.advance(45000);});p.check();});
+async function bannerlord(overrides:Record<string,LegacyFixture>={}){
+  let controller!:PanelController;const r=commerce.responses,c=combat.responses;
+  const p=await pair({'GET /api/viewer/stats/alice':legacyResponses.stats,'GET /api/bannerlord/config':r.config,'GET /api/bannerlord/my-hero':r.hero,'GET /api/bannerlord/shop':r.shop,'GET /api/bannerlord/status':r.status,'GET /api/bannerlord/classes':r.classes,'GET /api/bannerlord/build':c.build_no_session,'GET /api/bannerlord/my-buffs':c.buffs_empty,'GET /api/bannerlord/content-catalogs':game.responses.catalogs,'GET /api/bannerlord/progression':game.responses.progression,'GET /api/bannerlord/tournament':tournament.responses.tournament_empty,'GET /api/bannerlord/battle-status':c.battle_siege,'GET /api/bannerlord/daily-status':lifecycle.responses.daily_ready,'POST /api/bannerlord/action':r.gold_0.response,...overrides},(runtime,{auth,identity,fetcher})=>{
+    controller=new PanelController(new HttpPanelTransport('',auth,fetcher),auth,identity,Date.now,runtime.usage);controller.useHostUsage();controller.useHostBalance({refresh:()=>runtime.snapshot().client?.refreshUser()||Promise.resolve(),points:()=>Number(runtime.snapshot().stats?.points)});controller.bindHost(runtime);
+  });
+  const ui=render(<BannerlordEntry controller={controller} identity={p.identity}/>);await act(flush);return {...p,controller,ui};
+}
+it('bannerlord whole shell startup preserves every request before the core level continuation',async()=>{const p=await bannerlord();p.old.assertHealthy();p.check();await act(async()=>{await p.advance(60000);});p.check();});
+it('bannerlord accepted action updates shared shell balance and level immediately',async()=>{const p=await bannerlord();p.routes['GET /api/viewer/stats/alice']={...legacyResponses.stats,points:54321};await act(async()=>{await p.controller.action('player.give_item',{price:commerce.responses.config.give_gold_presets[0].crusticov,item_type:'gold'},{tail:'balance'});await flush();});expect(p.runtime.snapshot().stats?.points).toBe(54321);});
+it('bannerlord JWT refresh preserves all game timer phases without another bootstrap',async()=>{const p=await bannerlord();await act(async()=>{await p.advance(17000);});const next={...authorization,token:token.replace(/fixture$/,'refreshed')};await p.old.authorizeShell(next);p.callbacks.forEach(cb=>cb(next));await act(async()=>{await flush();await p.advance(45000);});p.check();expect(p.trace.filter(q=>q.path==='/api/bannerlord/config')).toHaveLength(1);});
+it('bannerlord hidden page pauses game reads while retaining complete shell activity',async()=>{const p=await bannerlord();await act(async()=>{await p.advance(17000);});await p.old.setHidden(true);Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));try{await act(async()=>{await p.advance(60000);});p.check();}finally{Object.defineProperty(document,'hidden',{configurable:true,value:false});}});
+it('bannerlord inactive module stops every game timer',async()=>{const p=await bannerlord();p.routes['GET /api/viewer/stats/alice']={...legacyResponses.stats,active_module:null};await act(async()=>{await p.advance(60000);});p.check();const before=p.trace.length;await act(async()=>{await p.advance(60000);});p.check();expect(p.trace.slice(before).some(q=>q.path.startsWith('/api/bannerlord/'))).toBe(false);});
+it.each(['focus','attribute'] as const)('bannerlord full shell %s keeps paid consent and every real minute request',async kind=>{const g=game.responses,id=kind==='focus'?g.progression.progression.skills[0].id:g.progression.progression.attributes[0].id,selector=kind==='focus'?`[data-skill="${id}"]`:`[data-attr="${id}"]`;const p=await bannerlord({'GET /api/bannerlord/my-hero':legacyResponses.hero,'POST /api/bannerlord/action':kind==='focus'?g.focus_success.response:g.attribute_success.response});p.check();await p.old.click('[data-bnr-tab="hero"]');await act(async()=>{p.ui.getByRole('button',{name:'Развитие',exact:true}).click();await flush();});await p.old.click(selector);await act(async()=>{(p.ui.container.querySelector(selector) as HTMLButtonElement).click();await flush();});await act(async()=>{p.ui.getByRole('button',{name:'Подтвердить'}).click();await flush();await p.advance(60000);});p.check({extraConfirmationClicks:1});});
+async function dynasty(overrides:Record<string,LegacyFixture>={}){
+  const k=kingdom.responses,c=children.responses,v=civic.responses,pr=properties.responses;
+  const p=await bannerlord({'GET /api/bannerlord/my-hero':k.hero_ruler,'GET /api/bannerlord/config':k.config,'GET /api/bannerlord/kingdom-state':k.kingdom_ruler,'GET /api/bannerlord/party-orders':partyData.responses.orders_none,'GET /api/bannerlord/heirs':c.heirs,'GET /api/bannerlord/my-children':c.children,'GET /api/bannerlord/proposals':c.proposals,'GET /api/bannerlord/vassals':v.vassals,'GET /api/bannerlord/eligible-heirs':v.eligible,'GET /api/bannerlord/ransom-pool':v.ransom,'GET /api/bannerlord/my-workshops':pr.workshops,'GET /api/bannerlord/my-fiefs':pr.fiefs,'GET /api/bannerlord/my-caravans':pr.caravans,'GET /api/bannerlord/inheritance-log?limit=15':pr.inheritance,'GET /api/rimworld/my-pawn/alice':rw.responses.empty_pawn,'GET /api/rimworld/catalog?username=alice':rw.responses.catalog,...overrides});
+  p.check();await p.old.click('.tab[data-tab="rimworld"]');document.dispatchEvent(new Event('click'));p.runtime.selectTab('integration');await act(flush);
+  await p.old.click('[data-bnr-tab="dynasty"]');await act(async()=>{p.ui.getByRole('button',{name:'Клан, отряд и армия',exact:true}).click();await flush();});return p;
+}
+it('bannerlord whole dynasty opening preserves every child request and minute continuation',async()=>{const p=await dynasty();p.check({inactiveRimworldEmptyPawnTab:true});await act(async()=>{await p.advance(60000);});p.check({inactiveRimworldEmptyPawnTab:true});},30000);
+it('bannerlord leaving the integration tab stops hidden dynasty reads while core polls continue',async()=>{const p=await dynasty();await p.old.click('.tab[data-tab="bot"]');document.dispatchEvent(new Event('click'));p.runtime.selectTab('bot');await act(async()=>{await p.advance(16000);});p.check({inactiveRimworldEmptyPawnTab:true});},30000);
+it('bannerlord full dynasty policy consent has exactly one extra activity click and complete tails',async()=>{const p=await dynasty({'POST /api/bannerlord/action':kingdom.responses.policy_enact.response});for(const host of [p.old.document,p.ui.container]){const d=host.querySelector<HTMLDetailsElement>('[data-bnr-details="diplo-policy"]')!;d.open=true;d.dispatchEvent(new (host===p.old.document?p.old.window.Event:Event)('toggle'));}await p.old.settle();await act(flush);await p.old.click('[data-policy-id="Mod.Policy-X"]');await act(async()=>{(p.ui.container.querySelector('[data-policy-id="Mod.Policy-X"]') as HTMLButtonElement).click();await flush();});await act(async()=>{p.ui.getByRole('button',{name:'Подтвердить',exact:true}).click();await flush();await p.advance(60000);});p.check({inactiveRimworldEmptyPawnTab:true,extraConfirmationClicks:1});},30000);
+it('bannerlord replaced hero retains freshly read dynasty data rather than discarding it on remount',async()=>{const p=await dynasty(),h=kingdom.responses.hero_ruler;p.routes['GET /api/bannerlord/my-hero']={...h,hero:{...h.hero,hero_id:'replacement'}};await act(async()=>{await p.advance(8000);});p.check({inactiveRimworldEmptyPawnTab:true});expect(p.ui.container.textContent).toContain('Взрослый наследник');},30000);
+it('bannerlord collapsed panel pauses only visible dynasty reads and restores exact tails',async()=>{const p=await dynasty();Object.defineProperty(p.old.document.getElementById('overlay-panel'),'offsetWidth',{value:420});await p.old.click('#panel-hide-tab');document.dispatchEvent(new Event('click'));p.runtime.setPanelVisible(false);await act(async()=>{await p.advance(16000);});p.check({inactiveRimworldEmptyPawnTab:true});await p.old.click('#panel-restore-tab');document.dispatchEvent(new Event('click'));p.runtime.setPanelVisible(true);await act(async()=>{await flush();await p.advance(45000);});p.check({inactiveRimworldEmptyPawnTab:true});},30000);
+for(const kind of ['gold','xp','catalog','upgrade','reequip'] as const)it(`bannerlord whole shell ${kind} consent preserves full minute traffic`,async()=>{
+  const r=commerce.responses,g=game.responses;
+  const selector=kind==='gold'?`[data-bnr-givegold="${r.config.give_gold_presets[0].crusticov}"]`:kind==='xp'?`[data-bnr-skillxp="${g.progression.xp_offers[0].id}"]`:kind==='catalog'?'[data-bnr-buy="hero.army_create"]':kind==='upgrade'?'#bnr-inline-upgrade-btn':'#bnr-reequip-btn';
+  const response=kind==='gold'?r.gold_0.response:kind==='xp'?g.xp_success.response:kind==='catalog'?r.catalog_buy.response:r[kind].response;
+  const p=await bannerlord({'POST /api/bannerlord/action':response});await p.old.click('[data-bnr-tab="hero"]');await act(async()=>{p.ui.getByRole('button',{name:'Развитие',exact:true}).click();await flush();});p.check();
+  await p.old.click(selector);await act(async()=>{(p.ui.container.querySelector(selector) as HTMLButtonElement).click();await flush();});await act(async()=>{p.ui.getByRole('button',{name:'Подтвердить',exact:true}).click();await flush();await p.advance(60000);});p.check({extraConfirmationClicks:1});
+});
+it('bannerlord whole dynasty ransom consent preserves full minute traffic',async()=>{const p=await dynasty({'GET /api/bannerlord/config':civic.responses.config,'POST /api/bannerlord/action':civic.responses.ransom_pay.response});await p.old.click('[data-captured="bob"] .bnr-ransom-pay');await act(async()=>{(p.ui.container.querySelector('[data-captured="bob"] .bnr-ransom-pay') as HTMLButtonElement).click();await flush();});await act(async()=>{p.ui.getByRole('button',{name:'Подтвердить',exact:true}).click();await flush();await p.advance(60000);});p.check({inactiveRimworldEmptyPawnTab:true,extraConfirmationClicks:1});});

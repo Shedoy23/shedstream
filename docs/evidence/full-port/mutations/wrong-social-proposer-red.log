@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-social-family-parity.test.tsx (7 tests | 1 failed | 6 skipped) 961ms
+   × social family reject targets exactly the chosen proposer and reloads all original branches 957ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 skipped (7)
+   Start at  18:56:54
+   Duration  5.11s (environment 47%, import 21%, tests 20%, transform 11%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-social-family-parity.test.tsx > social family reject targets exactly the chosen proposer and reloads all original branches
+AssertionError: expected [ { method: 'GET', …(7) }, …(15) ] to deeply equal [ { method: 'GET', …(7) }, …(15) ]
+
+- Expected
++ Received
+
+@@ -118,17 +118,17 @@
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"from_user\":\"bob\"}",
++     "body": "{\"from_user\":\"carol\"}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/marriage/reject",
+      "query": "",
+-     "rawBody": "{\"from_user\":\"bob\"}",
++     "rawBody": "{\"from_user\":\"carol\"}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-social-family-parity.test.tsx:16:256
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

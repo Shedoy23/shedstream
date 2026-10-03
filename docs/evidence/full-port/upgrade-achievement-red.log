@@ -1,0 +1,111 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-upgrade-achievement-parity.test.tsx (8 tests | 8 failed) 2444ms
+   ├Ч clan upgrades and hero achievements stay lazy and retain every authenticated read on open 850ms
+   ├Ч clan bulk upgrade preserves sorted selected IDs exact JSON and immediate catalog then hero continuations 259ms
+   ├Ч clan bulk refusal preserves selected controls and performs no success refresh 256ms
+   ├Ч clan catalog reflects pending game ownership and exact remaining gold 231ms
+   ├Ч clan draft survives hero polling but confirmation closes after the game save changes 252ms
+   ├Ч clan invalid price cannot be selected or silently replaced 174ms
+   ├Ч hero achievement progress and unlocked status come from the server catalog 269ms
+   ├Ч hero achievements render a server refusal without inventing catalog rows 150ms
+
+тОптОптОптОптОптОптОп Failed Tests 8 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > clan upgrades and hero achievements stay lazy and retain every authenticated read on open
+TypeError: Cannot set properties of null (setting 'open')
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:18:163
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп open test/panel-upgrade-achievement-parity.test.tsx:18:9
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:21:208
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/8]тОп
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > clan bulk upgrade preserves sorted selected IDs exact JSON and immediate catalog then hero continuations
+TypeError: Cannot set properties of null (setting 'open')
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:18:163
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп open test/panel-upgrade-achievement-parity.test.tsx:18:9
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:22:142
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/8]тОп
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > clan bulk refusal preserves selected controls and performs no success refresh
+TypeError: Cannot set properties of null (setting 'open')
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:18:163
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп open test/panel-upgrade-achievement-parity.test.tsx:18:9
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:23:178
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/8]тОп
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > clan catalog reflects pending game ownership and exact remaining gold
+TypeError: Cannot set properties of null (setting 'open')
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:18:163
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп open test/panel-upgrade-achievement-parity.test.tsx:18:9
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:24:154
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/8]тОп
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > clan draft survives hero polling but confirmation closes after the game save changes
+TypeError: Cannot set properties of null (setting 'open')
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:18:163
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп open test/panel-upgrade-achievement-parity.test.tsx:18:9
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:25:122
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/8]тОп
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > clan invalid price cannot be selected or silently replaced
+TypeError: Cannot read properties of null (reading 'toLocaleString')
+ тЭп viewer-bannerlord.js:4464:45
+ тЭп viewer-bannerlord.js:4449:36
+ тЭп _clanUpgradesTreeHtml viewer-bannerlord.js:4448:28
+ тЭп _renderClanUpgradesInline viewer-bannerlord.js:4594:11
+ тЭп refresh test/panel-legacy-harness.ts:389:44
+    387|     await settle();
+    388|   }
+    389|   async function refresh(loader: string) { await evaluate<Promise<voidтАж
+       |                                            ^
+    390|   async function exposeUsagePanels() {
+    391|     if (!booted) throw new Error('Usage exposure requires the selectedтАж
+ тЭп open test/panel-upgrade-achievement-parity.test.tsx:17:24
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/8]тОп
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > hero achievement progress and unlocked status come from the server catalog
+TypeError: Cannot set properties of null (setting 'open')
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:18:163
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп open test/panel-upgrade-achievement-parity.test.tsx:18:9
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:27:112
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/8]тОп
+
+ FAIL  test/panel-upgrade-achievement-parity.test.tsx > hero achievements render a server refusal without inventing catalog rows
+TypeError: Cannot set properties of null (setting 'open')
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:18:163
+
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп open test/panel-upgrade-achievement-parity.test.tsx:18:9
+ тЭп test/panel-upgrade-achievement-parity.test.tsx:28:200
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[8/8]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed (8)
+   Start at  15:50:12
+   Duration  7.39s (tests 35%, environment 32%, import 22%, transform 11%)
+

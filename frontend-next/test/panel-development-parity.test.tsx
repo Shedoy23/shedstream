@@ -1,3 +1,6 @@
+import gameFixtures from './panel-fixtures/game-progression-responses.json';
+import {heroBeforeAction,nextResponseTurn} from './panel-response-order';
+const g = gameFixtures.responses;
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render } from '@testing-library/preact';
 import { TwitchAuthStore } from '../src/auth';
@@ -6,24 +9,26 @@ import { HttpPanelTransport } from '../src/panel/transport';
 import { HeroDevelopmentView } from '../src/panel/HeroDevelopmentView';
 import { createLegacyHarness, legacyResponses as f, legacySelectors as oldSelect, type LegacyFixtures, type LegacyJson, type LegacyRequest, type LegacyHttpReply } from './panel-legacy-harness';
 const now = Date.UTC(2026, 9, 2, 12);
-const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
+const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); await nextResponseTurn(); };
 const all: (() => void)[] = [];
 beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] }); vi.setSystemTime(now); });
 afterEach(() => { cleanup(); all.splice(0).forEach(close => close()); vi.useRealTimers(); });
 function normalized(trace: LegacyRequest[]) {
-  return trace.map(({ rawBody: _rawBody, ...request }) => {
+  return trace.map(({ rawBody, ...request }) => {
+    let bytes=rawBody;
     const body = structuredClone(request.body);
-    if (body && typeof body === 'object' && !Array.isArray(body) && body.data && typeof body.data === 'object' && !Array.isArray(body.data) && 'client_action_id' in body.data) body.data.client_action_id = '<random-client-id>';
-    return { ...request, body };
+    if (body && typeof body === 'object' && !Array.isArray(body) && body.data && typeof body.data === 'object' && !Array.isArray(body.data) && 'client_action_id' in body.data) { if(bytes)bytes=bytes.replace(JSON.stringify(body.data.client_action_id),JSON.stringify('<random-client-id>')); body.data.client_action_id = '<random-client-id>'; }
+    return { ...request, body, rawBody:bytes };
   });
 }
 async function pair(overrides: Partial<LegacyFixtures> = {}) {
   const old = createLegacyHarness(overrides, { now }); all.push(old.dispose);
+  heroBeforeAction(old.fixtures);
   await old.bootHero();
   const trace: LegacyRequest[] = []; const failures: string[] = []; const calls: Record<string, number> = {};
   const fixtures = old.fixtures;
   const routes: Record<string, keyof LegacyFixtures> = {
-    'GET /api/bannerlord/config': 'config', 'GET /api/bannerlord/my-hero': 'hero', 'GET /api/bannerlord/classes': 'classes',
+    'GET /api/bannerlord/content-catalogs': 'catalogs', 'GET /api/bannerlord/progression': 'progression', 'GET /api/bannerlord/config': 'config', 'GET /api/bannerlord/my-hero': 'hero', 'GET /api/bannerlord/classes': 'classes',
     'GET /api/bannerlord/build': 'build', 'GET /api/bannerlord/my-buffs': 'buffs', 'POST /api/bannerlord/action': 'action',
     'GET /api/viewer/stats/alice': 'stats', 'GET /api/user/level/alice': 'level', 'GET /api/duel/list': 'duels',
   };
@@ -47,14 +52,14 @@ async function pair(overrides: Partial<LegacyFixtures> = {}) {
   expect(normalized(trace), 'entire selected-scope startup').toEqual(normalized(old.trace));
   trace.length = 0; old.trace.length = 0;
   return { old, controller, ui, trace, fixtures,
-    async click(oldSelector: string, newSelector = oldSelector) { await old.click(oldSelector); await act(async () => { const button = ui.container.querySelector(newSelector) as HTMLElement; expect(button, newSelector).toBeTruthy(); button.click(); await flush(); }); },
+    async click(oldSelector: string, newSelector = oldSelector) { await old.click(oldSelector); await act(async () => { const button = ui.container.querySelector(newSelector) as HTMLElement; expect(button, newSelector).toBeTruthy(); button.click(); await flush(); }); await act(async () => { const confirm = ui.queryByRole('button', {name:'Подтвердить',exact:true}); if (confirm) confirm.click(); await flush(); }); },
     async finish(ms = 3510) { await old.advance(ms); await act(async () => { await vi.advanceTimersByTimeAsync(ms); await flush(); }); expect(failures).toEqual([]); expect(normalized(trace), 'full method/path/query/body/JWT/header/cache trace').toEqual(normalized(old.trace)); },
   };
 }
-const attrs = Object.keys(f.hero.attributes);
+const attrs = g.progression.progression.attributes.map(a => a.id);
 const skills = f.hero.skills.map(skill => skill.skill_key);
 describe('real old rendered progression vs new Preact request parity', () => {
-  for (const key of attrs) it(`attribute ${key}: exact PascalCase+amount and complete success tail`, async () => {
+  for (const key of attrs) it(`attribute ${key}: exact game ID, quote, context and amount and complete success tail`, async () => {
     const p = await pair(); await p.click(oldSelect.attribute(key), `[data-attr="${key}"]`); await p.finish();
     expect(p.trace[0].body).toMatchObject({ action_type: 'hero.add_attribute', data: { attribute_key: key, amount: 1 } });
   });
@@ -96,23 +101,27 @@ for (const [name, build] of Object.entries({ pending: f.build_pending, battle: f
   for (const button of newButtons) (button as HTMLButtonElement).click(); await p.finish(); expect(p.trace).toEqual([]);
 });
 for (const [name, reply] of Object.entries({ money: f.attribute_insufficient.response, role: f.role_refusal, unknown: { success: false, message: 'Новый отказ, которого клиент не знает' }, cooldown: f.focus_cooldown.response })) it(`preserves ${name} server refusal and exact full request tail`, async () => {
-  const p = await pair({ action: reply }); await p.click(oldSelect.attribute('Vigor'), '[data-attr="Vigor"]'); await p.finish();
+  const p = await pair({ action: reply }); await p.click(oldSelect.attribute('vigor'), '[data-attr="vigor"]'); await p.finish();
   expect(p.controller.snapshot().message).toContain(reply.message);
   // Old cooldown rejection suppresses its toast when a cooldown button exists;
   // new screen keeps the supplied message visible in addition to countdown.
   if (name !== 'cooldown') expect(p.old.document.querySelector(oldSelect.notice)?.textContent).toContain(reply.message);
 });
-it('shows changed server prices and legitimate zero without copying economics', async () => {
-  const p = await pair({ config: { ...f.config, attribute_cost: 0, focus_tier_costs: [1, 2, 3, 4, 5] } });
-  expect(p.old.document.querySelector(oldSelect.attribute('Vigor'))?.getAttribute('title')).toContain('0');
-  expect(p.ui.container.querySelector('[data-attr="Vigor"]')?.getAttribute('title')).toContain('0');
-  await p.click(oldSelect.attribute('Vigor'), '[data-attr="Vigor"]'); await p.finish();
+it('shows game prices and legitimate zero regardless of legacy config', async () => {
+  const progression = structuredClone(g.progression);
+  progression.progression.attributes.find(a => a.id === 'vigor')!.options[0].cost_gold = 0;
+  const p = await pair({ progression, config: { ...f.config, attribute_cost: 999999 } });
+  expect(p.old.document.querySelector(oldSelect.attribute('vigor'))?.getAttribute('title')).toContain('0');
+  expect(p.ui.container.querySelector('[data-attr="vigor"]')?.getAttribute('title')).toContain('0');
+  await p.click(oldSelect.attribute('vigor'), '[data-attr="vigor"]'); await p.finish();
 });
-it('preserves inherited 5/10 cap gating', async () => {
-  const hero = { ...f.hero, attributes: Object.fromEntries(attrs.map(key => [key, 10])), skills: f.hero.skills.map(skill => ({ ...skill, focus: 5 })) };
-  const p = await pair({ hero });
-  for (const key of attrs) await p.click(oldSelect.attribute(key), `[data-attr="${key}"]`);
-  for (const key of skills) await p.click(oldSelect.focus(key), `[data-skill="${key}"]`);
+it('respects game-provided unavailable purchase offers without assuming vanilla caps', async () => {
+  const progression = structuredClone(g.progression);
+  progression.progression.attributes.forEach(a => a.options.forEach(o => o.available = false));
+  progression.progression.skills.forEach(a => a.focus_options.forEach(o => o.available = false));
+  const p = await pair({ progression });
+  for (const key of attrs) await p.click(oldSelect.attribute(key), '[data-attr="' + key + '"]');
+  for (const key of skills) await p.click(oldSelect.focus(key), '[data-skill="' + key + '"]');
   await p.finish(); expect(p.trace).toEqual([]);
 });
 it('manual refresh uses actual old refresh control and entire selected-host reads', async () => {
@@ -150,15 +159,15 @@ it('claimed starter preserves the old information-only state', async () => {
 it('same-frame duplicate progression clicks have the exact old single POST and immediate reads', async () => {
   let resolve!: (reply: LegacyJson) => void; const pending = new Promise<LegacyJson>(r => { resolve = r; });
   const p = await pair({ action: () => pending });
-  const old = p.old.document.querySelector(oldSelect.attribute('Vigor')) as HTMLElement;
+  const old = p.old.document.querySelector(oldSelect.attribute('vigor')) as HTMLElement;
   old.click(); old.click(); await p.old.settle();
-  await act(async () => { const next = p.ui.container.querySelector('[data-attr="Vigor"]') as HTMLElement; next.click(); next.click(); await flush(); });
+  await act(async () => { const next = p.ui.container.querySelector('[data-attr="vigor"]') as HTMLElement; next.click(); await flush(); });
+  await act(async () => { const yes=p.ui.getByRole('button',{name:'Подтвердить',exact:true}); yes.click(); yes.click(); await flush(); });
   expect(p.trace.filter(row => row.method === 'POST')).toHaveLength(1); expect(p.old.trace.filter(row => row.method === 'POST')).toHaveLength(1);
   resolve(f.attribute_success.response); await p.finish();
 });
-it('missing config deliberately fails closed instead of buying at inherited legacy fallback prices', async () => {
+it('missing legacy config does not override authoritative game progression quotes', async () => {
   const p = await pair({ config: {} });
-  await p.click(oldSelect.attribute('Vigor'), '[data-attr="Vigor"]');
-  expect(p.old.trace.filter(row => row.method === 'POST')).toHaveLength(1);
-  expect(p.trace).toEqual([]); expect((p.ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement).disabled).toBe(true);
+  await p.click(oldSelect.attribute('vigor'), '[data-attr="vigor"]');
+  await p.finish(); expect(p.trace.filter(row => row.method === 'POST')).toHaveLength(1);
 });

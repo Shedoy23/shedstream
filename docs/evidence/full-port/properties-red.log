@@ -1,0 +1,172 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-properties-parity.test.tsx (11 tests | 11 failed) 4639ms
+   ├Ч properties read full selected-host traffic including exact inheritance query and server totals 1213ms
+   ├Ч properties workshop buy preserves catalog selection, exact raw action and all 2000/3500ms tails 437ms
+   ├Ч properties workshop sell confirms the observed ID with 1500/3500ms tails 274ms
+   ├Ч properties workshop refusal still runs its original local refresh 279ms
+   ├Ч properties caravan buy preserves catalog selection, exact raw action and all 2000/3500ms tails 379ms
+   ├Ч properties caravan sell confirms the observed ID with 1500/3500ms tails 470ms
+   ├Ч properties caravan refusal still runs its original local refresh 306ms
+   ├Ч properties share the original sixty-second settlements cache across both forms 370ms
+   ├Ч properties missing catalog or price fails closed without hardcoded workshop choices 347ms
+   ├Ч properties remove a pending sale when its observed object vanishes 280ms
+   ├Ч properties custom game workshop IDs are selectable and sent verbatim (old static catalog limitation) 280ms
+
+тОптОптОптОптОптОп Failed Tests 11 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties read full selected-host traffic including exact inheritance query and server totals
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(6) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(10) ]
+
+- Expected
++ Received
+
+@@ -67,46 +67,6 @@
+      "path": "/api/bannerlord/progression",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-workshops",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-fiefs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-caravans",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/inheritance-log",
+-     "query": "?limit=15",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+  ]
+
+ тЭп Object.check test/panel-hero-support.tsx:47:102
+     45|   close.push(() => controller.stop()); await controller.start(); awaitтАж
+     46|   const ui = render(options.propertyHost?<PartyView controller={controтАж
+     47|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+       |                                                                                                      ^
+     48|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     49|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+ тЭп test/panel-properties-parity.test.tsx:28:26
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/11]тОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties workshop buy preserves catalog selection, exact raw action and all 2000/3500ms tails
+ FAIL  test/panel-properties-parity.test.tsx > properties caravan buy preserves catalog selection, exact raw action and all 2000/3500ms tails
+AssertionError: expected null not to be null
+ тЭп open test/panel-properties-parity.test.tsx:20:151
+
+ тЭп test/panel-properties-parity.test.tsx:33:32
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/11]тОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties workshop sell confirms the observed ID with 1500/3500ms tails
+ FAIL  test/panel-properties-parity.test.tsx > properties caravan sell confirms the observed ID with 1500/3500ms tails
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:49:101
+     47|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     48|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     49|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     50|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     51|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:49:46
+ тЭп test/panel-properties-parity.test.tsx:41:41
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/11]тОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties workshop refusal still runs its original local refresh
+ FAIL  test/panel-properties-parity.test.tsx > properties caravan refusal still runs its original local refresh
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:49:101
+     47|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     48|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     49|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     50|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     51|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:49:46
+ тЭп test/panel-properties-parity.test.tsx:47:41
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/11]тОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties share the original sixty-second settlements cache across both forms
+AssertionError: expected null not to be null
+ тЭп open test/panel-properties-parity.test.tsx:20:151
+
+ тЭп test/panel-properties-parity.test.tsx:52:30
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/11]тОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties missing catalog or price fails closed without hardcoded workshop choices
+AssertionError: expected null not to be null
+ тЭп open test/panel-properties-parity.test.tsx:20:151
+
+ тЭп test/panel-properties-parity.test.tsx:55:141
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/11]тОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties remove a pending sale when its observed object vanishes
+TypeError: Cannot read properties of null (reading 'click')
+ тЭп test/panel-hero-support.tsx:49:101
+     47|   const check = () => { old.assertHealthy(); expect(failures).toEqual(тАж
+     48|   return {old, trace, controller, ui, check, fixtures:old.fixtures, auтАж
+     49|     async newClick(selector: string) { await act(async () => { (ui.conтАж
+       |                                                                                                     ^
+     50|     async confirm() { await act(async () => { ui.getByRole('button',{nтАж
+     51|     async finish() { await old.advance(3510); await act(async () => { тАж
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп Object.newClick test/panel-hero-support.tsx:49:46
+ тЭп test/panel-properties-parity.test.tsx:59:32
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/11]тОп
+
+ FAIL  test/panel-properties-parity.test.tsx > properties custom game workshop IDs are selectable and sent verbatim (old static catalog limitation)
+AssertionError: expected null not to be null
+ тЭп open test/panel-properties-parity.test.tsx:20:151
+
+ тЭп test/panel-properties-parity.test.tsx:65:85
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[8/11]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  11 failed (11)
+   Start at  14:29:08
+   Duration  12.35s (tests 39%, environment 32%, import 19%, transform 9%, worker 1%)
+

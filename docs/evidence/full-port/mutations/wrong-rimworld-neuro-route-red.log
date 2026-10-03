@@ -1,0 +1,48 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (37 tests | 1 failed | 36 skipped) 1752ms
+   × rimworld neurotrainer uses category query and confirmed price with no invented pawn tail 1746ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 36 skipped (37)
+   Start at  20:17:48
+   Duration  6.14s (environment 37%, tests 30%, import 20%, transform 13%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld neurotrainer uses category query and confirmed price with no invented pawn tail
+AssertionError: expected [ { method: 'GET', …(7) }, …(34) ] to deeply equal [ { method: 'GET', …(7) }, …(34) ]
+
+- Expected
++ Received
+
+@@ -192,11 +192,11 @@
+    {
+      "body": "{\"username\":\"alice\",\"item_def\":\"PortTrainer\"}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+-     "path": "/api/rimworld/train-skill",
++     "path": "/api/rimworld/buy-item",
+      "query": "",
+      "rawBody": "{\"username\":\"alice\",\"item_def\":\"PortTrainer\"}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-rimworld-parity.test.tsx:33:388
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

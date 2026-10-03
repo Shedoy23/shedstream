@@ -1,0 +1,12 @@
+{"name":"wrong-rimworld-health","red":0,"green":0,"problemNamed":false}
+file:///C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next/scripts/mutate-full-port.mjs:69
+  if (red.status !== 1 || green.status !== 0 || !named) throw new Error('Mutation evidence failed: ' + item.name);
+                                                              ^
+
+Error: Mutation evidence failed: wrong-rimworld-health
+    at file:///C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next/scripts/mutate-full-port.mjs:69:63
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.19.0

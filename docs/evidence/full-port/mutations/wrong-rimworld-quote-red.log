@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (37 tests | 1 failed | 36 skipped) 1840ms
+   × rimworld shop trait preserves expected price and catalog refresh ordering 1837ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 36 skipped (37)
+   Start at  20:17:34
+   Duration  6.59s (environment 43%, tests 30%, import 18%, transform 9%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld shop trait preserves expected price and catalog refresh ordering
+AssertionError: expected [ { method: 'GET', …(7) }, …(42) ] to deeply equal [ { method: 'GET', …(7) }, …(42) ]
+
+- Expected
++ Received
+
+@@ -178,17 +178,17 @@
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+-     "body": "{\"username\":\"alice\",\"trait_def\":\"PortTrait\",\"degree\":1,\"expected_price\":1000}",
++     "body": "{\"username\":\"alice\",\"trait_def\":\"PortTrait\",\"degree\":1,\"expected_price\":999}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/rimworld/buy-trait",
+      "query": "",
+-     "rawBody": "{\"username\":\"alice\",\"trait_def\":\"PortTrait\",\"degree\":1,\"expected_price\":1000}",
++     "rawBody": "{\"username\":\"alice\",\"trait_def\":\"PortTrait\",\"degree\":1,\"expected_price\":999}",
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": "no-store",
+
+ ❯ Object.check test/panel-shell-pair.ts:62:30
+     60|       expected.splice(at,2);
+     61|     }
+     62|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     63|   } };
+     64| }
+ ❯ test/panel-rimworld-parity.test.tsx:30:389
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

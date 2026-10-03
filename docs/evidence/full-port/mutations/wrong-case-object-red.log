@@ -1,0 +1,49 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-cases-parity.test.tsx (6 tests | 1 failed | 5 skipped) 853ms
+   × cases opening keeps exact request body and all 400/700ms balance and list tails 850ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 skipped (6)
+   Start at  19:03:13
+   Duration  4.85s (environment 50%, import 22%, tests 19%, transform 9%, worker 1%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-cases-parity.test.tsx > cases opening keeps exact request body and all 400/700ms balance and list tails
+AssertionError: expected [ { method: 'GET', …(7) }, …(2) ] to deeply equal [ { method: 'GET', …(7) }, …(2) ]
+
+- Expected
++ Received
+
+@@ -19,16 +19,16 @@
+      "rawBody": null,
+      "token": "",
+    },
+    {
+      "body": {
+-       "case_id": 71,
++       "case_id": 72,
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/viewer/case/open",
+      "query": "",
+-     "rawBody": "{\"case_id\":71}",
++     "rawBody": "{\"case_id\":72}",
+      "token": "alice-token",
+    },
+  ]
+
+ ❯ Object.check test/panel-cases-parity.test.tsx:34:363
+
+ ❯ test/panel-cases-parity.test.tsx:38:67
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

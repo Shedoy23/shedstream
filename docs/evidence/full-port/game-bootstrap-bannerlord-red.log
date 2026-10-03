@@ -1,0 +1,203 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-game-bootstrap-parity.test.tsx (5 tests | 2 failed) 3946ms
+   ├Ч bannerlord whole shell startup preserves every request before the core level continuation 641ms
+   ├Ч bannerlord accepted action updates shared shell balance and level immediately 332ms
+
+тОптОптОптОптОптОптОп Failed Tests 2 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord whole shell startup preserves every request before the core level continuation
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(21) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(21) ]
+
+- Expected
++ Received
+
+@@ -69,124 +69,124 @@
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+-     "cache": "no-store",
++     "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/config",
++     "path": "/api/user/level/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
++     "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/progression",
++     "path": "/api/bannerlord/config",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/status",
++     "path": "/api/bannerlord/my-hero",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+-     "cache": null,
++     "cache": "no-store",
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/classes",
++     "path": "/api/bannerlord/progression",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/build",
++     "path": "/api/bannerlord/status",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/my-buffs",
++     "path": "/api/bannerlord/classes",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/tournament",
++     "path": "/api/bannerlord/build",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/battle-status",
++     "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/user/level/alice",
++     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/duel/list",
++     "path": "/api/bannerlord/shop",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
++     "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+@@ -202,11 +202,11 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/shop",
++     "path": "/api/bannerlord/tournament",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+    {
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп test/panel-game-bootstrap-parity.test.tsx:33:157
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/2]тОп
+
+ FAIL  test/panel-game-bootstrap-parity.test.tsx > bannerlord accepted action updates shared shell balance and level immediately
+TypeError: Cannot read properties of undefined (reading 'buildFamily')
+ тЭп PanelController.action src/panel/controller.ts:324:35
+    322|     // BnrBuilds has one synchronous family lock. Rendered disabled stтАж
+    323|     // is too late for two different choices clicked before Preact comтАж
+    324|     const buildFamily = !!options.buildFamily || type === 'hero.set_spтАж
+       |                                   ^
+    325|     if (buildFamily) {
+    326|       const build = this.state.build;
+ тЭп test/panel-game-bootstrap-parity.test.tsx:34:240
+ тЭп cb node_modules/preact/test-utils/src/index.js:92:12
+ тЭп test/panel-game-bootstrap-parity.test.tsx:34:207
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/2]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 3 passed (5)
+   Start at  18:04:10
+   Duration  9.28s (tests 44%, environment 22%, import 21%, transform 14%)
+

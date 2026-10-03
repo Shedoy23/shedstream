@@ -1,0 +1,208 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-rimworld-parity.test.tsx (8 tests | 2 failed) 5995ms
+   × rimworld token refresh preserves status phase without restarting game bootstrap 539ms
+   × rimworld manual pawn refresh keeps cooldown read and observed rich equipment data 263ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld token refresh preserves status phase without restarting game bootstrap
+AssertionError: expected [ { method: 'GET', …(7) }, …(42) ] to deeply equal [ { method: 'GET', …(7) }, …(34) ]
+
+- Expected
++ Received
+
+@@ -212,10 +212,70 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
++     "path": "/api/rimworld/status",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/rimworld/config",
++     "query": "",
++     "rawBody": null,
++     "token": "",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/rimworld/colonists",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/rimworld/my-pawn/alice",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/rimworld/catalog",
++     "query": "?username=alice",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/rimworld/events",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+@@ -232,10 +292,40 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
++     "path": "/api/rimworld/my-pawn/alice",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/rimworld/heal-cooldown/alice",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
++     "path": "/api/rimworld/heal-cooldown/alice",
++     "query": "",
++     "rawBody": null,
++     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
++   },
++   {
++     "body": "null",
++     "cache": null,
++     "contentType": "",
++     "method": "GET",
+      "path": "/api/notices",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+@@ -252,21 +342,21 @@
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/rimworld/status",
++     "path": "/api/notices",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/notices",
++     "path": "/api/rimworld/status",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+@@ -324,20 +414,10 @@
+      "body": "null",
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+      "path": "/api/viewer/online-list",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/rimworld/status",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.refreshed",
+    },
+    {
+
+ ❯ Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation cl…
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ ❯ test/panel-rimworld-parity.test.tsx:19:324
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/panel-rimworld-parity.test.tsx > rimworld manual pawn refresh keeps cooldown read and observed rich equipment data
+Error: Old rendered element missing: #refresh-pawn-btn
+ ❯ element test/panel-legacy-harness.ts:378:22
+    376|   function element(selector: string) {
+    377|     const node = document.querySelector<HTMLElement>(selector);
+    378|     if (!node) throw new Error(`Old rendered element missing: ${select…
+       |                      ^
+    379|     return node;
+    380|   }
+ ❯ Object.click test/panel-legacy-harness.ts:381:44
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed (8)
+   Start at  17:26:08
+   Duration  10.10s (tests 61%, environment 25%, import 10%, transform 4%)
+
+ ❯ Object.click test/panel-rimworld-parity.test.tsx:16:73
+ ❯ test/panel-rimworld-parity.test.tsx:20:128
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+

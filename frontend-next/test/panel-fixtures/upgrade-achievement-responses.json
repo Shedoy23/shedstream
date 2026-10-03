@@ -1,0 +1,348 @@
+{
+  "provenance": {
+    "base": "a1a4a3f",
+    "database": "owned temporary SQLite",
+    "live_game": false,
+    "synthetic": "game-like clan catalog; achievements from actual server catalog and increment_stat"
+  },
+  "responses": {
+    "catalog": {
+      "success": true,
+      "upgrades": [
+        {
+          "upgrade_id": "fixture-a",
+          "name": "Дружина",
+          "description": "Игровое описание Дружина",
+          "tier": 1,
+          "required_upgrade_id": null,
+          "gold_cost": 12345,
+          "effects": {
+            "retinue_size_bonus": 7
+          },
+          "owned": false,
+          "pending": false,
+          "locked": false
+        },
+        {
+          "upgrade_id": "fixture-b",
+          "name": "Караванные пути",
+          "description": "Игровое описание Караванные пути",
+          "tier": 1,
+          "required_upgrade_id": null,
+          "gold_cost": 23456,
+          "effects": {
+            "party_speed_bonus": 0.7
+          },
+          "owned": false,
+          "pending": false,
+          "locked": false
+        },
+        {
+          "upgrade_id": "fixture-owned",
+          "name": "Знамя клана",
+          "description": "Игровое описание Знамя клана",
+          "tier": 1,
+          "required_upgrade_id": null,
+          "gold_cost": 35000,
+          "effects": {
+            "renown_daily": 3
+          },
+          "owned": true,
+          "pending": false,
+          "locked": false
+        },
+        {
+          "upgrade_id": "fixture-locked",
+          "name": "Большая дружина",
+          "description": "Игровое описание Большая дружина",
+          "tier": 2,
+          "required_upgrade_id": "fixture-a",
+          "gold_cost": 45678,
+          "effects": {
+            "retinue_size_bonus": 11
+          },
+          "owned": false,
+          "pending": false,
+          "locked": true
+        }
+      ],
+      "hero_gold": 500000
+    },
+    "achievements": {
+      "success": true,
+      "achievements": [
+        {
+          "id": "first_blood",
+          "name": "Первая кровь",
+          "description": "Убей первого врага в бою",
+          "icon": "🩸",
+          "stat_key": "kills",
+          "threshold": 1,
+          "current_value": 37,
+          "unlocked": true,
+          "unlocked_at": "2026-10-03 10:49:52"
+        },
+        {
+          "id": "bloodthirsty",
+          "name": "Кровожадный",
+          "description": "Убей 100 врагов",
+          "icon": "⚔️",
+          "stat_key": "kills",
+          "threshold": 100,
+          "current_value": 37,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "slayer",
+          "name": "Истребитель",
+          "description": "Убей 500 врагов",
+          "icon": "💀",
+          "stat_key": "kills",
+          "threshold": 500,
+          "current_value": 37,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "warlord",
+          "name": "Полководец",
+          "description": "Убей 1000 врагов",
+          "icon": "🏴",
+          "stat_key": "kills",
+          "threshold": 1000,
+          "current_value": 37,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "first_tournament",
+          "name": "Дебют на арене",
+          "description": "Участвуй в турнире зрителей",
+          "icon": "🥉",
+          "stat_key": "tournament_participations",
+          "threshold": 1,
+          "current_value": 0,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "tournament_champion",
+          "name": "Чемпион арены",
+          "description": "Победи в турнире зрителей",
+          "icon": "🏆",
+          "stat_key": "tournament_wins",
+          "threshold": 1,
+          "current_value": 0,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "tournament_dynasty",
+          "name": "Династия чемпионов",
+          "description": "Победи в 3 турнирах",
+          "icon": "👑",
+          "stat_key": "tournament_wins",
+          "threshold": 3,
+          "current_value": 0,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "level_10",
+          "name": "Опытный воин",
+          "description": "Достигни 10 уровня",
+          "icon": "⭐",
+          "stat_key": "level_max",
+          "threshold": 10,
+          "current_value": 0,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "level_20",
+          "name": "Легенда",
+          "description": "Достигни 20 уровня",
+          "icon": "🌟",
+          "stat_key": "level_max",
+          "threshold": 20,
+          "current_value": 0,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "rich",
+          "name": "Богач",
+          "description": "Накопи 500K💰 динаров",
+          "icon": "💰",
+          "stat_key": "gold_max",
+          "threshold": 500000,
+          "current_value": 0,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "millionaire",
+          "name": "Миллионер",
+          "description": "Накопи 1M💰 динаров",
+          "icon": "💎",
+          "stat_key": "gold_max",
+          "threshold": 1000000,
+          "current_value": 0,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "lord",
+          "name": "Лорд",
+          "description": "Создай свой клан",
+          "icon": "🏰",
+          "stat_key": "clan_created",
+          "threshold": 1,
+          "current_value": 0,
+          "unlocked": false,
+          "unlocked_at": null
+        },
+        {
+          "id": "king",
+          "name": "Король",
+          "description": "Создай своё королевство",
+          "icon": "👑",
+          "stat_key": "kingdom_created",
+          "threshold": 1,
+          "current_value": 0,
+          "unlocked": false,
+          "unlocked_at": null
+        }
+      ],
+      "total": 13,
+      "unlocked_count": 1
+    },
+    "locked": {
+      "request": {
+        "upgrade_ids": [
+          "fixture-locked"
+        ]
+      },
+      "response": {
+        "success": false,
+        "message": "Для 'Большая дружина' нужен сначала prereq 'fixture-a'"
+      }
+    },
+    "too_many": {
+      "request": {
+        "upgrade_ids": [
+          "fixture-0",
+          "fixture-1",
+          "fixture-2",
+          "fixture-3",
+          "fixture-4",
+          "fixture-5",
+          "fixture-6",
+          "fixture-7",
+          "fixture-8",
+          "fixture-9",
+          "fixture-10"
+        ]
+      },
+      "response": {
+        "success": false,
+        "message": "Максимум 10 апгрейдов за раз"
+      }
+    },
+    "buy": {
+      "request": {
+        "upgrade_ids": [
+          "fixture-a",
+          "fixture-b"
+        ]
+      },
+      "response": {
+        "success": true,
+        "pending": true,
+        "bulk": true,
+        "count": 2,
+        "upgrade_ids": [
+          "fixture-a",
+          "fixture-b"
+        ],
+        "total_cost": 35801,
+        "message": "✨ Покупка 2 апгрейдов отправлена в игру: Дружина, Караванные пути (-35,801💰)"
+      }
+    },
+    "pending": {
+      "success": true,
+      "upgrades": [
+        {
+          "upgrade_id": "fixture-a",
+          "name": "Дружина",
+          "description": "Игровое описание Дружина",
+          "tier": 1,
+          "required_upgrade_id": null,
+          "gold_cost": 12345,
+          "effects": {
+            "retinue_size_bonus": 7
+          },
+          "owned": true,
+          "pending": true,
+          "locked": false
+        },
+        {
+          "upgrade_id": "fixture-b",
+          "name": "Караванные пути",
+          "description": "Игровое описание Караванные пути",
+          "tier": 1,
+          "required_upgrade_id": null,
+          "gold_cost": 23456,
+          "effects": {
+            "party_speed_bonus": 0.7
+          },
+          "owned": true,
+          "pending": true,
+          "locked": false
+        },
+        {
+          "upgrade_id": "fixture-owned",
+          "name": "Знамя клана",
+          "description": "Игровое описание Знамя клана",
+          "tier": 1,
+          "required_upgrade_id": null,
+          "gold_cost": 35000,
+          "effects": {
+            "renown_daily": 3
+          },
+          "owned": true,
+          "pending": false,
+          "locked": false
+        },
+        {
+          "upgrade_id": "fixture-locked",
+          "name": "Большая дружина",
+          "description": "Игровое описание Большая дружина",
+          "tier": 2,
+          "required_upgrade_id": "fixture-a",
+          "gold_cost": 45678,
+          "effects": {
+            "retinue_size_bonus": 11
+          },
+          "owned": false,
+          "pending": false,
+          "locked": false
+        }
+      ],
+      "hero_gold": 464199
+    },
+    "duplicate": {
+      "request": {
+        "upgrade_ids": [
+          "fixture-a",
+          "fixture-b"
+        ]
+      },
+      "response": {
+        "success": false,
+        "message": "Покупка этого апгрейда уже обрабатывается"
+      }
+    }
+  }
+}

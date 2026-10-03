@@ -1,0 +1,50 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-colony-parity.test.tsx (36 tests | 1 failed | 35 skipped) 1434ms
+   × colony keeps selected skill through a snapshot poll 1431ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 35 skipped (36)
+   Start at  20:55:21
+   Duration  6.02s (environment 43%, tests 25%, import 22%, transform 10%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-colony-parity.test.tsx > colony keeps selected skill through a snapshot poll
+AssertionError: expected [ { method: 'GET', …(7) }, …(17) ] to deeply equal [ { method: 'GET', …(7) }, …(17) ]
+
+- Expected
++ Received
+
+@@ -68,17 +68,17 @@
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+-     "body": "{\"action_type\":\"colonist.add_xp\",\"data\":{\"skill\":\"Strength\",\"client_action_id\":\"<generated>\"}}",
++     "body": "{\"action_type\":\"colonist.add_xp\",\"data\":{\"skill\":\"Athletics\",\"client_action_id\":\"<generated>\"}}",
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/shedcolony/action",
+      "query": "",
+-     "rawBody": "{\"action_type\":\"colonist.add_xp\",\"data\":{\"skill\":\"Strength\",\"client_action_id\":\"<generated>\"}}",
++     "rawBody": "{\"action_type\":\"colonist.add_xp\",\"data\":{\"skill\":\"Athletics\",\"client_action_id\":\"<generated>\"}}",
+      "token": "alice-token",
+    },
+    {
+      "body": "null",
+      "cache": "no-store",
+
+ ❯ Object.check test/panel-colony-parity.test.tsx:44:712
+
+ ❯ test/panel-colony-parity.test.tsx:54:119
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

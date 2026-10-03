@@ -1,4 +1,5 @@
 import { diplomacyAllowed, diplomacyOwner, type DiplomacyReply } from './diplomacy';
+import { tournamentAllowed, type TournamentReply } from './tournament';
 import { kingdomAllowed, kingdomOwner } from './kingdom';
 import { clanInfo, partyAllowed, partyOwner, type PartyOrdersReply } from './party';
 import { TwitchAuthStore } from '../auth';
@@ -9,6 +10,9 @@ import { refundText } from './refunds';
 import { combatAllowed, semanticCooldown } from './combat';
 import { forgeAllowed, forgeItem, forgeObservation } from './forge';
 import type { EquipmentReply } from './equipment';
+import type {ShopReply,StatusReply} from './commerce';
+import type {ViewerRuntime} from '../common/runtime';
+import { progressionActionType, progressionQuote, type ProgressionKind } from './progression';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
 export class PanelController {
   private state: PanelState;
@@ -19,11 +23,43 @@ export class PanelController {
   private equipmentPreload: { generation: number; hero?: string; promise: Promise<unknown>; abort: AbortController } | null = null;
   private partyActive = false; private messageRevision = 0;
   private combatEnabled = false; private stanceRevision = 0;
+  private tournamentEnabled = false;
+  private commerceEnabled = false;
+  private hosted = false; private hostTimers: ReturnType<typeof setInterval>[] = [];
+  private integrationVisible=false;
+  private dynastyReads=new Map<string,()=>void>();
+  registerDynastyRead(key:string,read:()=>void){this.dynastyReads.set(key,read);return()=>{if(this.dynastyReads.get(key)===read)this.dynastyReads.delete(key);};}
+  isHosted = () => this.hosted;
+  bindHost(runtime: ViewerRuntime) {
+    this.hosted = true; this.enableCommerce(); this.enableCombat(); this.enableTournament();
+    let integrationSelected=false;
+    const syncVisibility=()=>{this.integrationVisible=integrationSelected&&runtime.snapshot().panelVisible;let dynasty=false;try{dynasty=localStorage.getItem('bnr_active_tab')==='dynasty';}catch{/* Optional storage. */}this.setPartyActive(this.integrationVisible&&dynasty);};
+    runtime.bindTab(tab=>{integrationSelected=tab==='integration';syncVisibility();});
+    runtime.bindPanelVisibility(syncVisibility);
+    let currentOwner = '';
+    runtime.bindModule((client,module) => {
+      if (!client || module !== 'bannerlord') { if (this.active) this.stop(); currentOwner = ''; return; }
+      const next = JSON.stringify([client.identity.channelId,client.identity.login]);
+      if (this.active && next !== currentOwner) this.stop(); currentOwner = next;
+      this.syncHostBalance(); if (this.active) return;
+      let tab = 'combat'; try { tab = localStorage.getItem('bnr_active_tab') || tab; } catch { /* Optional storage. */ }
+      this.setForgeActive(tab === 'inventory'); this.setPartyActive(this.integrationVisible && tab === 'dynasty');
+      void this.start({equipmentFirst: tab === 'inventory'});
+      this.hostTimers = [
+        setInterval(() => { if (!document.hidden) { void this.refreshHero(); void this.refreshShop(); void this.refreshStatus(); void this.refreshClasses(); void this.refreshBuild(); if(this.forgeActive) void this.refreshEquipment(); } },8000),
+        setInterval(() => { if (!document.hidden) void this.refreshBuffs(); },2500),
+        setInterval(() => { if (!document.hidden) void this.refreshTournament(); },3000),
+        setInterval(() => { if (!document.hidden) void this.refreshBattle(); },2000),
+        setInterval(this.tick,1000),
+      ];
+    });
+  }
   private forgeActive = false;
   private cooldownRevision = 0; private buildRevision = 0; private aborts = new Set<AbortController>();
   private timers = new Set<ReturnType<typeof setTimeout>>(); private equipmentRefresh?: () => void | Promise<unknown>;
+  private metadataFlights: Partial<Record<'catalogs' | 'progression', {token?: string; generation: number; promise: Promise<void>}>> = {};
   constructor(private readonly transport: PanelTransport, private readonly auth: TwitchAuthStore, private readonly identity: Pick<IdentityBootstrap, 'snapshot' | 'subscribe'>, private readonly clock: () => number = Date.now, private readonly usage?: Pick<PanelUsage, 'start' | 'stop' | 'trackPanel' | 'trackSection' | 'trackAction'>) { this.state = this.empty(); }
-  private empty(): PanelState { return { forgeEquipment: null, diplomacy: null, partyOrders: null, refundNotices: [], battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
+  private empty(): PanelState { return { catalogs: null, progression: null, forgeEquipment: null, diplomacy: null, partyOrders: null, refundNotices: [], battle: null, buffs: {}, buffsReady: false, points: null, newBuild: false, buildBusy: false, buildCooldownUntil: 0, optimisticStance: null, hero: null, config: null, build: null, classes: null, loading: false, canAct: false, mutationBlocked: false, message: '', error: '', errors: {}, buildPending: false, busy: [], cooldowns: {}, now: this.clock(), generation: this.generation }; }
   snapshot = () => this.state;
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   private publish(patch: Partial<PanelState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()); }
@@ -35,9 +71,27 @@ export class PanelController {
     const next = owner(this.auth); const changed = next !== this.owner;
     if (changed) { this.owner = next; this.invalidate(); }
     const previouslyReady = this.state.canAct; const canAct = this.ready(); this.publish({ canAct, ...this.mutationGate() });
-    if (canAct && (changed || !previouslyReady)) void this.refresh();
+    if (!this.hosted && canAct && (changed || !previouslyReady)) void this.refresh();
   };
   enableCombat() { this.combatEnabled = true; }
+  enableCommerce() { this.commerceEnabled = true; }
+  refreshShop = async () => {
+    if(!this.commerceEnabled||!this.ready())return;
+    const owns=this.captureRequestOwner();await this.refreshProgression();
+    if(owns())await this.load<ShopReply>('shop','/api/bannerlord/shop',shop=>({shop}),owns);
+  };
+  refreshStatus = () => this.commerceEnabled?this.load<StatusReply>('status','/api/bannerlord/status',status=>({status})):Promise.resolve();
+  private externalUsage = false;
+  useHostUsage() { this.externalUsage = true; }
+  private hostBalance?: { refresh(): Promise<void>; points(): number | null };
+  useHostBalance(host: { refresh(): Promise<void>; points(): number | null }) { this.hostBalance = host; }
+  syncHostBalance() { if (this.hostBalance) this.publish({ points: this.hostBalance.points() }); }
+  enableTournament() { this.tournamentEnabled = true; }
+  refreshTournament = () => this.load<TournamentReply>('tournament', '/api/bannerlord/tournament', tournament => ({ tournament }));
+  async tournamentAction(type: string, target?: string, context?: string) {
+    if (!this.tournamentEnabled || !this.ready() || !tournamentAllowed(this.state, type, target, context)) return null;
+    return this.action(type, type === 'hero.join_tournament' ? { price: 0 } : { target }, { tail: 'hero', successMessage: type === 'hero.join_tournament' ? 'Заявка на участие отправлена. Ждём подтверждения из игры и запуска турнира стримером.' : 'Прогноз принят. Исход станет известен позже; повторять заявку не нужно.' });
+  }
   setForgeActive(active: boolean) { this.forgeActive = active; }
   observeForgeEquipment(reply: EquipmentReply, generation: number, hero: string) {
     if (generation !== this.generation || hero !== heroContext(this.state.hero) || !this.ready()) return;
@@ -65,13 +119,13 @@ export class PanelController {
     if (this.active) return;
     this.initialEquipment = !!options.equipmentFirst;
     this.active = true; this.owner = owner(this.auth);
-    try { this.usage?.start(); } catch { /* Observability cannot block the panel. */ }
+    try { if (!this.externalUsage) this.usage?.start(); } catch { /* Observability cannot block the panel. */ }
     this.unsubscribe = [this.auth.subscribe(this.syncIdentity), this.identity.subscribe(this.syncIdentity)];
     this.publish({ canAct: this.ready(), ...this.mutationGate() }); if (this.ready()) await this.refresh();
   }
-  stop() { try { this.usage?.stop(); } catch { /* Best effort only. */ } this.active = false; this.unsubscribe.forEach(fn => fn()); this.unsubscribe = []; this.invalidate(); this.publish({ canAct: false }); }
+  stop() { this.hostTimers.forEach(clearInterval); this.hostTimers=[]; try { if (!this.externalUsage) this.usage?.stop(); } catch { /* Best effort only. */ } this.active = false; this.unsubscribe.forEach(fn => fn()); this.unsubscribe = []; this.invalidate(); this.publish({ canAct: false }); }
   trackVisiblePanels = () => {
-    if (!this.ready() || document.hidden) return;
+    if (this.externalUsage || !this.ready() || document.hidden) return;
     try { this.usage?.trackPanel('core'); this.usage?.trackPanel('bannerlord'); } catch { /* Best effort only. */ }
   };
   trackSection = (feature: string) => { if (this.ready()) { try { this.usage?.trackSection(feature); } catch { /* Best effort only. */ } } };
@@ -95,6 +149,27 @@ export class PanelController {
     }
     return this.transport.read<T>(path, signal);
   }
+  private metadata(key: 'catalogs' | 'progression', path: string): Promise<void> {
+    if (!this.ready()) return Promise.resolve();
+    const token = this.auth.current()?.token, generation = this.generation, previous = this.metadataFlights[key];
+    if (previous && previous.token === token && previous.generation === generation) return previous.promise;
+    const abort = new AbortController(); this.aborts.add(abort);
+    const owns = () => this.ready() && generation === this.generation && token === this.auth.current()?.token;
+    const flight = {token, generation, promise: Promise.resolve()};
+    flight.promise = this.transport.read(path, abort.signal).then(value => {
+      if (owns()) this.publish({[key]: value});
+    }).catch(() => { if (owns()) this.publish({[key]: null}); }).finally(() => {
+      this.aborts.delete(abort); if (this.metadataFlights[key] === flight) delete this.metadataFlights[key];
+    });
+    this.metadataFlights[key] = flight; return flight.promise;
+  }
+  refreshCatalogs = () => this.metadata('catalogs', '/api/bannerlord/content-catalogs');
+  refreshProgression = () => this.metadata('progression', '/api/bannerlord/progression');
+  async progressionAction(kind: ProgressionKind, id: string, shown: Record<string, unknown>) {
+    const current = progressionQuote(this.state.progression, kind, id, this.state.hero);
+    if (!current || JSON.stringify(current) !== JSON.stringify(shown)) { this.showMessage('Предложение изменилось. Проверь новые данные и подтверди заново.'); return null; }
+    return this.action(progressionActionType(kind), shown, {tail:'hero', immediateHero:kind !== 'xp', successMessage:'Заявка на прокачку отправлена. Ждём подтверждения из игры.'});
+  }
   private async load<T>(key: string, path: string, apply: (value: T) => Partial<PanelState>, barrier?: () => boolean) {
     if (!this.ready()) return;
     const generation = this.generation, request = this.issued[key] = (this.issued[key] || 0) + 1;
@@ -103,9 +178,15 @@ export class PanelController {
     try {
       const value = await this.transport.read<T>(path, abort.signal);
       if (!current()) return;
+      if (key === 'hero') await Promise.all([this.refreshCatalogs(), this.refreshProgression()]);
+      if (key === 'diplomacy' && (value as DiplomacyReply).kingdom_id) await this.refreshCatalogs();
+      if (!current()) return;
       this.applied[key] = request;
       const errors = { ...this.state.errors }; delete errors[key];
       this.publish({ ...apply(value), errors, error: Object.values(errors)[0] || '' });
+      // The legacy hero renderer starts its visible sub-loaders before returning;
+      // a slow kingdom response must not keep hero refresh or loading pending.
+      if (key === 'hero') { if(this.hosted) void this.refreshDaily(); this.refreshVisibleParty(); }
       return true;
     } catch (error) {
       if (!current() || abort.signal.aborted) return;
@@ -137,9 +218,15 @@ export class PanelController {
     if (kingdomOwner(hero) !== kingdomOwner(this.state.hero)) { this.applied.diplomacy = this.issued.diplomacy = (this.issued.diplomacy || 0) + 1; }
     if (partyOwner(hero) !== partyOwner(this.state.hero)) { this.applied.party = this.issued.party = (this.issued.party || 0) + 1; this.state = { ...this.state, partyOrders: null }; }
     return { hero, forgeEquipment: heroContext(hero) === heroContext(this.state.hero) ? this.state.forgeEquipment : null, refundNotices: this.refundNotices(hero), optimisticStance: hero.hero?.combat_stance === this.state.optimisticStance || this.stanceRefused(hero) ? null : this.state.optimisticStance };
-  }).then(applied => { if (applied) this.refreshVisibleParty(); });
-  setPartyActive(active: boolean) { this.partyActive = active; if (active) this.refreshVisibleParty(); }
-  refreshVisibleParty = () => { if (this.partyActive && !document.hidden && this.state.hero?.hero?.is_alive && clanInfo(this.state.hero)?.is_leader) { void this.refreshPartyOrders(); void this.refreshDiplomacy(); } };
+  });
+  setPartyActive(active: boolean) { active=active&&(!this.hosted||this.integrationVisible);const changed=this.partyActive!==active; this.partyActive = active; if (active && (!this.hosted || changed)) this.refreshVisibleParty(); }
+  refreshDaily = () => { const hero=heroContext(this.state.hero); return this.state.hero?.hero?.is_alive ? this.load<import('./contracts').DailyReply>('daily','/api/bannerlord/daily-status',daily=>({daily}),()=>hero===heroContext(this.state.hero)) : Promise.resolve(); };
+  refreshVisibleParty = () => { if (this.partyActive && !document.hidden && this.state.hero?.hero?.is_alive && clanInfo(this.state.hero)?.is_leader) {
+    if(this.hosted){this.dynastyReads.get('children')?.();this.dynastyReads.get('vassals')?.();}
+    const reads=[this.refreshPartyOrders(),this.refreshDiplomacy()];
+    if(this.hosted){this.dynastyReads.get('ransom')?.();this.dynastyReads.get('properties')?.();}
+    return Promise.all(reads);
+  } };
   refreshDiplomacy = () => {
     if(!this.state.hero?.hero?.is_alive||!clanInfo(this.state.hero)?.is_leader)return Promise.resolve();
     const context=kingdomOwner(this.state.hero),token=this.auth.current()?.token;
@@ -171,6 +258,20 @@ export class PanelController {
     return this.load<PartyOrdersReply>('party', '/api/bannerlord/party-orders', partyOrders => ({ partyOrders }), () => context === partyOwner(this.state.hero) && token === this.auth.current()?.token);
   };
   captureRequestOwner() { const generation=this.generation,token=this.auth.current()?.token; return () => generation===this.generation&&token===this.auth.current()?.token&&this.ready(); }
+  async post(path:string,data:Record<string,unknown>,successMessage?:string){
+    if(!this.ready()||this.state.mutationBlocked||!this.transport.post)return null;
+    const owns=this.captureRequestOwner();
+    try{
+      const result=await this.transport.post(path,data);
+      if(!owns()||!result)return null;
+      this.showMessage(result.success?(successMessage||result.message||'Заявка отправлена'):(result.message||'Действие не выполнено'));
+      return result;
+    }catch(error){if(owns())this.publish({mutationBlocked:error instanceof UnknownActionOutcomeError||this.state.mutationBlocked,message:error instanceof Error?error.message:'Ошибка сети'});return null;}
+  }
+  scheduleOwnedRead(delay:number,read:()=>unknown){
+    const owns=this.captureRequestOwner();
+    const timer=setTimeout(()=>{this.timers.delete(timer);if(owns())read();},delay);this.timers.add(timer);
+  }
   showMessage(message: string, duration?: number) { const revision=++this.messageRevision; this.publish({ message }); if(duration){const generation=this.generation;const timer=setTimeout(()=>{this.timers.delete(timer);if(generation===this.generation&&revision===this.messageRevision&&this.state.message===message)this.publish({message:''});},duration);this.timers.add(timer);} }
   async kingdomAction(type: string, data: Record<string, unknown>) {
     if(!this.partyActive||!kingdomAllowed(this.state,type)||!this.ready())return null;
@@ -206,7 +307,7 @@ export class PanelController {
   async refreshDevelopment() {
     // The old explicit refresh orders mounted equipment before build; the
     // delayed successful-action tail below deliberately uses the reverse order.
-    await Promise.all([this.refreshHero(), this.equipmentRefresh?.(), this.refreshBuild(),
+    await Promise.all([this.refreshHero(), this.refreshShop(), this.equipmentRefresh?.(), this.refreshBuild(),
       !hasProgressionPrices(this.state.config) ? this.refreshConfig() : undefined,
       !this.state.classes ? this.refreshClasses() : undefined]);
   }
@@ -215,13 +316,14 @@ export class PanelController {
     const generation = this.generation;
     if (this.initialEquipment) { this.initialEquipment = false; this.primeEquipment(); }
     this.publish({ loading: true });
-    await Promise.all([this.refreshConfig(), this.refreshHero(), this.refreshClasses(), this.refreshBuild(), this.refreshBuffs()]);
-    if (generation === this.generation && this.combatEnabled) { await this.refreshBalance(); if (generation === this.generation) await this.refreshBattle(); }
+    await Promise.all([this.refreshConfig(), this.refreshHero(), this.refreshShop(), this.refreshStatus(), this.refreshClasses(), this.refreshBuild(), this.refreshBuffs(), ...(this.hosted?[this.refreshTournament(),this.refreshBattle()]:[])]);
+    if (!this.hosted && generation === this.generation && this.combatEnabled) { if (this.hostBalance) this.syncHostBalance(); else await this.refreshBalance(); if (generation === this.generation) await this.refreshBattle(); }
+    if (!this.hosted && generation === this.generation && this.tournamentEnabled) await this.refreshTournament();
     if (generation === this.generation) this.publish({ loading: false });
   }
   tick = () => this.publish({ now: this.clock() });
   cooldown(type: string) { return Math.max(0, ((this.state.cooldowns[type] || 0) - this.clock()) / 1000); }
-  refreshBalance = () => this.balance(this.generation, this.identity.snapshot().login || '');
+  refreshBalance = () => this.hostBalance ? this.hostBalance.refresh().then(()=>this.syncHostBalance()) : this.balance(this.generation, this.identity.snapshot().login || '');
   private async balance(generation: number, login: string) {
     const request = this.issued.balance = (this.issued.balance || 0) + 1;
     const current = () => generation === this.generation && this.ready() && request > (this.applied.balance || 0);
@@ -252,7 +354,7 @@ export class PanelController {
   }
   async action(type: string, data: Record<string, unknown>, options: ActionOptions): Promise<ActionReply | null> {
     if (!this.ready() || this.state.mutationBlocked) return null;
-    const generation = this.generation, login = this.identity.snapshot().login!, token = this.auth.current()?.token, key = actionKey(type, data);
+    const generation = this.generation, token = this.auth.current()?.token, key = actionKey(type, data);
     // BnrBuilds has one synchronous family lock. Rendered disabled state alone
     // is too late for two different choices clicked before Preact commits.
     const buildFamily = !!options.buildFamily || type === 'hero.set_specialization' || type === 'hero.claim_starter' || type === 'hero.select_weapon_power';
@@ -279,7 +381,7 @@ export class PanelController {
       }
       this.publish({ message: options.quietCooldown && !result.success && typeof result.cooldown_remaining_s === 'number' && result.cooldown_remaining_s > 0 ? '' : (result.required_role && !result.success ? '🔒 ' : '') + (result.success && options.successMessage || result.message || (result.success ? 'Заявка отправлена' : 'Действие не выполнено')) });
       if (result.success) {
-        void this.balance(generation, login);
+        void this.refreshBalance();
         // BnrBuilds' own accepted-action continuation is viewer-owned, not
         // wrapper-JWT-owned: token refresh cannot unlock a second build choice.
         if (buildFamily) { this.buildRevision++; this.publish({ buildPending: true }); }
@@ -288,7 +390,7 @@ export class PanelController {
         if (options.tail === 'hero' && token === this.auth.current()?.token) {
           this.applied.hero = this.issued.hero = (this.issued.hero || 0) + 1;
           if (!buildFamily) this.buildRevision++;
-          const timer = setTimeout(() => { this.timers.delete(timer); if (generation !== this.generation || token !== this.auth.current()?.token || !this.ready()) return; void this.refreshHero(); void this.refreshBuild(); void this.equipmentRefresh?.(); }, 3500);
+          const timer = setTimeout(() => { this.timers.delete(timer); if (generation !== this.generation || token !== this.auth.current()?.token || !this.ready()) return; void this.refreshHero(); void this.refreshBuild(); void this.equipmentRefresh?.(); if (this.tournamentEnabled) void this.refreshTournament(); }, 3500);
           this.timers.add(timer);
         }
       }

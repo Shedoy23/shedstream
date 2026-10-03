@@ -1,6 +1,9 @@
 import type { ForgeObservation } from './forge';
+import type {ShopReply,StatusReply} from './commerce';
+import type { TournamentReply } from './tournament';
 import type { DiplomacyReply } from './diplomacy';
 import type { PartyOrdersReply } from './party';
+import type { ContentCatalogs, ProgressionReply } from './progression';
 // Wire contracts are server-owned. Unknown fields survive parsing; no economy
 // defaults or game catalog enums are synthesized by this presentation layer.
 export interface RefundNotice { action_id: string; type: string; reason?: string; refunded: boolean }
@@ -14,8 +17,10 @@ export interface ClassesReply { success: boolean; current_powers?: PowerOption[]
 export interface BuffsReply { success: boolean; buffs: { power_key: string; remaining_s: number }[]; cooldowns: { power_key: string; remaining_s: number }[] }
 export interface ActionReply { action_id?: string; success: boolean; message?: string; cooldown_applied_s?: number; cooldown_remaining_s?: number; required_role?: string; [key: string]: unknown }
 export interface ActionOptions { quietCooldown?: boolean; buildFamily?: boolean; cooldownKey?: string; tail: 'hero' | 'balance'; immediateHero?: boolean; successMessage?: string }
-export interface PanelState { forgeEquipment: ForgeObservation | null; diplomacy: DiplomacyReply | null; partyOrders: PartyOrdersReply | null; refundNotices: { id: string; message: string }[]; battle: BattleReply | null; buffs: Record<string, number>; buffsReady: boolean; points: number | null; newBuild: boolean; buildBusy: boolean; buildCooldownUntil: number; optimisticStance: string | null; hero: HeroReply | null; config: PanelConfig | null; build: BuildReply | null; classes: ClassesReply | null; loading: boolean; canAct: boolean; mutationBlocked: boolean; message: string; error: string; errors: Record<string, string>; buildPending: boolean; busy: readonly string[]; cooldowns: Record<string, number>; now: number; generation: number }
-export interface PanelTransport { mutationBlock?(): string | null; read<T>(path: string, signal?: AbortSignal): Promise<T>; action(type: string, data: Record<string, unknown>): Promise<ActionReply | null> }
+export interface PanelState { shop?:ShopReply|null; status?:StatusReply|null; catalogs?: ContentCatalogs | null; progression?: ProgressionReply | null; tournament?: TournamentReply | null; forgeEquipment: ForgeObservation | null; diplomacy: DiplomacyReply | null; partyOrders: PartyOrdersReply | null; refundNotices: { id: string; message: string }[]; battle: BattleReply | null; buffs: Record<string, number>; buffsReady: boolean; points: number | null; newBuild: boolean; buildBusy: boolean; buildCooldownUntil: number; optimisticStance: string | null; hero: HeroReply | null; config: PanelConfig | null; build: BuildReply | null; classes: ClassesReply | null; loading: boolean; canAct: boolean; mutationBlocked: boolean; message: string; error: string; errors: Record<string, string>; buildPending: boolean; busy: readonly string[]; cooldowns: Record<string, number>; now: number; generation: number }
+export interface DailyReply {success:boolean;can_claim:boolean;last_claim_date?:string|null;today_date?:string;last_reward_type?:'gold'|'xp'|null;reward_amounts?:Partial<Record<'gold'|'xp',number>>}
+export interface PanelState {daily?:DailyReply|null}
+export interface PanelTransport { post?(path:string,data:Record<string,unknown>):Promise<ActionReply|null>; mutationBlock?(): string | null; read<T>(path: string, signal?: AbortSignal): Promise<T>; action(type: string, data: Record<string, unknown>): Promise<ActionReply | null> }
 export const validPrice = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 export const heroContext = (data: HeroReply | null) => JSON.stringify([data?.has_hero, data?.hero?.hero_id, data?.hero?.iteration, data?.hero?.adopted_at]);
 export const actionKey = (type: string, data: Record<string, unknown>) => type + ':' + Object.keys(data).sort().filter(key => key !== 'client_action_id').map(key => key + '=' + String(data[key])).join('&');

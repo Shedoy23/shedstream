@@ -1,0 +1,112 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-commerce-parity.test.tsx (12 tests | 12 failed) 2960ms
+   ├Ч Bannerlord commerce boots actual shop progression and connection status in original request order 808ms
+   ├Ч Bannerlord gold offer 0 keeps exact preset and hero action tail 280ms
+   ├Ч Bannerlord gold offer 1 keeps exact preset and hero action tail 270ms
+   ├Ч Bannerlord gold offer 2 keeps exact preset and hero action tail 201ms
+   ├Ч Bannerlord shop XP uses the personal game quote and exact context 209ms
+   ├Ч Bannerlord optional catalog uses actual action price and generic continuation 167ms
+   ├Ч Bannerlord legacy gear upgrade keeps empty payload and full continuation 173ms
+   ├Ч Bannerlord legacy gear reequip keeps empty payload and full continuation 197ms
+   ├Ч Bannerlord gear refusal preserves server message and no success tails 174ms
+   ├Ч Bannerlord shop changed quote revokes a displayed paid confirmation 164ms
+   ├Ч Bannerlord absent gold presets never copy the legacy fallback price list 173ms
+   ├Ч Bannerlord new equipment store hides the old tier and reroll controls 140ms
+
+тОптОптОптОптОптОп Failed Tests 12 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord commerce boots actual shop progression and connection status in original request order
+TypeError: controller.enableCommerce is not a function
+ тЭп heroPair test/panel-hero-support.tsx:53:38
+
+ тЭп pair test/panel-commerce-parity.test.tsx:11:11
+ тЭп test/panel-commerce-parity.test.tsx:18:122
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/12]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord gold offer 0 keeps exact preset and hero action tail
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord gold offer 1 keeps exact preset and hero action tail
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord gold offer 2 keeps exact preset and hero action tail
+TypeError: controller.enableCommerce is not a function
+ тЭп heroPair test/panel-hero-support.tsx:53:38
+
+ тЭп pair test/panel-commerce-parity.test.tsx:11:11
+ тЭп test/panel-commerce-parity.test.tsx:19:123
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/12]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord shop XP uses the personal game quote and exact context
+TypeError: controller.enableCommerce is not a function
+ тЭп heroPair test/panel-hero-support.tsx:53:38
+
+ тЭп pair test/panel-commerce-parity.test.tsx:11:11
+ тЭп test/panel-commerce-parity.test.tsx:20:90
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/12]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord optional catalog uses actual action price and generic continuation
+TypeError: controller.enableCommerce is not a function
+ тЭп heroPair test/panel-hero-support.tsx:53:38
+
+ тЭп pair test/panel-commerce-parity.test.tsx:11:11
+ тЭп test/panel-commerce-parity.test.tsx:21:102
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/12]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord legacy gear upgrade keeps empty payload and full continuation
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord legacy gear reequip keeps empty payload and full continuation
+TypeError: controller.enableCommerce is not a function
+ тЭп heroPair test/panel-hero-support.tsx:53:38
+
+ тЭп pair test/panel-commerce-parity.test.tsx:11:11
+ тЭп test/panel-commerce-parity.test.tsx:22:146
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/12]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord gear refusal preserves server message and no success tails
+TypeError: controller.enableCommerce is not a function
+ тЭп heroPair test/panel-hero-support.tsx:53:38
+
+ тЭп pair test/panel-commerce-parity.test.tsx:11:11
+ тЭп test/panel-commerce-parity.test.tsx:23:94
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/12]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord shop changed quote revokes a displayed paid confirmation
+TypeError: controller.enableCommerce is not a function
+ тЭп heroPair test/panel-hero-support.tsx:53:38
+
+ тЭп pair test/panel-commerce-parity.test.tsx:11:11
+ тЭп test/panel-commerce-parity.test.tsx:24:92
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/12]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord absent gold presets never copy the legacy fallback price list
+TypeError: controller.enableCommerce is not a function
+ тЭп heroPair test/panel-hero-support.tsx:53:38
+
+ тЭп pair test/panel-commerce-parity.test.tsx:11:11
+ тЭп test/panel-commerce-parity.test.tsx:25:145
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[8/12]тОп
+
+ FAIL  test/panel-commerce-parity.test.tsx > Bannerlord new equipment store hides the old tier and reroll controls
+TypeError: controller.enableCommerce is not a function
+ тЭп heroPair test/panel-hero-support.tsx:53:38
+
+ тЭп pair test/panel-commerce-parity.test.tsx:11:11
+ тЭп test/panel-commerce-parity.test.tsx:26:94
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[9/12]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  12 failed (12)
+   Start at  16:06:03
+   Duration  8.92s (tests 35%, environment 32%, import 22%, transform 12%)
+

@@ -1,0 +1,211 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-policy-catalog.test.tsx > game policy catalog supplies custom IDs/names/descriptions and exact unchanged old action bytes
+[FE-DET] panel SHOW (battle started, viewer alive)
+
+ ❯ test/panel-policy-catalog.test.tsx (3 tests | 1 failed | 2 skipped) 1137ms
+   × game policy catalog supplies custom IDs/names/descriptions and exact unchanged old action bytes 1135ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 skipped (3)
+   Start at  19:01:46
+   Duration  4.72s (environment 31%, import 26%, tests 25%, transform 18%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-policy-catalog.test.tsx > game policy catalog supplies custom IDs/names/descriptions and exact unchanged old action bytes
+AssertionError: complete admitted-host traffic; only documented independent startup catalog/stats ordering differs: expected [ { method: 'GET', …(7) }, …(16) ] to deeply equal [ { method: 'GET', …(7) }, …(30) ]
+
+- Expected
++ Received
+
+@@ -148,172 +148,25 @@
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+-     "body": {
+-       "action_type": "hero.enact_policy",
+-       "data": {
+-         "client_action_id": "<generated-action-id>",
+-         "policy_id": "Mod.Policy-X",
+-         "policy_name": "Закон из игры",
+-       },
+-     },
+-     "cache": null,
+-     "contentType": "application/json",
+-     "method": "POST",
+-     "path": "/api/bannerlord/action",
+-     "query": "",
+-     "rawBody": "{\"action_type\":\"hero.enact_policy\",\"data\":{\"policy_id\":\"Mod.Policy-X\",\"policy_name\":\"Закон из игры\",\"client_action_id\":\"<generated-action-id>\"}}",
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/stats/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+      "body": null,
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/user/level/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/duel/list",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/kingdom-state",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": null,
+      "contentType": "",
+      "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/my-hero",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/build",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/equipment-shop",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": "no-store",
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/progression",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/party-orders",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/kingdom-state",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "alice-token",
+-   },
+-   {
+-     "body": null,
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/bannerlord/content-catalogs",
+      "query": "",
+      "rawBody": null,
+      "token": "alice-token",
+    },
+  ]
+
+ ❯ Object.check test/panel-combat-support.tsx:86:122
+     84|     // Move exactly this catalog GET across the immediately adjacent s…
+     85|     // retain every row, body byte, header, later poll and action cont…
+     86|     expect(actual, 'complete admitted-host traffic; only documented in…
+       |                                                                                                                          ^
+     87|   };
+     88|   if (!partyHost) check();
+ ❯ test/panel-policy-catalog.test.tsx:14:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

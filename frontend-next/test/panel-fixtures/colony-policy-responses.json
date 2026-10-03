@@ -1,0 +1,632 @@
+{
+  "source_head": "1ebe53c",
+  "app": "unchanged main.app (actual routers and middleware), httpx.ASGITransport, lifespan not run",
+  "network": "socket.connect and socket.getaddrinfo prohibited by sys audit hook",
+  "exception_handlers": {
+    "<class 'starlette.exceptions.HTTPException'>": "fastapi.exception_handlers.http_exception_handler",
+    "<class 'fastapi.exceptions.RequestValidationError'>": "fastapi.exception_handlers.request_validation_exception_handler",
+    "<class 'fastapi.exceptions.WebSocketRequestValidationError'>": "fastapi.exception_handlers.websocket_request_validation_exception_handler"
+  },
+  "source_sha256": {
+    "frontend-next\\src\\panel\\transport.ts": "a5b7d0542fa587f5e167720c1add41eecf5be99bb3710a20d226df00705b3213",
+    "frontend-next\\src\\skillgames\\http.ts": "4cc69d82fc223a0178df28f626573c6223101fc9ae876820d475e6b0691e0ec4",
+    "Расширение\\backend\\dependencies.py": "8868c751a53dec70ee5f480542c13590f57a69faf72045ac8a7d4131ea7a3f18",
+    "Расширение\\backend\\routes\\shedcolony.py": "76af4b50276164ac81a621bbba821518fd0648f8591509c7ecbbb8fdbd84bbc5",
+    "Расширение\\backend\\main.py": "2227a889207c4f33b0d55c599d1fce51f3e6beebdf6e0b3bc3b0e591ca0655bc"
+  },
+  "cases": {
+    "unregistered": {
+      "request": {
+        "method": "POST",
+        "path": "/api/shedcolony/action",
+        "jwt": "synthetic HS256, valid",
+        "identity": {
+          "channelId": "33",
+          "userId": "123"
+        },
+        "body": {
+          "action_type": "colonist.heal",
+          "data": {
+            "client_action_id": "local-policy-unregistered"
+          }
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "content-length": "156",
+          "content-type": "application/json",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "strict-origin-when-cross-origin",
+          "strict-transport-security": "max-age=63072000; includeSubDomains",
+          "content-security-policy": "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv",
+          "permissions-policy": "camera=(), microphone=(), geolocation=()",
+          "cache-control": "no-store, max-age=0",
+          "pragma": "no-cache",
+          "expires": "0"
+        },
+        "body": {
+          "detail": {
+            "status": "channel_not_registered",
+            "channel_id": 33,
+            "message": "Стример не подключил расширение к платформе"
+          }
+        },
+        "raw_body": "{\"detail\":{\"status\":\"channel_not_registered\",\"channel_id\":33,\"message\":\"Стример не подключил расширение к платформе\"}}"
+      },
+      "trace": [
+        {
+          "function": "shedcolony_buy_action",
+          "line": 494,
+          "file": "Расширение/backend/routes/shedcolony.py"
+        },
+        {
+          "function": "require_jwt_user",
+          "line": 560,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "verify_twitch_jwt",
+          "line": 20,
+          "file": "Расширение/backend/auth.py"
+        },
+        {
+          "function": "resolve_jwt_login",
+          "line": 447,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "is_channel_registered",
+          "line": 82,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "_raise_channel_not_registered",
+          "line": 525,
+          "file": "Расширение/backend/dependencies.py"
+        }
+      ],
+      "request_body_receive_calls": 0,
+      "db_before": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      },
+      "db_after": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      }
+    },
+    "pending": {
+      "request": {
+        "method": "POST",
+        "path": "/api/shedcolony/action",
+        "jwt": "synthetic HS256, valid",
+        "identity": {
+          "channelId": "22",
+          "userId": "123"
+        },
+        "body": {
+          "action_type": "colonist.heal",
+          "data": {
+            "client_action_id": "local-policy-pending"
+          }
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "content-length": "156",
+          "content-type": "application/json",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "strict-origin-when-cross-origin",
+          "strict-transport-security": "max-age=63072000; includeSubDomains",
+          "content-security-policy": "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv",
+          "permissions-policy": "camera=(), microphone=(), geolocation=()",
+          "cache-control": "no-store, max-age=0",
+          "pragma": "no-cache",
+          "expires": "0"
+        },
+        "body": {
+          "detail": {
+            "status": "channel_pending_approval",
+            "channel_id": 22,
+            "message": "Заявка стримера принята и ждёт подключения"
+          }
+        },
+        "raw_body": "{\"detail\":{\"status\":\"channel_pending_approval\",\"channel_id\":22,\"message\":\"Заявка стримера принята и ждёт подключения\"}}"
+      },
+      "trace": [
+        {
+          "function": "shedcolony_buy_action",
+          "line": 494,
+          "file": "Расширение/backend/routes/shedcolony.py"
+        },
+        {
+          "function": "require_jwt_user",
+          "line": 560,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "verify_twitch_jwt",
+          "line": 20,
+          "file": "Расширение/backend/auth.py"
+        },
+        {
+          "function": "resolve_jwt_login",
+          "line": 447,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "is_channel_registered",
+          "line": 82,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "is_channel_approved",
+          "line": 94,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "_raise_channel_pending",
+          "line": 507,
+          "file": "Расширение/backend/dependencies.py"
+        }
+      ],
+      "request_body_receive_calls": 0,
+      "db_before": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      },
+      "db_after": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      }
+    },
+    "rate_limited": {
+      "request": {
+        "method": "POST",
+        "path": "/api/shedcolony/action",
+        "jwt": "synthetic HS256, valid",
+        "identity": {
+          "channelId": "98319857",
+          "userId": "123"
+        },
+        "body": {
+          "action_type": "colonist.heal",
+          "data": {
+            "client_action_id": "local-policy-rate_limited"
+          }
+        }
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "retry-after": "60",
+          "content-length": "216",
+          "content-type": "application/json",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "strict-origin-when-cross-origin",
+          "strict-transport-security": "max-age=63072000; includeSubDomains",
+          "content-security-policy": "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv",
+          "permissions-policy": "camera=(), microphone=(), geolocation=()",
+          "cache-control": "no-store, max-age=0",
+          "pragma": "no-cache",
+          "expires": "0"
+        },
+        "body": {
+          "detail": {
+            "status": "channel_rate_limited",
+            "channel_id": 98319857,
+            "tier": "vip",
+            "limit_per_min": 6000,
+            "scope": "channel",
+            "message": "Слишком много запросов. Попробуй через минуту."
+          }
+        },
+        "raw_body": "{\"detail\":{\"status\":\"channel_rate_limited\",\"channel_id\":98319857,\"tier\":\"vip\",\"limit_per_min\":6000,\"scope\":\"channel\",\"message\":\"Слишком много запросов. Попробуй через минуту.\"}}"
+      },
+      "trace": [
+        {
+          "function": "shedcolony_buy_action",
+          "line": 494,
+          "file": "Расширение/backend/routes/shedcolony.py"
+        },
+        {
+          "function": "require_jwt_user",
+          "line": 560,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "verify_twitch_jwt",
+          "line": 20,
+          "file": "Расширение/backend/auth.py"
+        },
+        {
+          "function": "resolve_jwt_login",
+          "line": 447,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "is_channel_registered",
+          "line": 82,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "is_channel_approved",
+          "line": 94,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "_check_request_rate_limit",
+          "line": 217,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "check_channel_rate_limit",
+          "line": 193,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "_raise_channel_rate_limited",
+          "line": 541,
+          "file": "Расширение/backend/dependencies.py"
+        }
+      ],
+      "request_body_receive_calls": 0,
+      "db_before": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      },
+      "db_after": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      }
+    },
+    "expired": {
+      "request": {
+        "method": "POST",
+        "path": "/api/shedcolony/action",
+        "jwt": "synthetic HS256, expired",
+        "identity": {
+          "channelId": "98319857",
+          "userId": "123"
+        },
+        "body": {
+          "action_type": "colonist.heal",
+          "data": {
+            "client_action_id": "local-policy-expired"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "82",
+          "content-type": "application/json",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "strict-origin-when-cross-origin",
+          "strict-transport-security": "max-age=63072000; includeSubDomains",
+          "content-security-policy": "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv",
+          "permissions-policy": "camera=(), microphone=(), geolocation=()",
+          "cache-control": "no-store, max-age=0",
+          "pragma": "no-cache",
+          "expires": "0"
+        },
+        "body": {
+          "success": false,
+          "message": "❌ Требуется авторизация Twitch"
+        },
+        "raw_body": "{\"success\":false,\"message\":\"❌ Требуется авторизация Twitch\"}"
+      },
+      "trace": [
+        {
+          "function": "shedcolony_buy_action",
+          "line": 494,
+          "file": "Расширение/backend/routes/shedcolony.py"
+        },
+        {
+          "function": "require_jwt_user",
+          "line": 560,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "verify_twitch_jwt",
+          "line": 20,
+          "file": "Расширение/backend/auth.py"
+        }
+      ],
+      "request_body_receive_calls": 0,
+      "db_before": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      },
+      "db_after": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      }
+    },
+    "missing": {
+      "request": {
+        "method": "POST",
+        "path": "/api/shedcolony/action",
+        "jwt": "missing",
+        "identity": {
+          "channelId": "98319857",
+          "userId": "123"
+        },
+        "body": {
+          "action_type": "colonist.heal",
+          "data": {
+            "client_action_id": "local-policy-missing"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-length": "82",
+          "content-type": "application/json",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "strict-origin-when-cross-origin",
+          "strict-transport-security": "max-age=63072000; includeSubDomains",
+          "content-security-policy": "frame-ancestors https://*.twitch.tv https://*.ext-twitch.tv",
+          "permissions-policy": "camera=(), microphone=(), geolocation=()",
+          "cache-control": "no-store, max-age=0",
+          "pragma": "no-cache",
+          "expires": "0"
+        },
+        "body": {
+          "success": false,
+          "message": "❌ Требуется авторизация Twitch"
+        },
+        "raw_body": "{\"success\":false,\"message\":\"❌ Требуется авторизация Twitch\"}"
+      },
+      "trace": [
+        {
+          "function": "shedcolony_buy_action",
+          "line": 494,
+          "file": "Расширение/backend/routes/shedcolony.py"
+        },
+        {
+          "function": "require_jwt_user",
+          "line": 560,
+          "file": "Расширение/backend/dependencies.py"
+        },
+        {
+          "function": "verify_twitch_jwt",
+          "line": 20,
+          "file": "Расширение/backend/auth.py"
+        }
+      ],
+      "request_body_receive_calls": 0,
+      "db_before": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      },
+      "db_after": {
+        "viewers": [
+          [
+            98319857,
+            "alice",
+            100000
+          ],
+          [
+            98319857,
+            "carol",
+            100000
+          ]
+        ],
+        "heroes": [
+          [
+            98319857,
+            "alice",
+            500000
+          ]
+        ],
+        "actions": [
+          [
+            0
+          ]
+        ]
+      }
+    }
+  }
+}

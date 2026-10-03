@@ -1,0 +1,51 @@
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ ❯ test/panel-pets-parity.test.tsx (8 tests | 1 failed | 7 skipped) 1200ms
+   × pets purchase confirms server price before the exact legacy item and hatch refreshes 1197ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 skipped (8)
+   Start at  19:03:00
+   Duration  4.90s (environment 47%, tests 26%, import 19%, transform 8%, worker 1%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/panel-pets-parity.test.tsx > pets purchase confirms server price before the exact legacy item and hatch refreshes
+AssertionError: expected [ { method: 'GET', …(7) }, …(4) ] to deeply equal [ { method: 'GET', …(7) }, …(4) ]
+
+- Expected
++ Received
+
+@@ -19,18 +19,18 @@
+      "rawBody": null,
+      "token": "alice-token",
+    },
+    {
+      "body": {
+-       "item_id": "fixture_gem",
++       "item_id": "wrong-item",
+      },
+      "cache": null,
+      "contentType": "application/json",
+      "method": "POST",
+      "path": "/api/pet/purchase",
+      "query": "",
+-     "rawBody": "{\"item_id\":\"fixture_gem\"}",
++     "rawBody": "{\"item_id\":\"wrong-item\"}",
+      "token": "alice-token",
+    },
+    {
+      "body": null,
+      "cache": null,
+
+ ❯ Object.check test/panel-pets-parity.test.tsx:31:384
+
+ ❯ test/panel-pets-parity.test.tsx:47:130
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

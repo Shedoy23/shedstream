@@ -1,0 +1,35 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+stdout | test/panel-social-family-parity.test.tsx > social family proposal retains selected user raw payload and closes without balance reads
+before  [ [ '', '╨Т╤Л╨▒╨╡╤А╨╕ ╨╖╤А╨╕╤В╨╡╨╗╤П', true ], [ 'bob', 'bob', false ] ]
+after bob
+
+ тЭп test/panel-social-family-parity.test.tsx (7 tests | 1 failed | 6 skipped) 615ms
+   ├Ч social family proposal retains selected user raw payload and closes without balance reads 613ms
+
+тОптОптОптОптОптОптОп Failed Tests 1 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-social-family-parity.test.tsx > social family proposal retains selected user raw payload and closes without balance reads
+AssertionError: <section aria-label="╨б╨╡╨╝╤М╤П ╨╖╤А╨╕╤В╨╡╨╗╨╡╨╣" class="panel-card"><h2>╨б╨╡╨╝╤М╤П ╨╖╤А╨╕╤В╨╡╨╗╨╡╨╣</h2><p>╨С╤А╨░╨║ тАФ ╤Н╤В╨╛ ╤Б╤В╨░╤В╤Г╤Б ╨╕ ╤Б╨╛╤Ж╨╕╨░╨╗╤М╨╜╨░╤П ╤Б╨▓╤П╨╖╤М.</p><h3>╨Т╤Е╨╛╨┤╤П╤Й╨╕╨╡ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╤П</h3><p>╨Я╤А╨╕╤С╨╝ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╨╣ ╨▓╤А╨╡╨╝╨╡╨╜╨╜╨╛ ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╡╨╜: ╤Б╨╡╤А╨▓╨╕╤Б ╨┐╨╛╨║╨░ ╨╜╨╡ ╨┐╨╛╨┤╤В╨▓╨╡╤А╨╢╨┤╨░╨╡╤В ╨▓╤Л╨▒╤А╨░╨╜╨╜╨╛╨│╨╛ ╤З╨╡╨╗╨╛╨▓╨╡╨║╨░.</p><article><p>@carol ╨┐╤А╨╡╨┤╨╗╨░╨│╨░╨╡╤В ╨▒╤А╨░╨║</p><div class="panel-choices"><button type="button" data-accept-family="carol" disabled="">╨Я╤А╨╕╨╜╤П╤В╤М @carol</button><button type="button" data-reject-family="carol">╨Ю╤В╨║╨╗╨╛╨╜╨╕╤В╤М @carol</button></div></article><article><p>@bob ╨┐╤А╨╡╨┤╨╗╨░╨│╨░╨╡╤В ╨▒╤А╨░╨║</p><div class="panel-choices"><button type="button" data-accept-family="bob" disabled="">╨Я╤А╨╕╨╜╤П╤В╤М @bob</button><button type="button" data-reject-family="bob">╨Ю╤В╨║╨╗╨╛╨╜╨╕╤В╤М @bob</button></div></article><label>╨Ъ╨╛╨╝╤Г ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М ╨▒╤А╨░╨║<select><option value="">╨Т╤Л╨▒╨╡╤А╨╕ ╨╖╤А╨╕╤В╨╡╨╗╤П</option><option>bob</option></select></label><button type="button" disabled="">╨Я╤А╨╡╨┤╨╗╨╛╨╢╨╕╤В╤М</button><button type="button">╨Ч╨░╨║╤А╤Л╤В╤М</button></section>: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ тЭп test/panel-social-family-parity.test.tsx:15:766
+
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/1]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 skipped (7)
+   Start at  16:58:57
+   Duration  3.58s (environment 49%, import 23%, tests 19%, transform 9%)
+

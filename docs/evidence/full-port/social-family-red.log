@@ -1,0 +1,355 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./preact.config" without a file extension (vitest.config.ts:2:31). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 C:/Users/Edward/Documents/Codex/2026-10-03/task/shedstream-full/frontend-next
+
+ тЭп test/panel-social-family-parity.test.tsx (7 tests | 7 failed) 1388ms
+   ├Ч social family reads only actual status proposals and online viewers in original order 610ms
+   ├Ч social family proposal retains selected user raw payload and closes without balance reads 185ms
+   ├Ч social family reject targets exactly the chosen proposer and reloads all original branches 158ms
+   ├Ч social family divorce confirms real core price and preserves full minute traffic 124ms
+   ├Ч social family divorce refusal preserves unknown server text with no success refresh 108ms
+   ├Ч social family absent divorce quote never copies the old literal500 95ms
+   ├Ч social family blocks accept because real route ignores chosen proposer and marries another user 105ms
+
+тОптОптОптОптОптОптОп Failed Tests 7 тОптОптОптОптОптОптОп
+
+ FAIL  test/panel-social-family-parity.test.tsx > social family reads only actual status proposals and online viewers in original order
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(11) ]
+
+- Expected
++ Received
+
+@@ -87,36 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/status/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/proposals/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/online-list",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-social-family-parity.test.tsx:11:166
+ тЭп test/panel-social-family-parity.test.tsx:14:110
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[1/7]тОп
+
+ FAIL  test/panel-social-family-parity.test.tsx > social family proposal retains selected user raw payload and closes without balance reads
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(11) ]
+
+- Expected
++ Received
+
+@@ -87,36 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/status/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/proposals/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/online-list",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-social-family-parity.test.tsx:11:166
+ тЭп test/panel-social-family-parity.test.tsx:15:114
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[2/7]тОп
+
+ FAIL  test/panel-social-family-parity.test.tsx > social family reject targets exactly the chosen proposer and reloads all original branches
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(11) ]
+
+- Expected
++ Received
+
+@@ -87,36 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/status/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/proposals/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/online-list",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-social-family-parity.test.tsx:11:166
+ тЭп test/panel-social-family-parity.test.tsx:16:115
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[3/7]тОп
+
+ FAIL  test/panel-social-family-parity.test.tsx > social family divorce confirms real core price and preserves full minute traffic
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(9) ]
+
+- Expected
++ Received
+
+@@ -87,16 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/status/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-social-family-parity.test.tsx:11:166
+ тЭп test/panel-social-family-parity.test.tsx:17:105
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[4/7]тОп
+
+ FAIL  test/panel-social-family-parity.test.tsx > social family divorce refusal preserves unknown server text with no success refresh
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(9) ]
+
+- Expected
++ Received
+
+@@ -87,16 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/status/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-social-family-parity.test.tsx:11:166
+ тЭп test/panel-social-family-parity.test.tsx:18:108
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[5/7]тОп
+
+ FAIL  test/panel-social-family-parity.test.tsx > social family absent divorce quote never copies the old literal500
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(9) ]
+
+- Expected
++ Received
+
+@@ -87,16 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/status/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-social-family-parity.test.tsx:11:166
+ тЭп test/panel-social-family-parity.test.tsx:19:91
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[6/7]тОп
+
+ FAIL  test/panel-social-family-parity.test.tsx > social family blocks accept because real route ignores chosen proposer and marries another user
+AssertionError: expected [ { method: 'GET', тАж(7) }, тАж(8) ] to deeply equal [ { method: 'GET', тАж(7) }, тАж(11) ]
+
+- Expected
++ Received
+
+@@ -87,36 +87,6 @@
+      "path": "/api/duel/list",
+      "query": "",
+      "rawBody": null,
+      "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+    },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/status/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/marriage/proposals/alice",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+-   {
+-     "body": "null",
+-     "cache": null,
+-     "contentType": "",
+-     "method": "GET",
+-     "path": "/api/viewer/online-list",
+-     "query": "",
+-     "rawBody": null,
+-     "token": "fixture.eyJ1c2VyX2lkIjoiNDU2IiwiY2hhbm5lbF9pZCI6IjEyMyJ9.fixture",
+-   },
+  ]
+
+ тЭп Object.check test/panel-shell-pair.ts:55:30
+     53|     });
+     54|     if (exception) expect(applied, 'the explicit added-confirmation clтАж
+     55|     expect(normalize(trace)).toEqual(normalize(expected));
+       |                              ^
+     56|   } };
+     57| }
+ тЭп setup test/panel-social-family-parity.test.tsx:11:166
+ тЭп test/panel-social-family-parity.test.tsx:20:120
+
+тОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОптОп[7/7]тОп
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed (7)
+   Start at  16:52:05
+   Duration  5.44s (environment 45%, tests 27%, import 20%, transform 8%)
+

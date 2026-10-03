@@ -1,0 +1,294 @@
+{
+  "errors": [],
+  "trace": [
+    {
+      "method": "POST",
+      "path": "/api/user/resolve-twitch-token",
+      "query": "",
+      "body": "{\"token\":\"fixture-only\",\"opaque_id\":\"fixture-alice\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/config",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-hero",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/classes",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/build",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/duel/list",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+      "body": "{\"action_type\":\"hero.join_tournament\",\"data\":{\"price\":0,\"client_action_id\":\"016f41c1-1be8-4a21-a967-54aec0b892fc\"}}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/duel/list",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/bannerlord/action",
+      "query": "",
+      "body": "{\"action_type\":\"tournament.predict\",\"data\":{\"target\":\"bobby\",\"client_action_id\":\"c1a2ca4f-c44f-41bc-bac2-df4fbde22079\"}}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/viewer/stats/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-hero",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/build",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/equipment-shop",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/level/alice",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/duel/list",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/equipment-shop",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-hero",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/build",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/equipment-shop",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-hero",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/classes",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/build",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/tournament",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/my-buffs",
+      "query": "",
+      "body": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bannerlord/battle-status",
+      "query": "",
+      "body": ""
+    }
+  ],
+  "text": "S\nShedLink\nГерой Bannerlord\nРазвитие\nСнаряжение\nБоевые действия\nКлан, отряд и армия\nСообщество\nКейсы\nКейсы\n\nБесплатные награды за активность. Содержимое каждого тира указано ниже.\n\nПревью наград временно недоступно\n\nЗагружаем список\n\nЧто внутри каждого тира?"
+}

@@ -1,3 +1,4 @@
+import gameFixtures from './panel-fixtures/game-progression-responses.json';
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/preact';
 import { TwitchAuthStore } from '../src/auth';
@@ -217,7 +218,7 @@ for (const name of policies) it(`${name}: native action button displays exact se
   vi.useFakeTimers(); const auth = new TwitchAuthStore(); const f = heroEvidence.responses;
   const message = `  Отказ для ${name}: <b>новый серверный текст</b>  `;
   const reads: Record<string, unknown> = {
-    '/api/user/resolve-twitch-token': { login: 'alice' }, '/api/bannerlord/config': f.config,
+    '/api/user/resolve-twitch-token': { login: 'alice' }, '/api/bannerlord/content-catalogs': gameFixtures.responses.catalogs, '/api/bannerlord/progression': gameFixtures.responses.progression, '/api/bannerlord/config': f.config,
     '/api/bannerlord/my-hero': f.hero, '/api/bannerlord/classes': f.classes,
     '/api/bannerlord/build': f.build_ready, '/api/bannerlord/my-buffs': f.buffs,
     '/api/viewer/stats/alice': f.stats, '/api/user/level/alice': f.level, '/api/duel/list': f.duels,
@@ -233,16 +234,18 @@ for (const name of policies) it(`${name}: native action button displays exact se
   try {
     await flush(); await controller.start(); await flush();
     const ui = render(<HeroDevelopmentView controller={controller} />); fetcher.mockClear();
-    const button = ui.container.querySelector('[data-attr="Vigor"]') as HTMLButtonElement;
+    const button = ui.container.querySelector('[data-attr="vigor"]') as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     await act(async () => { button.click(); await flush(); });
+    await act(async()=>{ui.getByRole('button',{name:'Подтвердить',exact:true}).click();await flush();});
     expect(controller.snapshot().message).toBe(message); expect(controller.snapshot().mutationBlocked).toBe(false);
     expect(ui.container.textContent).toContain(message); expect(ui.container.querySelector('b')).toBeNull();
     expect(button.disabled).toBe(false); expect(controller.cooldown('hero.add_attribute')).toBe(0);
-    expect(fetcher.mock.calls.map(([url, init]) => [String(url), init?.method || 'GET'])).toEqual([['/api/bannerlord/action', 'POST'], ['/api/bannerlord/my-hero', 'GET']]);
+    expect(fetcher.mock.calls.map(([url, init]) => [String(url), init?.method || 'GET'])).toEqual([['/api/bannerlord/action', 'POST'], ['/api/bannerlord/my-hero', 'GET'], ['/api/bannerlord/content-catalogs','GET'], ['/api/bannerlord/progression','GET']]);
     await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
-    expect(fetcher).toHaveBeenCalledTimes(2); // Only the existing immediateHero read; no success-only tail or balance reads.
+    expect(fetcher).toHaveBeenCalledTimes(4); // Existing immediateHero read plus its two metadata reads; no success-only tail or balance reads.
     await act(async () => { button.click(); await flush(); });
-    expect(fetcher).toHaveBeenCalledTimes(4); expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(2); // Explicit second click + its immediateHero read.
+    await act(async()=>{ui.getByRole('button',{name:'Подтвердить',exact:true}).click();await flush();});
+    expect(fetcher).toHaveBeenCalledTimes(8); expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(2); // Explicit second click + its immediateHero read.
   } finally { controller.stop(); detach(); }
 });

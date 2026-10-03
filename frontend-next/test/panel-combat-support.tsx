@@ -19,6 +19,8 @@ export function normalized(trace: LegacyRequest[]) {
     if (body && typeof body === 'object' && !Array.isArray(body)) {
       if ('batch_id' in body) body.batch_id = '<generated-batch-id>';
       if (body.data && typeof body.data === 'object' && !Array.isArray(body.data) && 'client_action_id' in body.data) body.data.client_action_id = '<generated-action-id>';
+      // 03.10: the only intended wire change vs 0.0.5 - forge names the item it showed (asserted in panel-forge-parity).
+      if (body.action_type === 'hero.reforge_quality' && body.data && typeof body.data === 'object' && !Array.isArray(body.data)) delete body.data.expected_item_id;
     }
     return { ...request, body };
   });

@@ -7,7 +7,7 @@ import type { IdentityBootstrap } from '../skillgames/identity';
 import { actionKey, hasProgressionPrices, heroContext, UnknownActionOutcomeError, type BattleReply, type ActionOptions, type ActionReply, type BuffsReply, type BuildReply, type ClassesReply, type HeroReply, type PanelConfig, type PanelState, type PanelTransport } from './contracts';
 import { refundText } from './refunds';
 import { combatAllowed, semanticCooldown } from './combat';
-import { forgeAllowed, forgeObservation } from './forge';
+import { forgeAllowed, forgeItem, forgeObservation } from './forge';
 import type { EquipmentReply } from './equipment';
 const owner = (auth: TwitchAuthStore) => JSON.stringify([auth.current()?.channelId, auth.current()?.userId]);
 export class PanelController {
@@ -50,7 +50,9 @@ export class PanelController {
   async forgeAction(slot: string, context: string) {
     if (!this.forgeActive || !this.forgeAuthenticated() || !this.ready() || !forgeAllowed(this.state, slot, context)) return null;
     const owns = this.captureRequestOwner();
-    const result = await this.action('hero.reforge_quality', { slot }, { tail: 'hero' });
+    // 03.10: name the item the viewer saw; the server refuses before charging if the slot changed.
+    const expected = forgeItem(this.state.hero, slot)?.item_id;
+    const result = await this.action('hero.reforge_quality', { slot, expected_item_id: expected }, { tail: 'hero' });
     // Preserve the old local refresh, including a definite server refusal.
     // A duplicate/unknown outcome has no new continuation; old owners never read.
     if (result && owns()) {

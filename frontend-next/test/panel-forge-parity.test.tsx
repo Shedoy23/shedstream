@@ -20,7 +20,7 @@ for (const slot of slots) it(`forge ${slot} real control exact wire, usage and c
   await p.click(`.bnr-reforge-btn[data-slot="${slot}"]`);
   expect(posts(p)).toHaveLength(1); expect(p.ui.queryByRole('dialog')).toBeNull();
   const data = (posts(p)[0].body as { data: Record<string, unknown> }).data;
-  expect(Object.keys(data).sort()).toEqual(['client_action_id', 'slot']); expect(data.slot).toBe(slot); expect(data.client_action_id).toEqual(expect.any(String));
+  expect(Object.keys(data).sort()).toEqual(['client_action_id', 'expected_item_id', 'slot']); expect(data.expected_item_id).toBe((r.hero_forge.equipment as Record<string, { item_id: string }>)[slot].item_id); expect(data.slot).toBe(slot); expect(data.client_action_id).toEqual(expect.any(String));
   await p.advance(3500); p.check();
   expect(p.trace.slice(initial).filter(q => q.path.endsWith('/my-hero'))).toHaveLength(slot === 'horse' ? 1 : 2);
   await p.advance(26500); p.check();

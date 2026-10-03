@@ -517,10 +517,18 @@ namespace BannerlordLink.Behaviors
             // армейская логика (Army.HourlyTick / MoveLeaderToGatheringLocationIfNeeded)
             // тянет лидера к СВОЕЙ цели и наш приказ перебивается каждый час.
             // Ставим только если наш герой — лидер армии (иначе не наше дело).
+            SyncArmyTarget(mp, target);
+        }
+
+        /// <summary>Цель армии = цель приказа, если наш герой — лидер армии. 03.10: вызывалось
+        /// только при повторной выдаче; первая выдача оставляла армию с прежней (или пустой) целью
+        /// при лидере «осаждать» — вылет `Army.IsAnotherEnemyBesiegingTarget` (см. ArmyObjectiveGuardPatch).</summary>
+        internal static void SyncArmyTarget(MobileParty mp, Settlement target)
+        {
             try
             {
-                var army = mp.Army;
-                if (army != null && army.LeaderParty == mp && !ReferenceEquals(army.AiBehaviorObject, target))
+                var army = mp?.Army;
+                if (army != null && target != null && army.LeaderParty == mp && !ReferenceEquals(army.AiBehaviorObject, target))
                 {
                     army.AiBehaviorObject = target;
                     BannerlordLinkModule.Log(

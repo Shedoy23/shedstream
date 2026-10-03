@@ -211,6 +211,9 @@ namespace BannerlordLink.Actions
                 // см. PartyOrderBehavior.LockPartyAi, там вся история грабель). Приказ
                 // держится частой переотдачей раз в игровой час.
                 BannerlordLink.Behaviors.PartyOrderBehavior.LockPartyAi(mp);
+                // 03.10, вылет 21:39: лидер армии «осаждал», а цель армии оставалась прежней/пустой
+                // до первой переотдачи — синхронизируем сразу (как в PartyOrderBehavior.Reissue).
+                BannerlordLink.Behaviors.PartyOrderBehavior.SyncArmyTarget(mp, target);
                 try { mp.Ai.SetDoNotMakeNewDecisions(true); }
                 catch (Exception aiEx)
                 {

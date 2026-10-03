@@ -48,6 +48,13 @@ internal static partial class Program
             var rich=new Settlement { Name="Богатый", IsTown=true, MapFaction=p.MapFaction, Position=new CampaignVec2 { X=60 }, TestGold=100000 };
             Settlement.All.Add(poor); Settlement.All.Add(rich);
             Check(EquipmentAndTrade.FindUnloadingTown(p,s=>true)==rich, "near town with 100 gold must not win over a town that can buy the load");
+            // Both can pay the minimum at the same distance: the one that buys more of the load wins.
+            poor.TestGold=6000; poor.Position=new CampaignVec2 { X=60 };
+            Settlement.All.Remove(rich); Settlement.All.Add(rich);
+            Check(EquipmentAndTrade.FindUnloadingTown(p,s=>true)==rich, "equal distance: town that can buy 10000 must beat one that buys 6000");
+            // Without the minimum a near town with 100 gold would beat a far rich one; it must be skipped.
+            poor.TestGold=100; poor.Position=new CampaignVec2 { X=0 }; rich.Position=new CampaignVec2 { X=3000 };
+            Check(EquipmentAndTrade.FindUnloadingTown(p,s=>true)==rich, "town that can pay only 100 is not an unloading target");
         });
         Try("a fruitless sale at a broke town keeps it off the unloading list for 3 days", () => {
             Fresh(); EquipmentAndTrade.BrokeUntil.Clear(); var w=MakeWorld(prisoners:false); var p=MobileParty.MainParty;

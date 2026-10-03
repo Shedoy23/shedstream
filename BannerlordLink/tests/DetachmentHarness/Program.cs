@@ -6,6 +6,7 @@ using TaleWorlds.MountAndBlade;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using Newtonsoft.Json.Linq;
+class EngineDetachment : IDetachment { public void RemoveAgent(Agent a){} }
 class Program {
  static int failed,total; static HeroDetachmentBehavior b; static Agent a; static Team foe; static Mission m;
  static void Setup(){m=Mission.Current=new Mission(); b=new();m.MissionBehaviors.Add(b);b.OnBehaviorInitialize();a=new Agent{Index=1,Team=new Team()};m.Agents.Add(a);foe=new Team();HeroLookup.Hero=new();a.Character=HeroLookup.Hero.CharacterObject;ActionFeedback.Applied=ActionFeedback.Failed=0;Agent.Main=null;}
@@ -18,7 +19,9 @@ class Program {
  // 03.10: viewer orders take the hero out of its formation grid (RBM/formation pulled "Вблизи" back).
  Test("order unhooks hero from formation grid",()=>{var f=new Formation();a.Formation=f;Enemy(2,15);Check(b.Charge(a),"charge rejected");Check(f.Joins==1&&f.Detaches==1&&a.Detachment!=null&&a.DetachmentWeightSet==1f,"hero still in formation grid");});
  Test("second order does not detach twice",()=>{var f=new Formation();a.Formation=f;Enemy(2,15);b.Charge(a);b.Hold(a);Check(f.Joins==1&&f.Detaches==1,"detached twice: joins="+f.Joins+" detaches="+f.Detaches);});
- Test("unpositioned agent skips DetachUnit (engine crash guard)",()=>{var f=new Formation();a.Formation=f;a.FileIndex=-1;Enemy(2,15);Check(b.Charge(a),"charge rejected");Check(f.Detaches==0&&a.Detachment!=null,"DetachUnit called with file index -1");});
+ Test("unpositioned agent is left alone (no DetachUnit, no detachment mark)",()=>{var f=new Formation();a.Formation=f;a.FileIndex=-1;Enemy(2,15);Check(b.Charge(a),"charge rejected");Check(f.Detaches==0&&a.Detachment==null,"unpositioned agent marked detached - AttachUnit would add it to the line twice");Check(b.Attach(a)&&f.Attaches==0,"AttachUnit for an agent never detached (double add)");});
+ Test("our detachment keeps its heroes eligible (engine must not re-attach them every tick)",()=>{var f=new Formation();a.Formation=f;Enemy(2,15);b.Charge(a);var d=a.Detachment;Check(d!=null,"not detached");Check((bool)d.GetType().GetMethod("IsAgentEligible").Invoke(d,new object[]{a}),"engine DetachmentManager.TickAgent would AttachUnit the hero back");});
+ Test("agent held by an engine detachment is not taken",()=>{var f=new Formation();a.Formation=f;var other=new EngineDetachment();a.Detachment=other;Enemy(2,15);Check(b.Charge(a),"order lost");Check(a.Detachment==other&&f.Detaches==0,"took agent from engine detachment");});
  Test("attach returns hero into formation grid",()=>{var f=new Formation();a.Formation=f;b.Hold(a);Check(b.Attach(a),"attach failed");Check(f.Attaches==1&&a.Detachment==null&&f.Leaves==1,"hero not returned to the grid");});
  Test("follow order keeps hero in formation grid",()=>{var f=new Formation();a.Formation=f;Enemy(2,15);b.Charge(a);b.Follow(a);Check(f.Attaches==1&&a.Detachment==null,"follow left hero outside the grid");});
  Test("dead hero is released without AttachUnit",()=>{var f=new Formation();a.Formation=f;b.Hold(a);a.Active=false;m.CurrentTime=1;b.OnMissionTick(1);Check(f.Attaches==0&&f.Leaves==1&&a.Detachment==null,"dead hero attached back or detachment leaked");});

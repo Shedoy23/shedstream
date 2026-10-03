@@ -33,22 +33,26 @@ namespace BannerlordLink.Behaviors
 
         private ViewerDetachment(Formation formation) { _formation = formation; }
 
-        /// <summary>Вывести бойца из сетки его строя. false — строя нет (нечего отцеплять).</summary>
+        /// <summary>Вывести бойца из сетки его строя. false — строя нет или у бойца нет места
+        /// в сетке (нечего отцеплять — строй его и так не держит).</summary>
         internal static bool Unhook(Agent agent)
         {
             var formation = agent?.Formation;
             if (formation == null) return false;
             if (agent.Detachment is ViewerDetachment) return true;
+            // 03.10, вылет: бойца без места в сетке (индексы -1, список «без места») раньше всё
+            // равно помечали отцеплённым, а потом AttachUnit добавлял его в линию ВТОРОЙ раз —
+            // двойной учёт и номер места вне линии при её перестройке. Такого не трогаем.
+            var unit = (IFormationUnit)agent;
+            if (unit.FormationFileIndex < 0 || unit.FormationRankIndex < 0) return false;
             if (!ByFormation.TryGetValue(formation, out var d))
             {
                 d = new ViewerDetachment(formation);
                 formation.JoinDetachment(d);
                 ByFormation[formation] = d;
             }
-            if (agent.Detachment != null) agent.Detachment.RemoveAgent(agent); // чужое (машина и т.п.)
-            var unit = (IFormationUnit)agent;
-            if (unit.FormationFileIndex >= 0 && unit.FormationRankIndex >= 0)
-                formation.DetachUnit(agent, true);
+            if (agent.Detachment != null) return false; // занят движковым отрядом (машина и т.п.) — не отбираем
+            formation.DetachUnit(agent, true);
             d._agents.Add(agent);
             agent.Detachment = d;
             agent.SetDetachmentWeight(1f);
@@ -85,7 +89,12 @@ namespace BannerlordLink.Behaviors
         public float GetDetachmentWeightFromCache() => float.MinValue;
         public void GetSlotIndexWeightTuples(List<(int, float)> slotIndexWeightTuples) { }
         public bool IsSlotAtIndexAvailableForAgent(int slotIndex, Agent agent) => false;
-        public bool IsAgentEligible(Agent agent) => false;
+        // 03.10, вылет первого боя: было `false`. DetachmentManager.TickAgent каждый такт
+        // спрашивает отцеплённого бойца «ты ещё годишься этому отряду?» и при «нет» сам
+        // зовёт RemoveAgent + Formation.AttachUnit — герой мгновенно возвращался в сетку,
+        // каждый приказ дёргал «из сетки — в сетку», и к концу боя у бойца остался номер
+        // места 11/1 в линии 8×5 → LineFormation.RemoveUnit вышел за массив. Наши — годятся.
+        public bool IsAgentEligible(Agent agent) => _agents.Contains(agent);
         public void AddAgentAtSlotIndex(Agent agent, int slotIndex) { }
         public Agent GetMovingAgentAtSlotIndex(int slotIndex) => null;
         public void MarkSlotAtIndex(int slotIndex) { }

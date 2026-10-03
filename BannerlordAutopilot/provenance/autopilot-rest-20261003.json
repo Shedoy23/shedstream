@@ -1,0 +1,404 @@
+{
+  "schema_version": 1,
+  "captured_utc": "2026-10-03T19:44:21.2763292Z",
+  "purpose": "Archive the exact installed autopilot-rest source; no build, execution, installation or repairs performed.",
+  "repository": "https://github.com/Shedoy23/shedstream.git",
+  "repository_id": 1225548312,
+  "source_commit": "1aa9e5baa13857ab09b8599fb1c5bd206bbfb27e",
+  "source_commit_already_verified_on_github": true,
+  "original_worktree": "C:\\Users\\Edward\\Desktop\\work\\.claude\\worktrees\\map-data-export",
+  "original_branch": "feature/autopilot-focus-20261003",
+  "original_head": "cacd4fc5ead9da77ff559239e5da1aabf382b380",
+  "original_dirty_changes": [],
+  "archive_contents": "Existing source commit, plus this provenance manifest only. No new binaries, logs, saves, secrets or unrelated changes uploaded. Existing repository history/tree is inherited.",
+  "apply_script": {
+    "path": "D:\\shedlink-build\\pending-20261003-autopilot-rest\\apply.sh",
+    "sha256": "291322e40bcb4f8399d095a16008f8f6a8bfe0fd320f2f1175929c2903e3f0db",
+    "executed": false,
+    "rollback_path": "D:\\shedlink-build\\dll-rollback\\20261003-autopilot-rest",
+    "required_previous_dll_sha256_prefix": "4adecbe8"
+  },
+  "artifacts": [
+    {
+      "path": "D:\\shedlink-build\\pending-20261003-autopilot-rest\\BannerlordAutopilot.dll",
+      "bytes": 294400,
+      "last_write_utc": "2026-10-03T18:42:01.8299976Z",
+      "sha256": "1f1ad6ee919444cbb913e2ae75f3a400da12e6bc26ad1b79dac2d347c948d531"
+    },
+    {
+      "path": "D:\\shedlink-build\\pending-20261003-autopilot-rest\\BannerlordAutopilot.pdb",
+      "bytes": 66640,
+      "last_write_utc": "2026-10-03T18:42:03.1689524Z",
+      "sha256": "f750d809d3169a0b92abccc501e3e1c32822c8a5f6a9dee7488f425d44877789"
+    },
+    {
+      "path": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.dll",
+      "bytes": 294400,
+      "last_write_utc": "2026-10-03T18:48:42.6720558Z",
+      "sha256": "1f1ad6ee919444cbb913e2ae75f3a400da12e6bc26ad1b79dac2d347c948d531"
+    },
+    {
+      "path": "X:\\SteamLibrary\\steamapps\\common\\Mount & Blade II Bannerlord\\Modules\\Shedoy23.BannerlordAutopilot\\bin\\Win64_Shipping_Client\\BannerlordAutopilot.pdb",
+      "bytes": 66640,
+      "last_write_utc": "2026-10-03T18:48:43.2662966Z",
+      "sha256": "f750d809d3169a0b92abccc501e3e1c32822c8a5f6a9dee7488f425d44877789"
+    }
+  ],
+  "dll_pdb_identity": {
+    "matches": true,
+    "codeview_guid": "18f82deb-5269-45c7-a496-a44fad3b7e34",
+    "codeview_stamp": 4091081016,
+    "codeview_age": 1,
+    "pdb_guid": "18f82deb-5269-45c7-a496-a44fad3b7e34",
+    "pdb_stamp": 4091081016,
+    "pdb_id": "eb2df8186952c745a496a44fad3b7e3438f1d8f3",
+    "codeview_path": "C:\\Users\\Edward\\Desktop\\work\\.claude\\worktrees\\map-data-export\\BannerlordAutopilot\\src\\obj\\Release\\BannerlordAutopilot.pdb"
+  },
+  "sourcelink": {
+    "documents": {
+      "C:\\Users\\Edward\\Desktop\\work\\.claude\\worktrees\\map-data-export\\*": "https://raw.githubusercontent.com/Shedoy23/shedstream/1aa9e5baa13857ab09b8599fb1c5bd206bbfb27e/*"
+    }
+  },
+  "compilation_options": [
+    "version",
+    "2",
+    "compiler-version",
+    "5.0.0-2.26119.110+80d3e14f5e08b4888f464e3cd0d0b2445b63ec46",
+    "language",
+    "C#",
+    "source-file-count",
+    "30",
+    "output-kind",
+    "DynamicallyLinkedLibrary",
+    "optimization",
+    "release",
+    "platform",
+    "AnyCpu",
+    "runtime-version",
+    "10.0.4-servicing.26119.110+80d3e14f5e08b4888f464e3cd0d0b2445b63ec46",
+    "language-version",
+    "14.0",
+    "define",
+    "TRACE,RELEASE,NETFRAMEWORK,NET472,NET20_OR_GREATER,NET30_OR_GREATER,NET35_OR_GREATER,NET40_OR_GREATER,NET45_OR_GREATER,NET451_OR_GREATER,NET452_OR_GREATER,NET46_OR_GREATER,NET461_OR_GREATER,NET462_OR_GREATER,NET47_OR_GREATER,NET471_OR_GREATER,NET472_OR_GREATER",
+    ""
+  ],
+  "documents": [
+    {
+      "path": "BannerlordAutopilot/src/AutopilotBanditGathering.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "f75bea9e9a3f6be2f35d4631afe5157342e4490600068c5d258a299516ec3693",
+      "source_commit_sha256": "f75bea9e9a3f6be2f35d4631afe5157342e4490600068c5d258a299516ec3693",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "f75bea9e9a3f6be2f35d4631afe5157342e4490600068c5d258a299516ec3693",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotBehavior.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "e43e74bb62b7edb61f57208fe0f6051bde63fb509596bda9991099ea677065e4",
+      "source_commit_sha256": "e43e74bb62b7edb61f57208fe0f6051bde63fb509596bda9991099ea677065e4",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "e43e74bb62b7edb61f57208fe0f6051bde63fb509596bda9991099ea677065e4",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotCampaign.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "77dd049e6c8737d5acd8d81870ca2d5cae336247e6027cb762f8eab66da02a3a",
+      "source_commit_sha256": "77dd049e6c8737d5acd8d81870ca2d5cae336247e6027cb762f8eab66da02a3a",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "77dd049e6c8737d5acd8d81870ca2d5cae336247e6027cb762f8eab66da02a3a",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotConquest.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "6723c67371b25ea4dcf331bc5acd5cae13ec2e84ccae68ea095c4258a3ec3f25",
+      "source_commit_sha256": "6723c67371b25ea4dcf331bc5acd5cae13ec2e84ccae68ea095c4258a3ec3f25",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "5505cc65c5d46d24870987943bf2057fa449f5443ac3eaa9d9a244ec6c1add0e",
+      "current_worktree_matches": false,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotDefense.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "864979382c5733d464633f2ff50af3b668902a1c64cd8f60f05b0a7ac6030887",
+      "source_commit_sha256": "864979382c5733d464633f2ff50af3b668902a1c64cd8f60f05b0a7ac6030887",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "864979382c5733d464633f2ff50af3b668902a1c64cd8f60f05b0a7ac6030887",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotFlee.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "44aed7f8c95182986eee506849fff667a246ffbf006a36dbd5073685a5f0731d",
+      "source_commit_sha256": "44aed7f8c95182986eee506849fff667a246ffbf006a36dbd5073685a5f0731d",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "44aed7f8c95182986eee506849fff667a246ffbf006a36dbd5073685a5f0731d",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotHunt.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "dc7a1e87c8a0e41bd5d4ab4aaecc32ae07a5379359fde73dc5576c8b07b5755f",
+      "source_commit_sha256": "dc7a1e87c8a0e41bd5d4ab4aaecc32ae07a5379359fde73dc5576c8b07b5755f",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "dc7a1e87c8a0e41bd5d4ab4aaecc32ae07a5379359fde73dc5576c8b07b5755f",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotLog.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "0548c26e0e60203e066cc5878d0b10f74107b44d1bd103ad47109d36c459f4fd",
+      "source_commit_sha256": "0548c26e0e60203e066cc5878d0b10f74107b44d1bd103ad47109d36c459f4fd",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "0548c26e0e60203e066cc5878d0b10f74107b44d1bd103ad47109d36c459f4fd",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotLoot.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "7cc6809081897abf06a075c1af374c7d974671c6982b09952da374cf59dd23b9",
+      "source_commit_sha256": "7cc6809081897abf06a075c1af374c7d974671c6982b09952da374cf59dd23b9",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "7cc6809081897abf06a075c1af374c7d974671c6982b09952da374cf59dd23b9",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotLordGathering.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "7016358262296bd5cfc60c8cb4bc486837b56e4777fba1e4caef1ff635714f7d",
+      "source_commit_sha256": "7016358262296bd5cfc60c8cb4bc486837b56e4777fba1e4caef1ff635714f7d",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "7016358262296bd5cfc60c8cb4bc486837b56e4777fba1e4caef1ff635714f7d",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotOperations.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "9f86bfc2fce4efc6f0207e5bee359636cb871d17c1853245935e90df540934db",
+      "source_commit_sha256": "9f86bfc2fce4efc6f0207e5bee359636cb871d17c1853245935e90df540934db",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "9f86bfc2fce4efc6f0207e5bee359636cb871d17c1853245935e90df540934db",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotPolitics.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "3109a1496e7756524209b4da5b8e830d000914cb88733e46f43b9163977f5101",
+      "source_commit_sha256": "3109a1496e7756524209b4da5b8e830d000914cb88733e46f43b9163977f5101",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "3109a1496e7756524209b4da5b8e830d000914cb88733e46f43b9163977f5101",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotPressureRaid.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "451a1ce4e94ab8d3dfec526352ed081dfc54f64a1a1840a5a4ce4dfb701dda8d",
+      "source_commit_sha256": "451a1ce4e94ab8d3dfec526352ed081dfc54f64a1a1840a5a4ce4dfb701dda8d",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "451a1ce4e94ab8d3dfec526352ed081dfc54f64a1a1840a5a4ce4dfb701dda8d",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotPrisoners.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "170a1be16df23e847fd91bf78cea8f8fa070b7baac6807820a01ce7d0a4d4761",
+      "source_commit_sha256": "170a1be16df23e847fd91bf78cea8f8fa070b7baac6807820a01ce7d0a4d4761",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "170a1be16df23e847fd91bf78cea8f8fa070b7baac6807820a01ce7d0a4d4761",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotRecovery.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "8e7c1379eda7deb4234339e6b3c5dea070fdc5a478fba7e92463add72d8b32be",
+      "source_commit_sha256": "8e7c1379eda7deb4234339e6b3c5dea070fdc5a478fba7e92463add72d8b32be",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "8e7c1379eda7deb4234339e6b3c5dea070fdc5a478fba7e92463add72d8b32be",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotResume.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "59ef204d96be616ba358ecb1621e148b2612a39e545d86be3ed88b1626b5f1d5",
+      "source_commit_sha256": "59ef204d96be616ba358ecb1621e148b2612a39e545d86be3ed88b1626b5f1d5",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "59ef204d96be616ba358ecb1621e148b2612a39e545d86be3ed88b1626b5f1d5",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/AutopilotSubModule.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "63c900c21e2ea81729f5ab27b4644b35539e1cdcd9495be07246cd2b9f8faec2",
+      "source_commit_sha256": "63c900c21e2ea81729f5ab27b4644b35539e1cdcd9495be07246cd2b9f8faec2",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "63c900c21e2ea81729f5ab27b4644b35539e1cdcd9495be07246cd2b9f8faec2",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/BattleAutopilotMission.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "6a7510488a6645c7d4c9b8dc7f92891c6da92fd5f06ca03fc151f9c8dd64ffe1",
+      "source_commit_sha256": "6a7510488a6645c7d4c9b8dc7f92891c6da92fd5f06ca03fc151f9c8dd64ffe1",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "6a7510488a6645c7d4c9b8dc7f92891c6da92fd5f06ca03fc151f9c8dd64ffe1",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/BattleOverviewCamera.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "91b925eb75c46bbf9a41513773519500ed792a8f7429e4b98e831cf15c2ec47b",
+      "source_commit_sha256": "91b925eb75c46bbf9a41513773519500ed792a8f7429e4b98e831cf15c2ec47b",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "91b925eb75c46bbf9a41513773519500ed792a8f7429e4b98e831cf15c2ec47b",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/BattleOverviewRig.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "867ed5151cb853688c2b01616d95ad6219f8edae4942661e22a6b9b6104957a6",
+      "source_commit_sha256": "867ed5151cb853688c2b01616d95ad6219f8edae4942661e22a6b9b6104957a6",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "867ed5151cb853688c2b01616d95ad6219f8edae4942661e22a6b9b6104957a6",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/EngineContract.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "e17cfd66a97991181988ef02f8ac0204a6c4f3ed7854cc8c9c5a40b5fdceaa94",
+      "source_commit_sha256": "e17cfd66a97991181988ef02f8ac0204a6c4f3ed7854cc8c9c5a40b5fdceaa94",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "e17cfd66a97991181988ef02f8ac0204a6c4f3ed7854cc8c9c5a40b5fdceaa94",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/EquipmentAndTrade.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "c6937a0fb505d15281f5679f6415292dd0b7f9d92544b0077bae4548fcb52057",
+      "source_commit_sha256": "c6937a0fb505d15281f5679f6415292dd0b7f9d92544b0077bae4548fcb52057",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "c6937a0fb505d15281f5679f6415292dd0b7f9d92544b0077bae4548fcb52057",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/MenuDriver.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "4529348ba0846d6ba47e4e7c66b8e9d9cbabddf2336c99b16ebea7e9456e9bab",
+      "source_commit_sha256": "4529348ba0846d6ba47e4e7c66b8e9d9cbabddf2336c99b16ebea7e9456e9bab",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "4529348ba0846d6ba47e4e7c66b8e9d9cbabddf2336c99b16ebea7e9456e9bab",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/PoliticsPolicy.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "541ee8914f4392062d234ab7e00d78af402b5a5b71b05edd0aa23e890f0ff334",
+      "source_commit_sha256": "541ee8914f4392062d234ab7e00d78af402b5a5b71b05edd0aa23e890f0ff334",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "541ee8914f4392062d234ab7e00d78af402b5a5b71b05edd0aa23e890f0ff334",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/SettlementServices.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "89aebf6c2ce51393165c97d50b277be0a75d542e5f17a60a8a00c8c7e6ca26bc",
+      "source_commit_sha256": "89aebf6c2ce51393165c97d50b277be0a75d542e5f17a60a8a00c8c7e6ca26bc",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "89aebf6c2ce51393165c97d50b277be0a75d542e5f17a60a8a00c8c7e6ca26bc",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/StreamStatus.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "1149c19da3ab00e94e06b3ff49a39d5187e0d1de9f45e77ea7776dd45785f583",
+      "source_commit_sha256": "1149c19da3ab00e94e06b3ff49a39d5187e0d1de9f45e77ea7776dd45785f583",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "1149c19da3ab00e94e06b3ff49a39d5187e0d1de9f45e77ea7776dd45785f583",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/Thoughts.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "21240ede06debe268d648dedc23d6dad863dd7ee10f192aae0d0c2b7ae684973",
+      "source_commit_sha256": "21240ede06debe268d648dedc23d6dad863dd7ee10f192aae0d0c2b7ae684973",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "21240ede06debe268d648dedc23d6dad863dd7ee10f192aae0d0c2b7ae684973",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/TroopUpgrades.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "e9ea4ac5cc00a326f2df1b8f39faf5538bbe531653ada86ba27a84c7aed66327",
+      "source_commit_sha256": "e9ea4ac5cc00a326f2df1b8f39faf5538bbe531653ada86ba27a84c7aed66327",
+      "source_commit_matches": true,
+      "current_worktree_sha256": "e9ea4ac5cc00a326f2df1b8f39faf5538bbe531653ada86ba27a84c7aed66327",
+      "current_worktree_matches": true,
+      "generated": false
+    },
+    {
+      "path": "BannerlordAutopilot/src/obj/Release/.NETFramework,Version=v4.7.2.AssemblyAttributes.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "621199557e90fb1661e401cc9a973163c850b4b7e65bbc8d100f67f6699eef70",
+      "source_commit_sha256": null,
+      "source_commit_matches": false,
+      "current_worktree_sha256": "621199557e90fb1661e401cc9a973163c850b4b7e65bbc8d100f67f6699eef70",
+      "current_worktree_matches": true,
+      "generated": true
+    },
+    {
+      "path": "BannerlordAutopilot/src/obj/Release/BannerlordAutopilot.AssemblyInfo.cs",
+      "algorithm": "8829d00f-11b8-4213-878b-770e8597ac16",
+      "pdb_sha256": "df70cad6d0c08907c869949e18af8a024c5eac056491f2964e367d70a11083c5",
+      "source_commit_sha256": null,
+      "source_commit_matches": false,
+      "current_worktree_sha256": "47854f389215f5182b968e0955d396017335e9c95e8801357cba6c80854e6ef3",
+      "current_worktree_matches": false,
+      "generated": true
+    }
+  ],
+  "source_verification": {
+    "non_generated_document_count": 28,
+    "all_non_generated_documents_match": true,
+    "generated_document_count": 2,
+    "target_framework": "net472",
+    "configuration": "Release",
+    "runtime_behavior_verified": false,
+    "rebuilt": false
+  },
+  "limitations": [
+    "PDB checksums match all 28 non-generated compilation documents from the exact Git commit. This establishes source-to-symbol linkage and DLL/PDB identity, not a fresh reproducible build or runtime correctness.",
+    "No contemporaneous dirty-status/build invocation/dependency hash manifest was found in the staging directory. SourceLink alone is not taken as proof; document checksums were checked independently.",
+    "Two generated compiler documents are not tracked in Git; the current generated AssemblyInfo belongs to later rest2 HEAD and differs from this PDB. Their PDB hashes are retained.",
+    "Project file and tests are taken from the source commit; PDB document checksums do not attest csproj or test files. Proprietary dependencies are external and not uploaded.",
+    "Current HEAD cacd4fc5ead9da77ff559239e5da1aabf382b380 is later rest2, not the installed rest build; its AutopilotConquest.cs differs. No original worktree files or refs were changed."
+  ],
+  "archive_branch": "archive/autopilot-rest-20261003-1f1ad6ee-31061a"
+}
